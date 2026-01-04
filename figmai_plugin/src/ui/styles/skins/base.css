@@ -1,0 +1,10 @@
+/**
+ * Base Skin (Light Theme)
+ * Light theme is the default, defined in theme.css
+ * This file can be used for light-specific overrides if needed
+ */
+
+[data-theme="light"] {
+  /* Light theme uses default :root values */
+}
+
