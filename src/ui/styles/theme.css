@@ -1,0 +1,96 @@
+/**
+ * Theme CSS Variables
+ * All colors, spacing, typography tokens defined here
+ * Skins override these variables
+ */
+
+:root {
+  /* Colors */
+  --bg: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --fg: #000000;
+  --fg-secondary: #666666;
+  --muted: #999999;
+  --border: #e0e0e0;
+  --accent: #0066ff;
+  --accent-hover: #0052cc;
+  --accent-active: #003d99;
+  --error: #ff3333;
+  --success: #00cc66;
+  --warning: #ff9900;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-xs: 10px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15);
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* Animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark theme variables (overridden by dark.css) */
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --fg: #ffffff;
+  --fg-secondary: #cccccc;
+  --muted: #888888;
+  --border: #404040;
+  --accent: #4da6ff;
+  --accent-hover: #66b3ff;
+  --accent-active: #3399ff;
+  --error: #ff6666;
+  --success: #66ff99;
+  --warning: #ffb366;
+}
+

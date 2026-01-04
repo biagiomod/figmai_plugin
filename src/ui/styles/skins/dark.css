@@ -1,0 +1,20 @@
+/**
+ * Dark Skin
+ * Dark theme overrides
+ */
+
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --fg: #ffffff;
+  --fg-secondary: #cccccc;
+  --muted: #888888;
+  --border: #404040;
+  --accent: #4da6ff;
+  --accent-hover: #66b3ff;
+  --accent-active: #3399ff;
+  --error: #ff6666;
+  --success: #66ff99;
+  --warning: #ffb366;
+}
+
