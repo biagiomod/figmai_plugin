@@ -102,6 +102,7 @@ function Plugin() {
   const [hasAutoOpenedSendJson, setHasAutoOpenedSendJson] = useState(false)
   const [showCopySuccess, setShowCopySuccess] = useState(false)
   const [showSelectionHint, setShowSelectionHint] = useState(false)
+  const [showEmptyInputWarning, setShowEmptyInputWarning] = useState(false)
   const [showCredits, setShowCredits] = useState(true)
   const [creditsAutoCollapseTimer, setCreditsAutoCollapseTimer] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -448,7 +449,16 @@ function Plugin() {
   }, [selectionState.hasSelection, showSelectionHint])
   
   const handleSend = useCallback(() => {
-    if (!input.trim()) return
+    // Check for empty input first
+    if (!input.trim()) {
+      setShowEmptyInputWarning(true)
+      setTimeout(() => {
+        setShowEmptyInputWarning(false)
+      }, 3000)
+      return
+    }
+    
+    // Check selection requirement
     if (selectionRequired && !selectionState.hasSelection) return
     
     console.log('[UI] setThinking true - handleSend')
@@ -1990,16 +2000,17 @@ ${htmlTable}
           
           {/* Send Button */}
           <button
+            type="button"
             onClick={handleSend}
-            disabled={!input.trim() || (selectionRequired && !selectionState.hasSelection)}
+            disabled={selectionRequired && !selectionState.hasSelection}
             style={{
               width: '36px',
               height: '36px',
               padding: '0',
               border: 'none',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: (!input.trim() || (selectionRequired && !selectionState.hasSelection)) ? 'var(--muted)' : '#0066ff',
-              cursor: (!input.trim() || (selectionRequired && !selectionState.hasSelection)) ? 'not-allowed' : 'pointer',
+              backgroundColor: (selectionRequired && !selectionState.hasSelection) ? 'var(--muted)' : '#0066ff',
+              cursor: (selectionRequired && !selectionState.hasSelection) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -2788,6 +2799,38 @@ ${htmlTable}
         </div>
       )}
       
+      {/* Empty Input Warning Notification */}
+      {showEmptyInputWarning && (
+        <div 
+          role="alert"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'var(--warning)',
+            color: '#ffffff',
+            padding: 'var(--spacing-md) var(--spacing-lg)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-sm)',
+            fontSize: 'var(--font-size-sm)',
+            fontFamily: 'var(--font-family)',
+            fontWeight: 'var(--font-weight-medium)',
+            animation: 'slideDown 0.3s ease-out'
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+          </svg>
+          Enter a message before sending.
+        </div>
+      )}
+      
       {/* Paste Debug Panel */}
       {showPasteDebug && DEBUG_CLIPBOARD && (
         <div style={{
@@ -3109,12 +3152,21 @@ ${htmlTable}
             </div>
           </div>
         ) : (
-          <div style={{
-            padding: 'var(--spacing-xs) var(--spacing-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
+          <button
+            onClick={handleCreditsToggle}
+            style={{
+              width: '100%',
+              padding: 'var(--spacing-xs) var(--spacing-md)',
+              border: 'none',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontFamily: 'var(--font-family)'
+            }}
+            title="Expand Resources & Credits"
+          >
             <div style={{
               fontSize: 'var(--font-size-xs)',
               color: 'var(--fg-secondary)',
@@ -3122,23 +3174,8 @@ ${htmlTable}
             }}>
               Resources & Credits
             </div>
-            <button
-              onClick={handleCreditsToggle}
-              style={{
-                padding: 'var(--spacing-xs)',
-                border: 'none',
-                backgroundColor: 'transparent',
-                color: 'var(--fg-secondary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              title="Expand Resources & Credits"
-            >
-              <ChevronUpIcon width={12} height={12} />
-            </button>
-          </div>
+            <ChevronUpIcon width={12} height={12} style={{ color: 'var(--fg-secondary)' }} />
+          </button>
         )}
       </div>
     </div>
