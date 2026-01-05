@@ -43,7 +43,7 @@ import type {
   CopyTableStatusHandler
 } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
-import { buildHtmlTable, buildTsv, buildJson } from './core/contentTable/clipboard'
+import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 
 // Import CSS
 import './ui/styles/theme.css'
@@ -679,10 +679,10 @@ function Plugin() {
     console.log('[Clipboard] navigator.clipboard.write available:', !!(navigator.clipboard && navigator.clipboard.write))
     
     try {
-      // Build formats based on copyFormatType
-      const htmlTable = buildHtmlTable(contentTable, format)
-      const tsv = buildTsv(contentTable, format)
-      const json = buildJson(contentTable)
+      // Build formats based on copyFormatType using single source of truth renderers
+      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, format)
+      const tsv = universalTableToTsv(contentTable, format)
+      const json = universalTableToJson(contentTable)
       
       console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length, 'JSON length:', json.length)
       
@@ -1020,7 +1020,7 @@ function Plugin() {
   const handleDownloadHtml = useCallback((format: TableFormatPreset) => {
     if (!contentTable) return
     
-    const htmlTable = buildHtmlTable(contentTable, format)
+    const { html: htmlTable } = universalTableToHtml(contentTable, format)
     const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -1052,7 +1052,7 @@ ${htmlTable}
     }
     
     try {
-      const tsv = buildTsv(contentTable, format)
+      const tsv = universalTableToTsv(contentTable, format)
       
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(tsv)

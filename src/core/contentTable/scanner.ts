@@ -33,11 +33,13 @@ function buildBreadcrumbPath(rootNode: SceneNode, targetNode: SceneNode): string
 
 /**
  * Get component context for a node
+ * Enhanced to detect component instances and extract variant properties
  */
 function getComponentContext(node: SceneNode): {
   kind: "component" | "componentSet" | "instance" | "custom"
   name: string
   key?: string
+  variantProperties?: Record<string, string>
 } {
   let current: BaseNode | null = node
   
@@ -46,10 +48,22 @@ function getComponentContext(node: SceneNode): {
       const instance = current as InstanceNode
       const mainComponent = instance.mainComponent
       if (mainComponent) {
+        // Extract variant properties if available
+        const variantProperties: Record<string, string> | undefined = 
+          instance.variantProperties && Object.keys(instance.variantProperties).length > 0
+            ? Object.fromEntries(
+                Object.entries(instance.variantProperties).map(([key, value]) => [
+                  key,
+                  typeof value === 'string' ? value : String(value)
+                ])
+              )
+            : undefined
+        
         return {
           kind: 'instance',
           name: mainComponent.name,
-          key: mainComponent.key
+          key: mainComponent.key,
+          variantProperties
         }
       }
     } else if (current.type === 'COMPONENT') {
@@ -91,26 +105,69 @@ function getComponentContext(node: SceneNode): {
 }
 
 /**
- * Build node URL (best effort)
+ * Build canonical Figma URL
+ * Format: https://www.figma.com/design/<FILE_KEY>/<FILE_NAME>?node-id=<NODE_ID>&t=<TOKEN>
+ * 
+ * Requirements:
+ * - FILE_KEY from figma.fileKey
+ * - FILE_NAME from figma.root.name, URL-encoded
+ * - NODE_ID from node.id with : replaced by -
+ * - TOKEN: Prefer stable token if available, otherwise omit &t= entirely
  */
-function buildNodeUrl(nodeId: string): string {
-  // Try to get file key from figma.fileKey if available
-  // Otherwise use figma:// protocol
+function buildCanonicalFigmaUrl(nodeId: string): string {
   try {
+    // Get file key (may not be in types but exists in runtime)
     // @ts-ignore - fileKey may not be in types but exists in runtime
     const fileKey = figma.fileKey
-    if (fileKey) {
-      return `https://www.figma.com/file/${fileKey}?node-id=${encodeURIComponent(nodeId)}`
+    
+    if (!fileKey) {
+      // Fallback to figma:// protocol if fileKey not available
+      return `figma://node-id=${nodeId}`
     }
-  } catch {
-    // fileKey not available
+    
+    // Get root name (file name)
+    const rootName = figma.root.name || 'Untitled'
+    
+    // URL-encode the file name
+    const encodedFileName = encodeURIComponent(rootName)
+    
+    // Convert node ID from format "123:456" to "123-456"
+    const normalizedNodeId = nodeId.replace(/:/g, '-')
+    
+    // Build base URL
+    let url = `https://www.figma.com/design/${fileKey}/${encodedFileName}?node-id=${normalizedNodeId}`
+    
+    // Try to get stable token if available (some Figma APIs provide this)
+    // For now, we omit &t= as it's not reliably available in plugin context
+    // The URL will work without the token parameter
+    
+    return url
+  } catch (error) {
+    // Fallback to figma:// protocol on any error
+    console.warn('[Scanner] Failed to build canonical Figma URL:', error)
+    return `figma://node-id=${nodeId}`
   }
-  
-  return `figma://node-id=${nodeId}`
+}
+
+/**
+ * Sort nodes deterministically: top-to-bottom, left-to-right
+ * This ensures consistent ordering across scans
+ */
+function sortNodesDeterministically(nodes: readonly SceneNode[]): SceneNode[] {
+  return [...nodes].sort((a, b) => {
+    // First sort by Y position (top to bottom)
+    const yDiff = a.y - b.y
+    if (Math.abs(yDiff) > 1) { // Allow 1px tolerance for alignment
+      return yDiff
+    }
+    // Then sort by X position (left to right)
+    return a.x - b.x
+  })
 }
 
 /**
  * Recursively collect all text nodes from a node's subtree
+ * Enhanced with deterministic ordering (top-to-bottom, left-to-right)
  */
 function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPath: string[] = []): void {
   // If this is a text node, add it to items
@@ -121,7 +178,7 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
       : textNode.name
     
     const componentContext = getComponentContext(textNode)
-    const nodeUrl = buildNodeUrl(textNode.id)
+    const nodeUrl = buildCanonicalFigmaUrl(textNode.id)
     
     const item: ContentItemV1 = {
       id: textNode.id,
@@ -147,15 +204,17 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
   
   // Traverse children if node has them
   if ('children' in rootNode) {
-    const children = rootNode.children
-    for (const child of children) {
+    // Sort children deterministically (top-to-bottom, left-to-right)
+    const sortedChildren = sortNodesDeterministically(rootNode.children)
+    
+    for (const child of sortedChildren) {
       if (child.type === 'TEXT') {
         const textNode = child as TextNode
         const childPath = [...currentPath, textNode.name]
         const breadcrumb = childPath.join(' / ')
         
         const componentContext = getComponentContext(textNode)
-        const nodeUrl = buildNodeUrl(textNode.id)
+        const nodeUrl = buildCanonicalFigmaUrl(textNode.id)
         
         const item: ContentItemV1 = {
           id: textNode.id,

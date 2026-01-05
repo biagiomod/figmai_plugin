@@ -24,6 +24,7 @@ export type ContentItemV1 = {
     kind: "component" | "componentSet" | "instance" | "custom"
     name: string
     key?: string
+    variantProperties?: Record<string, string> // Variant properties for component instances
   }
   field: {
     label: string // default: nodeName
