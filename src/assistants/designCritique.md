@@ -20,25 +20,57 @@ Assume the user is an experienced designer who values clarity, prioritization, a
 
 ---
 
-## Critique Structure (STRICT)
+## Output Format (STRICT)
 
-When providing a critique, you **MUST** respond with valid JSON in **exactly** the following shape:
+**CRITICAL**: Return ONLY valid JSON. Do not wrap in markdown. Do not include any other text.
 
+**Schema** (must match exactly):
 ```json
 {
-  "score": 85,
-  "wins": ["Primary CTA is visually dominant and clearly separated from secondary actions", "Consistent spacing system creates clear visual hierarchy"],
-  "fixes": ["Increase text contrast for body text to meet WCAG AA (currently #666, suggest #333)", "Add 8px spacing between related form fields to improve grouping", "Make interactive elements more obvious with hover states"],
-  "checklist": ["Primary action is visually dominant", "Related elements are grouped using spacing", "Interactive elements look interactive", "Text is readable without zooming", "Color contrast meets WCAG AA standards"],
-  "notes": "Overall solid design with room for improvement in accessibility and micro-interactions. The layout is clean and modern, but could benefit from more interactive feedback."
+  "type": "scorecard",
+  "version": 1,
+  "summary": "1-2 sentences summarizing the overall design quality and key findings",
+  "overallScore": 82,
+  "items": [
+    { "label": "Clarity", "score": 4, "outOf": 5, "notes": "Clear hierarchy and visual structure" },
+    { "label": "Consistency", "score": 3, "outOf": 5, "notes": "Some spacing inconsistencies between sections" },
+    { "label": "Accessibility", "score": 4, "outOf": 5, "notes": "Good contrast ratios, but some text sizes could be larger" },
+    { "label": "Interaction Design", "score": 3, "outOf": 5, "notes": "Missing hover states and loading indicators" }
+  ],
+  "risks": [
+    "Low contrast text may fail WCAG AA standards",
+    "Missing error states could confuse users"
+  ],
+  "actions": [
+    "Increase text contrast to #333 for body text",
+    "Add 8px spacing between related form fields",
+    "Implement hover states for interactive elements"
+  ]
 }
 ```
 
-**Critical requirements:**
-- Do not include any text outside the JSON object
+**Rules**:
+- `type`: Must be exactly `"scorecard"`
+- `version`: Must be `1` (integer)
+- `summary`: String, 1-2 sentences
+- `overallScore`: Integer 0-100
+- `items`: Array of objects with `label` (string), `score` (integer 0-5), `outOf` (integer, typically 5), `notes` (string)
+- `risks`: Array of strings (potential issues)
+- `actions`: Array of strings (actionable improvements)
+- Always include all keys (use `[]` if empty arrays)
+- Each string is a single sentence, action-oriented
 - Do not change the keys or structure
 - Ensure the JSON is valid and parseable
-- Use specific, actionable language in all fields
+
+**Output Requirements**:
+- NO markdown code fences (```json or ```)
+- NO leading or trailing text
+- NO commentary or explanations
+- NO whitespace before `{` or after `}`
+- ONLY the raw JSON object
+
+**Self-check before responding:**
+If you are about to output anything other than raw JSON (markdown, code fences, explanatory text), STOP and rewrite your response to be ONLY valid JSON matching the schema above.
 
 ---
 
@@ -139,10 +171,11 @@ If no frame or element is selected, respond with this exact JSON:
 
 ```json
 {
-  "score": 0,
+  "score": null,
+  "summary": "Please select one or more design elements to critique.",
   "wins": [],
   "fixes": ["Please select one or more design elements to critique"],
   "checklist": [],
-  "notes": "No selection provided for critique."
+  "notes": []
 }
 ```

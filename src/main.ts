@@ -9,10 +9,10 @@ import type { Provider } from './core/provider/provider'
 import { normalizeMessages } from './core/provider/normalize'
 import { routeToolCall } from './core/tools/toolRouter'
 import { summarizeSelection } from './core/context/selection'
-import { extractSelectionSummary, formatSelectionSummary } from './core/context/selectionSummary'
-import { exportSelectionAsImages } from './core/figma/exportSelectionAsImages'
-import { createCritiqueFrameOnCanvas } from './core/figma/createCritiqueFrame'
+import { buildSelectionContext } from './core/context/selectionContext'
 import { createTextFrameOnCanvas } from './core/figma/createTextFrameOnCanvas'
+import { renderScorecard } from './core/figma/renderScorecard'
+import type { ScorecardData } from './core/figma/renderScorecard'
 import { saveSettings, getSettings } from './core/settings'
 import { ProxyError } from './core/proxy/client'
 import { ProviderError, ProviderErrorType } from './core/provider/provider'
@@ -34,11 +34,16 @@ import type {
   ToolResultHandler,
   TestResultHandler,
   SettingsResponseHandler,
+  ScorecardPlacedHandler,
+  ScorecardResult,
+  UniversalContentTableV1,
   Message,
   SelectionState,
   LlmProviderId,
-  ToolCall
+  ToolCall,
+  CopyTableStatusHandler
 } from './core/types'
+import { scanContentTable } from './core/contentTable/scanner'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -178,11 +183,13 @@ once<ResetHandler>('RESET', async function () {
 
 // Handle selection state request
 on<RequestSelectionStateHandler>('REQUEST_SELECTION_STATE', function () {
+  console.log('[Main] onmessage REQUEST_SELECTION_STATE')
   sendSelectionState()
 })
 
 // Handle set assistant
 on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
+  console.log('[Main] onmessage SET_ASSISTANT', { assistantId })
   const assistant = getAssistant(assistantId)
   if (assistant) {
     currentAssistant = assistant
@@ -194,6 +201,7 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
       timestamp: Date.now()
     }
     messageHistory.push(introMessage)
+    console.log('[Main] postMessage ASSISTANT_MESSAGE (assistant intro)')
     figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: introMessage } })
   }
 })
@@ -211,6 +219,7 @@ on<SetLlmProviderHandler>('SET_LLM_PROVIDER', async function (providerId: LlmPro
 
 // Handle send message
 on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeSelection?: boolean) {
+  console.log('[Main] onmessage SEND_MESSAGE', { messageLength: message.length, includeSelection })
   // Add user message to history
   const userMessage: Message = {
     id: generateMessageId(),
@@ -220,11 +229,15 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   }
   messageHistory.push(userMessage)
   
-  // Get selection if needed
-  const selection = includeSelection ? summarizeSelection(selectionOrder) : undefined
-  const selectionSummary = includeSelection && selection?.hasSelection
-    ? formatSelectionSummary(extractSelectionSummary(selectionOrder))
-    : undefined
+  // Build selection context if needed
+  let selectionContext: Awaited<ReturnType<typeof buildSelectionContext>> | undefined
+  if (includeSelection && currentProvider) {
+    selectionContext = await buildSelectionContext({
+      selectionOrder,
+      quickAction: undefined, // No quick action for manual messages
+      provider: currentProvider
+    })
+  }
   
   // Handle tool-only assistants
   if (currentAssistant.kind === 'tool') {
@@ -247,13 +260,22 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   try {
     if (!currentProvider) {
       currentProvider = await createProvider(currentProviderId)
+      // Rebuild context if provider was just created
+      if (includeSelection) {
+        selectionContext = await buildSelectionContext({
+          selectionOrder,
+          quickAction: undefined,
+          provider: currentProvider
+        })
+      }
     }
     const response = await currentProvider.sendChat({
       messages: chatMessages,
       assistantId: currentAssistant.id,
       assistantName: currentAssistant.label,
-      selection,
-      selectionSummary,
+      selection: selectionContext?.selection,
+      selectionSummary: selectionContext?.selectionSummary,
+      images: selectionContext?.images,
       quickActionId: undefined
     })
     
@@ -266,14 +288,97 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
 
 // Handle quick action
 on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, assistantId: string) {
-  const assistant = getAssistant(assistantId)
-  if (!assistant) {
-    return
-  }
+  console.log('[Main] onmessage RUN_QUICK_ACTION', { actionId, assistantId })
+  try {
+    const assistant = getAssistant(assistantId)
+    if (!assistant) {
+      console.error('[Main] Assistant not found:', assistantId)
+      sendAssistantMessage(`Error: Assistant "${assistantId}" not found`)
+      return
+    }
+    
+    const action = assistant.quickActions.find((a: import('./assistants').QuickAction) => a.id === actionId)
+    if (!action) {
+      console.error('[Main] Action not found:', actionId, 'for assistant:', assistantId)
+      sendAssistantMessage(`Error: Action "${actionId}" not found`)
+      return
+    }
   
-  const action = assistant.quickActions.find((a: import('./assistants').QuickAction) => a.id === actionId)
-  if (!action) {
-    return
+  // Special handling for Content Table assistant
+  if (assistantId === 'content_table') {
+    if (actionId === 'generate-table') {
+      // Validate selection: must be exactly one container
+      if (selectionOrder.length === 0) {
+        const errorMsg = 'Select a single container to scan.'
+        sendAssistantMessage(errorMsg)
+        figma.notify(errorMsg)
+        return
+      }
+      
+      if (selectionOrder.length > 1) {
+        const errorMsg = 'Only one selection allowed. Select a single container.'
+        sendAssistantMessage(errorMsg)
+        figma.notify(errorMsg)
+        return
+      }
+      
+      // Get the selected node
+      const selectedNode = figma.getNodeById(selectionOrder[0])
+      if (!selectedNode) {
+        const errorMsg = 'Selected node not found.'
+        sendAssistantMessage(errorMsg)
+        figma.notify(errorMsg)
+        return
+      }
+      
+      // Validate it's a valid container (not DOCUMENT or PAGE)
+      if (selectedNode.type === 'DOCUMENT' || selectedNode.type === 'PAGE') {
+        const errorMsg = 'Please select a container (frame, component, etc.), not a page or document.'
+        sendAssistantMessage(errorMsg)
+        figma.notify(errorMsg)
+        return
+      }
+      
+      try {
+        // Send "Scanning..." message
+        sendAssistantMessage('Scanning...')
+        
+        // Scan the container
+        const contentTable = scanContentTable(selectedNode as SceneNode)
+        
+        // Send success message
+        const itemCount = contentTable.items.length
+        if (itemCount === 0) {
+          sendAssistantMessage('No text items found in the selected container.')
+        } else {
+          sendAssistantMessage(`Found ${itemCount} text item${itemCount === 1 ? '' : 's'}`)
+          sendAssistantMessage('Table generated')
+        }
+        
+        // Send table to UI
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'CONTENT_TABLE_GENERATED',
+            table: contentTable
+          }
+        })
+        
+        console.log('[Main] Content table generated:', itemCount, 'items')
+        return
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        sendAssistantMessage(`Error: ${errorMessage}`)
+        figma.notify(`Error generating table: ${errorMessage}`)
+        
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'CONTENT_TABLE_ERROR',
+            error: errorMessage
+          }
+        })
+        return
+      }
+    }
   }
   
   // Special handling for Code2Design quick actions
@@ -322,7 +427,7 @@ Use SEND JSON to import or GET JSON to export your designs.`
     }
   }
   
-  // Check selection requirement
+  // Check selection requirement (need to check before building context)
   const selection = summarizeSelection(selectionOrder)
   if (action.requiresSelection && !selection.hasSelection) {
     sendAssistantMessage(`Error: This action requires a selection. Please select one or more nodes first.`)
@@ -335,19 +440,11 @@ Use SEND JSON to import or GET JSON to export your designs.`
     return
   }
   
-  // Send "thinking..." message for vision requests
-  if (action.requiresVision) {
-    const thinkingMessage: Message = {
-      id: generateMessageId(),
-      role: 'assistant',
-      content: 'Analyzing your design...',
-      timestamp: Date.now()
-    }
-    messageHistory.push(thinkingMessage)
-    figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: thinkingMessage } })
-  }
+  // Note: "Analyzing..." message is now handled in UI before sending the action
   
   // Add user message (the template message from quick action)
+  // This is the SINGLE source of truth for user messages - UI should NOT add it optimistically
+  // to prevent duplicates (UI was adding it, then main sent it back, causing duplicate)
   const userMessage: Message = {
     id: generateMessageId(),
     role: 'user',
@@ -356,43 +453,14 @@ Use SEND JSON to import or GET JSON to export your designs.`
   }
   messageHistory.push(userMessage)
   
-  // Send user message to UI immediately
+  // Send user message to UI (main thread is source of truth)
+  console.log('[Main] Sending user message to UI (single source of truth):', userMessage.id)
   figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
   
   // Handle tool-only assistants
   if (assistant.kind === 'tool') {
     sendAssistantMessage(`Tool-only assistant "${assistant.label}" is active. Tool execution would happen here.`)
     return
-  }
-  
-  // Export images if vision is required
-  // Graceful fallback: if image export fails, continue with structured summary
-  let images: Array<{ dataUrl: string; name?: string; width?: number; height?: number }> | undefined
-  if (action.requiresVision && selection.hasSelection) {
-    try {
-      const exportedImages = await exportSelectionAsImages({
-        maxImages: action.maxImages || 1,
-        imageScale: action.imageScale || 2,
-        preferFrames: true
-      })
-      
-      if (exportedImages.length > 0) {
-        images = exportedImages
-        console.log(`[Main] Exported ${exportedImages.length} image(s) for vision analysis`)
-        exportedImages.forEach((img, i) => {
-          const sizeBytes = img.dataUrl.length * 0.75 // Approximate base64 size
-          const preview = img.dataUrl.substring(0, 80) + '...'
-          console.log(`[Main] Image ${i + 1}: ${img.name || 'Unnamed'}, ${img.width}x${img.height}, ~${Math.round(sizeBytes / 1024)}KB, preview: ${preview}`)
-        })
-      } else {
-        console.warn('[Main] Vision required but no images exported - continuing with structured summary only')
-      }
-    } catch (error) {
-      // Graceful fallback: log error but continue with structured summary
-      // This ensures assistants still receive meaningful context even without images
-      console.error('[Main] Failed to export images (continuing with structured summary):', error)
-      // Don't return early - allow structured summary to be sent
-    }
   }
   
   // Build chat messages
@@ -406,107 +474,193 @@ Use SEND JSON to import or GET JSON to export your designs.`
       }))
   )
   
-  // Get selection summary if selection exists (always include if available, not just when required)
-  const selectionSummary = selection.hasSelection
-    ? formatSelectionSummary(extractSelectionSummary(selectionOrder))
-    : undefined
+  // Build selection context (includes state, summary, and images if needed)
+  let selectionContext: Awaited<ReturnType<typeof buildSelectionContext>> | undefined
+  if (!currentProvider) {
+    currentProvider = await createProvider(currentProviderId)
+  }
+  selectionContext = await buildSelectionContext({
+    selectionOrder,
+    quickAction: action,
+    provider: currentProvider
+  })
   
   // Debug logging
-  if (selectionSummary) {
-    console.log('[Main] Selection summary for quick action:', selectionSummary.substring(0, 200) + '...')
+  if (selectionContext.selectionSummary) {
+    console.log('[Main] Selection summary for quick action:', selectionContext.selectionSummary.substring(0, 200) + '...')
   } else {
-    console.log('[Main] No selection summary - hasSelection:', selection.hasSelection)
+    console.log('[Main] No selection summary - hasSelection:', selectionContext.selection.hasSelection)
   }
   
   // Call provider with quick action context
   try {
-    if (!currentProvider) {
-      currentProvider = await createProvider(currentProviderId)
-    }
     const response = await currentProvider.sendChat({
       messages: chatMessages,
       assistantId: assistant.id,
       assistantName: assistant.label,
-      selection: action.requiresSelection ? selection : undefined,
-      selectionSummary,
-      images,
+      selection: action.requiresSelection ? selectionContext.selection : undefined,
+      selectionSummary: selectionContext.selectionSummary,
+      images: selectionContext.images,
       quickActionId: action.id
     })
     
-    // Remove thinking message if it exists
-    if (action.requiresVision) {
-      messageHistory = messageHistory.filter(m => m.content !== 'Analyzing your design...')
-    }
-    
-    // Check if this is a Design Critique response and place it on canvas
+    // Check if this is a Design Critique response and send to UI
     if (assistant.id === 'design_critique' && action.id === 'give-critique') {
       console.log('[Main] Processing Design Critique response, length:', response.length)
       
-      // Always place Design Critique response on canvas if selection exists
-      if (selection.hasSelection && selectionOrder.length > 0) {
-        const selectedNode = figma.getNodeById(selectionOrder[0])
-        if (selectedNode && selectedNode.type !== 'DOCUMENT' && selectedNode.type !== 'PAGE') {
-          console.log('[Main] Placing critique on canvas for node:', selectedNode.id, selectedNode.name)
+      try {
+        // Parse JSON from response with resilient fallbacks
+        let scorecardResult: ScorecardResult | null = null
+        let jsonString = response.trim()
+        
+        // Defensive parsing: strip markdown fences and extract JSON
+        jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
+        
+        // Try to extract JSON object if wrapped in text
+        const firstBrace = jsonString.indexOf('{')
+        const lastBrace = jsonString.lastIndexOf('}')
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          jsonString = jsonString.substring(firstBrace, lastBrace + 1)
+        }
+        
+        try {
+          const parsed = JSON.parse(jsonString)
+          console.log('[Main] JSON parse success for scorecard')
           
-          try {
-            // First, try to parse as structured JSON critique
-            let critique: { score?: number; wins?: string[]; fixes?: string[]; checklist?: string[]; notes?: string } | null = null
-            let jsonString = response.trim()
+          // Validate strict scorecard schema
+          if (
+            parsed.type === 'scorecard' &&
+            typeof parsed.version === 'number' &&
+            typeof parsed.summary === 'string' &&
+            typeof parsed.overallScore === 'number' &&
+            Array.isArray(parsed.items) &&
+            Array.isArray(parsed.risks) &&
+            Array.isArray(parsed.actions)
+          ) {
+            scorecardResult = {
+              type: 'scorecard',
+              version: parsed.version,
+              summary: parsed.summary,
+              overallScore: parsed.overallScore,
+              items: parsed.items.map((item: any) => ({
+                label: String(item.label || ''),
+                score: Number(item.score || 0),
+                outOf: Number(item.outOf || 5),
+                notes: String(item.notes || '')
+              })),
+              risks: parsed.risks.map((r: any) => String(r)),
+              actions: parsed.actions.map((a: any) => String(a))
+            }
+            console.log('[Main] Valid scorecard result parsed. Score:', scorecardResult.overallScore)
             
-            // Remove markdown code blocks if present
-            jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '')
+            // Send scorecard result to UI
+            figma.ui.postMessage({
+              pluginMessage: {
+                type: 'SCORECARD_RESULT',
+                payload: scorecardResult
+              }
+            })
+            console.log('[Main] Sent SCORECARD_RESULT to UI')
             
-            // Try to find JSON object in the response
-            const jsonMatch = jsonString.match(/\{[\s\S]*\}/)
-            if (jsonMatch) {
-              try {
-                critique = JSON.parse(jsonMatch[0])
-                console.log('[Main] Successfully parsed JSON from response')
-              } catch (parseError) {
-                // Not JSON, will use text format
+            // Also place on canvas if selection exists (legacy behavior)
+            if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
+              const selectedNode = figma.getNodeById(selectionOrder[0])
+              if (selectedNode && selectedNode.type !== 'DOCUMENT' && selectedNode.type !== 'PAGE') {
+                try {
+                  // Convert to legacy format for canvas rendering
+                  const legacyScorecardData: ScorecardData = {
+                    score: scorecardResult.overallScore,
+                    summary: scorecardResult.summary,
+                    wins: scorecardResult.items.filter(i => i.score >= 4).map(i => i.label),
+                    fixes: scorecardResult.items.filter(i => i.score < 3).map(i => `${i.label}: ${i.notes}`),
+                    checklist: scorecardResult.items.map(i => i.label),
+                    notes: scorecardResult.risks
+                  }
+                  await renderScorecard(legacyScorecardData, selectedNode as SceneNode)
+                  console.log('[Main] Scorecard frame rendered on canvas')
+                } catch (canvasError) {
+                  console.error('[Main] Error rendering scorecard on canvas:', canvasError)
+                }
               }
             }
             
-            // If we have valid structured JSON, use the formatted frame
-            if (critique && 
-                typeof critique.score === 'number' && 
-                Array.isArray(critique.wins) && 
-                Array.isArray(critique.fixes) &&
-                Array.isArray(critique.checklist) &&
-                typeof critique.notes === 'string') {
-              console.log('[Main] Using structured critique format. Score:', critique.score)
-              await createCritiqueFrameOnCanvas({
-                score: critique.score,
-                wins: critique.wins,
-                fixes: critique.fixes,
-                checklist: critique.checklist,
-                notes: critique.notes
-              }, selectedNode as SceneNode)
-            } else {
-              // Use plain text frame for markdown or unstructured responses
-              console.log('[Main] Using plain text frame for response')
-              await createTextFrameOnCanvas(response, selectedNode as SceneNode)
-            }
-            
-            console.log('[Main] Critique frame created successfully on canvas')
-            // Send simple message to chat instead of full response
-            sendAssistantMessage('Critique added to stage')
+            // Update status message
+            figma.ui.postMessage({
+              pluginMessage: {
+                type: 'SCORECARD_PLACED',
+                success: true,
+                message: 'Scorecard added to stage.'
+              }
+            })
             return
-          } catch (canvasError) {
-            console.error('[Main] Error creating critique frame on canvas:', canvasError)
-            // Fall through to show in chat if canvas placement fails
+          } else {
+            console.warn('[Main] JSON parsed but schema invalid. Expected type=scorecard, got:', parsed)
+            throw new Error('Invalid scorecard schema')
           }
-        } else {
-          console.warn('[Main] Selected node is not a valid SceneNode:', selectedNode?.type)
+        } catch (parseError) {
+          console.error('[Main] Failed to parse scorecard JSON:', parseError)
+          // Send error to UI
+          figma.ui.postMessage({
+            pluginMessage: {
+              type: 'SCORECARD_ERROR',
+              error: 'Failed to parse scorecard JSON',
+              raw: response.substring(0, 500) // First 500 chars for debugging
+            }
+          })
+          console.log('[Main] Sent SCORECARD_ERROR to UI')
+          
+          // Fallback to legacy canvas placement if selection exists
+          if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
+            const selectedNode = figma.getNodeById(selectionOrder[0])
+            if (selectedNode && selectedNode.type !== 'DOCUMENT' && selectedNode.type !== 'PAGE') {
+              try {
+                await createTextFrameOnCanvas(response, selectedNode as SceneNode)
+                figma.ui.postMessage({
+                  pluginMessage: {
+                    type: 'SCORECARD_PLACED',
+                    success: true,
+                    message: 'Couldn\'t parse scorecard JSON; added text critique instead.'
+                  }
+                })
+                return
+              } catch (textError) {
+                console.error('[Main] Error creating text frame:', textError)
+              }
+            }
+          }
+          
+          // Update status to error
+          figma.ui.postMessage({
+            pluginMessage: {
+              type: 'SCORECARD_PLACED',
+              success: false,
+              message: 'Couldn\'t parse scorecard JSON. See console.'
+            }
+          })
+          return
         }
-      } else {
-        console.warn('[Main] No selection available for placing critique on canvas. hasSelection:', selection.hasSelection, 'selectionOrder length:', selectionOrder.length)
+      } catch (error) {
+        console.error('[Main] Error processing Design Critique:', error)
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'SCORECARD_ERROR',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            raw: response.substring(0, 500)
+          }
+        })
+        return
       }
     }
     
     sendAssistantMessage(response)
   } catch (error) {
     const errorMessage = errorToString(error)
+    sendAssistantMessage(`Error: ${errorMessage}`)
+  }
+  } catch (error) {
+    // Catch any unhandled errors in the quick action handler
+    console.error('[Main] Unhandled error in RUN_QUICK_ACTION:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     sendAssistantMessage(`Error: ${errorMessage}`)
   }
 })
@@ -604,6 +758,16 @@ on<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', async function () {
         message: `Connection test failed: ${errorMessage}` 
       } 
     })
+  }
+})
+
+// Handle copy table status from UI
+on<CopyTableStatusHandler>('COPY_TABLE_STATUS', function (status: 'success' | 'error', message?: string) {
+  console.log('[Main] onmessage COPY_TABLE_STATUS', { status, message })
+  if (status === 'success') {
+    figma.notify(message || 'Successfully copied table to clipboard')
+  } else if (status === 'error') {
+    figma.notify(message || 'Failed to copy table. See console for details.')
   }
 })
 

@@ -94,7 +94,16 @@ function extractComponentProperties(node: InstanceNode): Record<string, unknown>
         } else if (value.type === 'TEXT') {
           props[key] = value.value
         } else if (value.type === 'INSTANCE_SWAP') {
-          props[key] = value.value?.name || 'None'
+          // value.value can be SceneNode (with name) or string/boolean
+          if (value.value && typeof value.value === 'object' && 'name' in value.value) {
+            props[key] = (value.value as { name: string }).name
+          } else if (typeof value.value === 'string') {
+            props[key] = value.value
+          } else if (typeof value.value === 'boolean') {
+            props[key] = value.value ? 'True' : 'False'
+          } else {
+            props[key] = 'None'
+          }
         } else if (value.type === 'VARIANT') {
           props[key] = value.value
         }
@@ -185,7 +194,13 @@ export function extractSelectionSummary(selectionOrder?: string[]): SelectionSum
       if (typeof textNode.lineHeight === 'number') {
         summary.lineHeight = Math.round(textNode.lineHeight * 100) / 100
       } else if (textNode.lineHeight && typeof textNode.lineHeight === 'object') {
-        summary.lineHeight = Math.round(textNode.lineHeight.value * 100) / 100
+        // LineHeight can be { unit: "AUTO" } or { value: number; unit: ... }
+        if (textNode.lineHeight.unit === 'AUTO') {
+          // Omit lineHeight for AUTO, or set to 'Auto' if needed
+          // summary.lineHeight = 'Auto' // Uncomment if you want to show Auto
+        } else if ('value' in textNode.lineHeight && typeof textNode.lineHeight.value === 'number') {
+          summary.lineHeight = Math.round(textNode.lineHeight.value * 100) / 100
+        }
       }
       if (typeof textNode.letterSpacing === 'object' && textNode.letterSpacing.value !== undefined) {
         summary.letterSpacing = Math.round(textNode.letterSpacing.value * 100) / 100
@@ -318,8 +333,8 @@ export function extractSelectionSummary(selectionOrder?: string[]): SelectionSum
       summary.cornerRadius = Math.round(node.topLeftRadius)
     }
 
-    // Opacity
-    if (typeof node.opacity === 'number' && node.opacity < 1) {
+    // Opacity (SliceNode doesn't have opacity)
+    if ('opacity' in node && typeof node.opacity === 'number' && node.opacity < 1) {
       summary.opacity = Math.round(node.opacity * 100) / 100
     }
 

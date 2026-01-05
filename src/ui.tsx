@@ -31,12 +31,19 @@ import type {
   AssistantMessageHandler,
   ToolResultHandler,
   TestResultHandler,
+  ScorecardPlacedHandler,
+  ScorecardResult,
+  UniversalContentTableV1,
+  TableFormatPreset,
   Message,
   SelectionState,
   Mode,
   LlmProviderId,
-  Assistant
+  Assistant,
+  CopyTableStatusHandler
 } from './core/types'
+import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
+import { buildHtmlTable, buildTsv } from './core/contentTable/clipboard'
 
 // Import CSS
 import './ui/styles/theme.css'
@@ -98,7 +105,47 @@ function Plugin() {
   const [showCredits, setShowCredits] = useState(true)
   const [creditsAutoCollapseTimer, setCreditsAutoCollapseTimer] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isCopyingTable, setIsCopyingTable] = useState(false)
   const hasAutoCollapsedRef = useRef(false)
+  // Store latest status message ID for Design Critique quick actions
+  const latestStatusMessageIdRef = useRef<string | null>(null)
+  // Scorecard state for Design Critique
+  const [scorecard, setScorecard] = useState<ScorecardResult | null>(null)
+  const [scorecardError, setScorecardError] = useState<{ error: string; raw?: string } | null>(null)
+  // Content Table state
+  const [contentTable, setContentTable] = useState<UniversalContentTableV1 | null>(null)
+  const [showFormatModal, setShowFormatModal] = useState(false)
+  const [selectedFormat, setSelectedFormat] = useState<TableFormatPreset>('universal')
+  const [showTableView, setShowTableView] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'copy' | 'view' | 'confluence' | null>(null)
+  // Clipboard debug state
+  const [showPasteDebug, setShowPasteDebug] = useState(false)
+  const [debugHtml, setDebugHtml] = useState('')
+  const [debugTsv, setDebugTsv] = useState('')
+  const [copyStatus, setCopyStatus] = useState<{ success: boolean; message: string } | null>(null)
+  const DEBUG_CLIPBOARD = true // Debug flag - can be toggled
+  const DEBUG_LOG_ENDPOINT = 'http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6'
+  
+  // Debug logging function
+  const debugLog = useCallback((message: string, data?: Record<string, unknown>) => {
+    if (DEBUG_CLIPBOARD) {
+      console.log(`[Clipboard] ${message}`, data || '')
+      // Send to debug log endpoint
+      fetch(DEBUG_LOG_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'ui.tsx:handleCopyTable',
+          message: `[Clipboard] ${message}`,
+          data: data || {},
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'A'
+        })
+      }).catch(() => {}) // Silently fail if endpoint unavailable
+    }
+  }, [])
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -122,11 +169,34 @@ function Plugin() {
     }
   }, [showCredits])
   
+  // UI mount logging
+  useEffect(() => {
+    console.log('[UI] mounted')
+    
+    // Global error handlers
+    const handleError = (e: ErrorEvent) => {
+      console.error('[UI] window error', e.error || e)
+    }
+    const handleUnhandledRejection = (e: PromiseRejectionEvent) => {
+      console.error('[UI] unhandledrejection', e.reason)
+    }
+    
+    window.addEventListener('error', handleError)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+    
+    return () => {
+      window.removeEventListener('error', handleError)
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+    }
+  }, [])
+  
   // Listen to events from main thread
   useEffect(() => {
     // Use a generic message handler that routes by type
     function handleMessage(message: any) {
       if (!message || !message.type) return
+      
+      console.log('[UI] handleMessage', message.type)
       
       switch (message.type) {
         case 'RESET_DONE':
@@ -147,12 +217,106 @@ function Plugin() {
           break
         case 'ASSISTANT_MESSAGE':
           if (message.message) {
-            setMessages(prev => [...prev, message.message])
+            console.log('[UI] setThinking false - ASSISTANT_MESSAGE received', { role: message.message.role })
+            setMessages(prev => {
+              // Main thread is the source of truth for user messages (prevents duplicates)
+              // If this is a user message and we have status messages, ensure user appears first
+              if (message.message.role === 'user') {
+                const statusMessages = prev.filter(m => m.isStatus)
+                const nonStatusMessages = prev.filter(m => !m.isStatus)
+                // Put user message before status messages for correct order
+                return [...nonStatusMessages, message.message, ...statusMessages]
+              }
+              // Assistant messages are added normally
+              return [...prev, message.message]
+            })
             setIsLoading(false) // Stop loading when message arrives
+          }
+          break
+        case 'SCORECARD_RESULT':
+          // Receive scorecard result from main thread
+          if (message.payload) {
+            console.log('[UI] Received SCORECARD_RESULT:', message.payload)
+            console.log('[UI] setThinking false - SCORECARD_RESULT')
+            setScorecard(message.payload)
+            setScorecardError(null)
+            setIsLoading(false)
+          }
+          break
+        case 'SCORECARD_ERROR':
+          // Receive scorecard error from main thread
+          console.error('[UI] Received SCORECARD_ERROR:', message.error, message.raw)
+          console.log('[UI] setThinking false - SCORECARD_ERROR')
+          setScorecardError({ error: message.error || 'Unknown error', raw: message.raw })
+          setScorecard(null)
+          setIsLoading(false)
+          break
+        case 'CONTENT_TABLE_GENERATED':
+          // Receive content table from main thread
+          if (message.table) {
+            console.log('[UI] Received CONTENT_TABLE_GENERATED:', message.table)
+            console.log('[UI] setThinking false - CONTENT_TABLE_GENERATED')
+            setContentTable(message.table)
+            setIsLoading(false)
+          }
+          break
+        case 'CONTENT_TABLE_ERROR':
+          // Receive content table error from main thread
+          console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
+          console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
+          setContentTable(null)
+          setIsLoading(false)
+          break
+        case 'SCORECARD_PLACED':
+          // Update status message when scorecard placement completes
+          // Match status message by stored ID or by finding the latest status message
+          if (message.message !== undefined) {
+            const success = message.success !== false // Default to success if not specified
+            const statusStyle: 'success' | 'error' = success ? 'success' : 'error'
+            
+            setMessages(prev => {
+              // Try to match by stored ID first
+              const statusId = latestStatusMessageIdRef.current
+              if (statusId) {
+                const updated = prev.map(m => {
+                  if (m.id === statusId && m.isStatus) {
+                    console.log('[UI] Updating status message by ID:', m.id, 'to:', message.message, 'style:', statusStyle)
+                    // Update content and change to static success/error (remove loading animation)
+                    return { 
+                      ...m, 
+                      content: message.message, 
+                      isStatus: false, // Remove status flag so it becomes a regular message
+                      statusStyle: statusStyle // Set final status style
+                    }
+                  }
+                  return m
+                })
+                // Clear ref after update
+                latestStatusMessageIdRef.current = null
+                return updated
+              }
+              
+              // Fallback: find latest status message if ID not stored
+              const statusMessages = prev.filter(m => m.isStatus)
+              if (statusMessages.length > 0) {
+                const latestStatus = statusMessages[statusMessages.length - 1]
+                console.log('[UI] Updating latest status message (fallback):', latestStatus.id, 'to:', message.message, 'style:', statusStyle)
+                return prev.map(m => 
+                  m.id === latestStatus.id
+                    ? { ...m, content: message.message, isStatus: false, statusStyle: statusStyle }
+                    : m
+                )
+              }
+              
+              return prev
+            })
+            console.log('[UI] setThinking false - SCORECARD_PLACED')
+            setIsLoading(false)
           }
           break
         case 'TOOL_RESULT':
           if (message.message) {
+            console.log('[UI] setThinking false - TOOL_RESULT')
             setMessages(prev => [...prev, message.message])
             setIsLoading(false) // Stop loading when tool result arrives
           }
@@ -177,7 +341,7 @@ function Plugin() {
     // Listen for all messages from main thread
     function onMessage(event: MessageEvent) {
       // Debug: log all incoming messages
-      console.log('UI received message:', event.data)
+      console.log('[UI] received message:', event.data)
       
       // Handle nested pluginMessage structure
       // event.data might be {pluginMessage: {...}} or the message might be nested deeper
@@ -189,16 +353,17 @@ function Plugin() {
       }
       
       if (pluginMessage && pluginMessage.type) {
-        console.log('Processing plugin message:', pluginMessage)
+        console.log('[UI] Processing plugin message:', pluginMessage.type)
         handleMessage(pluginMessage)
       } else {
-        console.warn('Message received but no valid pluginMessage found:', event.data)
+        console.warn('[UI] Message received but no valid pluginMessage found:', event.data)
       }
     }
     
     window.addEventListener('message', onMessage)
     
     // Request initial selection state
+    console.log('[UI] Requesting initial selection state')
     emit<RequestSelectionStateHandler>('REQUEST_SELECTION_STATE')
     
     // Cleanup
@@ -286,7 +451,9 @@ function Plugin() {
     if (!input.trim()) return
     if (selectionRequired && !selectionState.hasSelection) return
     
+    console.log('[UI] setThinking true - handleSend')
     setIsLoading(true) // Start loading indicator
+    console.log('[UI] postMessage SEND_MESSAGE', { input: input.substring(0, 50) + '...', includeSelection: includeSelection || selectionRequired })
     emit<SendMessageHandler>('SEND_MESSAGE', input, includeSelection || selectionRequired)
     setInput('')
     setSelectionRequired(false)
@@ -302,8 +469,50 @@ function Plugin() {
   }, [handleSend])
   
   const handleQuickAction = useCallback((actionId: string) => {
+    console.log('[UI] handleQuickAction called', { actionId, hasContentTable: !!contentTable, assistantId: assistant.id })
+    
+    // Handle Content Table dynamic actions (these are UI-only, don't send to main thread)
+    if (assistant.id === 'content_table' && contentTable) {
+      if (actionId === 'send-to-confluence') {
+        console.log('[UI] Handling send-to-confluence action')
+        setPendingAction('confluence')
+        setShowFormatModal(true)
+        return
+      }
+      if (actionId === 'copy-table') {
+        console.log('[UI] Handling copy-table action')
+        setPendingAction('copy')
+        setShowFormatModal(true)
+        return
+      }
+      if (actionId === 'view-table') {
+        console.log('[UI] Handling view-table action')
+        setPendingAction('view')
+        setShowFormatModal(true)
+        return
+      }
+      if (actionId === 'generate-new-table') {
+        console.log('[UI] Handling generate-new-table action - clearing table')
+        setContentTable(null)
+        setShowTableView(false)
+        setSelectedFormat('universal')
+        // Don't return - let it fall through to trigger the generate-table action
+        // Actually, we should trigger the generate-table action here
+        // But first check if there's a selection
+        if (!selectionState.hasSelection) {
+          setSelectionRequired(true)
+          return
+        }
+        // Trigger the generate-table action
+        actionId = 'generate-table'
+      }
+    }
+    
     const action = assistant.quickActions.find((a: QuickAction) => a.id === actionId)
-    if (!action) return
+    if (!action) {
+      console.warn('[UI] Action not found:', actionId, 'for assistant:', assistant.id)
+      return
+    }
     
     // Code2Design special handling
     if (assistant.id === 'code2design') {
@@ -335,11 +544,45 @@ function Plugin() {
       return
     }
     
-    // Send quick action (default: send immediately)
+    // FIX: Do NOT add user message here - main thread is the source of truth
+    // Main thread will create the user message and send it back via ASSISTANT_MESSAGE
+    // This prevents duplicate user bubbles (UI was adding optimistically, then main sent it again)
+    
+    // Clear previous scorecard when starting new action
+    if (assistant.id === 'design_critique' && actionId === 'give-critique') {
+      setScorecard(null)
+      setScorecardError(null)
+    }
+    
+    // Step 1: Create persistent animated status message for vision actions (Design Critique)
+    // Use stable ID based on action so we can update it later
+    const statusMessageId = `status_${assistant.id}_${actionId}_${Date.now()}`
+    if (action.requiresVision) {
+      const statusMessage: Message = {
+        id: statusMessageId,
+        role: 'assistant',
+        content: 'Analyzing your design...',
+        timestamp: Date.now(),
+        isStatus: true, // Mark as status message so it can be updated in place
+        statusStyle: 'loading' // Show animated loading indicator
+      }
+      setMessages(prev => [...prev, statusMessage])
+      // Store status message ID for later update
+      latestStatusMessageIdRef.current = statusMessageId
+      console.log('[UI] Created animated status message:', statusMessageId)
+    }
+    
+    // Step 2: Send quick action to main thread
+    // Main thread will:
+    // - Create user message and send it back (single source of truth)
+    // - Process the action
+    // - Send SCORECARD_PLACED event when scorecard placement completes
+    console.log('[UI] setThinking true - handleQuickAction', { actionId, assistantId: assistant.id })
     setIsLoading(true) // Start loading indicator
+    console.log('[UI] postMessage RUN_QUICK_ACTION', { actionId, assistantId: assistant.id })
     emit<RunQuickActionHandler>('RUN_QUICK_ACTION', actionId, assistant.id)
     setSelectionRequired(false)
-  }, [assistant, selectionState])
+  }, [assistant, selectionState, contentTable])
   
   const handleSendJson = useCallback(() => {
     if (!jsonInput.trim()) return
@@ -403,6 +646,392 @@ function Plugin() {
     }
   }, [jsonOutput])
   
+  // Copy Content Table to clipboard
+  const handleCopyTable = useCallback(async (format: TableFormatPreset) => {
+    console.log('[CopyTable] click')
+    
+    if (!contentTable) {
+      console.error('[CopyTable] No contentTable available')
+      setCopyStatus({ success: false, message: 'No table available to copy' })
+      console.log('[UI] postMessage COPY_TABLE_STATUS (error - no table)')
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'No table available to copy')
+      return
+    }
+    
+    setIsCopyingTable(true)
+    setCopyStatus(null)
+    
+    console.log('[Clipboard] Copy Table clicked, format:', format)
+    console.log('[Clipboard] ClipboardItem available:', typeof ClipboardItem !== 'undefined')
+    console.log('[Clipboard] navigator.clipboard available:', !!navigator.clipboard)
+    console.log('[Clipboard] navigator.clipboard.write available:', !!(navigator.clipboard && navigator.clipboard.write))
+    
+    try {
+      // Build HTML table (standards-compliant with minimal inline styles)
+      const htmlTable = buildHtmlTable(contentTable, format)
+      
+      // Build TSV fallback (tab-separated values)
+      const tsv = buildTsv(contentTable, format)
+      
+      console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length)
+      console.log('[Clipboard] HTML preview (first 200 chars):', htmlTable.substring(0, 200))
+      
+      // Instrumentation: Log lengths
+      debugLog('Copy attempt started', { format, htmlLength: htmlTable.length, tsvLength: tsv.length })
+      // Store for debug panel
+      setDebugHtml(htmlTable)
+      setDebugTsv(tsv)
+      
+      // Strategy A: Primary - ClipboardItem API with both HTML and plain text MIME types
+      // This is the preferred method for rich HTML table paste into Word, Notes, Confluence
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+        console.log('[CopyTable] attempting HTML')
+        console.log('[Clipboard] Attempting Strategy A (ClipboardItem)')
+        try {
+          // Create Blobs with proper MIME types
+          const htmlBlob = new Blob([htmlTable], { type: 'text/html' })
+          const textBlob = new Blob([tsv], { type: 'text/plain' })
+          
+          console.log('[Clipboard] Created blobs - HTML size:', htmlBlob.size, 'Text size:', textBlob.size)
+          
+          // Create ClipboardItem with both MIME types
+          // Note: Some browsers require Blobs to be wrapped in Promises
+          // Note: ClipboardItem constructor may throw if MIME types are invalid
+          const clipboardItem = new ClipboardItem({
+            'text/html': Promise.resolve(htmlBlob),
+            'text/plain': Promise.resolve(textBlob)
+          })
+          
+          console.log('[Clipboard] Created ClipboardItem, writing to clipboard...')
+          
+          // Write to clipboard
+          await navigator.clipboard.write([clipboardItem])
+          
+          console.log('[Clipboard] Strategy A succeeded!')
+          
+          // Success: Show notification
+          debugLog('Strategy A (ClipboardItem) succeeded', { strategy: 'A' })
+          setIsCopyingTable(false)
+          setCopyStatus({ success: true, message: 'Table copied to clipboard' })
+          setShowCopySuccess(true)
+          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+          setTimeout(() => {
+            setShowCopySuccess(false)
+            setCopyStatus(null)
+          }, 3000)
+          return
+        } catch (clipboardError: unknown) {
+          // Log error details but continue to fallback
+          const error = clipboardError as Error
+          console.error('[Clipboard] Strategy A failed:', error.name, error.message)
+          console.error('[Clipboard] Error stack:', error.stack)
+          debugLog('Strategy A failed', {
+            strategy: 'A',
+            errorName: error.name,
+            errorMessage: error.message,
+            errorStack: error.stack
+          })
+          // Don't set error status yet - try fallbacks first
+        }
+      } else {
+        console.log('[Clipboard] Strategy A not available - ClipboardItem:', typeof ClipboardItem, 'clipboard.write:', !!(navigator.clipboard && navigator.clipboard.write))
+      }
+      
+      // Strategy B: Fallback - execCommand with contentEditable div for HTML
+      // This preserves HTML table structure when ClipboardItem API is unavailable
+      console.log('[CopyTable] attempting HTML')
+      console.log('[Clipboard] Attempting Strategy B (execCommand with contentEditable)')
+      try {
+        // Create hidden contentEditable div (offscreen)
+        const div = document.createElement('div')
+        div.contentEditable = 'true'
+        div.style.position = 'fixed'
+        div.style.left = '-9999px'
+        div.style.top = '0'
+        div.style.width = '1px'
+        div.style.height = '1px'
+        div.style.opacity = '0'
+        div.style.pointerEvents = 'none'
+        div.style.zIndex = '-1'
+        // Set innerHTML to the HTML table
+        div.innerHTML = htmlTable
+        
+        document.body.appendChild(div)
+        console.log('[Clipboard] Created and appended contentEditable div')
+        
+        // Small delay to ensure DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 10))
+        
+        // Select all contents via Range API
+        const range = document.createRange()
+        range.selectNodeContents(div)
+        const selection = window.getSelection()
+        if (selection) {
+          selection.removeAllRanges()
+          selection.addRange(range)
+          console.log('[Clipboard] Selected div contents, range count:', selection.rangeCount)
+        } else {
+          console.warn('[Clipboard] window.getSelection() returned null')
+        }
+        
+        // Focus the div
+        div.focus()
+        console.log('[Clipboard] Focused div, activeElement:', document.activeElement?.tagName)
+        
+        // Small delay before execCommand
+        await new Promise(resolve => setTimeout(resolve, 10))
+        
+        // Execute copy command
+        console.log('[Clipboard] Executing execCommand("copy")...')
+        const successful = document.execCommand('copy')
+        console.log('[Clipboard] execCommand("copy") returned:', successful)
+        
+        // Cleanup
+        if (selection) {
+          selection.removeAllRanges()
+        }
+        document.body.removeChild(div)
+        
+        if (successful) {
+          console.log('[Clipboard] Strategy B succeeded!')
+          debugLog('Strategy B (execCommand with contentEditable) succeeded', { strategy: 'B' })
+          setIsCopyingTable(false)
+          setCopyStatus({ success: true, message: 'Table copied to clipboard' })
+          setShowCopySuccess(true)
+          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+          setTimeout(() => {
+            setShowCopySuccess(false)
+            setCopyStatus(null)
+          }, 3000)
+          return
+        } else {
+          throw new Error('execCommand copy returned false')
+        }
+      } catch (execError: unknown) {
+        const error = execError as Error
+        console.error('[Clipboard] Strategy B failed:', error.name, error.message)
+        console.error('[Clipboard] Error stack:', error.stack)
+        debugLog('Strategy B failed', {
+          strategy: 'B',
+          errorName: error.name,
+          errorMessage: error.message,
+          errorStack: error.stack
+        })
+        // Continue to next fallback
+      }
+      
+      // Strategy C: Use writeText with TSV (fallback - loses table structure but preserves data)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        console.log('[CopyTable] attempting TSV')
+        try {
+          await navigator.clipboard.writeText(tsv)
+          debugLog('Strategy C (writeText TSV) succeeded', { strategy: 'C' })
+          setIsCopyingTable(false)
+          setCopyStatus({ success: true, message: 'Table copied (TSV format - paste into spreadsheet)' })
+          setShowCopySuccess(true)
+          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+          setTimeout(() => {
+            setShowCopySuccess(false)
+            setCopyStatus(null)
+          }, 3000)
+          return
+        } catch (writeTextError: unknown) {
+          const error = writeTextError as Error
+          debugLog('Strategy C failed', {
+            strategy: 'C',
+            errorName: error.name,
+            errorMessage: error.message,
+            errorStack: error.stack
+          })
+          // Continue to next fallback
+        }
+      }
+      
+      // Strategy D: execCommand with textarea for TSV (final fallback)
+      console.log('[CopyTable] fallback')
+      try {
+        const textArea = document.createElement('textarea')
+        textArea.value = tsv
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-9999px'
+        textArea.style.top = '0'
+        textArea.style.width = '1px'
+        textArea.style.height = '1px'
+        textArea.style.opacity = '0'
+        textArea.style.pointerEvents = 'none'
+        textArea.style.zIndex = '-1'
+        document.body.appendChild(textArea)
+        
+        // Small delay
+        await new Promise(resolve => setTimeout(resolve, 10))
+        
+        textArea.focus()
+        textArea.select()
+        
+        // Small delay before execCommand
+        await new Promise(resolve => setTimeout(resolve, 10))
+        
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        
+        if (successful) {
+          debugLog('Strategy D (execCommand textarea TSV) succeeded', { strategy: 'D' })
+          setIsCopyingTable(false)
+          setCopyStatus({ success: true, message: 'Table copied (TSV format - paste into spreadsheet)' })
+          setShowCopySuccess(true)
+          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+          setTimeout(() => {
+            setShowCopySuccess(false)
+            setCopyStatus(null)
+          }, 3000)
+          return
+        } else {
+          throw new Error('execCommand copy returned false')
+        }
+      } catch (execError: unknown) {
+        const error = execError as Error
+        debugLog('Strategy D failed', {
+          strategy: 'D',
+          errorName: error.name,
+          errorMessage: error.message,
+          errorStack: error.stack
+        })
+      }
+      
+      // All strategies failed - show error toast
+      debugLog('All clipboard strategies failed', { allStrategiesFailed: true })
+      setIsCopyingTable(false)
+      const errorMsg = 'Copy failed: All methods failed. Try Download HTML or Copy TSV buttons.'
+      setCopyStatus({ 
+        success: false, 
+        message: errorMsg
+      })
+      console.log('[UI] postMessage COPY_TABLE_STATUS (error)')
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'Failed to copy table. See console for details.')
+    } catch (error: unknown) {
+      const err = error as Error
+      debugLog('Final error catch', {
+        errorName: err.name,
+        errorMessage: err.message,
+        errorStack: err.stack
+      })
+      setIsCopyingTable(false)
+      const errorMsg = `Copy failed: ${err.message || 'Unknown error'}`
+      setCopyStatus({ 
+        success: false, 
+        message: errorMsg
+      })
+      console.log('[UI] postMessage COPY_TABLE_STATUS (error)')
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'Failed to copy table. See console for details.')
+      const errorMessage: Message = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        role: 'assistant',
+        content: `Failed to copy table to clipboard: ${err.message || 'Unknown error'}`,
+        timestamp: Date.now()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    }
+  }, [contentTable, debugLog])
+  
+  // Send to Confluence (stub)
+  const handleSendToConfluence = useCallback(async (format: TableFormatPreset) => {
+    if (!contentTable) return
+    
+    // Stub: Show message and copy instead
+    const message: Message = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      role: 'assistant',
+      content: 'Confluence integration not configured yet — copying HTML instead.',
+      timestamp: Date.now()
+    }
+    setMessages(prev => [...prev, message])
+    
+    // Copy table with Universal preset (unless user chose Dev Only)
+    const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal'
+    await handleCopyTable(copyFormat)
+  }, [contentTable, handleCopyTable])
+  
+  // Download HTML file
+  const handleDownloadHtml = useCallback((format: TableFormatPreset) => {
+    if (!contentTable) return
+    
+    const htmlTable = buildHtmlTable(contentTable, format)
+    const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Content Table</title>
+</head>
+<body>
+${htmlTable}
+</body>
+</html>`
+    
+    const blob = new Blob([fullHtml], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `content-table-${format}-${Date.now()}.html`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [contentTable])
+  
+  // Copy TSV only
+  const handleCopyTsv = useCallback(async (format: TableFormatPreset) => {
+    if (!contentTable) return
+    
+    if (window.focus) {
+      window.focus()
+    }
+    
+    try {
+      const tsv = buildTsv(contentTable, format)
+      
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(tsv)
+        setCopyStatus({ success: true, message: 'TSV copied to clipboard' })
+        setShowCopySuccess(true)
+        setTimeout(() => {
+          setShowCopySuccess(false)
+          setCopyStatus(null)
+        }, 2000)
+      } else {
+        // Fallback to execCommand
+        const textArea = document.createElement('textarea')
+        textArea.value = tsv
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        
+        if (successful) {
+          setCopyStatus({ success: true, message: 'TSV copied to clipboard' })
+          setShowCopySuccess(true)
+          setTimeout(() => {
+            setShowCopySuccess(false)
+            setCopyStatus(null)
+          }, 2000)
+        } else {
+          throw new Error('execCommand copy failed')
+        }
+      }
+    } catch (error: unknown) {
+      const err = error as Error
+      setCopyStatus({ success: false, message: `TSV copy failed: ${err.message}` })
+    }
+  }, [contentTable])
+  
   const handleCreditsToggle = useCallback(() => {
     setShowCredits(prev => !prev)
     if (creditsAutoCollapseTimer) {
@@ -410,6 +1039,21 @@ function Plugin() {
       setCreditsAutoCollapseTimer(null)
     }
   }, [creditsAutoCollapseTimer])
+  
+  const handleAboutClick = useCallback(() => {
+    console.log('[TODO] About button clicked - implement About modal')
+    // TODO: Open About modal
+  }, [])
+  
+  const handleFeedbackClick = useCallback(() => {
+    console.log('[TODO] Feedback button clicked - implement Feedback modal')
+    // TODO: Open Feedback modal
+  }, [])
+  
+  const handleJoinMeetupClick = useCallback(() => {
+    console.log('[TODO] Join Meetup button clicked - implement Join Meetup modal')
+    // TODO: Open Join Meetup modal
+  }, [])
   
   // Get selection indicator icon
   const getSelectionIcon = () => {
@@ -445,9 +1089,37 @@ function Plugin() {
     .filter(m => m.role === 'assistant')
     .pop()
   
+  // Content Table: Add dynamic quick actions when table is generated
+  const contentTableQuickActions: QuickAction[] = contentTable && assistant.id === 'content_table' ? [
+    {
+      id: 'send-to-confluence',
+      label: 'Send to Confluence',
+      templateMessage: 'Send table to Confluence',
+      requiresSelection: false
+    },
+    {
+      id: 'copy-table',
+      label: 'Copy Table',
+      templateMessage: 'Copy table to clipboard',
+      requiresSelection: false
+    },
+    {
+      id: 'view-table',
+      label: 'View Table',
+      templateMessage: 'View table in plugin',
+      requiresSelection: false
+    },
+    {
+      id: 'generate-new-table',
+      label: 'Generate New Table',
+      templateMessage: 'Generate a new content table',
+      requiresSelection: true
+    }
+  ] : []
+  
   // Code2Design: Show all quick actions prominently, not just after assistant message
   const isCode2Design = assistant.id === 'code2design'
-  const quickActions = assistant.quickActions.filter((action: QuickAction) => {
+  const quickActions = (contentTable && assistant.id === 'content_table' ? contentTableQuickActions : assistant.quickActions).filter((action: QuickAction) => {
     // Filter based on selection requirements
     if (action.requiresSelection && !selectionState.hasSelection) {
       return false
@@ -468,16 +1140,22 @@ function Plugin() {
     }}>
       {/* Top Navigation */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 'var(--spacing-md)',
-        borderBottom: '1px solid var(--border)',
-        backgroundColor: 'var(--bg)',
-        flexShrink: 0
-      }}>
-        {/* Left: Home + Provider Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 'var(--spacing-md)',
+          borderBottom: '1px solid var(--border)',
+          backgroundColor: 'var(--bg)',
+          flexShrink: 0,
+          position: 'relative'
+        }}>
+        {/* Left: Home */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          flex: '1 1 0',
+          justifyContent: 'flex-start'
+        }}>
           <button
             onClick={handleReset}
             style={{
@@ -497,49 +1175,144 @@ function Plugin() {
           >
             <HomeIcon />
           </button>
+        </div>
+        
+        {/* Center: Provider Buttons - Absolutely positioned to be centered between Home and Darkmode */}
+        <div style={{
+            position: 'absolute',
+            left: 'calc(50% - 16px)',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-xs)'
+          }}>
+          {/* OpenAI */}
+          <button
+            onClick={() => handleProviderClick('openai')}
+            style={{
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-xs)',
+              padding: '0 var(--spacing-sm)',
+              border: provider === 'openai' ? '2px solid var(--accent)' : '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: provider === 'openai' ? 'var(--accent)' : 'var(--bg)',
+              color: provider === 'openai' ? '#ffffff' : 'var(--fg)',
+              cursor: 'pointer',
+              fontSize: 'var(--font-size-xs)',
+              fontFamily: 'var(--font-family)',
+              whiteSpace: 'nowrap'
+            }}
+            title="OpenAI"
+          >
+            <OpenAIIcon width={16} height={16} />
+            <span>OpenAI</span>
+          </button>
           
-          {/* Provider Buttons */}
-          <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-            {(['openai', 'claude', 'copilot'] as LlmProviderId[]).map(providerId => {
-              const isActive = provider === providerId
-              const isDisabled = providerId !== 'openai'
-              
-              return (
-                <button
-                  key={providerId}
-                  onClick={() => handleProviderClick(providerId)}
-                  disabled={isDisabled}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    padding: '4px',
-                    border: isActive ? '2px solid var(--accent)' : '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: isDisabled ? 'var(--bg-secondary)' : (isActive ? 'var(--accent)' : 'var(--bg)'),
-                    color: isDisabled ? 'var(--muted)' : (isActive ? '#ffffff' : 'var(--fg)'),
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: isDisabled ? 0.5 : 1
-                  }}
-                  title={
-                    providerId === 'openai' ? 'OpenAI' :
-                    providerId === 'claude' ? 'Claude — Coming soon' :
-                    'Copilot — Coming soon'
-                  }
-                >
-                  {providerId === 'openai' ? <OpenAIIcon width={16} height={16} /> :
-                   providerId === 'claude' ? <ClaudeIcon width={16} height={16} /> :
-                   <CopilotIcon width={16} height={16} />}
-                </button>
-              )
-            })}
-          </div>
+          {/* Claude */}
+          <button
+            disabled={true}
+            onMouseEnter={(e) => {
+              const button = e.currentTarget
+              const normalContent = button.querySelector('[data-content="normal"]') as HTMLElement
+              const hoverContent = button.querySelector('[data-content="hover"]') as HTMLElement
+              if (normalContent) normalContent.style.display = 'none'
+              if (hoverContent) hoverContent.style.display = 'flex'
+            }}
+            onMouseLeave={(e) => {
+              const button = e.currentTarget
+              const normalContent = button.querySelector('[data-content="normal"]') as HTMLElement
+              const hoverContent = button.querySelector('[data-content="hover"]') as HTMLElement
+              if (normalContent) normalContent.style.display = 'flex'
+              if (hoverContent) hoverContent.style.display = 'none'
+            }}
+            style={{
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'var(--spacing-xs)',
+              padding: '0 var(--spacing-sm)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--muted)',
+              cursor: 'not-allowed',
+              fontSize: 'var(--font-size-xs)',
+              fontFamily: 'var(--font-family)',
+              whiteSpace: 'nowrap',
+              opacity: 0.6,
+              minWidth: '80px',
+              position: 'relative'
+            }}
+            title="Claude — Coming soon"
+          >
+            <div data-content="normal" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', position: 'absolute' }}>
+              <ClaudeIcon width={16} height={16} />
+              <span>Claude</span>
+            </div>
+            <div data-content="hover" style={{ display: 'none', alignItems: 'center', position: 'absolute' }}>
+              <span>Coming soon</span>
+            </div>
+          </button>
+          
+          {/* Copilot */}
+          <button
+            disabled={true}
+            onMouseEnter={(e) => {
+              const button = e.currentTarget
+              const normalContent = button.querySelector('[data-content="normal"]') as HTMLElement
+              const hoverContent = button.querySelector('[data-content="hover"]') as HTMLElement
+              if (normalContent) normalContent.style.display = 'none'
+              if (hoverContent) hoverContent.style.display = 'flex'
+            }}
+            onMouseLeave={(e) => {
+              const button = e.currentTarget
+              const normalContent = button.querySelector('[data-content="normal"]') as HTMLElement
+              const hoverContent = button.querySelector('[data-content="hover"]') as HTMLElement
+              if (normalContent) normalContent.style.display = 'flex'
+              if (hoverContent) hoverContent.style.display = 'none'
+            }}
+            style={{
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'var(--spacing-xs)',
+              padding: '0 var(--spacing-sm)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--muted)',
+              cursor: 'not-allowed',
+              fontSize: 'var(--font-size-xs)',
+              fontFamily: 'var(--font-family)',
+              whiteSpace: 'nowrap',
+              opacity: 0.6,
+              minWidth: '80px',
+              position: 'relative'
+            }}
+            title="Copilot — Coming soon"
+          >
+            <div data-content="normal" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', position: 'absolute' }}>
+              <CopilotIcon width={16} height={16} />
+              <span>Copilot</span>
+            </div>
+            <div data-content="hover" style={{ display: 'none', alignItems: 'center', position: 'absolute' }}>
+              <span>Coming soon</span>
+            </div>
+          </button>
         </div>
         
         {/* Right: Mode Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 'var(--spacing-sm)', 
+          justifyContent: 'flex-end',
+          flex: '1 1 0'
+        }}>
           <button
             onClick={handleThemeToggle}
             style={{
@@ -639,41 +1412,68 @@ function Plugin() {
               }}
             >
               {message.role === 'assistant' ? (
-                // Rich text rendering for ALL assistant messages (including Design Critique markdown)
-                <div style={{
-                  padding: 'var(--spacing-sm) var(--spacing-md)',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--fg)',
-                  maxWidth: '100%'
-                }}>
-                  {(() => {
-                    try {
-                      // Always parse and render with RichTextRenderer for assistant messages
-                      const ast = parseRichText(message.content)
-                      const enhanced = enhanceRichText(ast)
-                      return <RichTextRenderer nodes={enhanced} />
-                    } catch (error) {
-                      // Fallback to plain text if parsing fails
-                      console.error('[UI] RichText parsing error:', error)
-                      return (
-                        <div style={{
-                          fontSize: 'var(--font-size-sm)',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          userSelect: 'text',
-                          WebkitUserSelect: 'text',
-                          MozUserSelect: 'text',
-                          msUserSelect: 'text',
-                          cursor: 'text'
-                        }}>
-                          {message.content}
-                        </div>
-                      )
-                    }
-                  })()}
-                </div>
+                // Check if this is a status message with loading animation
+                message.isStatus && message.statusStyle === 'loading' ? (
+                  // Animated loading status message
+                  <div style={{
+                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-sm)',
+                    fontSize: 'var(--font-size-sm)',
+                    color: 'var(--muted)',
+                    maxWidth: '100%'
+                  }}>
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid var(--muted)',
+                      borderTopColor: 'var(--accent)',
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite'
+                    }} />
+                    <span>{message.content}</span>
+                  </div>
+                ) : (
+                  // Regular assistant message (rich text rendering)
+                  <div style={{
+                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: message.statusStyle === 'error' ? 'var(--error)' : 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    color: message.statusStyle === 'error' ? '#ffffff' : 'var(--fg)',
+                    maxWidth: '100%'
+                  }}>
+                    {(() => {
+                      try {
+                        // Always parse and render with RichTextRenderer for assistant messages
+                        const ast = parseRichText(message.content)
+                        const enhanced = enhanceRichText(ast)
+                        return <RichTextRenderer nodes={enhanced} />
+                      } catch (error) {
+                        // Fallback to plain text if parsing fails
+                        console.error('[UI] RichText parsing error:', error)
+                        return (
+                          <div style={{
+                            fontSize: 'var(--font-size-sm)',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            userSelect: 'text',
+                            WebkitUserSelect: 'text',
+                            MozUserSelect: 'text',
+                            msUserSelect: 'text',
+                            cursor: 'text'
+                          }}>
+                            {message.content}
+                          </div>
+                        )
+                      }
+                    })()}
+                  </div>
+                )
               ) : (
                 // User message display (plain text)
                 <div style={{
@@ -704,6 +1504,244 @@ function Plugin() {
             </div>
           )
         })}
+        
+        {/* Scorecard View */}
+        {scorecard && (
+          <div style={{
+            padding: 'var(--spacing-md)',
+            backgroundColor: 'var(--bg)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            maxWidth: '100%',
+            marginBottom: 'var(--spacing-md)'
+          }}>
+            {/* Overall Score */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              marginBottom: 'var(--spacing-lg)',
+              paddingBottom: 'var(--spacing-md)',
+              borderBottom: '1px solid var(--border)'
+            }}>
+              <div style={{
+                fontSize: '48px',
+                fontWeight: 'var(--font-weight-bold)',
+                color: scorecard.overallScore >= 80 ? 'var(--success)' : scorecard.overallScore >= 60 ? 'var(--warning)' : 'var(--error)',
+                lineHeight: 1
+              }}>
+                {scorecard.overallScore}
+              </div>
+              <div style={{
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--muted)',
+                marginTop: 'var(--spacing-xs)'
+              }}>
+                Overall Score
+              </div>
+              {scorecard.summary && (
+                <div style={{
+                  fontSize: 'var(--font-size-sm)',
+                  color: 'var(--fg)',
+                  textAlign: 'center',
+                  marginTop: 'var(--spacing-sm)',
+                  maxWidth: '400px'
+                }}>
+                  {scorecard.summary}
+                </div>
+              )}
+            </div>
+            
+            {/* Items List */}
+            {scorecard.items && scorecard.items.length > 0 && (
+              <div style={{
+                marginBottom: 'var(--spacing-md)'
+              }}>
+                <div style={{
+                  fontSize: 'var(--font-size-md)',
+                  fontWeight: 'var(--font-weight-semibold)',
+                  marginBottom: 'var(--spacing-sm)',
+                  color: 'var(--fg)'
+                }}>
+                  Evaluation Criteria
+                </div>
+                {scorecard.items.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 'var(--spacing-sm)',
+                      padding: 'var(--spacing-sm)',
+                      marginBottom: 'var(--spacing-xs)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-sm)'
+                    }}
+                  >
+                    <div style={{
+                      flex: 1,
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--fg)'
+                    }}>
+                      {item.label}
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-xs)',
+                      marginRight: 'var(--spacing-sm)'
+                    }}>
+                      <div style={{
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: item.score >= 4 ? 'var(--success)' : item.score >= 3 ? 'var(--warning)' : 'var(--error)',
+                        color: '#ffffff',
+                        fontSize: 'var(--font-size-xs)',
+                        fontWeight: 'var(--font-weight-semibold)'
+                      }}>
+                        {item.score}/{item.outOf}
+                      </div>
+                    </div>
+                    {item.notes && (
+                      <div style={{
+                        flex: 2,
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--fg-secondary)',
+                        fontStyle: 'italic'
+                      }}>
+                        {item.notes}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Risks Section (Collapsible) */}
+            {scorecard.risks && scorecard.risks.length > 0 && (
+              <details style={{
+                marginBottom: 'var(--spacing-sm)'
+              }}>
+                <summary style={{
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 'var(--font-weight-semibold)',
+                  color: 'var(--error)',
+                  cursor: 'pointer',
+                  padding: 'var(--spacing-xs)',
+                  listStyle: 'none'
+                }}>
+                  ⚠️ Risks ({scorecard.risks.length})
+                </summary>
+                <div style={{
+                  padding: 'var(--spacing-sm)',
+                  marginTop: 'var(--spacing-xs)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderRadius: 'var(--radius-sm)'
+                }}>
+                  {scorecard.risks.map((risk, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--fg)',
+                        marginBottom: 'var(--spacing-xs)',
+                        paddingLeft: 'var(--spacing-sm)'
+                      }}
+                    >
+                      • {risk}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+            
+            {/* Actions Section (Collapsible) */}
+            {scorecard.actions && scorecard.actions.length > 0 && (
+              <details style={{
+                marginBottom: 'var(--spacing-sm)'
+              }}>
+                <summary style={{
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 'var(--font-weight-semibold)',
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  padding: 'var(--spacing-xs)',
+                  listStyle: 'none'
+                }}>
+                  ✓ Actions ({scorecard.actions.length})
+                </summary>
+                <div style={{
+                  padding: 'var(--spacing-sm)',
+                  marginTop: 'var(--spacing-xs)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderRadius: 'var(--radius-sm)'
+                }}>
+                  {scorecard.actions.map((action, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--fg)',
+                        marginBottom: 'var(--spacing-xs)',
+                        paddingLeft: 'var(--spacing-sm)'
+                      }}
+                    >
+                      • {action}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+        
+        {/* Scorecard Error */}
+        {scorecardError && (
+          <div style={{
+            padding: 'var(--spacing-md)',
+            backgroundColor: 'var(--error)',
+            color: '#ffffff',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: 'var(--spacing-md)'
+          }}>
+            <div style={{
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 'var(--font-weight-semibold)',
+              marginBottom: 'var(--spacing-xs)'
+            }}>
+              Scorecard Error
+            </div>
+            <div style={{
+              fontSize: 'var(--font-size-xs)',
+              marginBottom: 'var(--spacing-xs)'
+            }}>
+              {scorecardError.error}
+            </div>
+            {scorecardError.raw && (
+              <details style={{
+                marginTop: 'var(--spacing-sm)'
+              }}>
+                <summary style={{
+                  fontSize: 'var(--font-size-xs)',
+                  cursor: 'pointer',
+                  opacity: 0.8
+                }}>
+                  Show raw response
+                </summary>
+                <pre style={{
+                  fontSize: 'var(--font-size-xs)',
+                  marginTop: 'var(--spacing-xs)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  opacity: 0.9
+                }}>
+                  {scorecardError.raw}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
         
         {/* Loading Indicator */}
         {isLoading && (
@@ -956,77 +1994,88 @@ function Plugin() {
       {/* Assistant Modal */}
       {showAssistantModal && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          position: 'absolute',
+          inset: 0,
+          padding: '16px',
+          backgroundColor: 'var(--bg)',
+          zIndex: 1000,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowAssistantModal(false)}>
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}>
           <div style={{
-            backgroundColor: 'var(--bg)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--spacing-lg)',
-            maxWidth: '300px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflowY: 'auto'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{
-              fontSize: 'var(--font-size-lg)',
-              fontWeight: 'var(--font-weight-semibold)',
-              marginBottom: 'var(--spacing-md)'
-            }}>
-              Select Assistant
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-              {listAssistants().map((a: AssistantType) => (
-                <button
-                  key={a.id}
-                  onClick={() => handleAssistantSelect(a.id)}
-                  style={{
-                    padding: 'var(--spacing-md)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: assistant.id === a.id ? 'var(--accent)' : 'var(--bg-secondary)',
-                    color: assistant.id === a.id ? '#ffffff' : 'var(--fg)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontFamily: 'var(--font-family)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 'var(--spacing-sm)'
-                  }}
-                >
+            fontSize: 'var(--font-size-lg)',
+            fontWeight: 'var(--font-weight-semibold)',
+            marginBottom: 'var(--spacing-md)',
+            flexShrink: 0
+          }}>
+            Select Assistant
+          </div>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 'var(--spacing-sm)',
+            overflowY: 'auto',
+            flex: 1
+          }}>
+            {listAssistants().map((a: AssistantType) => (
+              <button
+                key={a.id}
+                onClick={() => handleAssistantSelect(a.id)}
+                onMouseEnter={(e) => {
+                  const button = e.currentTarget
+                  const description = button.querySelector('[data-description]') as HTMLElement
+                  if (description) description.style.display = 'block'
+                }}
+                onMouseLeave={(e) => {
+                  const button = e.currentTarget
+                  const description = button.querySelector('[data-description]') as HTMLElement
+                  if (description) description.style.display = 'none'
+                }}
+                style={{
+                  padding: 'var(--spacing-md)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: assistant.id === a.id ? 'var(--accent)' : 'var(--bg-secondary)',
+                  color: assistant.id === a.id ? '#ffffff' : 'var(--fg)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'var(--font-family)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 'var(--spacing-sm)',
+                  position: 'relative',
+                  transition: 'background-color 0.2s ease'
+                }}
+              >
+                <div style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginTop: '2px'
+                }}>
+                  {getAssistantIcon(a.iconId)}
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
                   <div style={{
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginTop: '2px'
+                    fontWeight: 'var(--font-weight-semibold)'
                   }}>
-                    {getAssistantIcon(a.iconId)}
+                    {a.label}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontWeight: 'var(--font-weight-semibold)',
-                      marginBottom: 'var(--spacing-xs)'
-                    }}>
-                      {a.label}
-                    </div>
-                    <div style={{
+                  <div 
+                    data-description
+                    style={{
                       fontSize: 'var(--font-size-xs)',
-                      opacity: 0.8
-                    }}>
-                      {a.intro}
-                    </div>
+                      opacity: assistant.id === a.id ? 0.9 : 0.7,
+                      display: 'none',
+                      lineHeight: 1.4
+                    }}
+                  >
+                    {a.intro}
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -1038,6 +2087,290 @@ function Plugin() {
           currentMode={mode}
           onModeChange={handleModeSelect}
         />
+      )}
+      
+      {/* Format Selection Modal for Content Table */}
+      {showFormatModal && contentTable && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowFormatModal(false)}>
+          <div style={{
+            backgroundColor: 'var(--bg)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-lg)',
+            maxWidth: '400px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-md)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              fontSize: 'var(--font-size-lg)',
+              fontWeight: 'var(--font-weight-semibold)',
+              marginBottom: 'var(--spacing-sm)'
+            }}>
+              What table format do you want?
+            </div>
+            
+            {(['universal', 'content-model-1', 'content-model-2', 'content-model-3', 'content-model-4', 'content-model-5', 'ada-only', 'dev-only'] as TableFormatPreset[]).map(format => {
+              const isImplemented = format === 'universal' || format === 'dev-only'
+              const formatLabels: Record<TableFormatPreset, string> = {
+                'universal': 'Universal Table',
+                'content-model-1': 'Content Model 1',
+                'content-model-2': 'Content Model 2',
+                'content-model-3': 'Content Model 3',
+                'content-model-4': 'Content Model 4',
+                'content-model-5': 'Content Model 5',
+                'ada-only': 'ADA Only',
+                'dev-only': 'Dev Only'
+              }
+              
+              return (
+                <button
+                  key={format}
+                  onClick={() => {
+                    if (isImplemented) {
+                      setSelectedFormat(format)
+                      setShowFormatModal(false)
+                      
+                      // Execute the pending action
+                      const action = pendingAction
+                      setPendingAction(null) // Clear immediately to prevent double execution
+                      
+                      if (action === 'copy') {
+                        handleCopyTable(format)
+                      } else if (action === 'view') {
+                        setShowTableView(true)
+                        setSelectedFormat(format)
+                      } else if (action === 'confluence') {
+                        // Show message first, then copy
+                        const message: Message = {
+                          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                          role: 'assistant',
+                          content: 'Confluence integration not configured yet — copying table instead.',
+                          timestamp: Date.now()
+                        }
+                        setMessages(prev => [...prev, message])
+                        
+                        // Copy table with Universal preset (unless user chose Dev Only)
+                        const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal'
+                        handleCopyTable(copyFormat)
+                      }
+                    }
+                  }}
+                  disabled={!isImplemented}
+                  style={{
+                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: isImplemented ? 'var(--bg-secondary)' : 'var(--bg)',
+                    color: isImplemented ? 'var(--fg)' : 'var(--muted)',
+                    cursor: isImplemented ? 'pointer' : 'not-allowed',
+                    textAlign: 'left',
+                    fontSize: 'var(--font-size-sm)',
+                    opacity: isImplemented ? 1 : 0.6
+                  }}
+                >
+                  {formatLabels[format]}
+                  {!isImplemented && <span style={{ marginLeft: 'var(--spacing-xs)', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }}>(Not implemented yet - v1)</span>}
+                </button>
+              )
+            })}
+            
+            <button
+              onClick={() => setShowFormatModal(false)}
+              style={{
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--fg)',
+                cursor: 'pointer',
+                marginTop: 'var(--spacing-sm)'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Table View Modal */}
+      {showTableView && contentTable && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowTableView(false)}>
+          <div style={{
+            backgroundColor: 'var(--bg)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-lg)',
+            maxWidth: '90%',
+            maxHeight: '90vh',
+            width: '800px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-md)',
+            overflow: 'hidden'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 'var(--spacing-sm)'
+            }}>
+              <div style={{
+                fontSize: 'var(--font-size-lg)',
+                fontWeight: 'var(--font-weight-semibold)'
+              }}>
+                Content Table
+              </div>
+              <button
+                onClick={() => setShowTableView(false)}
+                style={{
+                  padding: 'var(--spacing-xs)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--spacing-sm)',
+              backgroundColor: 'var(--bg-secondary)'
+            }}>
+              <div dangerouslySetInnerHTML={{ __html: toHtmlTable(contentTable, selectedFormat, { forView: true }) }} />
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              gap: 'var(--spacing-sm)',
+              justifyContent: 'flex-end'
+            }}>
+              <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    handleCopyTable(selectedFormat)
+                  }}
+                  disabled={isCopyingTable}
+                  style={{
+                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: isCopyingTable ? 'var(--muted)' : 'var(--accent)',
+                    color: '#ffffff',
+                    cursor: isCopyingTable ? 'not-allowed' : 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    opacity: isCopyingTable ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-xs)'
+                  }}
+                >
+                  {isCopyingTable && (
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid #ffffff',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite'
+                    }} />
+                  )}
+                  {isCopyingTable ? 'Copying...' : 'Copy Table'}
+                </button>
+                {DEBUG_CLIPBOARD && (
+                  <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setShowPasteDebug(true)}
+                      style={{
+                        padding: 'var(--spacing-sm) var(--spacing-md)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--fg)',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-xs)'
+                      }}
+                    >
+                      Debug
+                    </button>
+                    <button
+                      onClick={() => handleDownloadHtml(selectedFormat)}
+                      style={{
+                        padding: 'var(--spacing-sm) var(--spacing-md)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--fg)',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-xs)'
+                      }}
+                    >
+                      Download HTML
+                    </button>
+                    <button
+                      onClick={() => handleCopyTsv(selectedFormat)}
+                      style={{
+                        padding: 'var(--spacing-sm) var(--spacing-md)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--fg)',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-xs)'
+                      }}
+                    >
+                      Copy TSV
+                    </button>
+                  </div>
+                )}
+              </div>
+              {copyStatus && (
+                <div style={{
+                  padding: 'var(--spacing-sm)',
+                  backgroundColor: copyStatus.success ? 'var(--success)' : 'var(--error)',
+                  color: '#ffffff',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--font-size-xs)',
+                  marginTop: 'var(--spacing-xs)'
+                }}>
+                  {copyStatus.success ? '✓ ' : '✗ '}
+                  {copyStatus.message}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
       
       {/* SEND JSON Modal */}
@@ -1368,8 +2701,44 @@ function Plugin() {
         </div>
       )}
       
-      {/* Copy Success Notification */}
-      {showCopySuccess && (
+      {/* Copy Table Toast Notification */}
+      {copyStatus && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: copyStatus.success ? 'var(--success)' : 'var(--error)',
+          color: '#ffffff',
+          padding: 'var(--spacing-md) var(--spacing-lg)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          zIndex: 2000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--spacing-sm)',
+          fontSize: 'var(--font-size-sm)',
+          fontFamily: 'var(--font-family)',
+          fontWeight: 'var(--font-weight-medium)',
+          animation: 'slideDown 0.3s ease-out',
+          maxWidth: '90%',
+          wordWrap: 'break-word'
+        }}>
+          {copyStatus.success ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+            </svg>
+          )}
+          <span>{copyStatus.message}</span>
+        </div>
+      )}
+      
+      {/* Legacy Copy Success Notification (for other copy actions) */}
+      {showCopySuccess && !copyStatus && (
         <div style={{
           position: 'fixed',
           top: '20px',
@@ -1396,7 +2765,143 @@ function Plugin() {
         </div>
       )}
       
-      {/* Credits Drawer */}
+      {/* Paste Debug Panel */}
+      {showPasteDebug && DEBUG_CLIPBOARD && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }} onClick={() => setShowPasteDebug(false)}>
+          <div style={{
+            backgroundColor: 'var(--bg)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-lg)',
+            maxWidth: '90%',
+            maxHeight: '90vh',
+            width: '900px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-md)',
+            overflow: 'hidden'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 'var(--spacing-sm)'
+            }}>
+              <div style={{
+                fontSize: 'var(--font-size-lg)',
+                fontWeight: 'var(--font-weight-semibold)'
+              }}>
+                Paste Debug Panel
+              </div>
+              <button
+                onClick={() => setShowPasteDebug(false)}
+                style={{
+                  padding: 'var(--spacing-xs)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 'var(--spacing-md)',
+              flex: 1,
+              minHeight: 0
+            }}>
+              {/* HTML Textarea */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                <label style={{
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 'var(--font-weight-medium)'
+                }}>
+                  HTML ({debugHtml.length} chars)
+                </label>
+                <textarea
+                  readOnly
+                  value={debugHtml}
+                  style={{
+                    flex: 1,
+                    minHeight: '200px',
+                    fontFamily: 'monospace',
+                    fontSize: 'var(--font-size-xs)',
+                    padding: 'var(--spacing-sm)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--fg)',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+              
+              {/* TSV Textarea */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                <label style={{
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 'var(--font-weight-medium)'
+                }}>
+                  TSV ({debugTsv.length} chars)
+                </label>
+                <textarea
+                  readOnly
+                  value={debugTsv}
+                  style={{
+                    flex: 1,
+                    minHeight: '200px',
+                    fontFamily: 'monospace',
+                    fontSize: 'var(--font-size-xs)',
+                    padding: 'var(--spacing-sm)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--fg)',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+            </div>
+            
+            {/* Rendered Preview */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+              <label style={{
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-medium)'
+              }}>
+                Rendered Preview
+              </label>
+              <div style={{
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: 'var(--spacing-sm)',
+                backgroundColor: 'var(--bg-secondary)',
+                maxHeight: '300px',
+                overflow: 'auto'
+              }}>
+                <div dangerouslySetInnerHTML={{ __html: debugHtml }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Resources & Credits Drawer */}
       <div style={{
         borderTop: '1px solid var(--border)',
         backgroundColor: 'var(--bg-secondary)',
@@ -1404,37 +2909,181 @@ function Plugin() {
       }}>
         {showCredits ? (
           <div style={{
-            padding: 'var(--spacing-sm) var(--spacing-md)',
+            padding: 'var(--spacing-md)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
+            flexDirection: 'column',
+            gap: 'var(--spacing-md)'
           }}>
+            {/* Header with Hide button */}
             <div style={{
               display: 'flex',
-              gap: 'var(--spacing-md)',
-              fontSize: 'var(--font-size-xs)',
-              color: 'var(--fg-secondary)'
+              alignItems: 'center',
+              justifyContent: 'space-between'
             }}>
-              <a href="#" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Docs</a>
-              <a href="#" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Support</a>
-              <a href="#" style={{ color: 'var(--accent)', textDecoration: 'none' }}>GitHub</a>
-            </div>
-            <button
-              onClick={handleCreditsToggle}
-              style={{
-                padding: 'var(--spacing-xs)',
-                border: 'none',
-                backgroundColor: 'transparent',
+              <div style={{
+                fontSize: 'var(--font-size-xs)',
                 color: 'var(--fg-secondary)',
-                cursor: 'pointer',
+                fontWeight: 'var(--font-weight-medium)'
+              }}>
+                Resources & Credits
+              </div>
+              <button
+                onClick={handleCreditsToggle}
+                style={{
+                  padding: 'var(--spacing-xs)',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: 'var(--fg-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 'var(--spacing-xs)',
+                  fontSize: 'var(--font-size-xs)',
+                  fontFamily: 'var(--font-family)'
+                }}
+                title="Hide"
+              >
+                <span>Hide</span>
+                <ChevronDownIcon width={12} height={12} />
+              </button>
+            </div>
+            
+            {/* Action Buttons Row */}
+            <div style={{
+              display: 'flex',
+              gap: 'var(--spacing-sm)',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={handleAboutClick}
+                style={{
+                  padding: 'var(--spacing-xs) var(--spacing-sm)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-xs)',
+                  fontFamily: 'var(--font-family)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                About
+              </button>
+              <button
+                onClick={handleFeedbackClick}
+                style={{
+                  padding: 'var(--spacing-xs) var(--spacing-sm)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-xs)',
+                  fontFamily: 'var(--font-family)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Feedback
+              </button>
+              <button
+                onClick={handleJoinMeetupClick}
+                style={{
+                  padding: 'var(--spacing-xs) var(--spacing-sm)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-xs)',
+                  fontFamily: 'var(--font-family)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Join Meetup
+              </button>
+            </div>
+            
+            {/* 3-Column Credits Layout */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              gap: 'var(--spacing-md)',
+              fontSize: 'var(--font-size-xs)'
+            }}>
+              {/* Column 1: Created by */}
+              <div style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              title="Collapse credits"
-            >
-              <ChevronDownIcon width={12} height={12} />
-            </button>
+                flexDirection: 'column',
+                gap: 'var(--spacing-xs)'
+              }}>
+                <div style={{
+                  fontWeight: 'var(--font-weight-semibold)',
+                  color: 'var(--fg)',
+                  marginBottom: 'var(--spacing-xs)'
+                }}>
+                  Created by:
+                </div>
+                <div style={{
+                  color: 'var(--fg-secondary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-xs)'
+                }}>
+                  <div>Biagio G</div>
+                  <div>TBD0</div>
+                </div>
+              </div>
+              
+              {/* Column 2: API Team */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-xs)'
+              }}>
+                <div style={{
+                  fontWeight: 'var(--font-weight-semibold)',
+                  color: 'var(--fg)',
+                  marginBottom: 'var(--spacing-xs)'
+                }}>
+                  API Team:
+                </div>
+                <div style={{
+                  color: 'var(--fg-secondary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-xs)'
+                }}>
+                  <div>TBD1</div>
+                  <div>TBD2</div>
+                </div>
+              </div>
+              
+              {/* Column 3: LLM Instruct */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-xs)'
+              }}>
+                <div style={{
+                  fontWeight: 'var(--font-weight-semibold)',
+                  color: 'var(--fg)',
+                  marginBottom: 'var(--spacing-xs)'
+                }}>
+                  LLM Instruct:
+                </div>
+                <div style={{
+                  color: 'var(--fg-secondary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-xs)'
+                }}>
+                  <div>TBD3</div>
+                  <div>TBD4</div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div style={{
@@ -1448,7 +3097,7 @@ function Plugin() {
               color: 'var(--fg-secondary)',
               fontWeight: 'var(--font-weight-medium)'
             }}>
-              Credits
+              Resources & Credits
             </div>
             <button
               onClick={handleCreditsToggle}
@@ -1462,7 +3111,7 @@ function Plugin() {
                 alignItems: 'center',
                 justifyContent: 'center'
               }}
-              title="Expand credits"
+              title="Expand Resources & Credits"
             >
               <ChevronUpIcon width={12} height={12} />
             </button>

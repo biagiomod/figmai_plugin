@@ -140,6 +140,8 @@ This checklist ensures core functionality works after meaningful changes. Run th
 - [ ] Verify assistant icons display correctly
 - [ ] Verify assistant labels and descriptions visible
 - [ ] Click on "Design Critique" assistant
+- [ ] Verify user message appears first: "Provide a comprehensive design critique..."
+- [ ] Verify "Analyzing your design..." status message appears
 - [ ] Verify modal closes
 - [ ] Verify assistant name updates in selector
 - [ ] Verify assistant icon updates
@@ -173,10 +175,13 @@ This checklist ensures core functionality works after meaningful changes. Run th
 - [ ] Select a frame in Figma canvas
 - [ ] Switch to "Design Critique" assistant
 - [ ] Click "Give Design Crit" quick action
-- [ ] Verify "Analyzing your design..." message appears
+- [ ] Verify message order: User bubble ("Provide a comprehensive design critique...") appears first
+- [ ] Verify "Analyzing your design..." status message appears after user message
 - [ ] Verify image export happens (check console/logs)
 - [ ] Wait for critique response
-- [ ] Verify critique appears in chat or on canvas (if applicable)
+- [ ] Verify "Analyzing..." is replaced with "Scorecard added to canvas." message
+- [ ] Verify scorecard frame appears on canvas 40px left of root container
+- [ ] Verify chat does NOT show full critique markdown/text (only confirmation message)
 
 **Expected**: Quick action executes with selection
 

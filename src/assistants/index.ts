@@ -3,6 +3,8 @@
  * Defines all available assistants with their knowledge bases and quick actions
  */
 
+import type { Assistant, QuickAction } from '../core/types'
+
 // Load markdown files as strings
 // Note: Using inline strings for now as bundler may not support ?raw imports
 const generalPrompt = `# General Assistant
@@ -61,25 +63,8 @@ Scoring: 90-100 (exceptional), 80-89 (strong), 70-79 (solid), 60-69 (functional)
 
 Evaluate: Hierarchy, Layout, Spacing, Typography, Color/Contrast, Affordance, Consistency, Accessibility, States.`
 
-export interface QuickAction {
-  id: string
-  label: string
-  templateMessage: string
-  requiresSelection?: boolean
-  requiresVision?: boolean
-  maxImages?: number
-  imageScale?: number
-}
-
-export interface Assistant {
-  id: string
-  label: string
-  intro: string
-  promptMarkdown: string
-  quickActions: QuickAction[]
-  iconId?: string
-  kind?: 'ai' | 'tool' | 'hybrid'
-}
+// Re-export types for convenience (canonical definitions are in core/types.ts)
+export type { Assistant, QuickAction } from '../core/types'
 
 export const ASSISTANTS: Assistant[] = [
   {
@@ -265,7 +250,7 @@ You specialize in identifying accessibility barriers and providing specific, act
   {
     id: 'content_table',
     label: 'Content Table',
-    intro: 'I generate structured content inventories and tables from your designs. Select frames to document all text content.',
+    intro: 'I generate structured content inventories and tables from your designs. Select a single container to scan all text content.',
     promptMarkdown: `# Content Table Assistant
 
 You are **FigmAI's Content Table Assistant**, a content strategist and information architect embedded inside a Figma plugin.
@@ -273,18 +258,12 @@ You generate structured content inventories and tables that help teams track, or
 
 [Full knowledge base available in: src/assistants/contentTable.md]`,
     iconId: 'ContentTableIcon',
-    kind: 'ai',
+    kind: 'tool',
     quickActions: [
       {
         id: 'generate-table',
-        label: 'Generate content table',
-        templateMessage: 'Generate a comprehensive content inventory table documenting all text content, types, variants, and states.',
-        requiresSelection: true
-      },
-      {
-        id: 'export-inventory',
-        label: 'Export content inventory',
-        templateMessage: 'Export content inventory in structured format (markdown table, CSV, JSON) for content management and localization.',
+        label: 'GENERATE TABLE',
+        templateMessage: 'Scan selected container and generate content table',
         requiresSelection: true
       }
     ]

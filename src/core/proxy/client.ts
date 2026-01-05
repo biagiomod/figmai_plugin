@@ -289,6 +289,15 @@ export class ProxyClient {
       payload.quickActionId = options.quickActionId
     }
     
+    // Enforce JSON output for Design Critique
+    // Note: Proxy server should ideally use json_schema with strict schema validation
+    // For now, using json_object to ensure JSON-only output
+    // Proxy server can upgrade to: response_format: { type: "json_schema", json_schema: { name: "design_crit_scorecard", schema: {...}, strict: true } }
+    if (options.assistantId === 'design_critique' || options.quickActionId === 'give-critique') {
+      payload.response_format = { type: 'json_object' }
+      log('Enforcing JSON output for Design Critique (json_object mode)')
+    }
+    
     if (options.selectionSummary) {
       payload.selectionSummary = options.selectionSummary
       log('Selection summary included:', options.selectionSummary.substring(0, 200) + '...')
@@ -339,7 +348,12 @@ export class ProxyClient {
           errorText = 'Unable to read error response'
         }
         
-        throw ProxyError.fromResponse(response.status, response.statusText, errorText)
+        throw new ProxyError(
+          `Proxy request failed: ${response.status} ${response.statusText}${errorText ? `. ${errorText}` : ''}`,
+          ProviderErrorType.UNKNOWN,
+          response.status,
+          errorText
+        )
       }
       
       let data: unknown
@@ -363,13 +377,31 @@ export class ProxyClient {
       }
       
       // Use normalization utility for consistent response extraction
-      const responseText = extractResponseText(data)
+      let responseText = extractResponseText(data)
       if (!responseText) {
         throw new ProxyError(
           'Empty response from proxy',
           ProviderErrorType.INVALID_REQUEST,
           response.status
         )
+      }
+      
+      // Validate JSON for Design Critique actions (non-blocking - plugin will handle fallback)
+      if (options.assistantId === 'design_critique' || options.quickActionId === 'give-critique') {
+        // Try to parse JSON after stripping code fences
+        let jsonString = responseText.trim()
+        jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '')
+        
+        try {
+          JSON.parse(jsonString)
+          log('Design Critique response validated as JSON')
+        } catch (parseError) {
+          // Log warning but don't throw - let plugin handle fallback gracefully
+          const errorPreview = responseText.substring(0, 500)
+          console.warn('[ProxyClient] Design Critique response is not valid JSON. First 500 chars:', errorPreview)
+          log('Design Critique response failed JSON validation - plugin will handle fallback')
+          // Note: Proxy server should ideally return 502 for invalid JSON, but client allows fallback
+        }
       }
       
       return responseText
@@ -379,7 +411,16 @@ export class ProxyClient {
       }
       
       if (error instanceof Error) {
-        throw ProxyError.fromNetworkError(error)
+        if (error.name === 'AbortError') {
+          throw new ProxyError(
+            'Request timeout. The proxy server took too long to respond.',
+            ProviderErrorType.TIMEOUT
+          )
+        }
+        throw new ProxyError(
+          `Failed to communicate with proxy: ${error.message}`,
+          ProviderErrorType.NETWORK
+        )
       }
       
       throw new ProxyError(
