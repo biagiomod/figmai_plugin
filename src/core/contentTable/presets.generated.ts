@@ -1,0 +1,229 @@
+/**
+ * Generated Content Table Presets
+ * 
+ * This file is auto-generated from content-models.md
+ * DO NOT EDIT MANUALLY - edit content-models.md instead
+ * 
+ * Generated at: 2026-01-05T16:43:01.409Z
+ */
+
+import type { ContentItemV1, TableFormatPreset } from './types'
+
+export interface PresetInfo {
+  id: TableFormatPreset
+  label: string
+  description: string
+  enabled: boolean
+}
+
+export const PRESET_INFO: PresetInfo[] = [
+  {
+    id: 'universal' as TableFormatPreset,
+    label: "Universal Table",
+    description: "Complete content inventory with all metadata",
+    enabled: true
+  },
+  {
+    id: 'dev-only' as TableFormatPreset,
+    label: "Dev Only",
+    description: "Minimal columns for development handoff",
+    enabled: true
+  },
+  {
+    id: 'ada-only' as TableFormatPreset,
+    label: "ADA Only",
+    description: "Accessibility-focused columns for compliance review",
+    enabled: true
+  },
+  {
+    id: 'content-model-1' as TableFormatPreset,
+    label: "Content Model 1",
+    description: "Placeholder for future content model",
+    enabled: false
+  },
+  {
+    id: 'content-model-2' as TableFormatPreset,
+    label: "Content Model 2",
+    description: "Placeholder for future content model",
+    enabled: false
+  },
+  {
+    id: 'content-model-3' as TableFormatPreset,
+    label: "Content Model 3",
+    description: "Placeholder for future content model",
+    enabled: false
+  },
+  {
+    id: 'content-model-4' as TableFormatPreset,
+    label: "Content Model 4",
+    description: "Placeholder for future content model",
+    enabled: false
+  },
+  {
+    id: 'content-model-5' as TableFormatPreset,
+    label: "Content Model 5",
+    description: "Placeholder for future content model",
+    enabled: false
+  }
+]
+
+
+export interface ColumnDef {
+  key: string
+  label: string
+  extract: (item: ContentItemV1) => string
+}
+
+
+/**
+ * Resolve a value path expression from a ContentItemV1
+ * Returns empty string if path is missing
+ * 
+ * Supported paths:
+ * - id, nodeId, nodeUrl (top-level)
+ * - component.name, component.kind, component.key
+ * - field.label, field.path
+ * - content.value
+ * - meta.visible, meta.locked (returns "Yes"/"No")
+ * - variantProperties.<key> (e.g., variantProperties.Size)
+ */
+function resolvePath(item: ContentItemV1, path: string): string {
+  // Handle variantProperties.<key> syntax
+  if (path.startsWith('variantProperties.')) {
+    const key = path.replace('variantProperties.', '')
+    return item.component.variantProperties?.[key] || ''
+  }
+  
+  // Split path into parts
+  const parts = path.split('.')
+  let current: any = item
+  
+  for (const part of parts) {
+    if (current === null || current === undefined) {
+      return ''
+    }
+    
+    current = current[part]
+    
+    if (current === null || current === undefined) {
+      return ''
+    }
+  }
+  
+  // Handle boolean values (meta.visible, meta.locked)
+  if (typeof current === 'boolean') {
+    return current ? 'Yes' : 'No'
+  }
+  
+  return String(current || '')
+}
+
+export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
+  'universal': [
+    {
+      key: "id",
+      label: "ID",
+      extract: (item) => resolvePath(item, "id")
+    },
+    {
+      key: "component",
+      label: "Component",
+      extract: (item) => resolvePath(item, "component.name")
+    },
+    {
+      key: "componentKind",
+      label: "Component Kind",
+      extract: (item) => resolvePath(item, "component.kind")
+    },
+    {
+      key: "fieldLabel",
+      label: "Field Label",
+      extract: (item) => resolvePath(item, "field.label")
+    },
+    {
+      key: "path",
+      label: "Path",
+      extract: (item) => resolvePath(item, "field.path")
+    },
+    {
+      key: "content",
+      label: "Content",
+      extract: (item) => resolvePath(item, "content.value")
+    },
+    {
+      key: "visible",
+      label: "Visible",
+      extract: (item) => resolvePath(item, "meta.visible")
+    },
+    {
+      key: "locked",
+      label: "Locked",
+      extract: (item) => resolvePath(item, "meta.locked")
+    },
+    {
+      key: "nodeUrl",
+      label: "Node URL",
+      extract: (item) => resolvePath(item, "nodeUrl")
+    }
+  ],
+  'dev-only': [
+    {
+      key: "component",
+      label: "Component",
+      extract: (item) => resolvePath(item, "component.name")
+    },
+    {
+      key: "fieldLabel",
+      label: "Field Label",
+      extract: (item) => resolvePath(item, "field.label")
+    },
+    {
+      key: "content",
+      label: "Content",
+      extract: (item) => resolvePath(item, "content.value")
+    },
+    {
+      key: "nodeUrl",
+      label: "Node URL",
+      extract: (item) => resolvePath(item, "nodeUrl")
+    }
+  ],
+  'ada-only': [
+    {
+      key: "fieldLabel",
+      label: "Field Label",
+      extract: (item) => resolvePath(item, "field.label")
+    },
+    {
+      key: "content",
+      label: "Content",
+      extract: (item) => resolvePath(item, "content.value")
+    },
+    {
+      key: "path",
+      label: "Path",
+      extract: (item) => resolvePath(item, "field.path")
+    },
+    {
+      key: "nodeUrl",
+      label: "Node URL",
+      extract: (item) => resolvePath(item, "nodeUrl")
+    }
+  ],
+  'content-model-1': [
+
+  ],
+  'content-model-2': [
+
+  ],
+  'content-model-3': [
+
+  ],
+  'content-model-4': [
+
+  ],
+  'content-model-5': [
+
+  ]
+}
+

@@ -8,11 +8,14 @@
     "@create-figma-plugin/build": "^4.0.3",
     "@create-figma-plugin/tsconfig": "^4.0.3",
     "@figma/plugin-typings": "1.109.0",
+    "tsx": "^4.21.0",
     "typescript": ">=5"
   },
   "scripts": {
+    "generate-presets": "tsx scripts/generate-presets.ts",
+    "prebuild": "npm run generate-presets",
     "build": "build-figma-plugin --typecheck --minify",
-    "watch": "build-figma-plugin --typecheck --watch"
+    "watch": "npm run generate-presets && build-figma-plugin --typecheck --watch"
   },
   "figma-plugin": {
     "editorType": [

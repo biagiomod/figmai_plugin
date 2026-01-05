@@ -44,6 +44,7 @@ import type {
 } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
+import { PRESET_INFO } from './core/contentTable/presets.generated'
 
 // Import CSS
 import './ui/styles/theme.css'
@@ -2208,24 +2209,15 @@ ${htmlTable}
               What table format do you want?
             </div>
             
-            {(['universal', 'content-model-1', 'content-model-2', 'content-model-3', 'content-model-4', 'content-model-5', 'ada-only', 'dev-only'] as TableFormatPreset[]).map(format => {
-              const isImplemented = format === 'universal' || format === 'dev-only'
-              const formatLabels: Record<TableFormatPreset, string> = {
-                'universal': 'Universal Table',
-                'content-model-1': 'Content Model 1',
-                'content-model-2': 'Content Model 2',
-                'content-model-3': 'Content Model 3',
-                'content-model-4': 'Content Model 4',
-                'content-model-5': 'Content Model 5',
-                'ada-only': 'ADA Only',
-                'dev-only': 'Dev Only'
-              }
+            {PRESET_INFO.map(preset => {
+              const format = preset.id
+              const isEnabled = preset.enabled
               
               return (
                 <button
                   key={format}
                   onClick={() => {
-                    if (isImplemented) {
+                    if (isEnabled) {
                       setSelectedFormat(format)
                       setShowFormatModal(false)
                       
@@ -2254,21 +2246,22 @@ ${htmlTable}
                       }
                     }
                   }}
-                  disabled={!isImplemented}
+                  disabled={!isEnabled}
                   style={{
                     padding: 'var(--spacing-sm) var(--spacing-md)',
                     border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)',
-                    backgroundColor: isImplemented ? 'var(--bg-secondary)' : 'var(--bg)',
-                    color: isImplemented ? 'var(--fg)' : 'var(--muted)',
-                    cursor: isImplemented ? 'pointer' : 'not-allowed',
+                    backgroundColor: isEnabled ? 'var(--bg-secondary)' : 'var(--bg)',
+                    color: isEnabled ? 'var(--fg)' : 'var(--muted)',
+                    cursor: isEnabled ? 'pointer' : 'not-allowed',
                     textAlign: 'left',
                     fontSize: 'var(--font-size-sm)',
-                    opacity: isImplemented ? 1 : 0.6
+                    opacity: isEnabled ? 1 : 0.6
                   }}
+                  title={preset.description}
                 >
-                  {formatLabels[format]}
-                  {!isImplemented && <span style={{ marginLeft: 'var(--spacing-xs)', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }}>(Not implemented yet - v1)</span>}
+                  {preset.label}
+                  {!isEnabled && <span style={{ marginLeft: 'var(--spacing-xs)', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }}>(Not implemented yet)</span>}
                 </button>
               )
             })}
