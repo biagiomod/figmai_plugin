@@ -143,3 +143,13 @@ export function buildTsv(
   return tsv.trim()
 }
 
+/**
+ * Build JSON format
+ * Returns the Universal Content Table as formatted JSON string
+ */
+export function buildJson(
+  universalJson: UniversalContentTableV1
+): string {
+  return JSON.stringify(universalJson, null, 2)
+}
+

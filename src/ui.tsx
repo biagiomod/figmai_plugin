@@ -43,7 +43,7 @@ import type {
   CopyTableStatusHandler
 } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
-import { buildHtmlTable, buildTsv } from './core/contentTable/clipboard'
+import { buildHtmlTable, buildTsv, buildJson } from './core/contentTable/clipboard'
 
 // Import CSS
 import './ui/styles/theme.css'
@@ -119,6 +119,7 @@ function Plugin() {
   const [selectedFormat, setSelectedFormat] = useState<TableFormatPreset>('universal')
   const [showTableView, setShowTableView] = useState(false)
   const [pendingAction, setPendingAction] = useState<'copy' | 'view' | 'confluence' | null>(null)
+  const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
   // Clipboard debug state
   const [showPasteDebug, setShowPasteDebug] = useState(false)
   const [debugHtml, setDebugHtml] = useState('')
@@ -491,8 +492,8 @@ function Plugin() {
       }
       if (actionId === 'copy-table') {
         console.log('[UI] Handling copy-table action')
-        setPendingAction('copy')
-        setShowFormatModal(true)
+        // Show "Copy as" format chooser modal
+        setShowCopyFormatModal(true)
         return
       }
       if (actionId === 'view-table') {
@@ -657,7 +658,8 @@ function Plugin() {
   }, [jsonOutput])
   
   // Copy Content Table to clipboard
-  const handleCopyTable = useCallback(async (format: TableFormatPreset) => {
+  // copyFormatType: 'html' | 'tsv' | 'json' - determines what format to copy
+  const handleCopyTable = useCallback(async (format: TableFormatPreset, copyFormatType: 'html' | 'tsv' | 'json' = 'html') => {
     console.log('[CopyTable] click')
     
     if (!contentTable) {
@@ -671,32 +673,30 @@ function Plugin() {
     setIsCopyingTable(true)
     setCopyStatus(null)
     
-    console.log('[Clipboard] Copy Table clicked, format:', format)
+    console.log('[Clipboard] Copy Table clicked, format:', format, 'copyFormatType:', copyFormatType)
     console.log('[Clipboard] ClipboardItem available:', typeof ClipboardItem !== 'undefined')
     console.log('[Clipboard] navigator.clipboard available:', !!navigator.clipboard)
     console.log('[Clipboard] navigator.clipboard.write available:', !!(navigator.clipboard && navigator.clipboard.write))
     
     try {
-      // Build HTML table (standards-compliant with minimal inline styles)
+      // Build formats based on copyFormatType
       const htmlTable = buildHtmlTable(contentTable, format)
-      
-      // Build TSV fallback (tab-separated values)
       const tsv = buildTsv(contentTable, format)
+      const json = buildJson(contentTable)
       
-      console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length)
-      console.log('[Clipboard] HTML preview (first 200 chars):', htmlTable.substring(0, 200))
+      console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length, 'JSON length:', json.length)
       
       // Instrumentation: Log lengths
-      debugLog('Copy attempt started', { format, htmlLength: htmlTable.length, tsvLength: tsv.length })
+      debugLog('Copy attempt started', { format, copyFormatType, htmlLength: htmlTable.length, tsvLength: tsv.length, jsonLength: json.length })
       // Store for debug panel
       setDebugHtml(htmlTable)
       setDebugTsv(tsv)
       
       // Strategy A: Primary - ClipboardItem API with both HTML and plain text MIME types
       // This is the preferred method for rich HTML table paste into Word, Notes, Confluence
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+      if (copyFormatType === 'html' && typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
         console.log('[CopyTable] attempting HTML')
-        console.log('[Clipboard] Attempting Strategy A (ClipboardItem)')
+        console.log('[Clipboard] Attempting Strategy A (ClipboardItem with HTML)')
         try {
           // Create Blobs with proper MIME types
           const htmlBlob = new Blob([htmlTable], { type: 'text/html' })
@@ -720,9 +720,9 @@ function Plugin() {
           console.log('[Clipboard] Strategy A succeeded!')
           
           // Success: Show notification
-          debugLog('Strategy A (ClipboardItem) succeeded', { strategy: 'A' })
+          debugLog('Strategy A (ClipboardItem) succeeded', { strategy: 'A', format: 'html' })
           setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: 'Table copied to clipboard' })
+          setCopyStatus({ success: true, message: 'Table copied to clipboard (HTML)' })
           setShowCopySuccess(true)
           console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
           emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
@@ -738,22 +738,66 @@ function Plugin() {
           console.error('[Clipboard] Error stack:', error.stack)
           debugLog('Strategy A failed', {
             strategy: 'A',
+            format: 'html',
             errorName: error.name,
             errorMessage: error.message,
             errorStack: error.stack
           })
           // Don't set error status yet - try fallbacks first
         }
+      } else if (copyFormatType === 'tsv' && navigator.clipboard && navigator.clipboard.writeText) {
+        // TSV format: Use writeText directly
+        console.log('[Clipboard] Attempting TSV copy (writeText)')
+        try {
+          await navigator.clipboard.writeText(tsv)
+          debugLog('TSV copy succeeded', { format: 'tsv' })
+          setIsCopyingTable(false)
+          setCopyStatus({ success: true, message: 'Table copied to clipboard (TSV)' })
+          setShowCopySuccess(true)
+          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+          setTimeout(() => {
+            setShowCopySuccess(false)
+            setCopyStatus(null)
+          }, 3000)
+          return
+        } catch (error: unknown) {
+          const err = error as Error
+          console.error('[Clipboard] TSV copy failed:', err.message)
+          debugLog('TSV copy failed', { format: 'tsv', error: err.message })
+        }
+      } else if (copyFormatType === 'json' && navigator.clipboard && navigator.clipboard.writeText) {
+        // JSON format: Use writeText directly
+        console.log('[Clipboard] Attempting JSON copy (writeText)')
+        try {
+          await navigator.clipboard.writeText(json)
+          debugLog('JSON copy succeeded', { format: 'json' })
+          setIsCopyingTable(false)
+          setCopyStatus({ success: true, message: 'Table copied to clipboard (JSON)' })
+          setShowCopySuccess(true)
+          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+          setTimeout(() => {
+            setShowCopySuccess(false)
+            setCopyStatus(null)
+          }, 3000)
+          return
+        } catch (error: unknown) {
+          const err = error as Error
+          console.error('[Clipboard] JSON copy failed:', err.message)
+          debugLog('JSON copy failed', { format: 'json', error: err.message })
+        }
       } else {
-        console.log('[Clipboard] Strategy A not available - ClipboardItem:', typeof ClipboardItem, 'clipboard.write:', !!(navigator.clipboard && navigator.clipboard.write))
+        console.log('[Clipboard] Strategy A not available - ClipboardItem:', typeof ClipboardItem, 'clipboard.write:', !!(navigator.clipboard && navigator.clipboard.write), 'copyFormatType:', copyFormatType)
       }
       
       // Strategy B: Fallback - execCommand with contentEditable div for HTML
       // This preserves HTML table structure when ClipboardItem API is unavailable
-      console.log('[CopyTable] attempting HTML')
-      console.log('[Clipboard] Attempting Strategy B (execCommand with contentEditable)')
-      try {
-        // Create hidden contentEditable div (offscreen)
+      if (copyFormatType === 'html') {
+        console.log('[CopyTable] attempting HTML fallback')
+        console.log('[Clipboard] Attempting Strategy B (execCommand with contentEditable)')
+        try {
+          // Create hidden contentEditable div (offscreen)
         const div = document.createElement('div')
         div.contentEditable = 'true'
         div.style.position = 'fixed'
@@ -830,16 +874,19 @@ function Plugin() {
           errorStack: error.stack
         })
         // Continue to next fallback
+        }
       }
       
-      // Strategy C: Use writeText with TSV (fallback - loses table structure but preserves data)
+      // Strategy C: Use writeText with TSV/JSON (fallback - loses table structure but preserves data)
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        console.log('[CopyTable] attempting TSV')
+        const textToCopy = copyFormatType === 'json' ? json : (copyFormatType === 'tsv' ? tsv : htmlTable)
+        const formatLabel = copyFormatType === 'json' ? 'JSON' : (copyFormatType === 'tsv' ? 'TSV' : 'HTML')
+        console.log(`[CopyTable] attempting ${formatLabel} fallback`)
         try {
-          await navigator.clipboard.writeText(tsv)
-          debugLog('Strategy C (writeText TSV) succeeded', { strategy: 'C' })
+          await navigator.clipboard.writeText(textToCopy)
+          debugLog(`Strategy C (writeText ${formatLabel}) succeeded`, { strategy: 'C', format: copyFormatType })
           setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: 'Table copied (TSV format - paste into spreadsheet)' })
+          setCopyStatus({ success: true, message: `Table copied (${formatLabel} format)` })
           setShowCopySuccess(true)
           console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
           emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
@@ -852,6 +899,7 @@ function Plugin() {
           const error = writeTextError as Error
           debugLog('Strategy C failed', {
             strategy: 'C',
+            format: copyFormatType,
             errorName: error.name,
             errorMessage: error.message,
             errorStack: error.stack
@@ -860,11 +908,13 @@ function Plugin() {
         }
       }
       
-      // Strategy D: execCommand with textarea for TSV (final fallback)
-      console.log('[CopyTable] fallback')
+      // Strategy D: execCommand with textarea (final fallback)
+      const textToCopy = copyFormatType === 'json' ? json : (copyFormatType === 'tsv' ? tsv : htmlTable)
+      const formatLabel = copyFormatType === 'json' ? 'JSON' : (copyFormatType === 'tsv' ? 'TSV' : 'HTML')
+      console.log(`[CopyTable] final fallback (${formatLabel})`)
       try {
         const textArea = document.createElement('textarea')
-        textArea.value = tsv
+        textArea.value = textToCopy
         textArea.style.position = 'fixed'
         textArea.style.left = '-9999px'
         textArea.style.top = '0'
@@ -888,9 +938,9 @@ function Plugin() {
         document.body.removeChild(textArea)
         
         if (successful) {
-          debugLog('Strategy D (execCommand textarea TSV) succeeded', { strategy: 'D' })
+          debugLog(`Strategy D (execCommand textarea ${formatLabel}) succeeded`, { strategy: 'D', format: copyFormatType })
           setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: 'Table copied (TSV format - paste into spreadsheet)' })
+          setCopyStatus({ success: true, message: `Table copied (${formatLabel} format)` })
           setShowCopySuccess(true)
           console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
           emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
@@ -906,6 +956,7 @@ function Plugin() {
         const error = execError as Error
         debugLog('Strategy D failed', {
           strategy: 'D',
+          format: copyFormatType,
           errorName: error.name,
           errorMessage: error.message,
           errorStack: error.stack
@@ -2183,7 +2234,7 @@ ${htmlTable}
                       setPendingAction(null) // Clear immediately to prevent double execution
                       
                       if (action === 'copy') {
-                        handleCopyTable(format)
+                        handleCopyTable(format, 'html') // Default to HTML for format modal
                       } else if (action === 'view') {
                         setShowTableView(true)
                         setSelectedFormat(format)
@@ -2199,7 +2250,7 @@ ${htmlTable}
                         
                         // Copy table with Universal preset (unless user chose Dev Only)
                         const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal'
-                        handleCopyTable(copyFormat)
+                        handleCopyTable(copyFormat, 'html') // Default to HTML for Confluence stub
                       }
                     }
                   }}
@@ -2224,6 +2275,122 @@ ${htmlTable}
             
             <button
               onClick={() => setShowFormatModal(false)}
+              style={{
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--fg)',
+                cursor: 'pointer',
+                marginTop: 'var(--spacing-sm)'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Copy Format Modal - "Copy as" chooser */}
+      {showCopyFormatModal && contentTable && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowCopyFormatModal(false)}>
+          <div style={{
+            backgroundColor: 'var(--bg)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-lg)',
+            maxWidth: '400px',
+            width: '90%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-md)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              fontSize: 'var(--font-size-lg)',
+              fontWeight: 'var(--font-weight-semibold)',
+              marginBottom: 'var(--spacing-sm)'
+            }}>
+              Copy as
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+              <button
+                onClick={async () => {
+                  setShowCopyFormatModal(false)
+                  // Show format modal first to select table preset
+                  setPendingAction('copy')
+                  setShowFormatModal(true)
+                }}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontSize: 'var(--font-size-sm)'
+                }}
+              >
+                HTML Table (for Word, Notes, Confluence)
+              </button>
+              
+              <button
+                onClick={async () => {
+                  setShowCopyFormatModal(false)
+                  // Show format modal first to select table preset, then copy as TSV
+                  // We'll store the copyFormatType in a ref or state, but for now use a simple approach:
+                  // Show format modal, and when format is selected, copy as TSV
+                  // For simplicity, copy with universal format as TSV directly
+                  await handleCopyTable('universal', 'tsv')
+                }}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontSize: 'var(--font-size-sm)'
+                }}
+              >
+                TSV (Tab-separated, for spreadsheets)
+              </button>
+              
+              <button
+                onClick={async () => {
+                  setShowCopyFormatModal(false)
+                  // Copy JSON directly (no format preset needed)
+                  await handleCopyTable('universal', 'json')
+                }}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontSize: 'var(--font-size-sm)'
+                }}
+              >
+                JSON (Raw data)
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowCopyFormatModal(false)}
               style={{
                 padding: 'var(--spacing-sm) var(--spacing-md)',
                 border: '1px solid var(--border)',
@@ -2312,7 +2479,7 @@ ${htmlTable}
               <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => {
-                    handleCopyTable(selectedFormat)
+                    handleCopyTable(selectedFormat, 'html') // Default to HTML in view modal
                   }}
                   disabled={isCopyingTable}
                   style={{
