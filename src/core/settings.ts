@@ -4,6 +4,7 @@
  */
 
 export interface Settings {
+  mode?: 'simple' | 'advanced'
   proxyBaseUrl: string
   authMode: 'shared_token' | 'session_token'
   sharedToken?: string

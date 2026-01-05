@@ -16,5 +16,5 @@ export const CONFIG = {
   },
   
   // Default mode
-  defaultMode: 'simple' as const
+  defaultMode: 'advanced' as const
 } as const

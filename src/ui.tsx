@@ -79,7 +79,7 @@ import {
 function Plugin() {
   // State
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
-  const [mode, setMode] = useState<Mode>('simple')
+  const [mode, setMode] = useState<Mode>('advanced')
   const [provider, setProvider] = useState<LlmProviderId>('openai')
   const [assistant, setAssistant] = useState<AssistantType>(getDefaultAssistant())
   const [messages, setMessages] = useState<Message[]>([])
@@ -202,7 +202,7 @@ function Plugin() {
         case 'RESET_DONE':
           setMessages([])
           setAssistant(getDefaultAssistant())
-          setMode('simple')
+          setMode('advanced')
           setInput('')
           setSelectionRequired(false)
           setIncludeSelection(false)
@@ -1195,14 +1195,36 @@ ${htmlTable}
               alignItems: 'center',
               gap: 'var(--spacing-xs)',
               padding: '0 var(--spacing-sm)',
-              border: provider === 'openai' ? '2px solid var(--accent)' : '1px solid var(--border)',
+              border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: provider === 'openai' ? 'var(--accent)' : 'var(--bg)',
-              color: provider === 'openai' ? '#ffffff' : 'var(--fg)',
+              backgroundColor: '#ffffff',
+              color: 'var(--fg)',
               cursor: 'pointer',
               fontSize: 'var(--font-size-xs)',
               fontFamily: 'var(--font-family)',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              outline: provider === 'openai' ? 'none' : 'none',
+              boxShadow: provider === 'openai' ? '0 0 0 1px rgba(0, 0, 0, 0.1)' : 'none'
+            }}
+            onMouseEnter={(e) => {
+              if (provider !== 'openai') {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (provider !== 'openai') {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.backgroundColor = '#ffffff'
+              }
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.outline = '2px solid var(--accent)'
+              e.currentTarget.style.outlineOffset = '2px'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.outline = 'none'
             }}
             title="OpenAI"
           >
@@ -1236,15 +1258,15 @@ ${htmlTable}
               padding: '0 var(--spacing-sm)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--muted)',
+              backgroundColor: '#f5f5f5',
+              color: '#999999',
               cursor: 'not-allowed',
               fontSize: 'var(--font-size-xs)',
               fontFamily: 'var(--font-family)',
               whiteSpace: 'nowrap',
-              opacity: 0.6,
               minWidth: '80px',
-              position: 'relative'
+              position: 'relative',
+              opacity: 0.6
             }}
             title="Claude — Coming soon"
           >
@@ -1283,15 +1305,15 @@ ${htmlTable}
               padding: '0 var(--spacing-sm)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--muted)',
+              backgroundColor: '#f5f5f5',
+              color: '#999999',
               cursor: 'not-allowed',
               fontSize: 'var(--font-size-xs)',
               fontFamily: 'var(--font-family)',
               whiteSpace: 'nowrap',
-              opacity: 0.6,
               minWidth: '80px',
-              position: 'relative'
+              position: 'relative',
+              opacity: 0.6
             }}
             title="Copilot — Coming soon"
           >
@@ -1341,8 +1363,8 @@ ${htmlTable}
               padding: '4px',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: mode === 'advanced' ? 'var(--accent)' : 'var(--bg)',
-              color: mode === 'advanced' ? '#ffffff' : 'var(--fg)',
+              backgroundColor: 'var(--bg)',
+              color: 'var(--fg)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',

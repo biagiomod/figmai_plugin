@@ -17,6 +17,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsModalProps) {
+  const [mode, setMode] = useState<Mode>(currentMode || 'advanced')
   const [proxyBaseUrl, setProxyBaseUrl] = useState('')
   const [authMode, setAuthMode] = useState<'shared_token' | 'session_token'>('shared_token')
   const [sharedToken, setSharedToken] = useState('')
@@ -41,6 +42,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         })
       } else if (message.type === 'SETTINGS_RESPONSE' && message.settings) {
         const settings = message.settings as Settings
+        setMode(settings.mode || currentMode || 'advanced')
         setProxyBaseUrl(settings.proxyBaseUrl || '')
         setAuthMode(settings.authMode || 'shared_token')
         setSharedToken(settings.sharedToken || '')
@@ -64,10 +66,18 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     return () => {
       window.removeEventListener('message', onMessage)
     }
-  }, [])
+  }, [currentMode])
+  
+  // Update mode when currentMode prop changes
+  useEffect(() => {
+    if (currentMode !== undefined) {
+      setMode(currentMode)
+    }
+  }, [currentMode])
   
   const handleSave = useCallback(() => {
     const settings: Partial<Settings> = {
+      mode,
       proxyBaseUrl: proxyBaseUrl.trim(),
       authMode,
       sharedToken: authMode === 'shared_token' ? sharedToken.trim() : undefined,
@@ -76,8 +86,11 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     }
     
     emit<SaveSettingsHandler>('SAVE_SETTINGS', settings)
+    if (onModeChange) {
+      onModeChange(mode)
+    }
     onClose()
-  }, [proxyBaseUrl, authMode, sharedToken, sessionToken, defaultModel, onClose])
+  }, [mode, proxyBaseUrl, authMode, sharedToken, sessionToken, defaultModel, onClose, onModeChange])
   
   const handleTest = useCallback(() => {
     setIsTesting(true)
@@ -85,6 +98,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     
     // Save settings first, then test
     const settings: Partial<Settings> = {
+      mode,
       proxyBaseUrl: proxyBaseUrl.trim(),
       authMode,
       sharedToken: authMode === 'shared_token' ? sharedToken.trim() : undefined,
@@ -98,7 +112,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     setTimeout(() => {
       emit<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION')
     }, 100)
-  }, [proxyBaseUrl, authMode, sharedToken, sessionToken, defaultModel])
+  }, [mode, proxyBaseUrl, authMode, sharedToken, sessionToken, defaultModel])
   
   return (
     <div style={{
@@ -134,53 +148,132 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         </div>
         
         {/* Mode Selection */}
-        {currentMode !== undefined && onModeChange && (
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: 'var(--font-weight-medium)',
-              marginBottom: 'var(--spacing-xs)',
-              color: 'var(--fg)'
-            }}>
-              Mode
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-              <button
-                onClick={() => onModeChange('simple')}
-                style={{
-                  padding: 'var(--spacing-sm) var(--spacing-md)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: currentMode === 'simple' ? 'var(--accent)' : 'var(--bg-secondary)',
-                  color: currentMode === 'simple' ? '#ffffff' : 'var(--fg)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--font-size-sm)'
-                }}
-              >
-                Simple
-              </button>
-              <button
-                onClick={() => onModeChange('advanced')}
-                style={{
-                  padding: 'var(--spacing-sm) var(--spacing-md)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: currentMode === 'advanced' ? 'var(--accent)' : 'var(--bg-secondary)',
-                  color: currentMode === 'advanced' ? '#ffffff' : 'var(--fg)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--font-size-sm)'
-                }}
-              >
-                Advanced
-              </button>
-            </div>
+        <div>
+          <label style={{
+            display: 'block',
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--spacing-xs)',
+            color: 'var(--fg)'
+          }}>
+            Mode
+          </label>
+          <div style={{
+            display: 'flex',
+            border: '1px solid #333333',
+            borderRadius: 'var(--radius-sm)',
+            overflow: 'hidden',
+            width: '100%'
+          }}>
+            <button
+              onClick={() => setMode('simple')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setMode('simple')
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: 'none',
+                borderRight: '1px solid #333333',
+                borderRadius: 0,
+                backgroundColor: mode === 'simple' ? '#333333' : '#ffffff',
+                color: mode === 'simple' ? '#ffffff' : 'var(--fg)',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: mode === 'simple' ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                transition: 'background-color 0.15s ease, color 0.15s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = '2px solid var(--accent)'
+                e.currentTarget.style.outlineOffset = '-2px'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (mode !== 'simple') {
+                  e.currentTarget.style.backgroundColor = '#fafafa'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (mode !== 'simple') {
+                  e.currentTarget.style.backgroundColor = '#ffffff'
+                  e.currentTarget.style.color = 'var(--fg)'
+                }
+              }}
+            >
+              Simple
+            </button>
+            <button
+              onClick={() => setMode('advanced')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setMode('advanced')
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: 'none',
+                borderRadius: 0,
+                backgroundColor: mode === 'advanced' ? '#333333' : '#ffffff',
+                color: mode === 'advanced' ? '#ffffff' : 'var(--fg)',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: mode === 'advanced' ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                transition: 'background-color 0.15s ease, color 0.15s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = '2px solid var(--accent)'
+                e.currentTarget.style.outlineOffset = '-2px'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (mode !== 'advanced') {
+                  e.currentTarget.style.backgroundColor = '#fafafa'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (mode !== 'advanced') {
+                  e.currentTarget.style.backgroundColor = '#ffffff'
+                  e.currentTarget.style.color = 'var(--fg)'
+                }
+              }}
+            >
+              Advanced
+            </button>
           </div>
-        )}
+        </div>
+        
+        {/* Divider */}
+        <div style={{
+          height: '1px',
+          backgroundColor: '#e0e0e0',
+          margin: 'var(--spacing-md) 0',
+          width: '100%'
+        }} />
+        
+        {/* LLM Model Settings Section */}
+        <div style={{
+          fontSize: 'var(--font-size-md)',
+          fontWeight: 'var(--font-weight-semibold)',
+          marginBottom: 'var(--spacing-xs)',
+          color: 'var(--fg)'
+        }}>
+          LLM Model Settings
+        </div>
         
         {/* Proxy Base URL */}
         <div>
