@@ -1057,13 +1057,14 @@ ${htmlTable}
   
   // Get selection indicator icon
   const getSelectionIcon = () => {
+    const iconSize = 16 // Match Assistant icon size
     if (!selectionState.hasSelection) {
-      return <SelectionNoneIcon />
+      return <SelectionNoneIcon width={iconSize} height={iconSize} />
     }
     if (selectionRequired) {
-      return <SelectionRequiredIcon />
+      return <SelectionRequiredIcon width={iconSize} height={iconSize} />
     }
-    return <SelectionHasIcon />
+    return <SelectionHasIcon width={iconSize} height={iconSize} />
   }
   
   // Get assistant icon component
