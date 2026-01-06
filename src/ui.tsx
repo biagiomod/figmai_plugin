@@ -74,7 +74,8 @@ import {
   CautionIcon,
   AskIcon,
   ContentTableIcon,
-  SpellCheckIcon
+  SpellCheckIcon,
+  TrashIcon
 } from './ui/icons'
 
 
@@ -96,6 +97,7 @@ function Plugin() {
   const [selectionRequired, setSelectionRequired] = useState(false)
   const [showAssistantModal, setShowAssistantModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showClearChatModal, setShowClearChatModal] = useState(false)
   const [showSendJsonModal, setShowSendJsonModal] = useState(false)
   const [showGetJsonModal, setShowGetJsonModal] = useState(false)
   const [jsonInput, setJsonInput] = useState('')
@@ -395,6 +397,12 @@ function Plugin() {
   // Handlers
   const handleReset = useCallback(() => {
     emit<ResetHandler>('RESET')
+  }, [])
+
+  const handleClearChat = useCallback(() => {
+    setMessages([])
+    setIsLoading(false)
+    setShowClearChatModal(false)
   }, [])
   
   const handleProviderClick = useCallback((providerId: LlmProviderId) => {
@@ -1378,7 +1386,8 @@ ${htmlTable}
           borderBottom: '1px solid var(--border)',
           backgroundColor: 'var(--bg)',
           flexShrink: 0,
-          position: 'relative'
+          position: 'relative',
+          zIndex: 10
         }}>
         {/* Left: Home */}
         <div style={{ 
@@ -1611,13 +1620,54 @@ ${htmlTable}
       {/* Chat Area */}
       <div style={{
         flex: 1,
-        overflowY: 'auto',
-        padding: 'var(--spacing-md)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 'var(--spacing-md)',
-        backgroundColor: 'var(--bg-secondary)'
+        backgroundColor: 'var(--bg-secondary)',
+        position: 'relative',
+        minHeight: 0,
+        overflow: 'hidden'
       }}>
+        {/* Trash Button - Floating Overlay */}
+        {messages.length > 0 && (
+          <button
+            onClick={() => setShowClearChatModal(true)}
+            style={{
+              position: 'absolute',
+              top: 'var(--spacing-sm)',
+              right: 'calc(var(--spacing-md) + 12px)',
+              width: '24px',
+              height: '24px',
+              padding: '4px',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--bg)',
+              color: 'var(--fg)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0.7,
+              zIndex: 10,
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+            }}
+            title="Clear chat"
+          >
+            <TrashIcon width={16} height={16} />
+          </button>
+        )}
+        
+        {/* Chat Messages - Scrollable Container */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: 'var(--spacing-md)',
+          paddingTop: messages.length > 0 ? 'calc(var(--spacing-md) + 32px)' : 'var(--spacing-md)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--spacing-md)',
+          minHeight: 0
+        }}>
         {messages.length === 0 && !isCode2Design && (
           <div style={{
             display: 'flex',
@@ -2036,6 +2086,7 @@ ${htmlTable}
         )}
         
         <div ref={messagesEndRef} />
+        </div>
       </div>
       
       {/* Input Area */}
@@ -2353,6 +2404,86 @@ ${htmlTable}
                 </div>
               </button>
             ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Clear Chat Confirmation Modal */}
+      {showClearChatModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowClearChatModal(false)}>
+          <div style={{
+            backgroundColor: 'var(--bg)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-lg)',
+            maxWidth: '400px',
+            width: '90%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-md)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              fontSize: 'var(--font-size-lg)',
+              fontWeight: 'var(--font-weight-semibold)',
+              marginBottom: 'var(--spacing-sm)'
+            }}>
+              Clear chat?
+            </div>
+            <div style={{
+              fontSize: 'var(--font-size-sm)',
+              color: 'var(--fg-secondary)',
+              lineHeight: 1.5
+            }}>
+              This removes all messages from this chat session.
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: 'var(--spacing-sm)',
+              justifyContent: 'flex-end',
+              marginTop: 'var(--spacing-sm)'
+            }}>
+              <button
+                onClick={() => setShowClearChatModal(false)}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-sm)',
+                  fontFamily: 'var(--font-family)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearChat}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--error)',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-sm)',
+                  fontFamily: 'var(--font-family)',
+                  fontWeight: 'var(--font-weight-medium)'
+                }}
+              >
+                Clear
+              </button>
             </div>
           </div>
         </div>
