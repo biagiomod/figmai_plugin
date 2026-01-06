@@ -14,8 +14,8 @@ export function toTabSeparated(
 ): string {
   let output = ''
   
-  if (preset === 'universal-v2') {
-    // Header row - using universal-v2 columns
+  if (preset === 'universal') {
+    // Header row - using universal columns
     output += 'Figma Ref\tComponent Name\tText Layer Name\tField / Role\tContent\tNotes\tContent Key (CMS)\tJira / Ticket\tADA Notes / Flags\tError Message\n'
     
     // Data rows
@@ -49,8 +49,8 @@ export function toTabSeparated(
       output += row.join('\t') + '\n'
     }
   } else {
-    // Fallback to universal-v2
-    return toTabSeparated(universalJson, 'universal-v2')
+    // Fallback to universal
+    return toTabSeparated(universalJson, 'universal')
   }
   
   return output.trim()
@@ -65,7 +65,7 @@ export function toPlainTextTable(
 ): string {
   let output = ''
   
-  if (preset === 'universal-v2') {
+  if (preset === 'universal') {
     const headers = ['Figma Ref', 'Component Name', 'Text Layer Name', 'Field / Role', 'Content', 'Notes', 'Content Key (CMS)', 'Jira / Ticket', 'ADA Notes / Flags', 'Error Message']
     const rows: string[][] = []
     
@@ -138,8 +138,8 @@ export function toPlainTextTable(
       }).join(' | ') + '\n'
     }
   } else {
-    // Fallback to universal-v2
-    return toPlainTextTable(universalJson, 'universal-v2')
+    // Fallback to universal
+    return toPlainTextTable(universalJson, 'universal')
   }
   
   return output.trim()

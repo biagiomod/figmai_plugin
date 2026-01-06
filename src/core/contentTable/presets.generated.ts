@@ -18,7 +18,7 @@ export interface PresetInfo {
 
 export const PRESET_INFO: PresetInfo[] = [
   {
-    id: 'universal-v2' as TableFormatPreset,
+    id: 'universal' as TableFormatPreset,
     label: "Universal Table",
     description: "Enhanced content table with meta row, 10 columns, and thumbnail preview",
     enabled: true
@@ -44,8 +44,8 @@ export const PRESET_INFO: PresetInfo[] = [
   {
     id: 'content-model-2' as TableFormatPreset,
     label: "Content Model 2",
-    description: "Placeholder for future content model",
-    enabled: false
+    description: "Schema-style export with rowspans and staggered rows for Dialog and Links sections",
+    enabled: true
   },
   {
     id: 'content-model-3' as TableFormatPreset,
@@ -119,7 +119,7 @@ function resolvePath(item: ContentItemV1, path: string): string {
 }
 
 export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
-  'universal-v2': [
+  'universal': [
     {
       key: "figmaRef",
       label: "Figma Ref",
@@ -263,7 +263,51 @@ export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
     }
   ],
   'content-model-2': [
-
+    {
+      key: "figmaRef",
+      label: "Figma Ref",
+      extract: (item) => resolvePath(item, "nodeUrl")
+    },
+    {
+      key: "tag",
+      label: "Tag",
+      extract: (item) => resolvePath(item, "component.name")
+    },
+    {
+      key: "source",
+      label: "Source",
+      extract: (item) => resolvePath(item, "field.path")
+    },
+    {
+      key: "model",
+      label: "Model",
+      extract: (item) => resolvePath(item, "component.kind")
+    },
+    {
+      key: "metadataKey",
+      label: "Metadata Key",
+      extract: (item) => resolvePath(item, "field.label")
+    },
+    {
+      key: "contentKey",
+      label: "Content Key",
+      extract: (item) => resolvePath(item, "contentKey")
+    },
+    {
+      key: "content",
+      label: "Content",
+      extract: (item) => resolvePath(item, "content.value")
+    },
+    {
+      key: "rulesComment",
+      label: "Rules/Comment",
+      extract: (item) => resolvePath(item, "notes")
+    },
+    {
+      key: "notesJira",
+      label: "Notes/Jira",
+      extract: (item) => resolvePath(item, "jiraTicket")
+    }
   ],
   'content-model-3': [
 

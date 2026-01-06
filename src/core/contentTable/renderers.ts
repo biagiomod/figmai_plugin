@@ -13,13 +13,13 @@ import { PRESET_COLUMNS, type ColumnDef } from './presets.generated'
 
 /**
  * Get column definitions for a preset
- * Falls back to universal-v2 if preset not implemented or has no columns
+ * Falls back to universal if preset not implemented or has no columns
  */
 function getColumnsForPreset(preset: TableFormatPreset): ColumnDef[] {
   const columns = PRESET_COLUMNS[preset]
   if (!columns || columns.length === 0) {
-    // Fallback to universal-v2 for unimplemented presets
-    return PRESET_COLUMNS['universal-v2']
+    // Fallback to universal for unimplemented presets
+    return PRESET_COLUMNS['universal']
   }
   return columns
 }
@@ -223,6 +223,151 @@ function renderContentModel1(universalTable: UniversalContentTableV1): string {
 }
 
 /**
+ * Render Content Model 2 with schema-style layout (rowspans, Dialog/Links sections)
+ */
+function renderContentModel2(universalTable: UniversalContentTableV1): string {
+  // Get root node URL for merged cell
+  const rootNodeUrl = universalTable.meta?.rootNodeUrl || (universalTable.items.length > 0 ? universalTable.items[0].nodeUrl : '')
+  
+  // Define schema rows exactly as specified
+  // Dialog section rows
+  const dialogRows = [
+    { col5: 'id', col6: '', col7: '' },
+    { col5: '', col6: 'title', col7: '' },
+    { col5: '', col6: 'subtitle', col7: '' },
+    { col5: '', col6: 'message', col7: '' },
+    { col5: '', col6: 'messageType', col7: '' },
+    { col5: '', col6: 'variationId', col7: '' },
+    { col5: '', col6: 'screenId', col7: '' },
+    { col5: '', col6: 'accessibleTextIcon (HAT)', col7: '' },
+    { col5: 'primaryIconIdentifier', col6: '', col7: '' },
+    { col5: 'primaryIconImage', col6: '', col7: '' },
+    { col5: '', col6: 'primaryIconAltText', col7: '' },
+    { col5: 'primaryIconIdentifier', col6: '', col7: '' },
+    { col5: 'primaryIconImage', col6: '', col7: '' },
+    { col5: '', col6: 'secondaryIconAltText', col7: '' },
+  ]
+  
+  // Links section rows
+  const linksRows = [
+    { col5: 'link1id', col6: '', col7: '' },
+    { col5: '', col6: 'headerText', col7: '' },
+    { col5: '', col6: 'linkText', col7: '' },
+    { col5: 'url', col6: '', col7: '' },
+    { col5: 'navigationkeyID', col6: '', col7: '' },
+    { col5: '', col6: 'HAT', col7: '' },
+    { col5: 'linkTrackingID', col6: '', col7: '' },
+    { col5: 'iconID', col6: '', col7: '' },
+    { col5: 'linkType', col6: '', col7: '' },
+    { col5: 'linkPresentationType', col6: '', col7: '' },
+    { col5: 'linkOpenIn', col6: '', col7: '' },
+    { col5: 'link2id', col6: '', col7: '' },
+  ]
+  
+  const dialogRowCount = dialogRows.length
+  const linksRowCount = linksRows.length
+  const totalBodyRows = dialogRowCount + linksRowCount
+  
+  let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px;">'
+  
+  // <thead> with column numbers row and header labels row
+  html += '<thead>'
+  
+  // Row 1: Column numbers
+  html += '<tr>'
+  for (let i = 1; i <= 9; i++) {
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">Column ${i}</th>`
+  }
+  html += '</tr>'
+  
+  // Row 2: Header labels
+  const headers = ['Figma Ref', 'Tag', 'Source', 'Model', 'Metadata Key', 'Content Key', 'Content', 'Rules/Comment', 'Notes/Jira']
+  html += '<tr>'
+  for (const header of headers) {
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+  }
+  html += '</tr></thead>'
+  
+  // <tbody> with merged cells and schema rows
+  html += '<tbody>'
+  
+  // First body row with merged cells (columns 1-4)
+  html += '<tr>'
+  
+  // Col 1: Figma Ref (merged, rowspan = totalBodyRows)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${renderFigmaRef(rootNodeUrl)}</td>`
+  
+  // Col 2: Tag (merged, blank)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  
+  // Col 3: Source (merged, blank)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  
+  // Col 4: Model - Dialog section (merged, rowspan = dialogRowCount)
+  html += `<td rowspan="${dialogRowCount}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('Dialog')}</td>`
+  
+  // Dialog section rows
+  for (let i = 0; i < dialogRows.length; i++) {
+    const row = dialogRows[i]
+    const isFirstRow = i === 0
+    
+    if (!isFirstRow) {
+      html += '<tr>'
+    }
+    
+    // Col 5: Metadata Key
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col5)}</td>`
+    
+    // Col 6: Content Key
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col6)}</td>`
+    
+    // Col 7: Content (blank for now)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col7)}</td>`
+    
+    // Col 8: Rules/Comment (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    
+    // Col 9: Notes/Jira (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += '</tr>'
+  }
+  
+  // Links section - start new row with Model column
+  html += '<tr>'
+  // Col 4: Model - Links section (merged, rowspan = linksRowCount)
+  html += `<td rowspan="${linksRowCount}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('Links')}</td>`
+  
+  // Links section rows
+  for (let i = 0; i < linksRows.length; i++) {
+    const row = linksRows[i]
+    const isFirstRow = i === 0
+    
+    if (!isFirstRow) {
+      html += '<tr>'
+    }
+    
+    // Col 5: Metadata Key
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col5)}</td>`
+    
+    // Col 6: Content Key
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col6)}</td>`
+    
+    // Col 7: Content (blank for now)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col7)}</td>`
+    
+    // Col 8: Rules/Comment (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    
+    // Col 9: Notes/Jira (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += '</tr>'
+  }
+  
+  html += '</tbody></table>'
+  return html
+}
+
+/**
  * Convert Universal Content Table to HTML table
  * Returns both HTML table and plain text fallback
  */
@@ -235,6 +380,14 @@ export function universalTableToHtml(
     const html = renderContentModel1(universalTable)
     // Plain text fallback (simplified for content-model-1)
     const plainText = 'Content Model 1 export (use HTML format for full layout)'
+    return { html, plainText }
+  }
+  
+  // Special handling for content-model-2
+  if (preset === 'content-model-2') {
+    const html = renderContentModel2(universalTable)
+    // Plain text fallback (simplified for content-model-2)
+    const plainText = 'Content Model 2 export (use HTML format for full layout)'
     return { html, plainText }
   }
   

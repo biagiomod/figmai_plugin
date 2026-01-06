@@ -117,7 +117,7 @@ function Plugin() {
   // Content Table state
   const [contentTable, setContentTable] = useState<UniversalContentTableV1 | null>(null)
   const [showFormatModal, setShowFormatModal] = useState(false)
-  const [selectedFormat, setSelectedFormat] = useState<TableFormatPreset>('universal-v2')
+  const [selectedFormat, setSelectedFormat] = useState<TableFormatPreset>('universal')
   const [showTableView, setShowTableView] = useState(false)
   const [pendingAction, setPendingAction] = useState<'copy' | 'view' | 'confluence' | null>(null)
   const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
@@ -507,7 +507,7 @@ function Plugin() {
         console.log('[UI] Handling generate-new-table action - clearing table')
         setContentTable(null)
         setShowTableView(false)
-        setSelectedFormat('universal-v2')
+        setSelectedFormat('universal')
         // Don't return - let it fall through to trigger the generate-table action
         // Actually, we should trigger the generate-table action here
         // But first check if there's a selection
@@ -1013,7 +1013,7 @@ function Plugin() {
     setMessages(prev => [...prev, message])
     
     // Copy table with Universal preset (unless user chose Dev Only)
-    const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal-v2'
+    const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal'
     await handleCopyTable(copyFormat)
   }, [contentTable, handleCopyTable])
   
@@ -2241,7 +2241,7 @@ ${htmlTable}
                         setMessages(prev => [...prev, message])
                         
                         // Copy table with Universal preset (unless user chose Dev Only)
-                        const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal-v2'
+                        const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal'
                         handleCopyTable(copyFormat, 'html') // Default to HTML for Confluence stub
                       }
                     }
@@ -2345,7 +2345,7 @@ ${htmlTable}
                   // We'll store the copyFormatType in a ref or state, but for now use a simple approach:
                   // Show format modal, and when format is selected, copy as TSV
                   // For simplicity, copy with universal-v2 format as TSV directly
-                  await handleCopyTable('universal-v2', 'tsv')
+                  await handleCopyTable('universal', 'tsv')
                 }}
                 style={{
                   padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -2365,7 +2365,7 @@ ${htmlTable}
                 onClick={async () => {
                   setShowCopyFormatModal(false)
                   // Copy JSON directly (no format preset needed)
-                  await handleCopyTable('universal-v2', 'json')
+                  await handleCopyTable('universal', 'json')
                 }}
                 style={{
                   padding: 'var(--spacing-sm) var(--spacing-md)',

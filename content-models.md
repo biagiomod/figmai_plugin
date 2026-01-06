@@ -43,9 +43,9 @@ If a path is missing, it returns an empty string.
 
 ---
 
-## Universal v2
+## Universal
 
-**id:** universal-v2  
+**id:** universal  
 **label:** Universal Table  
 **description:** Enhanced content table with meta row, 10 columns, and thumbnail preview  
 **enabled:** true
@@ -118,11 +118,19 @@ If a path is missing, it returns an empty string.
 
 **id:** content-model-2  
 **label:** Content Model 2  
-**description:** Placeholder for future content model  
-**enabled:** false
+**description:** Schema-style export with rowspans and staggered rows for Dialog and Links sections  
+**enabled:** true
 
 **columns:**
-(empty - not yet defined)
+- key: figmaRef, label: Figma Ref, path: nodeUrl
+- key: tag, label: Tag, path: component.name
+- key: source, label: Source, path: field.path
+- key: model, label: Model, path: component.kind
+- key: metadataKey, label: Metadata Key, path: field.label
+- key: contentKey, label: Content Key, path: contentKey
+- key: content, label: Content, path: content.value
+- key: rulesComment, label: Rules/Comment, path: notes
+- key: notesJira, label: Notes/Jira, path: jiraTicket
 
 ---
 
