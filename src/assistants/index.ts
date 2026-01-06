@@ -318,6 +318,21 @@ export function listAssistants(): Assistant[] {
 }
 
 /**
+ * List assistants filtered by mode
+ * Simple mode: Only shows Content Table
+ * Advanced mode: Shows all assistants (including those hidden in simple mode)
+ */
+export function listAssistantsByMode(mode: 'simple' | 'advanced'): Assistant[] {
+  if (mode === 'simple') {
+    // Simple mode: Only Content Table
+    return ASSISTANTS.filter(a => a.id === 'content_table')
+  }
+  
+  // Advanced mode: Show all assistants
+  return ASSISTANTS
+}
+
+/**
  * Get default assistant
  */
 export function getDefaultAssistant(): Assistant {

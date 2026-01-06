@@ -11,7 +11,7 @@ import { h } from 'preact'
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
 import { BRAND } from './core/brand'
-import { listAssistants, getAssistant, getDefaultAssistant } from './assistants'
+import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant } from './assistants'
 import type { Assistant as AssistantType, QuickAction } from './assistants'
 import { SettingsModal } from './ui/components/SettingsModal'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
@@ -82,9 +82,36 @@ import {
 function Plugin() {
   // State
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
-  const [mode, setMode] = useState<Mode>('advanced')
+  
+  // Load mode from localStorage, default to 'simple' for first-time users
+  const [mode, setMode] = useState<Mode>(() => {
+    try {
+      const saved = localStorage.getItem('figmai-mode')
+      return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+    } catch {
+      return 'simple'
+    }
+  })
+  
   const [provider, setProvider] = useState<LlmProviderId>('openai')
-  const [assistant, setAssistant] = useState<AssistantType>(getDefaultAssistant())
+  
+  // Default assistant: Content Table in simple mode, General in advanced mode
+  const [assistant, setAssistant] = useState<AssistantType>(() => {
+    const currentMode = (() => {
+      try {
+        const saved = localStorage.getItem('figmai-mode')
+        return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+      } catch {
+        return 'simple'
+      }
+    })()
+    
+    if (currentMode === 'simple') {
+      const contentTable = getAssistant('content_table')
+      return contentTable || getDefaultAssistant()
+    }
+    return getDefaultAssistant()
+  })
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [selectionState, setSelectionState] = useState<SelectionState>({
@@ -394,6 +421,16 @@ function Plugin() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
   
+  // Update assistant when mode changes
+  useEffect(() => {
+    if (mode === 'simple') {
+      const contentTable = getAssistant('content_table')
+      if (contentTable && assistant.id !== 'content_table') {
+        setAssistant(contentTable)
+      }
+    }
+  }, [mode, assistant.id])
+  
   // Handlers
   const handleReset = useCallback(() => {
     emit<ResetHandler>('RESET')
@@ -415,8 +452,31 @@ function Plugin() {
   
   const handleModeSelect = useCallback((selectedMode: Mode) => {
     setMode(selectedMode)
+    // Persist to localStorage
+    try {
+      localStorage.setItem('figmai-mode', selectedMode)
+    } catch (e) {
+      console.warn('[UI] Failed to save mode to localStorage:', e)
+    }
+    
+    // Update default assistant when switching modes
+    if (selectedMode === 'simple') {
+      const contentTable = getAssistant('content_table')
+      if (contentTable && assistant.id !== 'content_table') {
+        setAssistant(contentTable)
+      }
+    } else if (selectedMode === 'advanced') {
+      // In advanced mode, keep current assistant or default to General
+      if (assistant.id === 'content_table') {
+        const general = getAssistant('general')
+        if (general) {
+          setAssistant(general)
+        }
+      }
+    }
+    
     emit<SetModeHandler>('SET_MODE', selectedMode)
-  }, [])
+  }, [assistant.id])
   
   const handleThemeToggle = useCallback(() => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light')
@@ -1472,7 +1532,8 @@ ${htmlTable}
             <span>OpenAI</span>
           </button>
           
-          {/* Claude */}
+          {/* Claude - Hidden in Simple Mode */}
+          {mode === 'advanced' && (
           <button
             disabled={true}
             onMouseEnter={(e) => {
@@ -1518,8 +1579,10 @@ ${htmlTable}
               <span>Coming soon</span>
             </div>
           </button>
+          )}
           
-          {/* Copilot */}
+          {/* Copilot - Hidden in Simple Mode */}
+          {mode === 'advanced' && (
           <button
             disabled={true}
             onMouseEnter={(e) => {
@@ -1565,6 +1628,7 @@ ${htmlTable}
               <span>Coming soon</span>
             </div>
           </button>
+          )}
         </div>
         
         {/* Right: Mode Toggle */}
@@ -2348,7 +2412,7 @@ ${htmlTable}
               flex: 1,
               minHeight: 0
             }}>
-            {listAssistants().map((a: AssistantType) => (
+            {listAssistantsByMode(mode).map((a: AssistantType) => (
               <button
                 key={a.id}
                 onClick={() => handleAssistantSelect(a.id)}

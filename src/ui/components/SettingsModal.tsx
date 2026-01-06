@@ -1,5 +1,5 @@
 import { h } from 'preact'
-import { useState, useEffect, useCallback } from 'preact/hooks'
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Textbox, Button } from '@create-figma-plugin/ui'
 import { emit } from '@create-figma-plugin/utilities'
 import type {
@@ -17,7 +17,33 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsModalProps) {
-  const [mode, setMode] = useState<Mode>(currentMode || 'advanced')
+  // Initialize mode from currentMode prop (reflects actual current mode)
+  // If currentMode is not provided, fall back to localStorage, then default to 'simple'
+  const [mode, setMode] = useState<Mode>(() => {
+    if (currentMode) {
+      return currentMode
+    }
+    try {
+      const saved = localStorage.getItem('figmai-mode')
+      return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+    } catch {
+      return 'simple'
+    }
+  })
+  
+  // Track initial mode for Cancel functionality - capture the mode at mount time
+  const [initialMode] = useState<Mode>(() => {
+    // Capture the mode value at initialization time (before any effects run)
+    if (currentMode) {
+      return currentMode
+    }
+    try {
+      const saved = localStorage.getItem('figmai-mode')
+      return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+    } catch {
+      return 'simple'
+    }
+  })
   const [proxyBaseUrl, setProxyBaseUrl] = useState('')
   const [authMode, setAuthMode] = useState<'shared_token' | 'session_token'>('shared_token')
   const [sharedToken, setSharedToken] = useState('')
@@ -42,7 +68,34 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         })
       } else if (message.type === 'SETTINGS_RESPONSE' && message.settings) {
         const settings = message.settings as Settings
-        setMode(settings.mode || currentMode || 'advanced')
+        // Load from localStorage first (takes priority), then settings, then currentMode, then default to 'simple'
+        // Only update mode if it's different from current to avoid unnecessary re-renders/flips
+        try {
+          const saved = localStorage.getItem('figmai-mode')
+          const savedMode = (saved === 'simple' || saved === 'advanced') ? saved : null
+          // localStorage takes priority over settings.mode
+          const newMode = savedMode || settings.mode || currentMode || 'simple'
+          // Only update if mode actually changed to prevent flip
+          setMode(prevMode => {
+            // If prevMode is already correct (matches localStorage or default), don't change
+            if (prevMode === newMode) {
+              return prevMode
+            }
+            // If localStorage exists and matches prevMode, keep it (don't override with settings.mode)
+            if (savedMode && prevMode === savedMode) {
+              return prevMode
+            }
+            return newMode
+          })
+        } catch {
+          const newMode = settings.mode || currentMode || 'simple'
+          setMode(prevMode => {
+            if (prevMode !== newMode) {
+              return newMode
+            }
+            return prevMode
+          })
+        }
         setProxyBaseUrl(settings.proxyBaseUrl || '')
         setAuthMode(settings.authMode || 'shared_token')
         setSharedToken(settings.sharedToken || '')
@@ -68,12 +121,46 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     }
   }, [currentMode])
   
-  // Update mode when currentMode prop changes
+  // Update mode when currentMode prop changes (when modal reopens)
+  // Only update if currentMode is provided AND different from current mode to prevent flip
   useEffect(() => {
-    if (currentMode !== undefined) {
+    if (currentMode !== undefined && currentMode !== mode) {
       setMode(currentMode)
     }
-  }, [currentMode])
+  }, [currentMode, mode])
+  
+  // Handler for mode change that persists immediately
+  const handleModeChange = useCallback((newMode: Mode) => {
+    setMode(newMode)
+    // Persist to localStorage immediately
+    try {
+      localStorage.setItem('figmai-mode', newMode)
+    } catch (e) {
+      console.warn('[Settings] Failed to save mode to localStorage:', e)
+    }
+    // Notify parent immediately
+    if (onModeChange) {
+      onModeChange(newMode)
+    }
+  }, [onModeChange])
+  
+  // Handler for Cancel - revert to initial mode
+  const handleCancel = useCallback(() => {
+    if (mode !== initialMode) {
+      setMode(initialMode)
+      // Revert localStorage
+      try {
+        localStorage.setItem('figmai-mode', initialMode)
+      } catch (e) {
+        console.warn('[Settings] Failed to revert mode in localStorage:', e)
+      }
+      // Notify parent
+      if (onModeChange) {
+        onModeChange(initialMode)
+      }
+    }
+    onClose()
+  }, [mode, initialMode, onModeChange, onClose])
   
   const handleSave = useCallback(() => {
     const settings: Partial<Settings> = {
@@ -162,27 +249,28 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           </label>
           <div style={{
             display: 'flex',
-            border: '1px solid #333333',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-sm)',
             overflow: 'hidden',
-            width: '100%'
+            width: '100%',
+            backgroundColor: 'var(--surface-modal)'
           }}>
             <button
-              onClick={() => setMode('simple')}
+              onClick={() => handleModeChange('simple')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  setMode('simple')
+                  handleModeChange('simple')
                 }
               }}
               style={{
                 flex: 1,
                 padding: 'var(--spacing-sm) var(--spacing-md)',
                 border: 'none',
-                borderRight: '1px solid #333333',
+                borderRight: '1px solid var(--border-subtle)',
                 borderRadius: 0,
-                backgroundColor: mode === 'simple' ? '#333333' : '#ffffff',
-                color: mode === 'simple' ? '#ffffff' : 'var(--fg)',
+                backgroundColor: mode === 'simple' ? '#ffffff' : 'var(--surface-modal)',
+                color: mode === 'simple' ? '#000000' : 'var(--fg-secondary)',
                 cursor: 'pointer',
                 textAlign: 'center',
                 fontFamily: 'var(--font-family)',
@@ -200,24 +288,24 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
               }}
               onMouseEnter={(e) => {
                 if (mode !== 'simple') {
-                  e.currentTarget.style.backgroundColor = '#fafafa'
+                  e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
                 }
               }}
               onMouseLeave={(e) => {
                 if (mode !== 'simple') {
-                  e.currentTarget.style.backgroundColor = '#ffffff'
-                  e.currentTarget.style.color = 'var(--fg)'
+                  e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
+                  e.currentTarget.style.color = 'var(--fg-secondary)'
                 }
               }}
             >
               Simple
             </button>
             <button
-              onClick={() => setMode('advanced')}
+              onClick={() => handleModeChange('advanced')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  setMode('advanced')
+                  handleModeChange('advanced')
                 }
               }}
               style={{
@@ -225,8 +313,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
                 padding: 'var(--spacing-sm) var(--spacing-md)',
                 border: 'none',
                 borderRadius: 0,
-                backgroundColor: mode === 'advanced' ? '#333333' : '#ffffff',
-                color: mode === 'advanced' ? '#ffffff' : 'var(--fg)',
+                backgroundColor: mode === 'advanced' ? '#ffffff' : 'var(--surface-modal)',
+                color: mode === 'advanced' ? '#000000' : 'var(--fg-secondary)',
                 cursor: 'pointer',
                 textAlign: 'center',
                 fontFamily: 'var(--font-family)',
@@ -244,13 +332,13 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
               }}
               onMouseEnter={(e) => {
                 if (mode !== 'advanced') {
-                  e.currentTarget.style.backgroundColor = '#fafafa'
+                  e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
                 }
               }}
               onMouseLeave={(e) => {
                 if (mode !== 'advanced') {
-                  e.currentTarget.style.backgroundColor = '#ffffff'
-                  e.currentTarget.style.color = 'var(--fg)'
+                  e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
+                  e.currentTarget.style.color = 'var(--fg-secondary)'
                 }
               }}
             >
@@ -262,7 +350,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         {/* Divider */}
         <div style={{
           height: '1px',
-          backgroundColor: '#e0e0e0',
+          backgroundColor: 'var(--border-subtle)',
           margin: 'var(--spacing-md) 0',
           width: '100%'
         }} />
@@ -446,12 +534,39 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           justifyContent: 'flex-end',
           marginTop: 'var(--spacing-sm)'
         }}>
-          <Button
-            onClick={onClose}
-            secondary
+          <button
+            onClick={handleCancel}
+            style={{
+              padding: 'var(--spacing-sm) var(--spacing-md)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--surface-modal)',
+              color: 'var(--fg)',
+              cursor: 'pointer',
+              fontSize: 'var(--font-size-sm)',
+              fontFamily: 'var(--font-family)',
+              fontWeight: 'var(--font-weight-medium)',
+              transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+              outline: 'none'
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.outline = '2px solid var(--accent)'
+              e.currentTarget.style.outlineOffset = '2px'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.outline = 'none'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
+              e.currentTarget.style.borderColor = 'var(--border-subtle)'
+            }}
           >
             Cancel
-          </Button>
+          </button>
           <Button
             onClick={handleSave}
             disabled={!proxyBaseUrl.trim()}
