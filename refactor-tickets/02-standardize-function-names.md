@@ -129,5 +129,3 @@ const selected = getAssistant(assistantId)
 - Part of Phase 1 quick wins
 - Can be combined with ticket #01
 
-
-

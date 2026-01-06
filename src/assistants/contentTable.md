@@ -338,5 +338,3 @@ The Content Table Assistant can document:
 - Make it easy to import into content management systems
 - Support localization workflows
 
-
-

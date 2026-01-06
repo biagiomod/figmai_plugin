@@ -121,5 +121,3 @@ export function getDefaultAssistant(): Assistant
 - Part of Phase 1 quick wins
 - Can be done in isolation
 
-
-

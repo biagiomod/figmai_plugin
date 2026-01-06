@@ -4,7 +4,7 @@
  * This file is auto-generated from content-models.md
  * DO NOT EDIT MANUALLY - edit content-models.md instead
  * 
- * Generated at: 2026-01-05T23:44:19.794Z
+ * Generated at: 2026-01-05T16:43:01.409Z
  */
 
 import type { ContentItemV1, TableFormatPreset } from './types'
@@ -226,3 +226,4 @@ export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
 
   ]
 }
+

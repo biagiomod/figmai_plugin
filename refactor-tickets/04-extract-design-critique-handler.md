@@ -199,5 +199,3 @@ export async function handleDesignCritiqueResponse(...) {
 - Consider adding handler tests
 - May want to make handler async for future extensibility
 
-
-

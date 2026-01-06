@@ -21,5 +21,3 @@ export function getProxyAuthHeaders(settings: ProxySettings): Record<string, str
   return headers
 }
 
-
-

@@ -334,5 +334,3 @@ Assistants are registered in `/src/assistants/index.ts` with:
 3. **Assistant Preferences**: Remember user preferences per Assistant
 4. **Batch Processing**: Analyze multiple selections at once
 
-
-

@@ -221,5 +221,3 @@ export function parseRichText(input: string): RichTextNode[] {
   return nodes
 }
 
-
-

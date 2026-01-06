@@ -62,5 +62,3 @@ export async function clearSettings(): Promise<void> {
   }
 }
 
-
-

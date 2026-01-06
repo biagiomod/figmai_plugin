@@ -476,5 +476,3 @@ curl -X POST "$PROXY_BASE_URL/v1/chat" \
 - Verify request format matches expected schema
 - Test with minimal request first
 
-
-
