@@ -81,7 +81,7 @@ import {
 
 function Plugin() {
   // State
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [mode, setMode] = useState<Mode>('advanced')
   const [provider, setProvider] = useState<LlmProviderId>('openai')
   const [assistant, setAssistant] = useState<AssistantType>(getDefaultAssistant())
@@ -1437,7 +1437,7 @@ ${htmlTable}
               padding: '0 var(--spacing-sm)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--bg)',
               color: 'var(--fg)',
               cursor: 'pointer',
               fontSize: 'var(--font-size-xs)',
@@ -1456,7 +1456,7 @@ ${htmlTable}
             onMouseLeave={(e) => {
               if (provider !== 'openai') {
                 e.currentTarget.style.borderColor = 'var(--border)'
-                e.currentTarget.style.backgroundColor = '#ffffff'
+                e.currentTarget.style.backgroundColor = 'var(--bg)'
               }
             }}
             onFocus={(e) => {
@@ -1498,8 +1498,8 @@ ${htmlTable}
               padding: '0 var(--spacing-sm)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: '#f5f5f5',
-              color: '#999999',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--fg-disabled)',
               cursor: 'not-allowed',
               fontSize: 'var(--font-size-xs)',
               fontFamily: 'var(--font-family)',
@@ -1545,8 +1545,8 @@ ${htmlTable}
               padding: '0 var(--spacing-sm)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: '#f5f5f5',
-              color: '#999999',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--fg-disabled)',
               cursor: 'not-allowed',
               fontSize: 'var(--font-size-xs)',
               fontFamily: 'var(--font-family)',
@@ -1747,7 +1747,7 @@ ${htmlTable}
                     borderRadius: 'var(--radius-md)',
                     backgroundColor: message.statusStyle === 'error' ? 'var(--error)' : 'var(--bg)',
                     border: '1px solid var(--border)',
-                    color: message.statusStyle === 'error' ? '#ffffff' : 'var(--fg)',
+                    color: message.statusStyle === 'error' ? 'var(--error-text)' : 'var(--fg)',
                     maxWidth: '100%',
                     userSelect: 'text',
                     WebkitUserSelect: 'text',
@@ -1788,7 +1788,7 @@ ${htmlTable}
                   padding: 'var(--spacing-sm) var(--spacing-md)',
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--accent)',
-                  color: '#ffffff',
+                  color: 'var(--accent-text)',
                   fontSize: 'var(--font-size-sm)',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
@@ -1904,7 +1904,7 @@ ${htmlTable}
                         padding: '2px 8px',
                         borderRadius: 'var(--radius-sm)',
                         backgroundColor: item.score >= 4 ? 'var(--success)' : item.score >= 3 ? 'var(--warning)' : 'var(--error)',
-                        color: '#ffffff',
+                        color: item.score >= 4 ? 'var(--success-text)' : item.score >= 3 ? 'var(--warning-text)' : 'var(--error-text)',
                         fontSize: 'var(--font-size-xs)',
                         fontWeight: 'var(--font-weight-semibold)'
                       }}>
@@ -2009,7 +2009,7 @@ ${htmlTable}
           <div style={{
             padding: 'var(--spacing-md)',
             backgroundColor: 'var(--error)',
-            color: '#ffffff',
+            color: 'var(--error-text)',
             borderRadius: 'var(--radius-md)',
             marginBottom: 'var(--spacing-md)'
           }}>
@@ -2150,7 +2150,7 @@ ${htmlTable}
           <div style={{
             padding: 'var(--spacing-sm)',
             backgroundColor: 'var(--error)',
-            color: '#ffffff',
+            color: 'var(--error-text)',
             borderRadius: 'var(--radius-sm)',
             fontSize: 'var(--font-size-xs)'
           }}>
@@ -2195,9 +2195,9 @@ ${htmlTable}
                 : (selectionRequired 
                   ? 'var(--error)' 
                   : (showSelectionHint 
-                    ? '#fff9c4' 
+                    ? 'var(--hint-bg)' 
                     : 'var(--bg)')),
-              color: selectionState.hasSelection || selectionRequired ? '#ffffff' : 'var(--fg)',
+              color: selectionState.hasSelection ? 'var(--success-text)' : selectionRequired ? 'var(--error-text)' : 'var(--fg)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -2285,7 +2285,7 @@ ${htmlTable}
               padding: '0',
               border: 'none',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: (selectionRequired && !selectionState.hasSelection) ? 'var(--muted)' : '#0066ff',
+              backgroundColor: (selectionRequired && !selectionState.hasSelection) ? 'var(--muted)' : 'var(--accent)',
               cursor: (selectionRequired && !selectionState.hasSelection) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -2310,7 +2310,7 @@ ${htmlTable}
           right: 0,
           bottom: 0,
           padding: '16px',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -2318,7 +2318,8 @@ ${htmlTable}
           boxSizing: 'border-box'
         }} onClick={() => setShowAssistantModal(false)}>
           <div style={{
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-lg)',
             maxWidth: '500px',
@@ -2328,7 +2329,8 @@ ${htmlTable}
             flexDirection: 'column',
             overflow: 'hidden',
             gap: 'var(--spacing-md)',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            boxShadow: 'var(--shadow-elevation)'
           }} onClick={e => e.stopPropagation()}>
             <div style={{
               fontSize: 'var(--font-size-lg)',
@@ -2351,21 +2353,29 @@ ${htmlTable}
                 key={a.id}
                 onClick={() => handleAssistantSelect(a.id)}
                 onMouseEnter={(e) => {
+                  if (assistant.id !== a.id) {
+                    e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
+                  }
                   const button = e.currentTarget
                   const description = button.querySelector('[data-description]') as HTMLElement
                   if (description) description.style.display = 'block'
                 }}
                 onMouseLeave={(e) => {
+                  if (assistant.id !== a.id) {
+                    e.currentTarget.style.backgroundColor = 'var(--surface-row)'
+                  }
                   const button = e.currentTarget
                   const description = button.querySelector('[data-description]') as HTMLElement
                   if (description) description.style.display = 'none'
                 }}
                 style={{
                   padding: 'var(--spacing-md)',
-                  border: '1px solid var(--border)',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: assistant.id === a.id ? 'var(--accent)' : 'var(--bg-secondary)',
-                  color: assistant.id === a.id ? '#ffffff' : 'var(--fg)',
+                  backgroundColor: assistant.id === a.id 
+                    ? 'var(--surface-row-selected)' 
+                    : 'var(--surface-row)',
+                  color: assistant.id === a.id ? 'var(--accent-text)' : 'var(--fg)',
                   cursor: 'pointer',
                   textAlign: 'left',
                   fontFamily: 'var(--font-family)',
@@ -2373,7 +2383,7 @@ ${htmlTable}
                   alignItems: 'flex-start',
                   gap: 'var(--spacing-sm)',
                   position: 'relative',
-                  transition: 'background-color 0.2s ease'
+                  transition: 'background-color 0.2s ease, border-color 0.2s ease'
                 }}
               >
                 <div style={{
@@ -2417,21 +2427,23 @@ ${htmlTable}
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }} onClick={() => setShowClearChatModal(false)}>
           <div style={{
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-lg)',
             maxWidth: '400px',
             width: '90%',
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--spacing-md)'
+            gap: 'var(--spacing-md)',
+            boxShadow: 'var(--shadow-elevation)'
           }} onClick={e => e.stopPropagation()}>
             <div style={{
               fontSize: 'var(--font-size-lg)',
@@ -2475,7 +2487,7 @@ ${htmlTable}
                   border: 'none',
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: 'var(--error)',
-                  color: '#ffffff',
+                  color: 'var(--error-text)',
                   cursor: 'pointer',
                   fontSize: 'var(--font-size-sm)',
                   fontFamily: 'var(--font-family)',
@@ -2506,14 +2518,15 @@ ${htmlTable}
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }} onClick={() => setShowFormatModal(false)}>
           <div style={{
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-lg)',
             maxWidth: '400px',
@@ -2522,7 +2535,8 @@ ${htmlTable}
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--spacing-md)'
+            gap: 'var(--spacing-md)',
+            boxShadow: 'var(--shadow-elevation)'
           }} onClick={e => e.stopPropagation()}>
             <div style={{
               fontSize: 'var(--font-size-lg)',
@@ -2615,21 +2629,23 @@ ${htmlTable}
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }} onClick={() => setShowCopyFormatModal(false)}>
           <div style={{
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-lg)',
             maxWidth: '400px',
             width: '90%',
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--spacing-md)'
+            gap: 'var(--spacing-md)',
+            boxShadow: 'var(--shadow-elevation)'
           }} onClick={e => e.stopPropagation()}>
             <div style={{
               fontSize: 'var(--font-size-lg)',
@@ -2731,14 +2747,15 @@ ${htmlTable}
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }} onClick={() => setShowTableView(false)}>
           <div style={{
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-lg)',
             maxWidth: '90%',
@@ -2747,7 +2764,8 @@ ${htmlTable}
             display: 'flex',
             flexDirection: 'column',
             gap: 'var(--spacing-md)',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-elevation)'
           }} onClick={e => e.stopPropagation()}>
             <div style={{
               display: 'flex',
@@ -2779,10 +2797,10 @@ ${htmlTable}
             <div style={{
               flex: 1,
               overflowY: 'auto',
-              border: '1px solid var(--border)',
+              border: '1px solid #e0e0e0',
               borderRadius: 'var(--radius-sm)',
               padding: 'var(--spacing-sm)',
-              backgroundColor: 'var(--bg-secondary)',
+              backgroundColor: '#ffffff',
               userSelect: 'text',
               WebkitUserSelect: 'text',
               MozUserSelect: 'text',
@@ -2797,7 +2815,9 @@ ${htmlTable}
                   MozUserSelect: 'text',
                   msUserSelect: 'text',
                   cursor: 'text',
-                  pointerEvents: 'auto'
+                  pointerEvents: 'auto',
+                  backgroundColor: '#ffffff',
+                  color: '#000000'
                 }}
                 dangerouslySetInnerHTML={{ __html: toHtmlTable(contentTable, selectedFormat, { forView: true }) }} 
               />
@@ -2819,7 +2839,7 @@ ${htmlTable}
                     border: 'none',
                     borderRadius: 'var(--radius-sm)',
                     backgroundColor: isCopyingTable ? 'var(--muted)' : 'var(--accent)',
-                    color: '#ffffff',
+                    color: isCopyingTable ? 'var(--fg)' : 'var(--accent-text)',
                     cursor: isCopyingTable ? 'not-allowed' : 'pointer',
                     fontSize: 'var(--font-size-sm)',
                     fontWeight: 'var(--font-weight-medium)',
@@ -2849,7 +2869,7 @@ ${htmlTable}
                     border: 'none',
                     borderRadius: 'var(--radius-sm)',
                     backgroundColor: (isCopyingRefImage || !contentTable) ? 'var(--muted)' : 'var(--accent)',
-                    color: '#ffffff',
+                    color: (isCopyingRefImage || !contentTable) ? 'var(--fg)' : 'var(--accent-text)',
                     cursor: (isCopyingRefImage || !contentTable) ? 'not-allowed' : 'pointer',
                     fontSize: 'var(--font-size-sm)',
                     fontWeight: 'var(--font-weight-medium)',
@@ -2922,7 +2942,7 @@ ${htmlTable}
                 <div style={{
                   padding: 'var(--spacing-sm)',
                   backgroundColor: copyStatus.success ? 'var(--success)' : 'var(--error)',
-                  color: '#ffffff',
+                  color: copyStatus.success ? 'var(--success-text)' : 'var(--error-text)',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: 'var(--font-size-xs)',
                   marginTop: 'var(--spacing-xs)'
@@ -2944,14 +2964,15 @@ ${htmlTable}
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }} onClick={() => setShowSendJsonModal(false)}>
           <div style={{
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-lg)',
             maxWidth: '500px',
@@ -2959,7 +2980,8 @@ ${htmlTable}
             maxHeight: '90vh',
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-elevation)'
           }} onClick={e => e.stopPropagation()}>
             {/* Header with title and Demo button */}
             <div style={{
@@ -3170,21 +3192,23 @@ ${htmlTable}
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }} onClick={() => setShowGetJsonModal(false)}>
           <div style={{
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--spacing-lg)',
             maxWidth: '500px',
             width: '90%',
             maxHeight: '80vh',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            boxShadow: 'var(--shadow-elevation)'
           }} onClick={e => e.stopPropagation()}>
             <div style={{
               fontSize: 'var(--font-size-lg)',
@@ -3368,7 +3392,7 @@ ${htmlTable}
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'var(--overlay-scrim)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

@@ -37,6 +37,34 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Ensure table cell style includes light mode colors (white background, black text)
+ * Tables are document artifacts and must render identically in light and dark mode
+ */
+function ensureLightModeCellStyle(style: string): string {
+  // If style already has background-color or color, preserve them but ensure light mode
+  if (style.includes('background-color')) {
+    // Replace any background-color with white
+    style = style.replace(/background-color:\s*[^;]+/g, 'background-color: #ffffff')
+  } else {
+    style += '; background-color: #ffffff'
+  }
+  
+  if (style.includes('color:')) {
+    // Only replace color if it's not a link (links should be blue)
+    if (!style.includes('href') && !style.includes('color: #0066ff')) {
+      style = style.replace(/color:\s*[^;]+/g, 'color: #000000')
+    }
+  } else {
+    // Only add black color if it's not a link
+    if (!style.includes('href')) {
+      style += '; color: #000000'
+    }
+  }
+  
+  return style
+}
+
+/**
  * Render meta row as HTML (Row 1)
  * Cell 1: Thumbnail image wrapped in link
  * Cell 2: Metadata chips (inline) - spans remaining columns
@@ -46,8 +74,8 @@ function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: n
     ? `<img src="${escapeHtml(meta.thumbnailDataUrl)}" alt="Preview" style="width: 100px; height: auto; display: block;" />`
     : '<span style="color: #999;">No preview</span>'
   
-  const thumbnailCell = `<td style="border: 1px solid #ddd; padding: 8px; vertical-align: top; width: 100px;">
-    <a href="${escapeHtml(meta.rootNodeUrl)}" target="_blank" rel="noopener noreferrer">
+  const thumbnailCell = `<td style="border: 1px solid #ddd; padding: 8px; vertical-align: top; width: 100px; background-color: #ffffff;">
+    <a href="${escapeHtml(meta.rootNodeUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0066ff; text-decoration: underline;">
       ${thumbnailHtml}
     </a>
   </td>`
@@ -63,8 +91,8 @@ function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: n
   
   // Cell 2 spans the remaining columns (columnCount - 1)
   const colSpan = columnCount - 1
-  const metadataCell = `<td colspan="${colSpan}" style="border: 1px solid #ddd; padding: 8px; vertical-align: top;">
-    <div style="font-size: 12px; line-height: 1.6;">
+  const metadataCell = `<td colspan="${colSpan}" style="border: 1px solid #ddd; padding: 8px; vertical-align: top; background-color: #ffffff; color: #000000;">
+    <div style="font-size: 12px; line-height: 1.6; color: #000000;">
       ${metadataChips}
     </div>
   </td>`
@@ -77,7 +105,7 @@ function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: n
  */
 function renderFigmaRef(value: string): string {
   if (!value) return ''
-  return `<a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer">View Element</a>`
+  return `<a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" style="color: #0066ff; text-decoration: underline;">View Element</a>`
 }
 
 /**
@@ -118,16 +146,16 @@ function renderContentModel1(universalTable: UniversalContentTableV1): string {
   html += '<tr>'
   
   // Col 1: Figma Ref (merged, rowspan = totalBodyRows)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${renderFigmaRef(rootNodeUrl)}</td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${renderFigmaRef(rootNodeUrl)}</td>`
   
   // Col 2: Tag (merged, blank)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
   
   // Col 3: Source (merged, blank)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
   
   // Col 4: Model (merged, use "Content Model 1" label)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('Content Model 1')}</td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml('Content Model 1')}</td>`
   
   // For each content item, output 2 rows (Row A: key row, Row B: value row)
   // Staggering: Row A has key in Column 5, empty 6-7; Row B has empty Column 5, value in 6, content in 7
@@ -144,76 +172,76 @@ function renderContentModel1(universalTable: UniversalContentTableV1): string {
     // Row A: Key row (only for first item, since merged cells are in first row)
     if (isFirstItem) {
       // Col 5: Metadata Key (id / title / key)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(metadataKey)}</td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(metadataKey)}</td>`
       
       // Col 6: Content Key (empty)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 7: Content (empty)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 8: Rules/Comment (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 9: Notes/Jira (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       html += '</tr>'
       
       // Row B: Value row
       html += '<tr>'
       // Col 5: Metadata Key (empty)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 6: Content Key (value)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('value')}</td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml('value')}</td>`
       
       // Col 7: Content (actual content value)
       const content = item.content.value || ''
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(content)}</td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(content)}</td>`
       
       // Col 8: Rules/Comment (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 9: Notes/Jira (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       html += '</tr>'
     } else {
       // For subsequent items, create new rows without merged cells (they're already in first row)
       // Row A: Key row
       html += '<tr>'
       // Col 5: Metadata Key (id / title / key)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(metadataKey)}</td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(metadataKey)}</td>`
       
       // Col 6: Content Key (empty)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 7: Content (empty)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 8: Rules/Comment (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 9: Notes/Jira (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       html += '</tr>'
       
       // Row B: Value row
       html += '<tr>'
       // Col 5: Metadata Key (empty)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 6: Content Key (value)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('value')}</td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml('value')}</td>`
       
       // Col 7: Content (actual content value)
       const content = item.content.value || ''
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(content)}</td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(content)}</td>`
       
       // Col 8: Rules/Comment (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       
       // Col 9: Notes/Jira (blank)
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
       html += '</tr>'
     }
   }
@@ -232,7 +260,8 @@ function renderContentOnly(universalTable: UniversalContentTableV1): string {
   // Get root node URL for merged cell
   const rootNodeUrl = universalTable.meta?.rootNodeUrl || (items.length > 0 ? items[0].nodeUrl : '')
   
-  let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px;">'
+  // Force light mode styling: white background, black text
+  let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px; background-color: #ffffff; color: #000000;">'
   
   // <thead> with column numbers row and header labels row
   html += '<thead>'
@@ -240,7 +269,7 @@ function renderContentOnly(universalTable: UniversalContentTableV1): string {
   // Row 1: Column numbers
   html += '<tr>'
   for (let i = 1; i <= 9; i++) {
-    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">Column ${i}</th>`
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0; color: #000000;">Column ${i}</th>`
   }
   html += '</tr>'
   
@@ -248,7 +277,7 @@ function renderContentOnly(universalTable: UniversalContentTableV1): string {
   const headers = ['Figma Ref', 'Tag', 'Source', 'Model', 'Metadata Key', 'Content Key', 'Content', 'Rules/Comment', 'Notes/Jira']
   html += '<tr>'
   for (const header of headers) {
-    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0; color: #000000;">${escapeHtml(header)}</th>`
   }
   html += '</tr></thead>'
   
@@ -259,16 +288,16 @@ function renderContentOnly(universalTable: UniversalContentTableV1): string {
   html += '<tr>'
   
   // Col 1: Figma Ref (merged, rowspan = totalBodyRows)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${renderFigmaRef(rootNodeUrl)}</td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${renderFigmaRef(rootNodeUrl)}</td>`
   
   // Col 2: Tag (merged, blank)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
   
   // Col 3: Source (merged, blank)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
   
   // Col 4: Model (merged, blank for Content Only)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
   
   // For each content item, output 1 row with only Column 7 populated
   for (let i = 0; i < items.length; i++) {
@@ -280,20 +309,20 @@ function renderContentOnly(universalTable: UniversalContentTableV1): string {
     }
     
     // Col 5: Metadata Key (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     
     // Col 6: Content Key (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     
     // Col 7: Content (populated with actual content value)
     const content = item.content.value || ''
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(content)}</td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(content)}</td>`
     
     // Col 8: Rules/Comment (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     
     // Col 9: Notes/Jira (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     html += '</tr>'
   }
   
@@ -374,16 +403,16 @@ function renderContentModel2(universalTable: UniversalContentTableV1): string {
   html += '<tr>'
   
   // Col 1: Figma Ref (merged, rowspan = totalBodyRows)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${renderFigmaRef(rootNodeUrl)}</td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${renderFigmaRef(rootNodeUrl)}</td>`
   
   // Col 2: Tag (merged, blank)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
   
   // Col 3: Source (merged, blank)
-  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
   
   // Col 4: Model - Dialog section (merged, rowspan = dialogRowCount)
-  html += `<td rowspan="${dialogRowCount}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('Dialog')}</td>`
+  html += `<td rowspan="${dialogRowCount}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml('Dialog')}</td>`
   
   // Dialog section rows
   for (let i = 0; i < dialogRows.length; i++) {
@@ -395,26 +424,26 @@ function renderContentModel2(universalTable: UniversalContentTableV1): string {
     }
     
     // Col 5: Metadata Key
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col5)}</td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(row.col5)}</td>`
     
     // Col 6: Content Key
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col6)}</td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(row.col6)}</td>`
     
     // Col 7: Content (blank for now)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col7)}</td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(row.col7)}</td>`
     
     // Col 8: Rules/Comment (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     
     // Col 9: Notes/Jira (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     html += '</tr>'
   }
   
   // Links section - start new row with Model column
   html += '<tr>'
   // Col 4: Model - Links section (merged, rowspan = linksRowCount)
-  html += `<td rowspan="${linksRowCount}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('Links')}</td>`
+  html += `<td rowspan="${linksRowCount}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml('Links')}</td>`
   
   // Links section rows
   for (let i = 0; i < linksRows.length; i++) {
@@ -426,19 +455,19 @@ function renderContentModel2(universalTable: UniversalContentTableV1): string {
     }
     
     // Col 5: Metadata Key
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col5)}</td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(row.col5)}</td>`
     
     // Col 6: Content Key
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col6)}</td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(row.col6)}</td>`
     
     // Col 7: Content (blank for now)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(row.col7)}</td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(row.col7)}</td>`
     
     // Col 8: Rules/Comment (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     
     // Col 9: Notes/Jira (blank)
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
     html += '</tr>'
   }
   
@@ -489,7 +518,8 @@ export function universalTableToHtml(
   
   // Build HTML table with minimal inline styles
   // Format optimized for Word, Apple Notes, and Confluence
-  let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px;">'
+  // Force light mode styling: white background, black text (tables are document artifacts, not UI chrome)
+  let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px; background-color: #ffffff; color: #000000;">'
   
   // <thead> containing meta row (if exists) and header row
   html += '<thead>'
@@ -525,7 +555,7 @@ export function universalTableToHtml(
         cellHtml = escapedCell
       }
       
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${cellHtml}</td>`
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${cellHtml}</td>`
     }
     html += '</tr>'
   }

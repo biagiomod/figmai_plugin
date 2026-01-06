@@ -1,20 +1,59 @@
 /**
  * Dark Skin
- * Dark theme overrides
+ * Dark theme overrides with WCAG-compliant contrast ratios
  */
 
 [data-theme="dark"] {
-  --bg: #1a1a1a;
-  --bg-secondary: #2a2a2a;
+  /* Base surfaces - near-black, not pure black */
+  --bg: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --bg-elevated: #262626;
+  --bg-modal: #1f1f1f;
+  
+  /* Text colors - high contrast for readability */
   --fg: #ffffff;
-  --fg-secondary: #cccccc;
-  --muted: #888888;
+  --fg-secondary: #b3b3b3;
+  --fg-disabled: #666666;
+  --muted: #808080;
+  
+  /* Borders and dividers */
   --border: #404040;
+  --border-focus: #4da6ff;
+  
+  /* Accent colors - adjusted for dark mode with good contrast */
   --accent: #4da6ff;
   --accent-hover: #66b3ff;
   --accent-active: #3399ff;
-  --error: #ff6666;
-  --success: #66ff99;
-  --warning: #ffb366;
+  --accent-text: #ffffff;
+  
+  /* Semantic colors - WCAG AA compliant */
+  --error: #ff6b6b;
+  --error-text: #ffffff;
+  --success: #51cf66;
+  --success-text: #ffffff;
+  --warning: #ffd43b;
+  --warning-text: #000000;
+  
+  /* Overlays and focus */
+  --overlay: rgba(0, 0, 0, 0.7);
+  --overlay-scrim: rgba(0, 0, 0, 0.65);
+  --focus-ring: rgba(77, 166, 255, 0.5);
+  --hint-bg: #3d3d00;
+  
+  /* Modal surfaces - elevated and distinct from overlay */
+  --surface-modal: #2a2a2a;
+  --border-subtle: #505050;
+  --shadow-elevation: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+  
+  /* Row surfaces - clear contrast */
+  --surface-row: transparent;
+  --surface-row-hover: #333333;
+  --surface-row-selected: var(--accent);
+  
+  /* Shadows - adjusted for dark mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
+
 

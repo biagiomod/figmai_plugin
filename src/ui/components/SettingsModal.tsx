@@ -121,14 +121,15 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: 'var(--overlay)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 1000
     }} onClick={onClose}>
       <div style={{
-        backgroundColor: 'var(--bg)',
+        backgroundColor: 'var(--surface-modal)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
         padding: 'var(--spacing-lg)',
         maxWidth: '400px',
@@ -137,7 +138,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: 'var(--spacing-md)'
+        gap: 'var(--spacing-md)',
+        boxShadow: 'var(--shadow-elevation)'
       }} onClick={e => e.stopPropagation()}>
         <div style={{
           fontSize: 'var(--font-size-lg)',
