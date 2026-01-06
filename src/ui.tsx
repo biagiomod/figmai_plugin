@@ -40,7 +40,8 @@ import type {
   Mode,
   LlmProviderId,
   Assistant,
-  CopyTableStatusHandler
+  CopyTableStatusHandler,
+  ExportContentTableRefImageHandler
 } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
@@ -120,6 +121,7 @@ function Plugin() {
   const [selectedFormat, setSelectedFormat] = useState<TableFormatPreset>('universal')
   const [showTableView, setShowTableView] = useState(false)
   const [pendingAction, setPendingAction] = useState<'copy' | 'view' | 'confluence' | null>(null)
+  const [isCopyingRefImage, setIsCopyingRefImage] = useState(false)
   const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
   // Clipboard debug state
   const [showPasteDebug, setShowPasteDebug] = useState(false)
@@ -269,6 +271,16 @@ function Plugin() {
           console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
           setContentTable(null)
           setIsLoading(false)
+          break
+        case 'CONTENT_TABLE_REF_IMAGE_READY':
+          console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_READY, dataUrl length:', message.dataUrl?.length || 0)
+          // Don't reset state here - handleCopyRefImageToClipboard will handle it
+          handleCopyRefImageToClipboard(message.dataUrl)
+          break
+        case 'CONTENT_TABLE_REF_IMAGE_ERROR':
+          console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_ERROR:', message.message)
+          setIsCopyingRefImage(false)
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', message.message || 'Could not copy reference image.')
           break
         case 'SCORECARD_PLACED':
           // Update status message when scorecard placement completes
@@ -483,6 +495,12 @@ function Plugin() {
   const handleQuickAction = useCallback((actionId: string) => {
     console.log('[UI] handleQuickAction called', { actionId, hasContentTable: !!contentTable, assistantId: assistant.id })
     
+    // Handle copy-ref-image directly in UI (doesn't need main thread processing)
+    if (actionId === 'copy-ref-image') {
+      handleCopyRefImage()
+      return
+    }
+    
     // Handle Content Table dynamic actions (these are UI-only, don't send to main thread)
     if (assistant.id === 'content_table' && contentTable) {
       if (actionId === 'send-to-confluence') {
@@ -657,6 +675,134 @@ function Plugin() {
       }
     }
   }, [jsonOutput])
+  
+  // Handle Copy Ref Image
+  const handleCopyRefImage = useCallback(() => {
+    if (!contentTable || !contentTable.meta?.rootNodeId) {
+      console.error('[UI] Copy Ref Image: No table or rootNodeId missing', { 
+        hasTable: !!contentTable, 
+        rootNodeId: contentTable?.meta?.rootNodeId 
+      })
+      setIsCopyingRefImage(false)
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'No table available or root node not found.')
+      return
+    }
+    
+    console.log('[UI] Copy Ref Image: Request sent with rootNodeId:', contentTable.meta.rootNodeId)
+    setIsCopyingRefImage(true)
+    emit<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', contentTable.meta.rootNodeId)
+  }, [contentTable])
+
+  // Copy ref image to clipboard from base64 data URL
+  const handleCopyRefImageToClipboard = useCallback(async (dataUrl: string) => {
+    console.log('[UI] Copy Ref Image: Received READY, dataUrl length:', dataUrl.length)
+    
+    try {
+      // Convert base64 data URL to Blob
+      // Extract base64 string from data URL
+      const base64Match = dataUrl.match(/^data:image\/png;base64,(.+)$/)
+      if (!base64Match) {
+        throw new Error('Invalid data URL format')
+      }
+      
+      const base64String = base64Match[1]
+      const binaryString = atob(base64String)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      const blob = new Blob([bytes], { type: 'image/png' })
+      
+      console.log('[UI] Copy Ref Image: Blob created, size:', blob.size, 'bytes')
+      
+      // Primary attempt: ClipboardItem API
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'image/png': blob
+            })
+          ])
+          console.log('[UI] Copy Ref Image: Clipboard write succeeded')
+          setIsCopyingRefImage(false)
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Reference image copied to clipboard')
+          return
+        } catch (clipboardError) {
+          console.warn('[UI] Copy Ref Image: Primary clipboard write failed, trying fallback:', clipboardError)
+          // Fall through to fallback
+        }
+      }
+      
+      // Fallback A: Create img element, draw to canvas, then toBlob
+      try {
+        const img = new Image()
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        
+        if (!ctx) {
+          throw new Error('Canvas context not available')
+        }
+        
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => {
+            canvas.width = img.width
+            canvas.height = img.height
+            ctx.drawImage(img, 0, 0)
+            resolve()
+          }
+          img.onerror = () => reject(new Error('Failed to load image'))
+          img.src = dataUrl
+        })
+        
+        const canvasBlob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error('Canvas toBlob failed'))
+            }
+          }, 'image/png')
+        })
+        
+        if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'image/png': canvasBlob
+            })
+          ])
+          console.log('[UI] Copy Ref Image: Fallback A clipboard write succeeded')
+          setIsCopyingRefImage(false)
+          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Reference image copied to clipboard')
+          return
+        }
+      } catch (fallbackError) {
+        console.warn('[UI] Copy Ref Image: Fallback A failed:', fallbackError)
+        // Fall through to fallback B
+      }
+      
+      // Fallback B: Trigger download and show error toast
+      const rootNodeId = contentTable?.meta?.rootNodeId
+      const filename = rootNodeId 
+        ? `CT_RefImage_${rootNodeId.replace(/[:]/g, '-')}_600w.png`
+        : 'CT_RefImage_600w.png'
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      const errorMsg = 'Clipboard write not permitted. Image downloaded instead.'
+      console.error('[UI] Copy Ref Image: All clipboard attempts failed, triggered download')
+      setIsCopyingRefImage(false)
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', errorMsg)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[UI] Copy Ref Image: Failed to copy ref image to clipboard:', error)
+      setIsCopyingRefImage(false)
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', `Could not copy reference image: ${errorMessage}`)
+    }
+  }, [contentTable])
   
   // Copy Content Table to clipboard
   // copyFormatType: 'html' | 'tsv' | 'json' - determines what format to copy
@@ -1170,6 +1316,12 @@ ${htmlTable}
       id: 'view-table',
       label: 'View Table',
       templateMessage: 'View table in plugin',
+      requiresSelection: false
+    },
+    {
+      id: 'copy-ref-image',
+      label: 'Get Ref Image',
+      templateMessage: 'Get reference image',
       requiresSelection: false
     },
     {
@@ -2517,6 +2669,36 @@ ${htmlTable}
                     }} />
                   )}
                   {isCopyingTable ? 'Copying...' : 'Copy Table'}
+                </button>
+                <button
+                  onClick={handleCopyRefImage}
+                  disabled={isCopyingRefImage || !contentTable}
+                  style={{
+                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: (isCopyingRefImage || !contentTable) ? 'var(--muted)' : 'var(--accent)',
+                    color: '#ffffff',
+                    cursor: (isCopyingRefImage || !contentTable) ? 'not-allowed' : 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    opacity: (isCopyingRefImage || !contentTable) ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-xs)'
+                  }}
+                >
+                  {isCopyingRefImage && (
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid #ffffff',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite'
+                    }} />
+                  )}
+                  {isCopyingRefImage ? 'Getting...' : 'Get Ref Image'}
                 </button>
                 {DEBUG_CLIPBOARD && (
                   <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>

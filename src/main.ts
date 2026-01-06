@@ -41,7 +41,8 @@ import type {
   SelectionState,
   LlmProviderId,
   ToolCall,
-  CopyTableStatusHandler
+  CopyTableStatusHandler,
+  ExportContentTableRefImageHandler
 } from './core/types'
 import { scanContentTable } from './core/contentTable/scanner'
 
@@ -378,6 +379,10 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
         })
         return
       }
+    } else if (actionId === 'copy-ref-image') {
+      // Handle Copy Ref Image quick action
+      // This will be handled via direct message from UI, not through quick action
+      return
     }
   }
   
@@ -807,3 +812,82 @@ export default function () {
   // Send initial selection state
   sendSelectionState()
 }
+
+// Handle Export Content Table Ref Image
+on<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', async function (rootNodeId: string) {
+  console.log('[Main] EXPORT_CONTENT_TABLE_REF_IMAGE received', { rootNodeId })
+  try {
+    const node = figma.getNodeById(rootNodeId)
+    if (!node) {
+      console.error('[Main] Export Ref Image: Node not found for rootNodeId:', rootNodeId)
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'CONTENT_TABLE_REF_IMAGE_ERROR',
+          message: 'Root node not found'
+        }
+      })
+      return
+    }
+    
+    if (node.type === 'DOCUMENT' || node.type === 'PAGE') {
+      console.error('[Main] Export Ref Image: Cannot export document or page')
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'CONTENT_TABLE_REF_IMAGE_ERROR',
+          message: 'Cannot export document or page as image'
+        }
+      })
+      return
+    }
+    
+    const sceneNode = node as SceneNode
+    
+    // Export as PNG, 600px wide
+    // Try WIDTH constraint first, fallback to SCALE if needed
+    let bytes: Uint8Array
+    try {
+      bytes = await sceneNode.exportAsync({
+        format: 'PNG',
+        constraint: {
+          type: 'WIDTH',
+          value: 600
+        }
+      })
+    } catch (widthError) {
+      // Fallback to SCALE if WIDTH constraint fails
+      console.warn('[Main] Export Ref Image: WIDTH constraint failed, trying SCALE:', widthError)
+      const nodeWidth = 'width' in sceneNode ? sceneNode.width : 600
+      const scale = Math.min(1, 600 / nodeWidth)
+      bytes = await sceneNode.exportAsync({
+        format: 'PNG',
+        constraint: {
+          type: 'SCALE',
+          value: scale
+        }
+      })
+    }
+    
+    console.log('[Main] Export Ref Image: Export succeeded, bytes length:', bytes.length)
+    
+    // Convert to base64 data URL
+    const base64 = figma.base64Encode(bytes)
+    const dataUrl = `data:image/png;base64,${base64}`
+    
+    console.log('[Main] Export Ref Image: Sending READY, dataUrl length:', dataUrl.length)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'CONTENT_TABLE_REF_IMAGE_READY',
+        dataUrl: dataUrl
+      }
+    })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[Main] Export Ref Image: Failed to export ref image:', error)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'CONTENT_TABLE_REF_IMAGE_ERROR',
+        message: `Could not export reference image: ${errorMessage}`
+      }
+    })
+  }
+})

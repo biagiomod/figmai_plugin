@@ -166,6 +166,11 @@ export interface CopyTableStatusHandler extends EventHandler {
   handler: (status: 'success' | 'error', message?: string) => void
 }
 
+export interface ExportContentTableRefImageHandler extends EventHandler {
+  name: 'EXPORT_CONTENT_TABLE_REF_IMAGE'
+  handler: (rootNodeId: string) => void
+}
+
 // ============================================================================
 // Event Handlers - Main → UI
 // ============================================================================
@@ -223,6 +228,16 @@ export interface ContentTableGeneratedHandler extends EventHandler {
 export interface ContentTableErrorHandler extends EventHandler {
   name: 'CONTENT_TABLE_ERROR'
   handler: (error: string) => void
+}
+
+export interface ContentTableRefImageReadyHandler extends EventHandler {
+  name: 'CONTENT_TABLE_REF_IMAGE_READY'
+  handler: (dataUrl: string) => void
+}
+
+export interface ContentTableRefImageErrorHandler extends EventHandler {
+  name: 'CONTENT_TABLE_REF_IMAGE_ERROR'
+  handler: (message: string) => void
 }
 
 // Re-export content table types
