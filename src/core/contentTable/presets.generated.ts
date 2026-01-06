@@ -4,7 +4,7 @@
  * This file is auto-generated from content-models.md
  * DO NOT EDIT MANUALLY - edit content-models.md instead
  * 
- * Generated at: 2026-01-05T16:43:01.409Z
+ * Generated at: 2026-01-06T02:57:59.548Z
  */
 
 import type { ContentItemV1, TableFormatPreset } from './types'
