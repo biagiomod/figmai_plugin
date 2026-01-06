@@ -86,6 +86,7 @@ export type ContentItemV1 = {
  */
 export type TableFormatPreset = 
   | "universal"
+  | "content-only"
   | "content-model-1"
   | "content-model-2"
   | "content-model-3"

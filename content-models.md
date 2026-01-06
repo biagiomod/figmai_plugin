@@ -64,6 +64,26 @@ If a path is missing, it returns an empty string.
 
 ---
 
+## Content Only
+
+**id:** content-only  
+**label:** Content Only  
+**description:** Content list with same structure as Content Model 1, but only Column 7 populated with content values  
+**enabled:** true
+
+**columns:**
+- key: figmaRef, label: Figma Ref, path: nodeUrl
+- key: tag, label: Tag, path: component.name
+- key: source, label: Source, path: field.path
+- key: model, label: Model, path: component.kind
+- key: metadataKey, label: Metadata Key, path: field.label
+- key: contentKey, label: Content Key, path: contentKey
+- key: content, label: Content, path: content.value
+- key: rulesComment, label: Rules/Comment, path: notes
+- key: notesJira, label: Notes/Jira, path: jiraTicket
+
+---
+
 ## Dev Only
 
 **id:** dev-only  

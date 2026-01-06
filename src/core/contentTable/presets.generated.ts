@@ -24,6 +24,12 @@ export const PRESET_INFO: PresetInfo[] = [
     enabled: true
   },
   {
+    id: 'content-only' as TableFormatPreset,
+    label: "Content Only",
+    description: "Content list with same structure as Content Model 1, but only Column 7 populated with content values",
+    enabled: true
+  },
+  {
     id: 'dev-only' as TableFormatPreset,
     label: "Dev Only",
     description: "Minimal columns for development handoff",
@@ -169,6 +175,53 @@ export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
       key: "errorMessage",
       label: "Error Message",
       extract: (item) => resolvePath(item, "errorMessage")
+    }
+  ],
+  'content-only': [
+    {
+      key: "figmaRef",
+      label: "Figma Ref",
+      extract: (item) => resolvePath(item, "nodeUrl")
+    },
+    {
+      key: "tag",
+      label: "Tag",
+      extract: (item) => resolvePath(item, "component.name")
+    },
+    {
+      key: "source",
+      label: "Source",
+      extract: (item) => resolvePath(item, "field.path")
+    },
+    {
+      key: "model",
+      label: "Model",
+      extract: (item) => resolvePath(item, "component.kind")
+    },
+    {
+      key: "metadataKey",
+      label: "Metadata Key",
+      extract: (item) => resolvePath(item, "field.label")
+    },
+    {
+      key: "contentKey",
+      label: "Content Key",
+      extract: (item) => resolvePath(item, "contentKey")
+    },
+    {
+      key: "content",
+      label: "Content",
+      extract: (item) => resolvePath(item, "content.value")
+    },
+    {
+      key: "rulesComment",
+      label: "Rules/Comment",
+      extract: (item) => resolvePath(item, "notes")
+    },
+    {
+      key: "notesJira",
+      label: "Notes/Jira",
+      extract: (item) => resolvePath(item, "jiraTicket")
     }
   ],
   'dev-only': [

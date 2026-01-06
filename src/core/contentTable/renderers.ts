@@ -223,6 +223,85 @@ function renderContentModel1(universalTable: UniversalContentTableV1): string {
 }
 
 /**
+ * Render Content Only with same structure as CM1 but only Column 7 populated
+ */
+function renderContentOnly(universalTable: UniversalContentTableV1): string {
+  const items = universalTable.items
+  const totalBodyRows = items.length // One row per content item (not two like CM1)
+  
+  // Get root node URL for merged cell
+  const rootNodeUrl = universalTable.meta?.rootNodeUrl || (items.length > 0 ? items[0].nodeUrl : '')
+  
+  let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px;">'
+  
+  // <thead> with column numbers row and header labels row
+  html += '<thead>'
+  
+  // Row 1: Column numbers
+  html += '<tr>'
+  for (let i = 1; i <= 9; i++) {
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">Column ${i}</th>`
+  }
+  html += '</tr>'
+  
+  // Row 2: Header labels
+  const headers = ['Figma Ref', 'Tag', 'Source', 'Model', 'Metadata Key', 'Content Key', 'Content', 'Rules/Comment', 'Notes/Jira']
+  html += '<tr>'
+  for (const header of headers) {
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+  }
+  html += '</tr></thead>'
+  
+  // <tbody> with merged cells and content rows
+  html += '<tbody>'
+  
+  // First body row with merged cells (columns 1-4)
+  html += '<tr>'
+  
+  // Col 1: Figma Ref (merged, rowspan = totalBodyRows)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${renderFigmaRef(rootNodeUrl)}</td>`
+  
+  // Col 2: Tag (merged, blank)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  
+  // Col 3: Source (merged, blank)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  
+  // Col 4: Model (merged, blank for Content Only)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  
+  // For each content item, output 1 row with only Column 7 populated
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const isFirstItem = i === 0
+    
+    if (!isFirstItem) {
+      html += '<tr>'
+    }
+    
+    // Col 5: Metadata Key (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    
+    // Col 6: Content Key (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    
+    // Col 7: Content (populated with actual content value)
+    const content = item.content.value || ''
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(content)}</td>`
+    
+    // Col 8: Rules/Comment (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    
+    // Col 9: Notes/Jira (blank)
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+    html += '</tr>'
+  }
+  
+  html += '</tbody></table>'
+  return html
+}
+
+/**
  * Render Content Model 2 with schema-style layout (rowspans, Dialog/Links sections)
  */
 function renderContentModel2(universalTable: UniversalContentTableV1): string {
@@ -375,6 +454,14 @@ export function universalTableToHtml(
   universalTable: UniversalContentTableV1,
   preset: TableFormatPreset
 ): { html: string; plainText: string } {
+  // Special handling for content-only
+  if (preset === 'content-only') {
+    const html = renderContentOnly(universalTable)
+    // Plain text fallback (simplified for content-only)
+    const plainText = 'Content Only export (use HTML format for full layout)'
+    return { html, plainText }
+  }
+  
   // Special handling for content-model-1
   if (preset === 'content-model-1') {
     const html = renderContentModel1(universalTable)
