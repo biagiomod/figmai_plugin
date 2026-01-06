@@ -30,16 +30,16 @@ function renderInline(nodes: InlineNode[] | undefined, text: string): h.JSX.Elem
   return nodes.map((node, index) => {
     switch (node.type) {
       case 'text':
-        return <span key={index}>{node.text}</span>
+        return <span key={index} style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>{node.text}</span>
       case 'bold':
         return (
-          <strong key={index} style={{ fontWeight: 600 }}>
+          <strong key={index} style={{ fontWeight: 600, userSelect: 'text', WebkitUserSelect: 'text' }}>
             {node.text}
           </strong>
         )
       case 'italic':
         return (
-          <em key={index} style={{ fontStyle: 'italic' }}>
+          <em key={index} style={{ fontStyle: 'italic', userSelect: 'text', WebkitUserSelect: 'text' }}>
             {node.text}
           </em>
         )
@@ -49,7 +49,9 @@ function renderInline(nodes: InlineNode[] | undefined, text: string): h.JSX.Elem
             key={index}
             style={{
               ...richTextTheme.code.inline,
-              display: 'inline'
+              display: 'inline',
+              userSelect: 'text',
+              WebkitUserSelect: 'text'
             }}
           >
             {node.text}
@@ -65,7 +67,9 @@ function renderInline(nodes: InlineNode[] | undefined, text: string): h.JSX.Elem
             style={{
               color: 'var(--accent)',
               textDecoration: 'underline',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              userSelect: 'text',
+              WebkitUserSelect: 'text'
             }}
           >
             {node.text}
@@ -91,7 +95,11 @@ function renderNode(node: RichTextNode, index: number): h.JSX.Element {
             lineHeight: theme.lineHeight,
             marginTop: theme.marginTop,
             marginBottom: theme.marginBottom,
-            color: 'var(--fg)'
+            color: 'var(--fg)',
+            userSelect: 'text',
+            WebkitUserSelect: 'text',
+            MozUserSelect: 'text',
+            msUserSelect: 'text'
           }}
         >
           {node.text}
@@ -147,7 +155,7 @@ function renderNode(node: RichTextNode, index: number): h.JSX.Element {
                 <span style={{ flexShrink: 0, marginTop: 2 }}>
                   {node.ordered ? `${itemIndex + 1}.` : '•'}
                 </span>
-                <span style={{ flex: 1 }}>
+                <span style={{ flex: 1, userSelect: 'text', WebkitUserSelect: 'text' }}>
                   {renderInline(item, itemText)}
                 </span>
               </div>
@@ -164,7 +172,11 @@ function renderNode(node: RichTextNode, index: number): h.JSX.Element {
             key={index}
             style={{
               ...richTextTheme.code.inline,
-              display: 'inline'
+              display: 'inline',
+              userSelect: 'text',
+              WebkitUserSelect: 'text',
+              MozUserSelect: 'text',
+              msUserSelect: 'text'
             }}
           >
             {node.text}
@@ -183,7 +195,7 @@ function renderNode(node: RichTextNode, index: number): h.JSX.Element {
               msUserSelect: 'text'
             }}
           >
-            <code>{node.text}</code>
+            <code style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>{node.text}</code>
           </pre>
         )
       }
@@ -309,7 +321,11 @@ export function RichTextRenderer({ nodes }: RichTextRendererProps): h.JSX.Elemen
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 4
+        gap: 4,
+        userSelect: 'text',
+        WebkitUserSelect: 'text',
+        MozUserSelect: 'text',
+        msUserSelect: 'text'
       }}
     >
       {nodes.map((node, index) => renderNode(node, index))}

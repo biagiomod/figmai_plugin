@@ -1698,7 +1698,12 @@ ${htmlTable}
                     backgroundColor: message.statusStyle === 'error' ? 'var(--error)' : 'var(--bg)',
                     border: '1px solid var(--border)',
                     color: message.statusStyle === 'error' ? '#ffffff' : 'var(--fg)',
-                    maxWidth: '100%'
+                    maxWidth: '100%',
+                    userSelect: 'text',
+                    WebkitUserSelect: 'text',
+                    MozUserSelect: 'text',
+                    msUserSelect: 'text',
+                    cursor: 'text'
                   }}>
                     {(() => {
                       try {
