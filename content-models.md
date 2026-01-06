@@ -27,7 +27,14 @@ Supported paths:
 - `component.key` → item.component.key
 - `field.label` → item.field.label
 - `field.path` → item.field.path
+- `field.role` → item.field.role
 - `content.value` → item.content.value
+- `textLayerName` → item.textLayerName
+- `notes` → item.notes
+- `contentKey` → item.contentKey
+- `jiraTicket` → item.jiraTicket
+- `adaNotes` → item.adaNotes
+- `errorMessage` → item.errorMessage
 - `meta.visible` → item.meta.visible (returns "Yes"/"No")
 - `meta.locked` → item.meta.locked (returns "Yes"/"No")
 - `variantProperties.<key>` → item.component.variantProperties?.[key] (e.g., `variantProperties.Size`)
@@ -36,23 +43,24 @@ If a path is missing, it returns an empty string.
 
 ---
 
-## Universal
+## Universal v2
 
-**id:** universal  
+**id:** universal-v2  
 **label:** Universal Table  
-**description:** Complete content inventory with all metadata  
+**description:** Enhanced content table with meta row, 10 columns, and thumbnail preview  
 **enabled:** true
 
 **columns:**
-- key: id, label: ID, path: id
-- key: component, label: Component, path: component.name
-- key: componentKind, label: Component Kind, path: component.kind
-- key: fieldLabel, label: Field Label, path: field.label
-- key: path, label: Path, path: field.path
+- key: figmaRef, label: Figma Ref, path: nodeUrl
+- key: componentName, label: Component Name, path: component.name
+- key: textLayerName, label: Text Layer Name, path: textLayerName
+- key: fieldRole, label: Field / Role, path: field.role
 - key: content, label: Content, path: content.value
-- key: visible, label: Visible, path: meta.visible
-- key: locked, label: Locked, path: meta.locked
-- key: nodeUrl, label: Node URL, path: nodeUrl
+- key: notes, label: Notes, path: notes
+- key: contentKey, label: Content Key (CMS), path: contentKey
+- key: jiraTicket, label: Jira / Ticket, path: jiraTicket
+- key: adaNotes, label: ADA Notes / Flags, path: adaNotes
+- key: errorMessage, label: Error Message, path: errorMessage
 
 ---
 
@@ -90,11 +98,19 @@ If a path is missing, it returns an empty string.
 
 **id:** content-model-1  
 **label:** Content Model 1  
-**description:** Placeholder for future content model  
-**enabled:** false
+**description:** Structured content export with merged cells and staggered rows  
+**enabled:** true
 
 **columns:**
-(empty - not yet defined)
+- key: figmaRef, label: Figma Ref, path: nodeUrl
+- key: tag, label: Tag, path: component.name
+- key: source, label: Source, path: field.path
+- key: model, label: Model, path: component.kind
+- key: metadataKey, label: Metadata Key, path: field.label
+- key: contentKey, label: Content Key, path: contentKey
+- key: content, label: Content, path: content.value
+- key: rulesComment, label: Rules/Comment, path: notes
+- key: notesJira, label: Notes/Jira, path: jiraTicket
 
 ---
 

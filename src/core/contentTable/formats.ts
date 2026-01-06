@@ -14,22 +14,23 @@ export function toTabSeparated(
 ): string {
   let output = ''
   
-  if (preset === 'universal') {
-    // Header row
-    output += 'ID\tComponent\tComponent Kind\tField Label\tPath\tContent\tVisible\tLocked\tNode URL\n'
+  if (preset === 'universal-v2') {
+    // Header row - using universal-v2 columns
+    output += 'Figma Ref\tComponent Name\tText Layer Name\tField / Role\tContent\tNotes\tContent Key (CMS)\tJira / Ticket\tADA Notes / Flags\tError Message\n'
     
     // Data rows
     for (const item of universalJson.items) {
       const row = [
-        item.id,
+        item.nodeUrl,
         item.component.name,
-        item.component.kind,
-        item.field.label,
-        item.field.path,
+        item.textLayerName || '',
+        item.field.role || '',
         item.content.value.replace(/\t/g, ' ').replace(/\n/g, ' '), // Replace tabs and newlines
-        item.meta.visible ? 'Yes' : 'No',
-        item.meta.locked ? 'Yes' : 'No',
-        item.nodeUrl
+        item.notes || '',
+        item.contentKey || '',
+        item.jiraTicket || '',
+        item.adaNotes || '',
+        item.errorMessage || ''
       ]
       output += row.join('\t') + '\n'
     }
@@ -48,8 +49,8 @@ export function toTabSeparated(
       output += row.join('\t') + '\n'
     }
   } else {
-    // Fallback to universal
-    return toTabSeparated(universalJson, 'universal')
+    // Fallback to universal-v2
+    return toTabSeparated(universalJson, 'universal-v2')
   }
   
   return output.trim()
@@ -64,20 +65,22 @@ export function toPlainTextTable(
 ): string {
   let output = ''
   
-  if (preset === 'universal') {
-    const headers = ['ID', 'Component', 'Field Label', 'Path', 'Content', 'Visible', 'Locked', 'Node URL']
+  if (preset === 'universal-v2') {
+    const headers = ['Figma Ref', 'Component Name', 'Text Layer Name', 'Field / Role', 'Content', 'Notes', 'Content Key (CMS)', 'Jira / Ticket', 'ADA Notes / Flags', 'Error Message']
     const rows: string[][] = []
     
     for (const item of universalJson.items) {
       rows.push([
-        item.id,
-        `${item.component.name} (${item.component.kind})`,
-        item.field.label,
-        item.field.path,
+        item.nodeUrl,
+        item.component.name,
+        item.textLayerName || '',
+        item.field.role || '',
         item.content.value.replace(/\n/g, ' '), // Replace newlines with spaces
-        item.meta.visible ? 'Yes' : 'No',
-        item.meta.locked ? 'Yes' : 'No',
-        item.nodeUrl
+        item.notes || '',
+        item.contentKey || '',
+        item.jiraTicket || '',
+        item.adaNotes || '',
+        item.errorMessage || ''
       ])
     }
     
@@ -135,8 +138,8 @@ export function toPlainTextTable(
       }).join(' | ') + '\n'
     }
   } else {
-    // Fallback to universal
-    return toPlainTextTable(universalJson, 'universal')
+    // Fallback to universal-v2
+    return toPlainTextTable(universalJson, 'universal-v2')
   }
   
   return output.trim()

@@ -3,7 +3,7 @@
  * Extracts text nodes from a selected container and builds Universal Content Table
  */
 
-import type { UniversalContentTableV1, ContentItemV1 } from './types'
+import type { UniversalContentTableV1, ContentItemV1, TableMetaV1 } from './types'
 // Note: SceneNode, TextNode, BaseNode are global types from @figma/plugin-typings (ambient types)
 
 /**
@@ -105,14 +105,9 @@ function getComponentContext(node: SceneNode): {
 }
 
 /**
- * Build canonical Figma URL
- * Format: https://www.figma.com/design/<FILE_KEY>/<FILE_NAME>?node-id=<NODE_ID>&t=<TOKEN>
- * 
- * Requirements:
- * - FILE_KEY from figma.fileKey
- * - FILE_NAME from figma.root.name, URL-encoded
- * - NODE_ID from node.id with : replaced by -
- * - TOKEN: Prefer stable token if available, otherwise omit &t= entirely
+ * Build stable plugin-safe Figma URL for a node
+ * Format: https://www.figma.com/file/<FILE_KEY>?node-id=<encodeURIComponent(nodeId)>
+ * Uses /file/ endpoint which is more stable and plugin-safe than /design/
  */
 function buildCanonicalFigmaUrl(nodeId: string): string {
   try {
@@ -122,30 +117,17 @@ function buildCanonicalFigmaUrl(nodeId: string): string {
     
     if (!fileKey) {
       // Fallback to figma:// protocol if fileKey not available
-      return `figma://node-id=${nodeId}`
+      return `figma://node-id=${nodeId.replace(/:/g, '-')}`
     }
     
-    // Get root name (file name)
-    const rootName = figma.root.name || 'Untitled'
+    // Use encodeURIComponent for node ID to ensure proper URL encoding
+    const encodedNodeId = encodeURIComponent(nodeId)
     
-    // URL-encode the file name
-    const encodedFileName = encodeURIComponent(rootName)
-    
-    // Convert node ID from format "123:456" to "123-456"
-    const normalizedNodeId = nodeId.replace(/:/g, '-')
-    
-    // Build base URL
-    let url = `https://www.figma.com/design/${fileKey}/${encodedFileName}?node-id=${normalizedNodeId}`
-    
-    // Try to get stable token if available (some Figma APIs provide this)
-    // For now, we omit &t= as it's not reliably available in plugin context
-    // The URL will work without the token parameter
-    
-    return url
+    return `https://www.figma.com/file/${fileKey}?node-id=${encodedNodeId}`
   } catch (error) {
     // Fallback to figma:// protocol on any error
     console.warn('[Scanner] Failed to build canonical Figma URL:', error)
-    return `figma://node-id=${nodeId}`
+    return `figma://node-id=${nodeId.replace(/:/g, '-')}`
   }
 }
 
@@ -166,10 +148,63 @@ function sortNodesDeterministically(nodes: readonly SceneNode[]): SceneNode[] {
 }
 
 /**
+ * Infer field role from node name and content
+ * Returns: CTA | Headline | Body | Helper | Placeholder | Tooltip | Error | etc.
+ */
+function inferFieldRole(node: TextNode, path: string): string | undefined {
+  const name = node.name.toLowerCase()
+  const content = node.characters.toLowerCase()
+  
+  // Error messages
+  if (name.includes('error') || content.includes('error') || name.includes('invalid')) {
+    return 'Error'
+  }
+  
+  // CTAs
+  if (name.includes('cta') || name.includes('button') || name.includes('action')) {
+    return 'CTA'
+  }
+  
+  // Headlines
+  if (name.includes('headline') || name.includes('title') || name.includes('heading')) {
+    return 'Headline'
+  }
+  
+  // Placeholders
+  if (name.includes('placeholder') || content.includes('enter') || content.includes('type')) {
+    return 'Placeholder'
+  }
+  
+  // Tooltips
+  if (name.includes('tooltip') || name.includes('hint')) {
+    return 'Tooltip'
+  }
+  
+  // Helper text
+  if (name.includes('helper') || name.includes('help') || name.includes('description')) {
+    return 'Helper'
+  }
+  
+  // Body text
+  if (name.includes('body') || name.includes('text') || name.includes('content')) {
+    return 'Body'
+  }
+  
+  // Default: unknown (leave blank)
+  return undefined
+}
+
+/**
  * Recursively collect all text nodes from a node's subtree
  * Enhanced with deterministic ordering (top-to-bottom, left-to-right)
+ * CRITICAL: Ignores hidden layers (node.visible === false) and does NOT traverse their children
  */
 function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPath: string[] = []): void {
+  // CRITICAL RULE: Skip hidden nodes entirely
+  if (!rootNode.visible) {
+    return // Do NOT traverse children of hidden nodes
+  }
+  
   // If this is a text node, add it to items
   if (rootNode.type === 'TEXT') {
     const textNode = rootNode as TextNode
@@ -179,6 +214,7 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
     
     const componentContext = getComponentContext(textNode)
     const nodeUrl = buildCanonicalFigmaUrl(textNode.id)
+    const role = inferFieldRole(textNode, breadcrumb)
     
     const item: ContentItemV1 = {
       id: textNode.id,
@@ -187,16 +223,25 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
       component: componentContext,
       field: {
         label: textNode.name,
-        path: breadcrumb
+        path: breadcrumb,
+        role: role
       },
       content: {
         type: 'text',
         value: textNode.characters
       },
+      textLayerName: textNode.name, // For TEXT nodes only
       meta: {
         visible: textNode.visible !== false,
         locked: textNode.locked === true
-      }
+      },
+      // Optional fields (blank by default)
+      notes: '',
+      contentKey: '',
+      jiraTicket: '',
+      adaNotes: '',
+      // Error message: populate if role === "Error"
+      errorMessage: role === 'Error' ? textNode.characters : ''
     }
     
     items.push(item)
@@ -208,6 +253,11 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
     const sortedChildren = sortNodesDeterministically(rootNode.children)
     
     for (const child of sortedChildren) {
+      // CRITICAL RULE: Skip hidden nodes entirely
+      if (!child.visible) {
+        continue // Do NOT traverse children of hidden nodes
+      }
+      
       if (child.type === 'TEXT') {
         const textNode = child as TextNode
         const childPath = [...currentPath, textNode.name]
@@ -215,6 +265,7 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
         
         const componentContext = getComponentContext(textNode)
         const nodeUrl = buildCanonicalFigmaUrl(textNode.id)
+        const role = inferFieldRole(textNode, breadcrumb)
         
         const item: ContentItemV1 = {
           id: textNode.id,
@@ -223,16 +274,25 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
           component: componentContext,
           field: {
             label: textNode.name,
-            path: breadcrumb
+            path: breadcrumb,
+            role: role
           },
           content: {
             type: 'text',
             value: textNode.characters
           },
+          textLayerName: textNode.name, // For TEXT nodes only
           meta: {
             visible: textNode.visible !== false,
             locked: textNode.locked === true
-          }
+          },
+          // Optional fields (blank by default)
+          notes: '',
+          contentKey: '',
+          jiraTicket: '',
+          adaNotes: '',
+          // Error message: populate if role === "Error"
+          errorMessage: role === 'Error' ? textNode.characters : ''
         }
         
         items.push(item)
@@ -246,9 +306,39 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
 }
 
 /**
- * Scan selected container and generate Universal Content Table
+ * Export node as thumbnail image (~100px width)
+ * Returns base64 data URL or undefined if export fails
  */
-export function scanContentTable(selectedNode: SceneNode): UniversalContentTableV1 {
+async function exportThumbnail(node: SceneNode): Promise<string | undefined> {
+  try {
+    // Calculate scale to get ~100px width
+    const targetWidth = 100
+    const nodeWidth = 'width' in node ? node.width : 100
+    const scale = Math.min(1, targetWidth / nodeWidth)
+    
+    // Export as PNG
+    const bytes = await node.exportAsync({
+      format: 'PNG',
+      constraint: {
+        type: 'SCALE',
+        value: scale
+      }
+    })
+    
+    // Convert to base64 data URL
+    const base64 = figma.base64Encode(bytes)
+    return `data:image/png;base64,${base64}`
+  } catch (error) {
+    console.warn('[Scanner] Failed to export thumbnail:', error)
+    return undefined
+  }
+}
+
+/**
+ * Scan selected container and generate Universal Content Table
+ * Now async to support thumbnail export
+ */
+export async function scanContentTable(selectedNode: SceneNode): Promise<UniversalContentTableV1> {
   const page = selectedNode.parent
   const pageName = page && page.type === 'PAGE' ? page.name : 'Unknown Page'
   const pageId = page && page.type === 'PAGE' ? page.id : ''
@@ -257,7 +347,26 @@ export function scanContentTable(selectedNode: SceneNode): UniversalContentTable
   
   // Collect all text nodes from the selected container
   // Start with root node name in path
+  // CRITICAL: Hidden nodes are automatically skipped by collectTextNodes
   collectTextNodes(selectedNode, items, [selectedNode.name])
+  
+  // Export thumbnail for root node
+  const thumbnailDataUrl = await exportThumbnail(selectedNode)
+  
+  // Build table metadata
+  const rootNodeUrl = buildCanonicalFigmaUrl(selectedNode.id)
+  const meta: TableMetaV1 = {
+    contentModel: 'Universal v2',
+    contentStage: 'Draft',
+    adaStatus: '⏳ Pending',
+    legalStatus: '⏳ Pending',
+    lastUpdated: new Date().toISOString(),
+    version: 'v1',
+    rootNodeId: selectedNode.id,
+    rootNodeName: selectedNode.name,
+    rootNodeUrl: rootNodeUrl,
+    thumbnailDataUrl: thumbnailDataUrl
+  }
   
   return {
     type: "universal-content-table",
@@ -269,6 +378,7 @@ export function scanContentTable(selectedNode: SceneNode): UniversalContentTable
       selectionNodeId: selectedNode.id,
       selectionName: selectedNode.name
     },
+    meta: meta,
     items: items
   }
 }

@@ -343,8 +343,8 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
         // Send "Scanning..." message
         sendAssistantMessage('Scanning...')
         
-        // Scan the container
-        const contentTable = scanContentTable(selectedNode as SceneNode)
+        // Scan the container (now async for thumbnail export)
+        const contentTable = await scanContentTable(selectedNode as SceneNode)
         
         // Send success message
         const itemCount = contentTable.items.length

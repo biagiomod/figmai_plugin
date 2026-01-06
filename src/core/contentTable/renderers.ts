@@ -13,13 +13,13 @@ import { PRESET_COLUMNS, type ColumnDef } from './presets.generated'
 
 /**
  * Get column definitions for a preset
- * Falls back to universal if preset not implemented or has no columns
+ * Falls back to universal-v2 if preset not implemented or has no columns
  */
 function getColumnsForPreset(preset: TableFormatPreset): ColumnDef[] {
   const columns = PRESET_COLUMNS[preset]
   if (!columns || columns.length === 0) {
-    // Fallback to universal for unimplemented presets
-    return PRESET_COLUMNS.universal
+    // Fallback to universal-v2 for unimplemented presets
+    return PRESET_COLUMNS['universal-v2']
   }
   return columns
 }
@@ -37,6 +37,192 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Render meta row as HTML (Row 1)
+ * Cell 1: Thumbnail image wrapped in link
+ * Cell 2: Metadata chips (inline) - spans remaining columns
+ */
+function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: number): string {
+  const thumbnailHtml = meta.thumbnailDataUrl
+    ? `<img src="${escapeHtml(meta.thumbnailDataUrl)}" alt="Preview" style="width: 100px; height: auto; display: block;" />`
+    : '<span style="color: #999;">No preview</span>'
+  
+  const thumbnailCell = `<td style="border: 1px solid #ddd; padding: 8px; vertical-align: top; width: 100px;">
+    <a href="${escapeHtml(meta.rootNodeUrl)}" target="_blank" rel="noopener noreferrer">
+      ${thumbnailHtml}
+    </a>
+  </td>`
+  
+  const metadataChips = [
+    `Content Model: ${escapeHtml(meta.contentModel)}`,
+    `Content Stage: ${escapeHtml(meta.contentStage)}`,
+    `ADA: ${escapeHtml(meta.adaStatus)}`,
+    `Legal: ${escapeHtml(meta.legalStatus)}`,
+    `Last Updated: ${escapeHtml(new Date(meta.lastUpdated).toLocaleString())}`,
+    `Version: ${escapeHtml(meta.version)}`
+  ].join(' • ')
+  
+  // Cell 2 spans the remaining columns (columnCount - 1)
+  const colSpan = columnCount - 1
+  const metadataCell = `<td colspan="${colSpan}" style="border: 1px solid #ddd; padding: 8px; vertical-align: top;">
+    <div style="font-size: 12px; line-height: 1.6;">
+      ${metadataChips}
+    </div>
+  </td>`
+  
+  return `<tr>${thumbnailCell}${metadataCell}</tr>`
+}
+
+/**
+ * Render "Figma Ref" column value as "View Element" hyperlink
+ */
+function renderFigmaRef(value: string): string {
+  if (!value) return ''
+  return `<a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer">View Element</a>`
+}
+
+/**
+ * Render Content Model 1 with custom layout (merged cells, staggered rows)
+ */
+function renderContentModel1(universalTable: UniversalContentTableV1): string {
+  const items = universalTable.items
+  const totalBodyRows = items.length * 2 // Two rows per item: title row + value row
+  
+  // Get root node URL for merged cell
+  const rootNodeUrl = universalTable.meta?.rootNodeUrl || (items.length > 0 ? items[0].nodeUrl : '')
+  const contentModel = universalTable.meta?.contentModel || 'ContentList'
+  
+  let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px;">'
+  
+  // <thead> with column numbers row and header labels row
+  html += '<thead>'
+  
+  // Row 1: Column numbers
+  html += '<tr>'
+  for (let i = 1; i <= 9; i++) {
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">Column ${i}</th>`
+  }
+  html += '</tr>'
+  
+  // Row 2: Header labels
+  const headers = ['Figma Ref', 'Tag', 'Source', 'Model', 'Metadata Key', 'Content Key', 'Content', 'Rules/Comment', 'Notes/Jira']
+  html += '<tr>'
+  for (const header of headers) {
+    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+  }
+  html += '</tr></thead>'
+  
+  // <tbody> with merged cells and staggered rows
+  html += '<tbody>'
+  
+  // First body row with merged cells (columns 1-4)
+  html += '<tr>'
+  
+  // Col 1: Figma Ref (merged, rowspan = totalBodyRows)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${renderFigmaRef(rootNodeUrl)}</td>`
+  
+  // Col 2: Tag (merged, blank)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  
+  // Col 3: Source (merged, blank)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+  
+  // Col 4: Model (merged, use "Content Model 1" label)
+  html += `<td rowspan="${totalBodyRows}" style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('Content Model 1')}</td>`
+  
+  // For each content item, output 2 rows (Row A: key row, Row B: value row)
+  // Staggering: Row A has key in Column 5, empty 6-7; Row B has empty Column 5, value in 6, content in 7
+  const metadataKeyPattern = ['id', 'title', 'key']
+  
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const isFirstItem = i === 0
+    
+    // Determine metadata key for this item (alternating pattern: id, title, key)
+    const metadataKeyIndex = i % 3
+    const metadataKey = metadataKeyPattern[metadataKeyIndex]
+    
+    // Row A: Key row (only for first item, since merged cells are in first row)
+    if (isFirstItem) {
+      // Col 5: Metadata Key (id / title / key)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(metadataKey)}</td>`
+      
+      // Col 6: Content Key (empty)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 7: Content (empty)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 8: Rules/Comment (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 9: Notes/Jira (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += '</tr>'
+      
+      // Row B: Value row
+      html += '<tr>'
+      // Col 5: Metadata Key (empty)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 6: Content Key (value)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('value')}</td>`
+      
+      // Col 7: Content (actual content value)
+      const content = item.content.value || ''
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(content)}</td>`
+      
+      // Col 8: Rules/Comment (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 9: Notes/Jira (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += '</tr>'
+    } else {
+      // For subsequent items, create new rows without merged cells (they're already in first row)
+      // Row A: Key row
+      html += '<tr>'
+      // Col 5: Metadata Key (id / title / key)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(metadataKey)}</td>`
+      
+      // Col 6: Content Key (empty)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 7: Content (empty)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 8: Rules/Comment (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 9: Notes/Jira (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += '</tr>'
+      
+      // Row B: Value row
+      html += '<tr>'
+      // Col 5: Metadata Key (empty)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 6: Content Key (value)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml('value')}</td>`
+      
+      // Col 7: Content (actual content value)
+      const content = item.content.value || ''
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapeHtml(content)}</td>`
+      
+      // Col 8: Rules/Comment (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      
+      // Col 9: Notes/Jira (blank)
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;"></td>`
+      html += '</tr>'
+    }
+  }
+  
+  html += '</tbody></table>'
+  return html
+}
+
+/**
  * Convert Universal Content Table to HTML table
  * Returns both HTML table and plain text fallback
  */
@@ -44,6 +230,14 @@ export function universalTableToHtml(
   universalTable: UniversalContentTableV1,
   preset: TableFormatPreset
 ): { html: string; plainText: string } {
+  // Special handling for content-model-1
+  if (preset === 'content-model-1') {
+    const html = renderContentModel1(universalTable)
+    // Plain text fallback (simplified for content-model-1)
+    const plainText = 'Content Model 1 export (use HTML format for full layout)'
+    return { html, plainText }
+  }
+  
   const columns = getColumnsForPreset(preset)
   const headers = columns.map(col => col.label)
   
@@ -57,22 +251,41 @@ export function universalTableToHtml(
   // Format optimized for Word, Apple Notes, and Confluence
   let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px;">'
   
-  // Header row
-  html += '<thead><tr>'
+  // <thead> containing meta row (if exists) and header row
+  html += '<thead>'
+  
+  // Row 1: Meta row (only if meta exists)
+  if (universalTable.meta) {
+    html += renderMetaRowHtml(universalTable.meta, columns.length)
+  }
+  
+  // Row 2: Header labels row
+  html += '<tr>'
   for (const header of headers) {
     html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
   }
   html += '</tr></thead>'
   
-  // Body rows
+  // Row 3+: Body rows
   html += '<tbody>'
   for (const row of rows) {
     html += '<tr>'
-    for (const cell of row) {
-      // Escape cell content and preserve newlines as <br>
-      const cellStr = String(cell || '')
-      const escapedCell = escapeHtml(cellStr).replace(/\n/g, '<br>')
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${escapedCell}</td>`
+    for (let i = 0; i < row.length; i++) {
+      const cell = row[i]
+      const col = columns[i]
+      let cellHtml: string
+      
+      // Special handling for Figma Ref column
+      if (col.key === 'figmaRef') {
+        cellHtml = renderFigmaRef(cell)
+      } else {
+        // Escape cell content and preserve newlines as <br>
+        const cellStr = String(cell || '')
+        const escapedCell = escapeHtml(cellStr).replace(/\n/g, '<br>')
+        cellHtml = escapedCell
+      }
+      
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top;">${cellHtml}</td>`
     }
     html += '</tr>'
   }
