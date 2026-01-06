@@ -437,6 +437,22 @@ function Plugin() {
     }
     setShowAssistantModal(false)
   }, [hasAutoOpenedSendJson])
+
+  // Handle Escape key to close assistant modal
+  useEffect(() => {
+    if (!showAssistantModal) return
+    
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowAssistantModal(false)
+      }
+    }
+    
+    window.addEventListener('keydown', handleEscape)
+    return () => {
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [showAssistantModal])
   
   const handleSelectionIndicatorClick = useCallback(() => {
     emit<RequestSelectionStateHandler>('REQUEST_SELECTION_STATE')
@@ -2232,30 +2248,48 @@ ${htmlTable}
       {/* Assistant Modal */}
       {showAssistantModal && (
         <div style={{
-          position: 'absolute',
-          inset: 0,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           padding: '16px',
-          backgroundColor: 'var(--bg)',
-          zIndex: 1000,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
           display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          boxSizing: 'border-box'
+        }} onClick={() => setShowAssistantModal(false)}>
           <div style={{
-            fontSize: 'var(--font-size-lg)',
-            fontWeight: 'var(--font-weight-semibold)',
-            marginBottom: 'var(--spacing-md)',
-            flexShrink: 0
-          }}>
-            Select Assistant
-          </div>
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 'var(--spacing-sm)',
-            overflowY: 'auto',
-            flex: 1
-          }}>
+            backgroundColor: 'var(--bg)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-lg)',
+            maxWidth: '500px',
+            width: '90%',
+            height: 'calc(100% - 32px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            gap: 'var(--spacing-md)',
+            boxSizing: 'border-box'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              fontSize: 'var(--font-size-lg)',
+              fontWeight: 'var(--font-weight-semibold)',
+              flexShrink: 0
+            }}>
+              Select Assistant
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 'var(--spacing-sm)',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              flex: 1,
+              minHeight: 0
+            }}>
             {listAssistants().map((a: AssistantType) => (
               <button
                 key={a.id}
@@ -2314,6 +2348,7 @@ ${htmlTable}
                 </div>
               </button>
             ))}
+            </div>
           </div>
         </div>
       )}

@@ -90,6 +90,60 @@ export const ASSISTANTS: Assistant[] = [
     ]
   },
   {
+    id: 'content_table',
+    label: 'Content Table',
+    intro: 'I generate structured content inventories and tables from your designs. Select a single container to scan all text content.',
+    promptMarkdown: `# Content Table Assistant
+
+You are **FigmAI's Content Table Assistant**, a content strategist and information architect embedded inside a Figma plugin.
+You generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.
+
+[Full knowledge base available in: src/assistants/contentTable.md]`,
+    iconId: 'ContentTableIcon',
+    kind: 'tool',
+    quickActions: [
+      {
+        id: 'generate-table',
+        label: 'GENERATE TABLE',
+        templateMessage: 'Scan selected container and generate content table',
+        requiresSelection: true
+      }
+    ]
+  },
+  {
+    id: 'ux_copy_review',
+    label: 'Content Review',
+    intro: 'I review and improve text content for clarity, tone, and UX effectiveness. Select text layers to analyze copy.',
+    promptMarkdown: `# Content Review Assistant
+
+You are **FigmAI's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.
+You specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.
+
+[Full knowledge base available in: src/assistants/uxCopyReview.md]`,
+    iconId: 'SpellCheckIcon',
+    kind: 'ai',
+    quickActions: [
+      {
+        id: 'review-copy',
+        label: 'Review copy',
+        templateMessage: 'Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.',
+        requiresSelection: true
+      },
+      {
+        id: 'tone-check',
+        label: 'Tone check',
+        templateMessage: 'Analyze the tone of the selected copy. Is it appropriate for the context and target audience?',
+        requiresSelection: true
+      },
+      {
+        id: 'content-suggestions',
+        label: 'Content suggestions',
+        templateMessage: 'What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.',
+        requiresSelection: false
+      }
+    ]
+  },
+  {
     id: 'design_critique',
     label: 'Design Critique',
     intro: 'I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.',
@@ -132,39 +186,6 @@ export const ASSISTANTS: Assistant[] = [
         id: 'json-format-help',
         label: 'How to format JSON',
         templateMessage: 'Explain the FigmAI Template JSON format and schema requirements',
-        requiresSelection: false
-      }
-    ]
-  },
-  {
-    id: 'ux_copy_review',
-    label: 'UX Copy Review',
-    intro: 'I review and improve text content for clarity, tone, and UX effectiveness. Select text layers to analyze copy.',
-    promptMarkdown: `# UX Copy Review Assistant
-
-You are **FigmAI's UX Copy Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.
-You specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.
-
-[Full knowledge base available in: src/assistants/uxCopyReview.md]`,
-    iconId: 'AskIcon', // TODO: Add specific icon
-    kind: 'ai',
-    quickActions: [
-      {
-        id: 'review-copy',
-        label: 'Review copy',
-        templateMessage: 'Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.',
-        requiresSelection: true
-      },
-      {
-        id: 'tone-check',
-        label: 'Tone check',
-        templateMessage: 'Analyze the tone of the selected copy. Is it appropriate for the context and target audience?',
-        requiresSelection: true
-      },
-      {
-        id: 'content-suggestions',
-        label: 'Content suggestions',
-        templateMessage: 'What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.',
         requiresSelection: false
       }
     ]
@@ -248,27 +269,6 @@ You specialize in identifying accessibility barriers and providing specific, act
     ]
   },
   {
-    id: 'content_table',
-    label: 'Content Table',
-    intro: 'I generate structured content inventories and tables from your designs. Select a single container to scan all text content.',
-    promptMarkdown: `# Content Table Assistant
-
-You are **FigmAI's Content Table Assistant**, a content strategist and information architect embedded inside a Figma plugin.
-You generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.
-
-[Full knowledge base available in: src/assistants/contentTable.md]`,
-    iconId: 'ContentTableIcon',
-    kind: 'tool',
-    quickActions: [
-      {
-        id: 'generate-table',
-        label: 'GENERATE TABLE',
-        templateMessage: 'Scan selected container and generate content table',
-        requiresSelection: true
-      }
-    ]
-  },
-  {
     id: 'errors',
     label: 'Errors',
     intro: 'I identify design errors, inconsistencies, and quality issues. Select elements to find problems before handoff.',
@@ -298,22 +298,6 @@ You identify design errors, inconsistencies, and quality issues that could cause
         requiresVision: true,
         maxImages: 1,
         imageScale: 2
-      }
-    ]
-  },
-  {
-    id: 'spell_check',
-    label: 'Spell Check',
-    intro: 'Check spelling in text layers.',
-    promptMarkdown: generalPrompt, // Stub
-    iconId: 'SpellCheckIcon',
-    kind: 'tool',
-    quickActions: [
-      {
-        id: 'check-spelling',
-        label: 'Check spelling',
-        templateMessage: 'Check spelling in selected text layers',
-        requiresSelection: true
       }
     ]
   }
