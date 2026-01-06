@@ -214,3 +214,5 @@ src/assistants/
 - Outputs favor structured sections, scores, checklists, and recommendations
 - All assistants work for designers, content writers, product thinkers, and developers
 
+
+

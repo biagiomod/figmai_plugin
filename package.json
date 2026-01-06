@@ -21,8 +21,8 @@
     "editorType": [
       "figma"
     ],
-    "id": "figmai_plugin",
-    "name": "FigmAI",
+    "id": "preact-rectangles",
+    "name": "Preact Rectangles",
     "main": "src/main.ts",
     "ui": "src/ui.tsx"
   }

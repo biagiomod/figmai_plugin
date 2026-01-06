@@ -1,154 +1,138 @@
 #!/usr/bin/env node
 /**
- * Content Models Preset Generator
+ * Generate TypeScript preset definitions from content-models.md
  * 
- * Parses content-models.md and generates TypeScript preset definitions
- * Run as: npm run generate-presets or as part of build process
+ * This script parses content-models.md and generates presets.generated.ts
+ * Run this before building: npm run generate-presets
  */
 
-import * as fs from 'fs'
-import * as path from 'path'
-
-interface ColumnDef {
-  key: string
-  label: string
-  path: string
-}
+import { readFileSync, writeFileSync } from 'fs'
+import { join } from 'path'
 
 interface ModelDef {
   id: string
   label: string
   description: string
   enabled: boolean
-  columns: ColumnDef[]
+  columns: Array<{ key: string; label: string; path: string }>
 }
 
-/**
- * Parse content-models.md and extract model definitions
- */
-function parseMarkdown(filePath: string): ModelDef[] {
-  const content = fs.readFileSync(filePath, 'utf-8')
+function parseMarkdown(content: string): ModelDef[] {
   const models: ModelDef[] = []
+  const lines = content.split('\n')
   
-  // Split by model separator (---)
-  const sections = content.split(/^---$/m).filter(s => s.trim())
+  let currentModel: ModelDef | null = null
+  let inColumns = false
   
-  for (const section of sections) {
-    // Skip the header section (first section with # Content Models)
-    if (section.includes('# Content Models') && !section.includes('## ')) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    
+    // Skip empty lines
+    if (!line) {
       continue
     }
     
-    const lines = section.split('\n').map(l => l.trim())
-    
-    let currentModel: Partial<ModelDef> | null = null
-    let inColumns = false
-    
-    for (const line of lines) {
-      // Skip empty lines and top-level headers
-      if (!line || line === '---' || (line.startsWith('#') && !line.startsWith('##'))) {
-        continue
-      }
+    // Detect model section start (## Model Name) - check this BEFORE skipping other # lines
+    if (line.startsWith('## ')) {
+      const sectionName = line.replace('## ', '').trim()
       
-      // Model header (## ModelName)
-      if (line.startsWith('## ')) {
-        // Save previous model
-        if (currentModel && currentModel.id) {
-          models.push(currentModel as ModelDef)
-        }
-        // Start new model
-        currentModel = {
-          id: '',
-          label: '',
-          description: '',
-          enabled: false,
-          columns: []
-        }
-        inColumns = false
-        continue
-      }
-      
-      // Skip if no model initialized
-      if (!currentModel) {
-        continue
-      }
-      
-      // Parse key-value pairs (handle both **key:** and **key:** formats)
-      if (line.startsWith('**id:**')) {
-        currentModel.id = line.replace(/^\*\*id:\*\*\s*/, '').trim()
-      } else if (line.startsWith('**label:**')) {
-        currentModel.label = line.replace(/^\*\*label:\*\*\s*/, '').trim()
-      } else if (line.startsWith('**description:**')) {
-        currentModel.description = line.replace(/^\*\*description:\*\*\s*/, '').trim()
-      } else if (line.startsWith('**enabled:**')) {
-        const enabledStr = line.replace(/^\*\*enabled:\*\*\s*/, '').trim()
-        currentModel.enabled = enabledStr === 'true'
-      } else if (line === '**columns:**') {
-        inColumns = true
-      } else if (inColumns && line.startsWith('- ')) {
-        // Parse column: key: id, label: ID, path: id
-        const columnLine = line.replace('- ', '')
-        const parts = columnLine.split(',').map(p => p.trim())
-        
-        let key = ''
-        let label = ''
-        let path = ''
-        
-        for (const part of parts) {
-          if (part.startsWith('key: ')) {
-            key = part.replace('key: ', '').trim()
-          } else if (part.startsWith('label: ')) {
-            label = part.replace('label: ', '').trim()
-          } else if (part.startsWith('path: ')) {
-            path = part.replace('path: ', '').trim()
-          }
-        }
-        
-        if (key && label && path && currentModel.columns) {
-          currentModel.columns.push({ key, label, path })
-        }
-      } else if (line === '(empty - not yet defined)') {
-        // Empty columns list
+      // Skip non-model sections
+      if (sectionName === 'Content Models' || 
+          sectionName === 'Format' || 
+          sectionName === 'Value Path Expressions') {
+        // Reset state when hitting a non-model section
         if (currentModel) {
-          currentModel.columns = []
+          models.push(currentModel)
+          currentModel = null
         }
+        continue
       }
+      
+      // Save previous model if exists
+      if (currentModel) {
+        models.push(currentModel)
+      }
+      
+      // Start new model
+      currentModel = {
+        id: '',
+        label: '',
+        description: '',
+        enabled: false,
+        columns: []
+      }
+      inColumns = false
+      continue
     }
     
-    // Push last model in section
-    if (currentModel && currentModel.id) {
-      models.push(currentModel as ModelDef)
+    // Skip other markdown headers and separators
+    if (line.startsWith('#') || line.startsWith('---')) {
+      continue
     }
+    
+    if (!currentModel) continue
+    
+    // Parse model properties
+    if (line.startsWith('**id:**')) {
+      currentModel.id = line.replace('**id:**', '').trim()
+    } else if (line.startsWith('**label:**')) {
+      currentModel.label = line.replace('**label:**', '').trim()
+    } else if (line.startsWith('**description:**')) {
+      currentModel.description = line.replace('**description:**', '').trim()
+    } else if (line.startsWith('**enabled:**')) {
+      const enabledStr = line.replace('**enabled:**', '').trim().toLowerCase()
+      currentModel.enabled = enabledStr === 'true'
+    } else if (line === '**columns:**') {
+      inColumns = true
+    } else if (inColumns && line.startsWith('- key:')) {
+      // Parse column definition: - key: id, label: ID, path: id
+      const match = line.match(/key:\s*([^,]+),\s*label:\s*([^,]+),\s*path:\s*(.+)/)
+      if (match) {
+        currentModel.columns.push({
+          key: match[1].trim(),
+          label: match[2].trim(),
+          path: match[3].trim()
+        })
+      }
+    } else if (inColumns && (line.includes('(empty') || line.includes('not yet defined'))) {
+      // Empty columns section - keep columns array empty
+      inColumns = false
+    } else if (inColumns && line && !line.startsWith('-')) {
+      // End of columns section
+      inColumns = false
+    }
+  }
+  
+  // Don't forget the last model
+  if (currentModel) {
+    models.push(currentModel)
   }
   
   return models
 }
 
-/**
- * Generate TypeScript code for presets
- */
 function generateTypeScript(models: ModelDef[]): string {
-  const imports = `import type { ContentItemV1, TableFormatPreset } from './types'`
+  const timestamp = new Date().toISOString()
   
-  const presetInfoType = `
+  let output = `/**
+ * Generated Content Table Presets
+ * 
+ * This file is auto-generated from content-models.md
+ * DO NOT EDIT MANUALLY - edit content-models.md instead
+ * 
+ * Generated at: ${timestamp}
+ */
+
+import type { ContentItemV1, TableFormatPreset } from './types'
+
 export interface PresetInfo {
   id: TableFormatPreset
   label: string
   description: string
   enabled: boolean
 }
-`
-  
-  const columnDefType = `
-export interface ColumnDef {
-  key: string
-  label: string
-  extract: (item: ContentItemV1) => string
-}
-`
-  
-  // Generate preset info array
-  const presetInfoArray = `export const PRESET_INFO: PresetInfo[] = [
+
+export const PRESET_INFO: PresetInfo[] = [
 ${models.map(m => `  {
     id: '${m.id}' as TableFormatPreset,
     label: ${JSON.stringify(m.label)},
@@ -156,10 +140,15 @@ ${models.map(m => `  {
     enabled: ${m.enabled}
   }`).join(',\n')}
 ]
-`
-  
-  // Generate path resolver function
-  const pathResolver = `
+
+
+export interface ColumnDef {
+  key: string
+  label: string
+  extract: (item: ContentItemV1) => string
+}
+
+
 /**
  * Resolve a value path expression from a ContentItemV1
  * Returns empty string if path is missing
@@ -202,72 +191,54 @@ function resolvePath(item: ContentItemV1, path: string): string {
   
   return String(current || '')
 }
-`
-  
-  // Generate column definitions
-  const columnDefs: string[] = []
-  
-  for (const model of models) {
-    const columns = model.columns.map(col => {
-      return `    {
+
+export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
+${models.map(m => {
+    const columns = m.columns.length > 0
+      ? m.columns.map(col => `    {
       key: ${JSON.stringify(col.key)},
       label: ${JSON.stringify(col.label)},
       extract: (item) => resolvePath(item, ${JSON.stringify(col.path)})
-    }`
-    }).join(',\n')
+    }`).join(',\n')
+      : ''
     
-    columnDefs.push(`  '${model.id}': [
+    return `  '${m.id}': [
 ${columns}
-  ]`)
-  }
-  
-  const presetColumns = `export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
-${columnDefs.join(',\n')}
+  ]`
+  }).join(',\n')}
 }
 `
-  
-  return `/**
- * Generated Content Table Presets
- * 
- * This file is auto-generated from content-models.md
- * DO NOT EDIT MANUALLY - edit content-models.md instead
- * 
- * Generated at: ${new Date().toISOString()}
- */
 
-${imports}
-${presetInfoType}
-${presetInfoArray}
-${columnDefType}
-${pathResolver}
-${presetColumns}
-`
+  return output
 }
 
-/**
- * Main execution
- */
-function main() {
-  const rootDir = path.resolve(__dirname, '..')
-  const markdownPath = path.join(rootDir, 'content-models.md')
-  const outputPath = path.join(rootDir, 'src/core/contentTable/presets.generated.ts')
+// Main execution
+const projectRoot = join(__dirname, '..')
+const markdownPath = join(projectRoot, 'content-models.md')
+const outputPath = join(projectRoot, 'src', 'core', 'contentTable', 'presets.generated.ts')
+
+try {
+  console.log('Reading content-models.md...')
+  const markdown = readFileSync(markdownPath, 'utf-8')
   
-  console.log('Generating presets from content-models.md...')
+  console.log('Parsing markdown...')
+  const models = parseMarkdown(markdown)
   
-  try {
-    const models = parseMarkdown(markdownPath)
-    console.log(`Parsed ${models.length} content models`)
-    
-    const tsCode = generateTypeScript(models)
-    
-    fs.writeFileSync(outputPath, tsCode, 'utf-8')
-    console.log(`Generated: ${outputPath}`)
-    console.log('✓ Preset generation complete')
-  } catch (error) {
-    console.error('Error generating presets:', error)
-    process.exit(1)
+  if (models.length === 0) {
+    throw new Error('No models found in content-models.md')
   }
+  
+  console.log(`Found ${models.length} model(s)`)
+  
+  console.log('Generating TypeScript...')
+  const ts = generateTypeScript(models)
+  
+  console.log('Writing presets.generated.ts...')
+  writeFileSync(outputPath, ts, 'utf-8')
+  
+  console.log(`✅ Successfully generated ${outputPath}`)
+} catch (error) {
+  console.error('❌ Error generating presets:', error)
+  process.exit(1)
 }
-
-main()
 

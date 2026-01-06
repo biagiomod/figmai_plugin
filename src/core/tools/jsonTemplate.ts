@@ -290,3 +290,5 @@ export function parseTemplateColor(color: TemplateColor): { r: number; g: number
   return { r: 0, g: 0, b: 0 }
 }
 
+
+

@@ -8,3 +8,5 @@ export const BRAND = {
   brandName: 'FigmAI'
 } as const
 
+
+

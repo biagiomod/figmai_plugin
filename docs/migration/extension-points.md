@@ -677,3 +677,5 @@ console.log('KB loaded:', kb.substring(0, 100))
 - Use async operations for network calls
 - Limit data processing (e.g., selection summaries)
 
+
+
