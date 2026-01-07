@@ -39,9 +39,17 @@ import type {
   LlmProviderId,
   ToolCall,
   CopyTableStatusHandler,
-  ExportContentTableRefImageHandler
+  ExportContentTableRefImageHandler,
+  RunPlaceholderScorecardHandler,
+  RunScorecardV2PlaceholderHandler
 } from './core/types'
 import { scanContentTable } from './core/contentTable/scanner'
+import { normalizeDesignCritique, fromDesignCritiqueJson } from './core/output/normalize'
+import { renderDocumentToStage } from './core/stage/renderDocument'
+import { parseDesignSpecJson, renderDesignSpecToStage } from './core/stage/renderDesignSpec'
+import { renderPlaceholderScorecard } from './core/figma/renderPlaceholderScorecard'
+import { renderScorecard, renderScorecardV2, type ScorecardData } from './core/figma/renderScorecard'
+import { removeExistingArtifacts } from './core/figma/artifacts/placeArtifact'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -285,8 +293,222 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
 })
 
 /**
- * Place critique text on canvas as a simple text frame
- * MVP: No auto-layout, no parsing, just raw text
+ * Parse markdown to plain text with style spans
+ * Converts bold (**text**), italic (*text*), headings (# ## ###), and lists
+ */
+interface TextSpan {
+  start: number
+  end: number
+  style: 'regular' | 'bold' | 'italic' | 'boldItalic'
+  size?: number
+}
+
+interface ParsedText {
+  text: string
+  spans: TextSpan[]
+}
+
+function parseMarkdownToStyledText(md: string): ParsedText {
+  const lines = md.split('\n')
+  const output: string[] = []
+  const spans: TextSpan[] = []
+  let currentOffset = 0
+  
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
+    const originalLineStart = currentOffset
+    
+    // Detect heading level
+    let headingLevel = 0
+    if (line.match(/^#{1,3}\s+/)) {
+      const match = line.match(/^(#{1,3})\s+/)
+      if (match) {
+        headingLevel = match[1].length
+        line = line.replace(/^#{1,3}\s+/, '')
+      }
+    }
+    
+    // Detect list markers
+    const isUnorderedList = /^[-*]\s+/.test(line)
+    const orderedListMatch = line.match(/^\d+\.\s+/)
+    const isOrderedList = !!orderedListMatch
+    
+    // Process list markers
+    if (isUnorderedList) {
+      line = line.replace(/^[-*]\s+/, '• ')
+    } else if (isOrderedList) {
+      const num = orderedListMatch[0].replace(/\s+$/, '')
+      line = line.replace(/^\d+\.\s+/, `${num} `)
+    }
+    
+    // Process inline markdown: **bold** and *italic*
+    // First, handle **bold** (non-greedy)
+    const boldRegex = /\*\*([^*]+)\*\*/g
+    const boldMatches: Array<{ start: number; end: number; text: string }> = []
+    let boldMatch
+    while ((boldMatch = boldRegex.exec(line)) !== null) {
+      boldMatches.push({
+        start: boldMatch.index,
+        end: boldMatch.index + boldMatch[0].length,
+        text: boldMatch[1]
+      })
+    }
+    
+    // Then handle *italic* (but not **bold**)
+    const italicRegex = /(?<!\*)\*([^*]+)\*(?!\*)/g
+    const italicMatches: Array<{ start: number; end: number; text: string }> = []
+    let italicMatch: RegExpExecArray | null
+    while ((italicMatch = italicRegex.exec(line)) !== null) {
+      // Check if this is inside a bold match
+      const isInsideBold = boldMatches.some(b => 
+        italicMatch!.index >= b.start && italicMatch!.index < b.end
+      )
+      if (!isInsideBold) {
+        italicMatches.push({
+          start: italicMatch.index,
+          end: italicMatch.index + italicMatch[0].length,
+          text: italicMatch[1]
+        })
+      }
+    }
+    
+    // Also handle _italic_ (underscore variant)
+    const italicUnderscoreRegex = /(?<!_)_([^_]+)_(?!_)/g
+    let italicUnderscoreMatch: RegExpExecArray | null
+    while ((italicUnderscoreMatch = italicUnderscoreRegex.exec(line)) !== null) {
+      const isInsideBold = boldMatches.some(b => 
+        italicUnderscoreMatch!.index >= b.start && italicUnderscoreMatch!.index < b.end
+      )
+      if (!isInsideBold) {
+        italicMatches.push({
+          start: italicUnderscoreMatch.index,
+          end: italicUnderscoreMatch.index + italicUnderscoreMatch[0].length,
+          text: italicUnderscoreMatch[1]
+        })
+      }
+    }
+    
+    // Build output text by removing markdown delimiters
+    let outputLine = line
+    // Remove bold markers
+    for (const match of boldMatches.reverse()) {
+      outputLine = outputLine.substring(0, match.start) + match.text + outputLine.substring(match.end)
+      // Adjust subsequent match positions
+      for (const otherMatch of boldMatches) {
+        if (otherMatch.start > match.start) {
+          otherMatch.start -= 2
+          otherMatch.end -= 2
+        }
+      }
+      for (const otherMatch of italicMatches) {
+        if (otherMatch.start > match.start) {
+          otherMatch.start -= 2
+          otherMatch.end -= 2
+        }
+      }
+    }
+    // Remove italic markers
+    for (const match of italicMatches.reverse()) {
+      if (outputLine.substring(match.start, match.end).includes('*') || outputLine.substring(match.start, match.end).includes('_')) {
+        const markerLength = outputLine[match.start] === '*' ? 1 : 1
+        outputLine = outputLine.substring(0, match.start) + match.text + outputLine.substring(match.end)
+        // Adjust subsequent match positions
+        for (const otherMatch of boldMatches) {
+          if (otherMatch.start > match.start) {
+            otherMatch.start -= markerLength
+            otherMatch.end -= markerLength
+          }
+        }
+        for (const otherMatch of italicMatches) {
+          if (otherMatch.start > match.start) {
+            otherMatch.start -= markerLength
+            otherMatch.end -= markerLength
+          }
+        }
+      }
+    }
+    
+    // Add line to output
+    output.push(outputLine)
+    
+    // Record spans for bold/italic
+    const lineStartOffset = currentOffset
+    for (const match of boldMatches) {
+      const boldStart = lineStartOffset + match.start
+      const boldEnd = boldStart + match.text.length
+      // Check if this range overlaps with italic
+      const hasItalic = italicMatches.some(it => 
+        (it.start < match.end && it.end > match.start) ||
+        (match.start < it.end && match.end > it.start)
+      )
+      if (hasItalic) {
+        spans.push({ start: boldStart, end: boldEnd, style: 'boldItalic' })
+      } else {
+        spans.push({ start: boldStart, end: boldEnd, style: 'bold' })
+      }
+    }
+    
+    for (const match of italicMatches) {
+      const italicStart = lineStartOffset + match.start
+      const italicEnd = italicStart + match.text.length
+      // Check if this range overlaps with bold
+      const hasBold = boldMatches.some(b => 
+        (b.start < match.end && b.end > match.start) ||
+        (match.start < b.end && match.end > b.start)
+      )
+      if (!hasBold) {
+        spans.push({ start: italicStart, end: italicEnd, style: 'italic' })
+      }
+    }
+    
+    // Record span for heading
+    if (headingLevel > 0 && outputLine.trim().length > 0) {
+      const headingStart = lineStartOffset
+      const headingEnd = headingStart + outputLine.length
+      spans.push({ 
+        start: headingStart, 
+        end: headingEnd, 
+        style: 'bold',
+        size: headingLevel === 1 ? 18 : headingLevel === 2 ? 16 : 14
+      })
+    }
+    
+    currentOffset += outputLine.length + 1 // +1 for newline
+  }
+  
+  const finalText = output.join('\n')
+  
+  return {
+    text: finalText,
+    spans: spans.sort((a, b) => a.start - b.start)
+  }
+}
+
+/**
+ * Get the topmost container node that is a direct child of the page
+ * Traverses upward from the given node until finding a node whose parent is the page
+ */
+function getTopLevelContainerNode(node: SceneNode): SceneNode {
+  let topLevelNode: SceneNode = node
+  let currentNode: BaseNode | null = node
+  
+  // Walk up parent chain until parent is the Page
+  while (currentNode && currentNode.parent) {
+    if (currentNode.parent.type === 'PAGE') {
+      // Found the topmost container that is a direct child of the page
+      topLevelNode = currentNode as SceneNode
+      break
+    }
+    currentNode = currentNode.parent
+  }
+  
+  return topLevelNode
+}
+
+
+/**
+ * Place critique text on canvas as a simple text frame with styled text
+ * Converts markdown to styled Figma text
  */
 async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNode): Promise<FrameNode> {
   // Truncate very long text (cap at 20k chars)
@@ -296,18 +518,48 @@ async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNode): Pr
     displayText = text.substring(0, MAX_CHARS) + '\n\n(truncated)'
   }
   
-  // Load fonts (try Inter Regular, fallback to Roboto Regular)
-  let fontName: FontName
+  // Parse markdown to styled text
+  const parsed = parseMarkdownToStyledText(displayText)
+  
+  // Load fonts (try Inter variants, fallback to Roboto)
+  const fonts = {
+    regular: { family: 'Inter', style: 'Regular' } as FontName,
+    bold: { family: 'Inter', style: 'Bold' } as FontName,
+    italic: { family: 'Inter', style: 'Italic' } as FontName,
+    boldItalic: { family: 'Inter', style: 'Bold Italic' } as FontName
+  }
+  
   try {
-    await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
-    fontName = { family: 'Inter', style: 'Regular' }
-  } catch {
+    await figma.loadFontAsync(fonts.regular)
+    await figma.loadFontAsync(fonts.bold)
+    await figma.loadFontAsync(fonts.italic)
     try {
-      await figma.loadFontAsync({ family: 'Roboto', style: 'Regular' })
-      fontName = { family: 'Roboto', style: 'Regular' }
+      await figma.loadFontAsync(fonts.boldItalic)
     } catch {
-      // If both fail, use system default
-      fontName = { family: 'Inter', style: 'Regular' }
+      // Fallback: use Bold if Bold Italic not available
+      fonts.boldItalic = fonts.bold
+    }
+  } catch {
+    // Fallback to Roboto
+    try {
+      fonts.regular = { family: 'Roboto', style: 'Regular' }
+      fonts.bold = { family: 'Roboto', style: 'Bold' }
+      fonts.italic = { family: 'Roboto', style: 'Italic' }
+      fonts.boldItalic = { family: 'Roboto', style: 'Bold Italic' }
+      await figma.loadFontAsync(fonts.regular)
+      await figma.loadFontAsync(fonts.bold)
+      await figma.loadFontAsync(fonts.italic)
+      try {
+        await figma.loadFontAsync(fonts.boldItalic)
+      } catch {
+        fonts.boldItalic = fonts.bold
+      }
+    } catch {
+      // If all fail, use system default
+      fonts.regular = { family: 'Inter', style: 'Regular' }
+      fonts.bold = fonts.regular
+      fonts.italic = fonts.regular
+      fonts.boldItalic = fonts.regular
     }
   }
   
@@ -319,10 +571,40 @@ async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNode): Pr
   // Create text node
   const textNode = figma.createText()
   textNode.name = 'Critique Text'
-  textNode.fontName = fontName
+  textNode.fontName = fonts.regular
   textNode.fontSize = 12
-  textNode.characters = displayText
+  textNode.characters = parsed.text
   textNode.textAutoResize = 'HEIGHT'
+  
+  // Apply base font to full range
+  textNode.setRangeFontName(0, parsed.text.length, fonts.regular)
+  
+  // Apply styled spans
+  for (const span of parsed.spans) {
+    if (span.start < parsed.text.length && span.end <= parsed.text.length && span.start < span.end) {
+      // Set font style
+      let fontStyle: FontName
+      switch (span.style) {
+        case 'bold':
+          fontStyle = fonts.bold
+          break
+        case 'italic':
+          fontStyle = fonts.italic
+          break
+        case 'boldItalic':
+          fontStyle = fonts.boldItalic
+          break
+        default:
+          fontStyle = fonts.regular
+      }
+      textNode.setRangeFontName(span.start, span.end, fontStyle)
+      
+      // Set font size for headings
+      if (span.size) {
+        textNode.setRangeFontSize(span.start, span.end, span.size)
+      }
+    }
+  }
   
   // Constrain width to 640px
   textNode.resize(640, textNode.height)
@@ -334,16 +616,36 @@ async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNode): Pr
   frame.resize(textNode.width, textNode.height)
   
   // Calculate placement
-  if (selectedNode) {
-    // Place to the right of selection (+40px)
-    const bounds = 'absoluteBoundingBox' in selectedNode ? selectedNode.absoluteBoundingBox : null
+  // Determine anchor node: topmost container that is a direct child of the page
+  const anchor = selectedNode ? getTopLevelContainerNode(selectedNode) : undefined
+  
+  if (anchor) {
+    // Place 40px to the LEFT of anchor container, aligned to top
+    // Try absoluteBoundingBox first, then absoluteRenderBounds, then fallback
+    let bounds: { x: number; y: number; width: number; height: number } | null = null
+    
+    if ('absoluteBoundingBox' in anchor && anchor.absoluteBoundingBox) {
+      bounds = anchor.absoluteBoundingBox
+    } else if ('absoluteRenderBounds' in anchor && anchor.absoluteRenderBounds) {
+      bounds = anchor.absoluteRenderBounds
+    }
+    
     if (bounds) {
-      frame.x = bounds.x + bounds.width + 40
+      frame.x = bounds.x - frame.width - 40
       frame.y = bounds.y
+      
+      // Clamp x to reasonable minimum (don't go off-screen left)
+      const minX = figma.viewport.center.x - frame.width / 2
+      frame.x = Math.max(frame.x, minX)
     } else {
-      // Fallback: use node position
-      frame.x = ('x' in selectedNode ? selectedNode.x : 0) + ('width' in selectedNode ? selectedNode.width : 0) + 40
-      frame.y = 'y' in selectedNode ? selectedNode.y : 0
+      // Fallback: use node position if bounds not available
+      const nodeX = 'x' in anchor ? anchor.x : 0
+      frame.x = nodeX - frame.width - 40
+      frame.y = 'y' in anchor ? anchor.y : 0
+      
+      // Clamp x
+      const minX = figma.viewport.center.x - frame.width / 2
+      frame.x = Math.max(frame.x, minX)
     }
   } else {
     // No selection: place at viewport center
@@ -463,8 +765,14 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
   
   // Special handling for Code2Design quick actions
   if (assistantId === 'code2design') {
-    if (actionId === 'send-json' || actionId === 'get-json') {
-      // These actions open modals in the UI, not handled here
+    if (actionId === 'send-json') {
+      // This action receives JSON input from UI and renders it to stage
+      // The JSON input comes via a separate message handler (to be implemented in UI)
+      // For now, this is a placeholder that shows the architecture is ready
+      return
+    }
+    if (actionId === 'get-json') {
+      // This action exports selection as JSON (to be implemented)
       return
     }
     if (actionId === 'json-format-help') {
@@ -584,10 +892,16 @@ Use SEND JSON to import or GET JSON to export your designs.`
       quickActionId: action.id
     })
     
-    // Check if this is a Design Critique response - place raw text on canvas
+    // Check if this is a Design Critique response
     let designCritiqueHandled = false
     if (assistant.id === 'design_critique' && action.id === 'give-critique') {
-      console.log('[Main] Processing Design Critique response, length:', response.length)
+      const DEBUG = true // Debug flag for Design Critique
+      
+      if (DEBUG) {
+        console.log('[DesignCritique] Processing response, length:', response.length)
+        console.log('[DesignCritique] First 300 chars:', response.substring(0, 300))
+      }
+      
       designCritiqueHandled = true
       
       try {
@@ -600,18 +914,89 @@ Use SEND JSON to import or GET JSON to export your designs.`
           }
         }
         
-        // Place critique text on canvas
-        await placeCritiqueOnCanvas(response, selectedNode)
-        console.log('[DesignCritique] Critique text placed on canvas')
+        // Remove any existing scorecard artifacts first (before parsing)
+        removeExistingArtifacts('scorecard')
         
-        // Notify success
-        figma.notify('Critique added to stage')
-        return
+        // Attempt to parse as JSON scorecard
+        const scorecardBlock = fromDesignCritiqueJson(response)
+        
+        if (scorecardBlock && scorecardBlock.type === 'scorecard') {
+          // Valid JSON scorecard - render using new Auto-Layout renderer
+          if (DEBUG) {
+            console.log('[DesignCritique] ✅ Successfully parsed as JSON scorecard')
+            console.log('[DesignCritique] Score:', scorecardBlock.score)
+            console.log('[DesignCritique] Wins:', scorecardBlock.wins.length)
+            console.log('[DesignCritique] Fixes:', scorecardBlock.fixes.length)
+            console.log('[DesignCritique] Checklist:', scorecardBlock.checklist?.length ?? 0)
+            console.log('[DesignCritique] Notes:', scorecardBlock.notes?.length ?? 0)
+          }
+          
+          // Map ScorecardBlock to ScorecardData
+          const scorecardData: ScorecardData = {
+            score: scorecardBlock.score,
+            summary: scorecardBlock.summary ?? '',
+            wins: scorecardBlock.wins,
+            fixes: scorecardBlock.fixes,
+            checklist: scorecardBlock.checklist ?? [],
+            notes: scorecardBlock.notes
+          }
+          
+          // Render scorecard using v2 Auto-Layout renderer
+          await renderScorecardV2(scorecardData, selectedNode)
+          figma.notify('Scorecard placed (v2)')
+          console.log('[DesignCritique] ✅ Scorecard v2 rendered successfully')
+          return
+        } else {
+          // Invalid JSON - fallback to rich-text critique
+          if (DEBUG) {
+            console.log('[DesignCritique] ❌ Failed to parse as JSON scorecard, falling back to rich-text')
+            // Check what went wrong
+            const jsonFenceMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/)
+            const extractionMethod = jsonFenceMatch ? 'code fence' : 'balanced JSON'
+            console.log('[DesignCritique] Extraction method attempted:', extractionMethod)
+            
+            // Try to identify validation failures
+            try {
+              const jsonString = jsonFenceMatch ? jsonFenceMatch[1].trim() : null
+              if (!jsonString) {
+                const firstBrace = response.indexOf('{')
+                if (firstBrace === -1) {
+                  console.log('[DesignCritique] Validation failure: No JSON object found in response')
+                } else {
+                  console.log('[DesignCritique] Validation failure: Could not extract balanced JSON')
+                }
+              } else {
+                const parsed = JSON.parse(jsonString)
+                if (typeof parsed.score !== 'number' || parsed.score < 0 || parsed.score > 100) {
+                  console.log('[DesignCritique] Validation failure: Invalid or missing score field')
+                }
+                if (!Array.isArray(parsed.wins)) {
+                  console.log('[DesignCritique] Validation failure: Missing or invalid wins array')
+                }
+                if (!Array.isArray(parsed.fixes)) {
+                  console.log('[DesignCritique] Validation failure: Missing or invalid fixes array')
+                }
+              }
+            } catch (e) {
+              console.log('[DesignCritique] Validation failure: JSON parse error:', e)
+            }
+          }
+          
+          // Remove any existing v2 scorecards before placing rich-text fallback
+          // (Already done above, but ensure cleanup)
+          removeExistingArtifacts('scorecard', 'v2')
+          
+          // Place rich-text critique
+          await placeCritiqueOnCanvas(response, selectedNode)
+          figma.notify('Scorecard JSON parse failed — placed rich text')
+          console.log('[DesignCritique] ⚠️ Fallback: Rich text critique placed')
+          return
+        }
       } catch (error) {
-        console.error('[DesignCritique] Error placing critique on canvas:', error)
+        console.error('[DesignCritique] Error processing critique:', error)
         const errorMessage = error instanceof Error 
           ? error.message 
-          : 'Unknown error placing critique on canvas'
+          : 'Unknown error processing critique'
         figma.notify(`Error: ${errorMessage}`)
         return
       }
@@ -775,6 +1160,115 @@ export default function () {
   // Send initial selection state
   sendSelectionState()
 }
+
+// Handle Placeholder Scorecard
+on<RunPlaceholderScorecardHandler>('RUN_PLACEHOLDER_SCORECARD', async function () {
+  console.log('[Main] RUN_PLACEHOLDER_SCORECARD received')
+  try {
+    // Get selected node if available
+    let selectedNode: SceneNode | undefined
+    if (selectionOrder.length > 0) {
+      const node = figma.getNodeById(selectionOrder[0])
+      if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
+        selectedNode = node as SceneNode
+      }
+    }
+
+    // Render placeholder scorecard
+    await renderPlaceholderScorecard(selectedNode)
+    
+    // Notify UI of success
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'PLACEHOLDER_SCORECARD_PLACED'
+      }
+    })
+    
+    figma.notify('Placeholder scorecard added to stage')
+  } catch (error) {
+    console.error('[Main] Error rendering placeholder scorecard:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Notify UI of error
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'PLACEHOLDER_SCORECARD_ERROR',
+        message: errorMessage
+      }
+    })
+    
+    figma.notify(`Error: ${errorMessage}`)
+  }
+})
+
+// Handle Scorecard v2 Placeholder
+on<RunScorecardV2PlaceholderHandler>('RUN_SCORECARD_V2_PLACEHOLDER', async function () {
+  console.log('[Main] RUN_SCORECARD_V2_PLACEHOLDER received')
+  try {
+    // Get selected node if available
+    let selectedNode: SceneNode | undefined
+    if (selectionOrder.length > 0) {
+      const node = figma.getNodeById(selectionOrder[0])
+      if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
+        selectedNode = node as SceneNode
+      }
+    }
+
+    // Hardcoded ScorecardData for v2 placeholder
+    const placeholderData: ScorecardData = {
+      score: 82,
+      summary: 'This is a placeholder scorecard v2 for visual design iteration. It demonstrates the new 2-column layout with colored score pill and tighter card design.',
+      wins: [
+        'Clear visual hierarchy with consistent spacing',
+        'Strong color contrast meets WCAG AA standards',
+        'Interactive elements have clear affordances',
+        'Responsive layout adapts well to different screen sizes'
+      ],
+      fixes: [
+        'Increase text contrast for body text (currently #666, suggest #333)',
+        'Add 8px spacing between related form fields to improve grouping',
+        'Make hover states more obvious with visual feedback',
+        'Consider adding loading states for async actions'
+      ],
+      checklist: [
+        '✓ Primary action is visually dominant',
+        '✓ Related elements are grouped using spacing',
+        '✗ Interactive elements need hover states',
+        '✓ Text is readable without zooming',
+        '✓ Color palette is accessible'
+      ],
+      notes: [
+        'Overall solid design with room for improvement in micro-interactions',
+        'Consider adding loading states for async actions'
+      ]
+    }
+
+    // Render scorecard v2 using the dedicated v2 renderer
+    await renderScorecardV2(placeholderData, selectedNode)
+    
+    // Notify UI of success
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'PLACEHOLDER_SCORECARD_PLACED'
+      }
+    })
+    
+    figma.notify('Scorecard v2 (placeholder) added to stage')
+  } catch (error) {
+    console.error('[Main] Error rendering scorecard v2 placeholder:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Notify UI of error
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'PLACEHOLDER_SCORECARD_ERROR',
+        message: errorMessage
+      }
+    })
+    
+    figma.notify(`Error: ${errorMessage}`)
+  }
+})
 
 // Handle Export Content Table Ref Image
 on<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', async function (rootNodeId: string) {

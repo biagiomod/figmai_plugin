@@ -240,5 +240,25 @@ export interface ContentTableRefImageErrorHandler extends EventHandler {
   handler: (message: string) => void
 }
 
+export interface RunPlaceholderScorecardHandler extends EventHandler {
+  name: 'RUN_PLACEHOLDER_SCORECARD'
+  handler: () => void
+}
+
+export interface RunScorecardV2PlaceholderHandler extends EventHandler {
+  name: 'RUN_SCORECARD_V2_PLACEHOLDER'
+  handler: () => void
+}
+
+export interface PlaceholderScorecardPlacedHandler extends EventHandler {
+  name: 'PLACEHOLDER_SCORECARD_PLACED'
+  handler: () => void
+}
+
+export interface PlaceholderScorecardErrorHandler extends EventHandler {
+  name: 'PLACEHOLDER_SCORECARD_ERROR'
+  handler: (message: string) => void
+}
+
 // Re-export content table types
 export type { UniversalContentTableV1, TableFormatPreset }

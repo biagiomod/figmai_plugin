@@ -41,7 +41,11 @@ import type {
   LlmProviderId,
   Assistant,
   CopyTableStatusHandler,
-  ExportContentTableRefImageHandler
+  ExportContentTableRefImageHandler,
+  RunPlaceholderScorecardHandler,
+  PlaceholderScorecardPlacedHandler,
+  PlaceholderScorecardErrorHandler,
+  RunScorecardV2PlaceholderHandler
 } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
@@ -363,6 +367,15 @@ function Plugin() {
           console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_ERROR:', message.message)
           setIsCopyingRefImage(false)
           emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', message.message || 'Could not copy reference image.')
+          break
+        case 'PLACEHOLDER_SCORECARD_PLACED':
+          console.log('[UI] Received PLACEHOLDER_SCORECARD_PLACED')
+          setIsLoading(false)
+          break
+        case 'PLACEHOLDER_SCORECARD_ERROR':
+          console.error('[UI] Received PLACEHOLDER_SCORECARD_ERROR:', message.message)
+          setIsLoading(false)
+          // Show error toast (figma.notify is handled in main thread)
           break
         case 'SCORECARD_PLACED':
           // Update status message when scorecard placement completes
@@ -1557,6 +1570,23 @@ ${htmlTable}
     }
     return true
   })
+
+  // Placeholder scorecard handler (home screen only, Simple Mode)
+  const handlePlaceholderScorecard = useCallback(() => {
+    console.log('[UI] Placeholder Scorecard clicked')
+    setIsLoading(true)
+    emit<RunPlaceholderScorecardHandler>('RUN_PLACEHOLDER_SCORECARD')
+  }, [])
+
+  // Scorecard v2 placeholder handler (home screen only, Simple Mode)
+  const handleScorecardV2Placeholder = useCallback(() => {
+    console.log('[UI] Scorecard v2 Placeholder clicked')
+    setIsLoading(true)
+    emit<RunScorecardV2PlaceholderHandler>('RUN_SCORECARD_V2_PLACEHOLDER')
+  }, [])
+
+  // Show placeholder scorecard buttons on home screen (Simple Mode only)
+  const showPlaceholderScorecard = messages.length === 0 && mode === 'simple'
   
   return (
     <div style={{
@@ -2296,7 +2326,7 @@ ${htmlTable}
         gap: 'var(--spacing-sm)'
       }}>
         {/* Quick Actions - Above input */}
-        {quickActions.length > 0 && (
+        {(quickActions.length > 0 || showPlaceholderScorecard) && (
           <div style={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -2338,6 +2368,51 @@ ${htmlTable}
                 </button>
               )
             })}
+            {/* Placeholder Scorecard buttons (home screen, Simple Mode only) */}
+            {showPlaceholderScorecard && (
+              <div>
+                <button
+                  onClick={handlePlaceholderScorecard}
+                  disabled={isLoading}
+                  style={{
+                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: isLoading ? 'var(--muted)' : 'var(--bg-secondary)',
+                    color: isLoading ? 'var(--muted)' : 'var(--fg)',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 'var(--font-size-xs)',
+                    fontFamily: 'var(--font-family)',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 'var(--font-weight-normal)',
+                    opacity: isLoading ? 0.5 : 1
+                  }}
+                  title="Render a placeholder scorecard on the canvas."
+                >
+                  Scorecard (Placeholder)
+                </button>
+                <button
+                  onClick={handleScorecardV2Placeholder}
+                  disabled={isLoading}
+                  style={{
+                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: isLoading ? 'var(--muted)' : 'var(--bg-secondary)',
+                    color: isLoading ? 'var(--muted)' : 'var(--fg)',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 'var(--font-size-xs)',
+                    fontFamily: 'var(--font-family)',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 'var(--font-weight-normal)',
+                    opacity: isLoading ? 0.5 : 1
+                  }}
+                  title="Render a v2 placeholder scorecard on the canvas."
+                >
+                  Scorecard v2 (placeholder)
+                </button>
+              </div>
+            )}
           </div>
         )}
         
