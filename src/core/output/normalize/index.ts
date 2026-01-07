@@ -3,12 +3,103 @@
  */
 
 import type { Document, ScorecardBlock } from '../ir'
+import type { ScorecardData } from '../../figma/renderScorecard'
 
 /**
- * Parse Design Critique JSON response into Scorecard block
+ * Extract JSON from response (handles multiple formats)
+ * Returns the extracted JSON string, or null if not found
+ */
+export function extractJsonFromResponse(response: string): string | null {
+  const raw = response.trim()
+  
+  // Step 1: Try direct parse (response is already valid JSON)
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed === 'object' && parsed !== null) {
+      return raw
+    }
+  } catch {
+    // Continue to extraction
+  }
+  
+  // Step 2: Try to find JSON in markdown code fence
+  const jsonFenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (jsonFenceMatch && jsonFenceMatch[1]) {
+    const extracted = jsonFenceMatch[1].trim()
+    // Validate it's actually JSON
+    try {
+      JSON.parse(extracted)
+      return extracted
+    } catch {
+      // Not valid JSON, continue
+    }
+  }
+  
+  // Step 3: Find first balanced JSON object
+  const firstBrace = raw.indexOf('{')
+  if (firstBrace === -1) {
+    return null
+  }
+  
+  // Track depth, handle strings and escaped quotes
+  let depth = 0
+  let inString = false
+  let escapeNext = false
+  let start = firstBrace
+  let end = -1
+  
+  for (let i = firstBrace; i < raw.length; i++) {
+    const char = raw[i]
+    
+    if (escapeNext) {
+      escapeNext = false
+      continue
+    }
+    
+    if (char === '\\') {
+      escapeNext = true
+      continue
+    }
+    
+    if (char === '"') {
+      inString = !inString
+      continue
+    }
+    
+    if (inString) {
+      continue
+    }
+    
+    if (char === '{') {
+      depth++
+    } else if (char === '}') {
+      depth--
+      if (depth === 0) {
+        end = i
+        break
+      }
+    }
+  }
+  
+  if (depth !== 0 || end === -1) {
+    return null
+  }
+  
+  const extracted = raw.substring(start, end + 1).trim()
+  
+  // Validate it's actually JSON
+  try {
+    JSON.parse(extracted)
+    return extracted
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse Design Critique JSON response into Scorecard block (IR format)
  */
 export function fromDesignCritiqueJson(response: string): ScorecardBlock | null {
-  // Extract JSON string (handles markdown fences)
   const jsonString = extractJsonFromResponse(response)
   if (!jsonString) {
     return null
@@ -45,41 +136,107 @@ export function fromDesignCritiqueJson(response: string): ScorecardBlock | null 
 }
 
 /**
- * Extract JSON from response (handles markdown fences)
+ * Parse and validate Design Critique JSON into ScorecardData
+ * Returns ScorecardData if valid, null if invalid
+ * Logs explicit validation errors for debugging
  */
-function extractJsonFromResponse(response: string): string | null {
-  // Try to find JSON in markdown code fence
-  const jsonFenceMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (jsonFenceMatch && jsonFenceMatch[1]) {
-    return jsonFenceMatch[1].trim()
+export function parseScorecardJson(
+  response: string,
+  debug: boolean = false
+): { data: ScorecardData } | { error: string } {
+  const raw = response.trim()
+  
+  if (debug) {
+    console.log('[parseScorecardJson] Raw response (first 500 chars):', raw.substring(0, 500))
   }
-
-  // Find first { and last } and extract substring
-  const firstBrace = response.indexOf('{')
-  if (firstBrace === -1) {
-    return null
-  }
-
-  // Find matching closing brace by tracking depth
-  let depth = 0
-  let lastBrace = firstBrace
-  for (let i = firstBrace; i < response.length; i++) {
-    if (response[i] === '{') {
-      depth++
-    } else if (response[i] === '}') {
-      depth--
-      if (depth === 0) {
-        lastBrace = i
-        break
-      }
+  
+  // Extract JSON
+  const jsonString = extractJsonFromResponse(raw)
+  if (!jsonString) {
+    const extractionMethod = raw.match(/```(?:json)?\s*([\s\S]*?)```/) ? 'code fence' : 'balanced JSON'
+    if (debug) {
+      console.log('[parseScorecardJson] ❌ Failed to extract JSON, method attempted:', extractionMethod)
     }
+    return { error: 'No valid JSON object found in response' }
   }
-
-  if (depth !== 0) {
-    return null
+  
+  if (debug) {
+    const extractionMethod = raw.startsWith('{') ? 'direct' : raw.match(/```(?:json)?\s*([\s\S]*?)```/) ? 'code fence' : 'balanced'
+    console.log('[parseScorecardJson] ✅ JSON extracted, method:', extractionMethod)
   }
-
-  return response.substring(firstBrace, lastBrace + 1).trim()
+  
+  // Parse JSON
+  let parsed: any
+  try {
+    parsed = JSON.parse(jsonString)
+  } catch (e) {
+    if (debug) {
+      console.log('[parseScorecardJson] ❌ JSON parse error:', e)
+    }
+    return { error: 'JSON parse error: ' + (e instanceof Error ? e.message : String(e)) }
+  }
+  
+  if (debug) {
+    console.log('[parseScorecardJson] Parsed top-level keys:', Object.keys(parsed))
+  }
+  
+  // Validate required fields
+  const score = parsed.score ?? parsed.overallScore
+  if (score === undefined || score === null) {
+    if (debug) {
+      console.log('[parseScorecardJson] ❌ Validation failure: Missing score field')
+    }
+    return { error: 'Missing required field: score' }
+  }
+  
+  if (typeof score !== 'number') {
+    if (debug) {
+      console.log('[parseScorecardJson] ❌ Validation failure: score is not a number:', typeof score, score)
+    }
+    return { error: 'Invalid score: must be a number' }
+  }
+  
+  if (score < 0 || score > 100) {
+    if (debug) {
+      console.log('[parseScorecardJson] ❌ Validation failure: score out of range:', score)
+    }
+    return { error: `Invalid score: must be between 0 and 100, got ${score}` }
+  }
+  
+  if (!Array.isArray(parsed.wins)) {
+    if (debug) {
+      console.log('[parseScorecardJson] ❌ Validation failure: wins is not an array:', typeof parsed.wins)
+    }
+    return { error: 'Missing or invalid wins: must be an array' }
+  }
+  
+  if (!Array.isArray(parsed.fixes)) {
+    if (debug) {
+      console.log('[parseScorecardJson] ❌ Validation failure: fixes is not an array:', typeof parsed.fixes)
+    }
+    return { error: 'Missing or invalid fixes: must be an array' }
+  }
+  
+  // Build ScorecardData
+  const data: ScorecardData = {
+    score: score,
+    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    wins: parsed.wins.map((w: any) => String(w)),
+    fixes: parsed.fixes.map((f: any) => String(f)),
+    checklist: Array.isArray(parsed.checklist) ? parsed.checklist.map((c: any) => String(c)) : [],
+    notes: Array.isArray(parsed.notes) ? parsed.notes.map((n: any) => String(n)) : undefined
+  }
+  
+  if (debug) {
+    console.log('[parseScorecardJson] ✅ Validation passed')
+    console.log('[parseScorecardJson] Score:', data.score)
+    console.log('[parseScorecardJson] Wins:', data.wins.length)
+    console.log('[parseScorecardJson] Fixes:', data.fixes.length)
+    console.log('[parseScorecardJson] Checklist:', data.checklist.length)
+    console.log('[parseScorecardJson] Notes:', data.notes?.length ?? 0)
+  }
+  
+  return { data }
 }
 
 /**
@@ -199,4 +356,3 @@ export function normalizeDesignCritique(response: string): Document {
   // Fallback to markdown
   return fromMarkdown(response)
 }
-

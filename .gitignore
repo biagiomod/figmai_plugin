@@ -4,3 +4,11 @@
 /build/
 /manifest.json
 node_modules/
+
+# Backup files
+*.bak
+*.bak2
+*.bak3
+*.clean
+*.final
+*.fix

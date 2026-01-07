@@ -10,7 +10,6 @@ import { normalizeMessages } from './core/provider/normalize'
 import { routeToolCall } from './core/tools/toolRouter'
 import { summarizeSelection } from './core/context/selection'
 import { buildSelectionContext } from './core/context/selectionContext'
-import { createTextFrameOnCanvas } from './core/figma/createTextFrameOnCanvas'
 import { saveSettings, getSettings } from './core/settings'
 import { ProxyError } from './core/proxy/client'
 import { ProviderError, ProviderErrorType } from './core/provider/provider'
@@ -44,12 +43,14 @@ import type {
   RunScorecardV2PlaceholderHandler
 } from './core/types'
 import { scanContentTable } from './core/contentTable/scanner'
-import { normalizeDesignCritique, fromDesignCritiqueJson } from './core/output/normalize'
+import { normalizeDesignCritique, fromDesignCritiqueJson, parseScorecardJson } from './core/output/normalize'
 import { renderDocumentToStage } from './core/stage/renderDocument'
 import { parseDesignSpecJson, renderDesignSpecToStage } from './core/stage/renderDesignSpec'
 import { renderPlaceholderScorecard } from './core/figma/renderPlaceholderScorecard'
 import { renderScorecard, renderScorecardV2, type ScorecardData } from './core/figma/renderScorecard'
 import { removeExistingArtifacts } from './core/figma/artifacts/placeArtifact'
+import { getHandler } from './core/assistants/handlers'
+import { getTopLevelContainerNode } from './core/stage/anchor'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -292,377 +293,6 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   }
 })
 
-/**
- * Parse markdown to plain text with style spans
- * Converts bold (**text**), italic (*text*), headings (# ## ###), and lists
- */
-interface TextSpan {
-  start: number
-  end: number
-  style: 'regular' | 'bold' | 'italic' | 'boldItalic'
-  size?: number
-}
-
-interface ParsedText {
-  text: string
-  spans: TextSpan[]
-}
-
-function parseMarkdownToStyledText(md: string): ParsedText {
-  const lines = md.split('\n')
-  const output: string[] = []
-  const spans: TextSpan[] = []
-  let currentOffset = 0
-  
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i]
-    const originalLineStart = currentOffset
-    
-    // Detect heading level
-    let headingLevel = 0
-    if (line.match(/^#{1,3}\s+/)) {
-      const match = line.match(/^(#{1,3})\s+/)
-      if (match) {
-        headingLevel = match[1].length
-        line = line.replace(/^#{1,3}\s+/, '')
-      }
-    }
-    
-    // Detect list markers
-    const isUnorderedList = /^[-*]\s+/.test(line)
-    const orderedListMatch = line.match(/^\d+\.\s+/)
-    const isOrderedList = !!orderedListMatch
-    
-    // Process list markers
-    if (isUnorderedList) {
-      line = line.replace(/^[-*]\s+/, '• ')
-    } else if (isOrderedList) {
-      const num = orderedListMatch[0].replace(/\s+$/, '')
-      line = line.replace(/^\d+\.\s+/, `${num} `)
-    }
-    
-    // Process inline markdown: **bold** and *italic*
-    // First, handle **bold** (non-greedy)
-    const boldRegex = /\*\*([^*]+)\*\*/g
-    const boldMatches: Array<{ start: number; end: number; text: string }> = []
-    let boldMatch
-    while ((boldMatch = boldRegex.exec(line)) !== null) {
-      boldMatches.push({
-        start: boldMatch.index,
-        end: boldMatch.index + boldMatch[0].length,
-        text: boldMatch[1]
-      })
-    }
-    
-    // Then handle *italic* (but not **bold**)
-    const italicRegex = /(?<!\*)\*([^*]+)\*(?!\*)/g
-    const italicMatches: Array<{ start: number; end: number; text: string }> = []
-    let italicMatch: RegExpExecArray | null
-    while ((italicMatch = italicRegex.exec(line)) !== null) {
-      // Check if this is inside a bold match
-      const isInsideBold = boldMatches.some(b => 
-        italicMatch!.index >= b.start && italicMatch!.index < b.end
-      )
-      if (!isInsideBold) {
-        italicMatches.push({
-          start: italicMatch.index,
-          end: italicMatch.index + italicMatch[0].length,
-          text: italicMatch[1]
-        })
-      }
-    }
-    
-    // Also handle _italic_ (underscore variant)
-    const italicUnderscoreRegex = /(?<!_)_([^_]+)_(?!_)/g
-    let italicUnderscoreMatch: RegExpExecArray | null
-    while ((italicUnderscoreMatch = italicUnderscoreRegex.exec(line)) !== null) {
-      const isInsideBold = boldMatches.some(b => 
-        italicUnderscoreMatch!.index >= b.start && italicUnderscoreMatch!.index < b.end
-      )
-      if (!isInsideBold) {
-        italicMatches.push({
-          start: italicUnderscoreMatch.index,
-          end: italicUnderscoreMatch.index + italicUnderscoreMatch[0].length,
-          text: italicUnderscoreMatch[1]
-        })
-      }
-    }
-    
-    // Build output text by removing markdown delimiters
-    let outputLine = line
-    // Remove bold markers
-    for (const match of boldMatches.reverse()) {
-      outputLine = outputLine.substring(0, match.start) + match.text + outputLine.substring(match.end)
-      // Adjust subsequent match positions
-      for (const otherMatch of boldMatches) {
-        if (otherMatch.start > match.start) {
-          otherMatch.start -= 2
-          otherMatch.end -= 2
-        }
-      }
-      for (const otherMatch of italicMatches) {
-        if (otherMatch.start > match.start) {
-          otherMatch.start -= 2
-          otherMatch.end -= 2
-        }
-      }
-    }
-    // Remove italic markers
-    for (const match of italicMatches.reverse()) {
-      if (outputLine.substring(match.start, match.end).includes('*') || outputLine.substring(match.start, match.end).includes('_')) {
-        const markerLength = outputLine[match.start] === '*' ? 1 : 1
-        outputLine = outputLine.substring(0, match.start) + match.text + outputLine.substring(match.end)
-        // Adjust subsequent match positions
-        for (const otherMatch of boldMatches) {
-          if (otherMatch.start > match.start) {
-            otherMatch.start -= markerLength
-            otherMatch.end -= markerLength
-          }
-        }
-        for (const otherMatch of italicMatches) {
-          if (otherMatch.start > match.start) {
-            otherMatch.start -= markerLength
-            otherMatch.end -= markerLength
-          }
-        }
-      }
-    }
-    
-    // Add line to output
-    output.push(outputLine)
-    
-    // Record spans for bold/italic
-    const lineStartOffset = currentOffset
-    for (const match of boldMatches) {
-      const boldStart = lineStartOffset + match.start
-      const boldEnd = boldStart + match.text.length
-      // Check if this range overlaps with italic
-      const hasItalic = italicMatches.some(it => 
-        (it.start < match.end && it.end > match.start) ||
-        (match.start < it.end && match.end > it.start)
-      )
-      if (hasItalic) {
-        spans.push({ start: boldStart, end: boldEnd, style: 'boldItalic' })
-      } else {
-        spans.push({ start: boldStart, end: boldEnd, style: 'bold' })
-      }
-    }
-    
-    for (const match of italicMatches) {
-      const italicStart = lineStartOffset + match.start
-      const italicEnd = italicStart + match.text.length
-      // Check if this range overlaps with bold
-      const hasBold = boldMatches.some(b => 
-        (b.start < match.end && b.end > match.start) ||
-        (match.start < b.end && match.end > b.start)
-      )
-      if (!hasBold) {
-        spans.push({ start: italicStart, end: italicEnd, style: 'italic' })
-      }
-    }
-    
-    // Record span for heading
-    if (headingLevel > 0 && outputLine.trim().length > 0) {
-      const headingStart = lineStartOffset
-      const headingEnd = headingStart + outputLine.length
-      spans.push({ 
-        start: headingStart, 
-        end: headingEnd, 
-        style: 'bold',
-        size: headingLevel === 1 ? 18 : headingLevel === 2 ? 16 : 14
-      })
-    }
-    
-    currentOffset += outputLine.length + 1 // +1 for newline
-  }
-  
-  const finalText = output.join('\n')
-  
-  return {
-    text: finalText,
-    spans: spans.sort((a, b) => a.start - b.start)
-  }
-}
-
-/**
- * Get the topmost container node that is a direct child of the page
- * Traverses upward from the given node until finding a node whose parent is the page
- */
-function getTopLevelContainerNode(node: SceneNode): SceneNode {
-  let topLevelNode: SceneNode = node
-  let currentNode: BaseNode | null = node
-  
-  // Walk up parent chain until parent is the Page
-  while (currentNode && currentNode.parent) {
-    if (currentNode.parent.type === 'PAGE') {
-      // Found the topmost container that is a direct child of the page
-      topLevelNode = currentNode as SceneNode
-      break
-    }
-    currentNode = currentNode.parent
-  }
-  
-  return topLevelNode
-}
-
-
-/**
- * Place critique text on canvas as a simple text frame with styled text
- * Converts markdown to styled Figma text
- */
-async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNode): Promise<FrameNode> {
-  // Truncate very long text (cap at 20k chars)
-  const MAX_CHARS = 20000
-  let displayText = text
-  if (text.length > MAX_CHARS) {
-    displayText = text.substring(0, MAX_CHARS) + '\n\n(truncated)'
-  }
-  
-  // Parse markdown to styled text
-  const parsed = parseMarkdownToStyledText(displayText)
-  
-  // Load fonts (try Inter variants, fallback to Roboto)
-  const fonts = {
-    regular: { family: 'Inter', style: 'Regular' } as FontName,
-    bold: { family: 'Inter', style: 'Bold' } as FontName,
-    italic: { family: 'Inter', style: 'Italic' } as FontName,
-    boldItalic: { family: 'Inter', style: 'Bold Italic' } as FontName
-  }
-  
-  try {
-    await figma.loadFontAsync(fonts.regular)
-    await figma.loadFontAsync(fonts.bold)
-    await figma.loadFontAsync(fonts.italic)
-    try {
-      await figma.loadFontAsync(fonts.boldItalic)
-    } catch {
-      // Fallback: use Bold if Bold Italic not available
-      fonts.boldItalic = fonts.bold
-    }
-  } catch {
-    // Fallback to Roboto
-    try {
-      fonts.regular = { family: 'Roboto', style: 'Regular' }
-      fonts.bold = { family: 'Roboto', style: 'Bold' }
-      fonts.italic = { family: 'Roboto', style: 'Italic' }
-      fonts.boldItalic = { family: 'Roboto', style: 'Bold Italic' }
-      await figma.loadFontAsync(fonts.regular)
-      await figma.loadFontAsync(fonts.bold)
-      await figma.loadFontAsync(fonts.italic)
-      try {
-        await figma.loadFontAsync(fonts.boldItalic)
-      } catch {
-        fonts.boldItalic = fonts.bold
-      }
-    } catch {
-      // If all fail, use system default
-      fonts.regular = { family: 'Inter', style: 'Regular' }
-      fonts.bold = fonts.regular
-      fonts.italic = fonts.regular
-      fonts.boldItalic = fonts.regular
-    }
-  }
-  
-  // Create frame (NOT auto-layout)
-  const frame = figma.createFrame()
-  frame.name = 'FigmAI — Critique'
-  // No layoutMode, no padding, no itemSpacing - just a container
-  
-  // Create text node
-  const textNode = figma.createText()
-  textNode.name = 'Critique Text'
-  textNode.fontName = fonts.regular
-  textNode.fontSize = 12
-  textNode.characters = parsed.text
-  textNode.textAutoResize = 'HEIGHT'
-  
-  // Apply base font to full range
-  textNode.setRangeFontName(0, parsed.text.length, fonts.regular)
-  
-  // Apply styled spans
-  for (const span of parsed.spans) {
-    if (span.start < parsed.text.length && span.end <= parsed.text.length && span.start < span.end) {
-      // Set font style
-      let fontStyle: FontName
-      switch (span.style) {
-        case 'bold':
-          fontStyle = fonts.bold
-          break
-        case 'italic':
-          fontStyle = fonts.italic
-          break
-        case 'boldItalic':
-          fontStyle = fonts.boldItalic
-          break
-        default:
-          fontStyle = fonts.regular
-      }
-      textNode.setRangeFontName(span.start, span.end, fontStyle)
-      
-      // Set font size for headings
-      if (span.size) {
-        textNode.setRangeFontSize(span.start, span.end, span.size)
-      }
-    }
-  }
-  
-  // Constrain width to 640px
-  textNode.resize(640, textNode.height)
-  
-  // Append text to frame
-  frame.appendChild(textNode)
-  
-  // Resize frame to fit text
-  frame.resize(textNode.width, textNode.height)
-  
-  // Calculate placement
-  // Determine anchor node: topmost container that is a direct child of the page
-  const anchor = selectedNode ? getTopLevelContainerNode(selectedNode) : undefined
-  
-  if (anchor) {
-    // Place 40px to the LEFT of anchor container, aligned to top
-    // Try absoluteBoundingBox first, then absoluteRenderBounds, then fallback
-    let bounds: { x: number; y: number; width: number; height: number } | null = null
-    
-    if ('absoluteBoundingBox' in anchor && anchor.absoluteBoundingBox) {
-      bounds = anchor.absoluteBoundingBox
-    } else if ('absoluteRenderBounds' in anchor && anchor.absoluteRenderBounds) {
-      bounds = anchor.absoluteRenderBounds
-    }
-    
-    if (bounds) {
-      frame.x = bounds.x - frame.width - 40
-      frame.y = bounds.y
-      
-      // Clamp x to reasonable minimum (don't go off-screen left)
-      const minX = figma.viewport.center.x - frame.width / 2
-      frame.x = Math.max(frame.x, minX)
-    } else {
-      // Fallback: use node position if bounds not available
-      const nodeX = 'x' in anchor ? anchor.x : 0
-      frame.x = nodeX - frame.width - 40
-      frame.y = 'y' in anchor ? anchor.y : 0
-      
-      // Clamp x
-      const minX = figma.viewport.center.x - frame.width / 2
-      frame.x = Math.max(frame.x, minX)
-    }
-  } else {
-    // No selection: place at viewport center
-    const viewport = figma.viewport.center
-    frame.x = viewport.x - frame.width / 2
-    frame.y = viewport.y - frame.height / 2
-  }
-  
-  // Append to page
-  figma.currentPage.appendChild(frame)
-  
-  // Scroll into view and select
-  figma.currentPage.selection = [frame]
-  figma.viewport.scrollAndZoomIntoView([frame])
-  
-  return frame
-}
 
 // Handle quick action
 on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, assistantId: string) {
@@ -682,84 +312,26 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
     return
     }
   
-  // Special handling for Content Table assistant
-  if (assistantId === 'content_table') {
-    if (actionId === 'generate-table') {
-      // Validate selection: must be exactly one container
-      if (selectionOrder.length === 0) {
-        const errorMsg = 'Select a single container to scan.'
-        sendAssistantMessage(errorMsg)
-        figma.notify(errorMsg)
+  // Check if handler exists for this assistant/action (handles actions that don't need LLM)
+  const handler = getHandler(assistantId, actionId)
+  if (handler) {
+    // Check if handler can handle the action without LLM call (e.g., Content Table scanning)
+    // For now, we'll let handler.handleResponse decide, but we need to check if it needs selection context
+    // Content Table handler needs to run before LLM call, so we check it here
+    if (assistantId === 'content_table' && actionId === 'generate-table') {
+      const handlerContext = {
+        assistantId,
+        actionId,
+        response: '', // Not used for Content Table
+        selectionOrder,
+        selection: summarizeSelection(selectionOrder),
+        provider: currentProvider || await createProvider(currentProviderId),
+        sendAssistantMessage
+      }
+      const result = await handler.handleResponse(handlerContext)
+      if (result.handled) {
         return
       }
-      
-      if (selectionOrder.length > 1) {
-        const errorMsg = 'Only one selection allowed. Select a single container.'
-        sendAssistantMessage(errorMsg)
-        figma.notify(errorMsg)
-        return
-      }
-      
-      // Get the selected node
-      const selectedNode = figma.getNodeById(selectionOrder[0])
-      if (!selectedNode) {
-        const errorMsg = 'Selected node not found.'
-        sendAssistantMessage(errorMsg)
-        figma.notify(errorMsg)
-        return
-      }
-      
-      // Validate it's a valid container (not DOCUMENT or PAGE)
-      if (selectedNode.type === 'DOCUMENT' || selectedNode.type === 'PAGE') {
-        const errorMsg = 'Please select a container (frame, component, etc.), not a page or document.'
-        sendAssistantMessage(errorMsg)
-        figma.notify(errorMsg)
-        return
-      }
-      
-      try {
-        // Send "Scanning..." message
-        sendAssistantMessage('Scanning...')
-        
-        // Scan the container (now async for thumbnail export)
-        const contentTable = await scanContentTable(selectedNode as SceneNode)
-        
-        // Send success message
-        const itemCount = contentTable.items.length
-        if (itemCount === 0) {
-          sendAssistantMessage('No text items found in the selected container.')
-        } else {
-          sendAssistantMessage(`Found ${itemCount} text item${itemCount === 1 ? '' : 's'}`)
-          sendAssistantMessage('Table generated')
-        }
-        
-        // Send table to UI
-        figma.ui.postMessage({
-          pluginMessage: {
-            type: 'CONTENT_TABLE_GENERATED',
-            table: contentTable
-          }
-        })
-        
-        console.log('[Main] Content table generated:', itemCount, 'items')
-        return
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        sendAssistantMessage(`Error: ${errorMessage}`)
-        figma.notify(`Error generating table: ${errorMessage}`)
-        
-        figma.ui.postMessage({
-          pluginMessage: {
-            type: 'CONTENT_TABLE_ERROR',
-            error: errorMessage
-          }
-        })
-        return
-      }
-    } else if (actionId === 'copy-ref-image') {
-      // Handle Copy Ref Image quick action
-      // This will be handled via direct message from UI, not through quick action
-      return
     }
   }
   
@@ -853,7 +425,7 @@ Use SEND JSON to import or GET JSON to export your designs.`
   
   // Build chat messages
   // Filter and normalize messages for provider
-  const chatMessages = normalizeMessages(
+  let chatMessages = normalizeMessages(
     messageHistory
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({
@@ -861,6 +433,21 @@ Use SEND JSON to import or GET JSON to export your designs.`
         content: m.content
       }))
   )
+  
+  // Allow handler to modify messages (e.g., Design Critique JSON enforcement)
+  if (handler && handler.prepareMessages) {
+    const modifiedMessages = handler.prepareMessages(chatMessages)
+    if (modifiedMessages) {
+      chatMessages = modifiedMessages
+      // Log final assembled messages for debugging (if Design Critique)
+      if (assistant.id === 'design_critique' && action.id === 'give-critique') {
+        console.log('[DC] FINAL_MESSAGES', chatMessages.map(m => ({
+          role: m.role,
+          contentPreview: m.content.substring(0, 120)
+        })))
+      }
+    }
+  }
   
   // Build selection context (includes state, summary, and images if needed)
   let selectionContext: Awaited<ReturnType<typeof buildSelectionContext>> | undefined
@@ -882,6 +469,22 @@ Use SEND JSON to import or GET JSON to export your designs.`
   
   // Call provider with quick action context
   try {
+    // Debug logging for Design Critique
+    if (assistant.id === 'design_critique' && action.id === 'give-critique') {
+      console.log('[DC] Calling provider.sendChat with:')
+      console.log('[DC] assistantId=', assistant.id)
+      console.log('[DC] quickActionId=', action.id)
+      console.log('[DC] hasSelection=', selectionContext.selection.hasSelection)
+      if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
+        const node = figma.getNodeById(selectionOrder[0])
+        if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
+          const anchor = getTopLevelContainerNode(node as SceneNode)
+          console.log('[DC] selectedNode=', node.name, 'id=', node.id)
+          console.log('[DC] anchor=', anchor.name, 'id=', anchor.id)
+        }
+      }
+    }
+    
     const response = await currentProvider.sendChat({
       messages: chatMessages,
       assistantId: assistant.id,
@@ -892,118 +495,27 @@ Use SEND JSON to import or GET JSON to export your designs.`
       quickActionId: action.id
     })
     
-    // Check if this is a Design Critique response
-    let designCritiqueHandled = false
-    if (assistant.id === 'design_critique' && action.id === 'give-critique') {
-      const DEBUG = true // Debug flag for Design Critique
-      
-      if (DEBUG) {
-        console.log('[DesignCritique] Processing response, length:', response.length)
-        console.log('[DesignCritique] First 300 chars:', response.substring(0, 300))
+    // Check if handler exists and can handle the response
+    let responseHandled = false
+    if (handler) {
+      const handlerContext = {
+        assistantId: assistant.id,
+        actionId: action.id,
+        response,
+        selectionOrder,
+        selection: selectionContext.selection,
+        provider: currentProvider!,
+        sendAssistantMessage
       }
       
-      designCritiqueHandled = true
-      
-      try {
-        // Get selected node if available
-        let selectedNode: SceneNode | undefined
-        if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
-          const node = figma.getNodeById(selectionOrder[0])
-          if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
-            selectedNode = node as SceneNode
-          }
-        }
-        
-        // Remove any existing scorecard artifacts first (before parsing)
-        removeExistingArtifacts('scorecard')
-        
-        // Attempt to parse as JSON scorecard
-        const scorecardBlock = fromDesignCritiqueJson(response)
-        
-        if (scorecardBlock && scorecardBlock.type === 'scorecard') {
-          // Valid JSON scorecard - render using new Auto-Layout renderer
-          if (DEBUG) {
-            console.log('[DesignCritique] ✅ Successfully parsed as JSON scorecard')
-            console.log('[DesignCritique] Score:', scorecardBlock.score)
-            console.log('[DesignCritique] Wins:', scorecardBlock.wins.length)
-            console.log('[DesignCritique] Fixes:', scorecardBlock.fixes.length)
-            console.log('[DesignCritique] Checklist:', scorecardBlock.checklist?.length ?? 0)
-            console.log('[DesignCritique] Notes:', scorecardBlock.notes?.length ?? 0)
-          }
-          
-          // Map ScorecardBlock to ScorecardData
-          const scorecardData: ScorecardData = {
-            score: scorecardBlock.score,
-            summary: scorecardBlock.summary ?? '',
-            wins: scorecardBlock.wins,
-            fixes: scorecardBlock.fixes,
-            checklist: scorecardBlock.checklist ?? [],
-            notes: scorecardBlock.notes
-          }
-          
-          // Render scorecard using v2 Auto-Layout renderer
-          await renderScorecardV2(scorecardData, selectedNode)
-          figma.notify('Scorecard placed (v2)')
-          console.log('[DesignCritique] ✅ Scorecard v2 rendered successfully')
-          return
-        } else {
-          // Invalid JSON - fallback to rich-text critique
-          if (DEBUG) {
-            console.log('[DesignCritique] ❌ Failed to parse as JSON scorecard, falling back to rich-text')
-            // Check what went wrong
-            const jsonFenceMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/)
-            const extractionMethod = jsonFenceMatch ? 'code fence' : 'balanced JSON'
-            console.log('[DesignCritique] Extraction method attempted:', extractionMethod)
-            
-            // Try to identify validation failures
-            try {
-              const jsonString = jsonFenceMatch ? jsonFenceMatch[1].trim() : null
-              if (!jsonString) {
-                const firstBrace = response.indexOf('{')
-                if (firstBrace === -1) {
-                  console.log('[DesignCritique] Validation failure: No JSON object found in response')
-                } else {
-                  console.log('[DesignCritique] Validation failure: Could not extract balanced JSON')
-                }
-              } else {
-                const parsed = JSON.parse(jsonString)
-                if (typeof parsed.score !== 'number' || parsed.score < 0 || parsed.score > 100) {
-                  console.log('[DesignCritique] Validation failure: Invalid or missing score field')
-                }
-                if (!Array.isArray(parsed.wins)) {
-                  console.log('[DesignCritique] Validation failure: Missing or invalid wins array')
-                }
-                if (!Array.isArray(parsed.fixes)) {
-                  console.log('[DesignCritique] Validation failure: Missing or invalid fixes array')
-                }
-              }
-            } catch (e) {
-              console.log('[DesignCritique] Validation failure: JSON parse error:', e)
-            }
-          }
-          
-          // Remove any existing v2 scorecards before placing rich-text fallback
-          // (Already done above, but ensure cleanup)
-          removeExistingArtifacts('scorecard', 'v2')
-          
-          // Place rich-text critique
-          await placeCritiqueOnCanvas(response, selectedNode)
-          figma.notify('Scorecard JSON parse failed — placed rich text')
-          console.log('[DesignCritique] ⚠️ Fallback: Rich text critique placed')
-          return
-        }
-      } catch (error) {
-        console.error('[DesignCritique] Error processing critique:', error)
-        const errorMessage = error instanceof Error 
-          ? error.message 
-          : 'Unknown error processing critique'
-        figma.notify(`Error: ${errorMessage}`)
-        return
+      const result = await handler.handleResponse(handlerContext)
+      if (result.handled) {
+        responseHandled = true
       }
     }
     
-    // Only send response to chat if NOT a Design Critique action (or if Design Critique handling failed)
-    if (!designCritiqueHandled) {
+    // Only send response to chat if handler didn't handle it
+    if (!responseHandled) {
       sendAssistantMessage(response)
     }
   } catch (error) {

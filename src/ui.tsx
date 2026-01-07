@@ -1374,15 +1374,40 @@ function Plugin() {
     }
   }, [contentTable, debugLog])
   
-  // Send to Confluence (stub)
+  // Send to Confluence (uses Work adapter)
   const handleSendToConfluence = useCallback(async (format: TableFormatPreset) => {
     if (!contentTable) return
     
-    // Stub: Show message and copy instead
+    // Use Work adapter if available
+    const { workAdapter } = await import('./core/work/adapter')
+    if (workAdapter.confluenceApi) {
+      try {
+        await workAdapter.confluenceApi.sendTable(contentTable, format)
+        const message: Message = {
+          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          role: 'assistant',
+          content: `Table sent to Confluence (${format}).`,
+          timestamp: Date.now()
+        }
+        setMessages(prev => [...prev, message])
+        return
+      } catch (error) {
+        const errorMessage: Message = {
+          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          role: 'assistant',
+          content: `Failed to send to Confluence: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: Date.now()
+        }
+        setMessages(prev => [...prev, errorMessage])
+        return
+      }
+    }
+    
+    // Fallback: Show message and copy instead
     const message: Message = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       role: 'assistant',
-      content: 'Confluence integration not configured yet — copying HTML instead.',
+      content: 'Confluence integration not configured — copying HTML instead.',
       timestamp: Date.now()
     }
     setMessages(prev => [...prev, message])
@@ -1956,14 +1981,7 @@ ${htmlTable}
                     color: 'var(--muted)',
                     maxWidth: '100%'
                   }}>
-                    <div style={{
-                      width: '12px',
-                      height: '12px',
-                      border: '2px solid var(--muted)',
-                      borderTopColor: 'var(--accent)',
-                      borderRadius: '50%',
-                      animation: 'spin 0.8s linear infinite'
-                    }} />
+                    <div className="spinner" />
                     <span>{message.content}</span>
                   </div>
                 ) : (

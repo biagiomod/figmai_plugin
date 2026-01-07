@@ -706,8 +706,12 @@ async function buildColumnSectionV2(
  */
 export async function renderScorecardV2(
   data: ScorecardData,
-  selectedNode?: SceneNode
+  selectedNode?: SceneNode,
+  debug?: { runId?: string }
 ): Promise<FrameNode> {
+  const runId = debug?.runId || 'unknown'
+  console.log(`[DC ${runId}] renderScorecardV2 ENTER`)
+  
   const DEBUG = true
   let root: FrameNode | null = null
   
@@ -803,6 +807,7 @@ export async function renderScorecardV2(
     figma.currentPage.selection = [root]
     figma.viewport.scrollAndZoomIntoView([root])
     
+    console.log(`[DC ${runId}] renderScorecardV2 EXIT`, { childCount: root.children.length, rootName: root.name, rootId: root.id })
     return root
   } catch (error) {
     console.error('[renderScorecardV2] Error during render:', error)
