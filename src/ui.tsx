@@ -1,3 +1,70 @@
+/**
+ * FigmAI Plugin - UI Thread
+ * 
+ * ARCHITECTURE OVERVIEW
+ * =====================
+ * 
+ * This file is the React-based UI component for the FigmAI plugin. It runs in an iframe
+ * and communicates with the main thread (main.ts) via postMessage. The UI thread is
+ * stateless - the main thread maintains message history and is the single source of truth.
+ * 
+ * UI ↔ MAIN MESSAGE CONTRACT
+ * ---------------------------
+ * 
+ * UI → Main (emit):
+ * - 'SEND_MESSAGE': User sends a message
+ * - 'RUN_QUICK_ACTION': User clicks a quick action
+ * - 'SET_ASSISTANT': User selects an assistant
+ * - 'SET_MODE': User changes mode (simple/advanced)
+ * - 'SET_LLM_PROVIDER': User changes provider
+ * - 'SAVE_SETTINGS': User saves settings
+ * - 'REQUEST_SELECTION_STATE': Request current selection state
+ * - 'REQUEST_SETTINGS': Request current settings
+ * - 'RESET': Reset conversation
+ * 
+ * Main → UI (postMessage):
+ * - 'ASSISTANT_MESSAGE': New message (user or assistant)
+ * - 'SELECTION_STATE': Current selection state
+ * - 'SETTINGS_RESPONSE': Current settings
+ * - 'TOOL_RESULT': Tool execution result
+ * - 'SCORECARD_PLACED': Scorecard rendered to canvas
+ * - 'CONTENT_TABLE_GENERATED': Content table generated
+ * - 'RESET_DONE': Reset completed
+ * 
+ * STATUS / PROGRESS MESSAGING PATTERNS
+ * ------------------------------------
+ * - UI can show loading states optimistically (e.g., "Analyzing...")
+ * - Main thread sends actual messages via 'ASSISTANT_MESSAGE'
+ * - UI should not add messages optimistically to prevent duplicates
+ * - Main thread is the source of truth for message history
+ * 
+ * WHERE ASSISTANT-SPECIFIC UI LOGIC BELONGS
+ * -----------------------------------------
+ * - Assistant selection UI: This file (ui.tsx)
+ * - Quick action buttons: This file (ui.tsx)
+ * - Message display: This file (ui.tsx)
+ * - Settings UI: ui/components/SettingsModal.tsx
+ * - Rich text rendering: ui/components/RichTextRenderer.tsx
+ * - Assistant-specific rendering: Handlers in main thread (not UI)
+ * 
+ * WHAT SHOULD NEVER BE ADDED HERE
+ * --------------------------------
+ * - Business logic: Should be in main thread or handlers
+ * - Message history management: Main thread maintains this
+ * - Provider calls: Should go through main thread
+ * - Canvas rendering: Should be in main thread or handlers
+ * - Selection processing: Should be in main thread
+ * - Work adapter calls: Can be here (e.g., Confluence integration), but should
+ *   be minimal and delegate to adapter
+ * 
+ * IMPORTANT ASSUMPTIONS
+ * ---------------------
+ * - UI is stateless: Main thread maintains message history
+ * - Messages arrive via postMessage: Don't maintain local message state
+ * - Main thread is source of truth: Trust messages from main thread
+ * - Work adapter is imported dynamically: Use `await import('./core/work/adapter')`
+ */
+
 import {
   Button,
   Container,

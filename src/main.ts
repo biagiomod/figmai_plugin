@@ -1,3 +1,69 @@
+/**
+ * FigmAI Plugin - Main Thread
+ * 
+ * ARCHITECTURE OVERVIEW
+ * =====================
+ * 
+ * This file is the orchestrator for the FigmAI plugin's main thread. It runs in Figma's
+ * plugin sandbox and has access to the Figma API. It communicates with the UI thread
+ * (ui.tsx) via postMessage.
+ * 
+ * ROLE OF MAIN.TS
+ * ---------------
+ * - Message routing: Receives events from UI, routes to appropriate handlers
+ * - Handler orchestration: Looks up and executes assistant handlers
+ * - Provider management: Creates and manages LLM provider instances
+ * - Selection context building: Builds selection state, summary, and images
+ * - Canvas rendering: Delegates rendering to handlers or default flow
+ * - Message history: Maintains conversation history (single source of truth)
+ * 
+ * MESSAGE ROUTING RESPONSIBILITIES
+ * --------------------------------
+ * - Receives events via `on<HandlerType>()` from UI thread
+ * - Routes quick actions to handlers via `getHandler()`
+ * - Sends responses back to UI via `figma.ui.postMessage()`
+ * - Maintains message history in `messageHistory` array
+ * 
+ * HANDLER EXECUTION LIFECYCLE
+ * ----------------------------
+ * 1. Handler lookup: `getHandler(assistantId, actionId)`
+ * 2. Pre-LLM handler (optional): Some handlers run before provider call
+ *    - Example: Content Table scanning (no LLM needed)
+ *    - Returns `{ handled: true }` to skip LLM call
+ * 3. Message preparation: Build selection context, normalize messages
+ * 4. Handler.prepareMessages() (optional): Modify messages before LLM call
+ *    - Example: Design Critique adds JSON enforcement messages
+ * 5. Provider call: `provider.sendChat()` with normalized messages
+ * 6. Post-LLM handler (optional): Process provider response
+ *    - Example: Design Critique parses JSON, renders scorecard
+ *    - Returns `{ handled: true }` to skip default message display
+ * 7. Default flow: If handler didn't handle, send response to UI as chat message
+ * 
+ * WHERE ADAPTERS ARE INVOKED
+ * ---------------------------
+ * - Work adapter is imported dynamically in UI thread (ui.tsx)
+ * - Main thread does not directly call work adapter
+ * - Extension points are called in:
+ *   - Content Table scanner: `workAdapter.designSystem?.shouldIgnore(node)`
+ *   - UI Confluence integration: `workAdapter.confluenceApi?.sendTable(table, format)`
+ * 
+ * WHAT MUST REMAIN STABLE FOR WORK MIGRATION
+ * ------------------------------------------
+ * - Handler pattern: Work Plugin can add handlers, but not modify core
+ * - Provider system: Work Plugin can add providers, but not modify core
+ * - Rendering systems: Work Plugin should reuse as-is
+ * - Message flow: Work Plugin should not change message contract
+ * - Selection context: Work Plugin can extend, but not modify core
+ * 
+ * IMPORTANT ASSUMPTIONS
+ * ---------------------
+ * - Main thread is the single source of truth for message history
+ * - UI thread is stateless and displays messages as they arrive
+ * - Handlers are responsible for assistant-specific logic
+ * - Providers normalize all requests/responses
+ * - Selection context is built once per request
+ */
+
 import { on, once, showUI } from '@create-figma-plugin/utilities'
 
 import { BRAND } from './core/brand'
