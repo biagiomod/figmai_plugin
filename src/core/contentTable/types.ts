@@ -3,6 +3,8 @@
  * Single Source of Truth for content inventory data
  */
 
+import type { DesignSystemDetectionResult } from '../work/adapter'
+
 /**
  * Table-level metadata (rendered in meta row)
  */
@@ -42,6 +44,8 @@ export type UniversalContentTableV1 = {
   /** Table-level metadata (for meta row) */
   meta: TableMetaV1
   items: ContentItemV1[]
+  /** Design system detection results keyed by node ID (Work-only feature) */
+  designSystemByNodeId?: Record<string, DesignSystemDetectionResult>
 }
 
 export type ContentItemV1 = {
@@ -79,6 +83,8 @@ export type ContentItemV1 = {
   adaNotes?: string
   /** Error Message - populated if Field/Role === "Error", otherwise blank */
   errorMessage?: string
+  /** Design system detection result for this node (Work-only feature) */
+  designSystem?: DesignSystemDetectionResult
 }
 
 /**
@@ -94,4 +100,3 @@ export type TableFormatPreset =
   | "content-model-5"
   | "ada-only"
   | "dev-only"
-

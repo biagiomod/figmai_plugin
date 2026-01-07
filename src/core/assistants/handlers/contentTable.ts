@@ -51,14 +51,15 @@ export class ContentTableHandler implements AssistantHandler {
       // Send "Scanning..." message
       sendAssistantMessage('Scanning...')
 
-      // Load Work adapter and get ignore rules (Work-only feature)
-      // If no override file exists, adapter will be no-op and rules will be null
+      // Load Work adapter and get ignore rules and design system detector (Work-only features)
+      // If no override file exists, adapter will be no-op and rules/detector will be null/undefined
       const workAdapter = await loadWorkAdapter()
       const ignoreRules = workAdapter.getContentTableIgnoreRules?.() || null
+      const detectDesignSystemComponent = workAdapter.detectDesignSystemComponent
 
       // Scan the container (now async for thumbnail export)
-      // Pass ignore rules to scanner (will be null in Public Plugin, applied in Work Plugin)
-      const contentTable = await scanContentTable(selectedNode as SceneNode, ignoreRules)
+      // Pass ignore rules and design system detector to scanner (will be null/undefined in Public Plugin, applied in Work Plugin)
+      const contentTable = await scanContentTable(selectedNode as SceneNode, ignoreRules, detectDesignSystemComponent)
 
       // Send success message
       const itemCount = contentTable.items.length
@@ -94,4 +95,3 @@ export class ContentTableHandler implements AssistantHandler {
     }
   }
 }
-

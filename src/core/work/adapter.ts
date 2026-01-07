@@ -54,6 +54,23 @@ export interface ContentTableIgnoreRules {
 }
 
 /**
+ * Design System Detection Result
+ * Work-only: Result of detecting whether a node is part of a design system
+ */
+export interface DesignSystemDetectionResult {
+  /** Whether this node is identified as a design system component */
+  isDesignSystem: boolean
+  /** Name of the design system (e.g., "Internal DS", "Material Design") */
+  systemName?: string
+  /** Component key if detected */
+  componentKey?: string
+  /** Component name if detected */
+  componentName?: string
+  /** Reason for detection (e.g., "Matches component key pattern", "Known DS component") */
+  reason?: string
+}
+
+/**
  * Work Adapter Interface
  * Defines extension points for Work-only features
  */
@@ -88,5 +105,14 @@ export interface WorkAdapter {
    * Work-only: Get ignore rules for filtering nodes during Content Table scanning
    */
   getContentTableIgnoreRules?: () => ContentTableIgnoreRules
-}
 
+  /**
+   * Design System Component Detector
+   * Work-only: Detect if a node is part of a design system component
+   * Called during Content Table scanning to identify DS components
+   * 
+   * @param node - The Figma node to check
+   * @returns Detection result, or null if not a DS component
+   */
+  detectDesignSystemComponent?: (node: SceneNode) => DesignSystemDetectionResult | null
+}

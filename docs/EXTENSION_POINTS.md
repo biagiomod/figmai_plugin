@@ -90,7 +90,106 @@ export default workAdapter
 
 ---
 
-### 2. Design System Component Detection
+### 2. Design System Component Detector (Content Table Scanner)
+
+**Location:** `core/contentTable/scanner.ts` and `core/assistants/handlers/contentTable.ts`
+
+**Purpose:** Identify design system components during Content Table scanning (e.g., internal DS components, component library items) without leaking proprietary detection logic into the Public plugin.
+
+**Extension Point:**
+```typescript
+workAdapter.detectDesignSystemComponent?: (node: SceneNode) => DesignSystemDetectionResult | null
+```
+
+**When Called:**
+- During Content Table scanning, for each relevant node (FRAME, INSTANCE, COMPONENT, COMPONENT_SET, TEXT)
+- Results are cached by node.id to avoid redundant calls
+- Called before items are added to the table
+
+**Result Structure:**
+```typescript
+interface DesignSystemDetectionResult {
+  isDesignSystem: boolean              // Whether this node is a DS component
+  systemName?: string                  // Name of the design system (e.g., "Internal DS v2")
+  componentKey?: string                // Component key if detected
+  componentName?: string               // Component name if detected
+  reason?: string                      // Reason for detection (e.g., "Matches component key pattern")
+}
+```
+
+**Implementation Example:**
+```typescript
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter, DesignSystemDetectionResult } from '../core/work/adapter'
+
+const workAdapter: WorkAdapter = {
+  detectDesignSystemComponent(node: SceneNode): DesignSystemDetectionResult | null {
+    // Example: Check if node is an instance with a known DS component key
+    if (node.type === 'INSTANCE') {
+      const instance = node as InstanceNode
+      const mainComponent = instance.mainComponent
+      if (mainComponent) {
+        const componentKey = mainComponent.key
+        
+        // Example: Check against known DS component key patterns (Work-specific logic)
+        // This is where proprietary detection rules would go
+        if (componentKey && componentKey.startsWith('I:abc123')) {
+          return {
+            isDesignSystem: true,
+            systemName: 'Internal Design System v2',
+            componentKey: componentKey,
+            componentName: mainComponent.name,
+            reason: 'Matches internal DS component key pattern'
+          }
+        }
+      }
+    }
+    
+    // Example: Check node name for DS indicators
+    if (node.name.startsWith('DS/') || node.name.startsWith('DesignSystem/')) {
+      return {
+        isDesignSystem: true,
+        systemName: 'Internal Design System',
+        componentName: node.name,
+        reason: 'Node name indicates design system component'
+      }
+    }
+    
+    // Not a design system component
+    return null
+  }
+}
+
+export default workAdapter
+```
+
+**How It Works:**
+1. Handler loads Work adapter via `loadWorkAdapter()`
+2. Gets `detectDesignSystemComponent` callback if available
+3. Passes callback to `scanContentTable()` which calls it during node traversal
+4. Results are cached by node.id to avoid redundant calls
+5. Detection results are stored in two places:
+   - Per-item: `item.designSystem` field (only if `isDesignSystem: true`)
+   - Table-level: `table.designSystemByNodeId` map (all detected nodes)
+
+**Where to Find Detection Results:**
+- **Per-item**: Each `ContentItemV1` in `table.items[]` has an optional `designSystem?: DesignSystemDetectionResult` field
+- **Table-level map**: `table.designSystemByNodeId?: Record<string, DesignSystemDetectionResult>` contains all detected nodes keyed by node ID
+- Both fields are only present if detection found DS components (Work Plugin only)
+
+**Current Status:** ✅ **Implemented** - Extension point is called in Content Table handler and applied during scanning.
+
+**Notes:**
+- Detector is only called for relevant node types (FRAME, INSTANCE, COMPONENT, COMPONENT_SET, TEXT)
+- Results are cached by node.id to ensure performance
+- If detector throws an error, it's caught and logged, scanning continues
+- If no override file exists, detector is `undefined` and no detection occurs (Public Plugin behavior)
+- Detection does NOT affect filtering behavior (items are still included in table)
+- Detection results are recorded for future use (e.g., UI display, filtering, export)
+
+---
+
+### 3. Design System Detection (Legacy)
 
 **Location:** Where design system detection is needed (e.g., selection context, Content Table scanner)
 
@@ -423,6 +522,62 @@ To add a new extension point:
 - Don't break interface contracts
 - Don't scatter hook logic across multiple files
 - Don't hardcode Work-specific behavior in Public Plugin
+
+## Public Utilities for Work Plugin
+
+The Public Plugin provides utility functions that Work can use for common tasks like Confluence export.
+
+### XHTML Encoding Utilities
+
+**Location:** `core/encoding/xhtml.ts`
+
+**Purpose:** Provides safe XHTML encoding functions for use in Confluence export and other contexts requiring strict XHTML compliance. These utilities are pure TypeScript (no DOM dependencies) and work in both main thread and UI thread contexts.
+
+**Available Functions:**
+
+1. **`encodeXhtmlDocument(input: string): string`**
+   - Encodes a full XHTML document
+   - Converts attribute quotes from double to single
+   - Self-closes void elements (`<br>` → `<br />`, `<img>` → `<img />`)
+   - Removes parentheses from text nodes
+   - Removes non-ASCII characters from text nodes (replaced with spaces)
+   - Escapes ampersands (preserving valid entities like `&amp;`, `&#123;`)
+   - Encodes `<` and `>` in text nodes only (not inside tags)
+
+2. **`encodeXhtmlCellValue(input: string): string`**
+   - Stricter encoder for individual table cell values
+   - Does NOT introduce any HTML tags
+   - Applies: parentheses removal, non-ASCII removal, ampersand escaping, `<`/`>` encoding
+
+3. **`encodeFigmaUrl(input: string): string`**
+   - Encodes URLs safely for inclusion in XHTML attributes (e.g., `href`, `src`)
+   - Does not double-encode already-encoded sequences
+   - Conservative approach: only encodes problematic characters
+
+**Usage Example:**
+```typescript
+import { encodeXhtmlDocument, encodeXhtmlCellValue, encodeFigmaUrl } from '../core/encoding/xhtml'
+
+// In Work Plugin's Confluence export implementation
+const htmlTable = generateTableHtml(contentTable)
+const xhtmlTable = encodeXhtmlDocument(htmlTable)
+
+const cellValue = 'Price: $100 (USD) & café'
+const encodedCell = encodeXhtmlCellValue(cellValue) // 'Price: $100 USD &amp; caf '
+
+const url = 'https://www.figma.com/file/abc?node-id=123'
+const encodedUrl = encodeFigmaUrl(url) // Safe for href attribute
+```
+
+**Testing:**
+Run the test harness to verify encoding functions:
+```bash
+tsx scripts/test-xhtml-encoding.ts
+```
+
+**Current Status:** ✅ **Implemented** - Utilities are available for use in Work Plugin's Confluence integration.
+
+---
 
 ## Summary
 

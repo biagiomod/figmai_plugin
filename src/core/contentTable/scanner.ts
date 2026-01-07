@@ -4,7 +4,7 @@
  */
 
 import type { UniversalContentTableV1, ContentItemV1, TableMetaV1 } from './types'
-import type { ContentTableIgnoreRules } from '../work/adapter'
+import type { ContentTableIgnoreRules, DesignSystemDetectionResult } from '../work/adapter'
 // Note: SceneNode, TextNode, BaseNode are global types from @figma/plugin-typings (ambient types)
 
 /**
@@ -270,16 +270,46 @@ function shouldIgnoreTextNode(
  * Enhanced with deterministic ordering (top-to-bottom, left-to-right)
  * CRITICAL: Ignores hidden layers (node.visible === false) and does NOT traverse their children
  * Applies ignore rules if provided (Work-only feature)
+ * Records design system detection results (Work-only feature)
  */
 function collectTextNodes(
   rootNode: SceneNode,
   items: ContentItemV1[],
   currentPath: string[] = [],
-  ignoreRules: ContentTableIgnoreRules | null = null
+  ignoreRules: ContentTableIgnoreRules | null = null,
+  detectDesignSystemComponent?: (node: SceneNode) => DesignSystemDetectionResult | null,
+  designSystemCache: Map<string, DesignSystemDetectionResult | null> = new Map(),
+  designSystemByNodeId: Record<string, DesignSystemDetectionResult> = {}
 ): void {
   // CRITICAL RULE: Skip hidden nodes entirely
   if (!rootNode.visible) {
     return // Do NOT traverse children of hidden nodes
+  }
+  
+  // Detect design system for this node if detector is provided (Work-only feature)
+  // Cache results by node.id to avoid redundant calls
+  let dsResult: DesignSystemDetectionResult | null = null
+  if (detectDesignSystemComponent) {
+    if (designSystemCache.has(rootNode.id)) {
+      dsResult = designSystemCache.get(rootNode.id) ?? null
+    } else {
+      // Only call detector for relevant node types (keep it cheap)
+      const nodeType = rootNode.type
+      if (nodeType === 'FRAME' || nodeType === 'INSTANCE' || nodeType === 'COMPONENT' || nodeType === 'COMPONENT_SET' || nodeType === 'TEXT') {
+        try {
+          dsResult = detectDesignSystemComponent(rootNode)
+        } catch (error) {
+          console.warn(`[ContentTable] Design system detection failed for node ${rootNode.id}:`, error)
+          dsResult = null
+        }
+      }
+      designSystemCache.set(rootNode.id, dsResult)
+      
+      // Store in map if detected
+      if (dsResult && dsResult.isDesignSystem) {
+        designSystemByNodeId[rootNode.id] = dsResult
+      }
+    }
   }
   
   // If this is a text node, check ignore rules and add to items if not ignored
@@ -298,6 +328,9 @@ function collectTextNodes(
     
     const nodeUrl = buildCanonicalFigmaUrl(textNode.id)
     const role = inferFieldRole(textNode, breadcrumb)
+    
+    // Get DS detection result for this text node
+    const nodeDsResult = designSystemCache.get(textNode.id) ?? null
     
     const item: ContentItemV1 = {
       id: textNode.id,
@@ -324,7 +357,9 @@ function collectTextNodes(
       jiraTicket: '',
       adaNotes: '',
       // Error message: populate if role === "Error"
-      errorMessage: role === 'Error' ? textNode.characters : ''
+      errorMessage: role === 'Error' ? textNode.characters : '',
+      // Design system detection result (Work-only feature)
+      designSystem: nodeDsResult && nodeDsResult.isDesignSystem ? nodeDsResult : undefined
     }
     
     items.push(item)
@@ -348,6 +383,27 @@ function collectTextNodes(
         // Check if this node should be ignored (Work-only feature)
         if (shouldIgnoreTextNode(textNode, componentContext, ignoreRules)) {
           continue // Skip this node, continue to next child
+        }
+        
+        // Detect design system for this text node
+        let childDsResult: DesignSystemDetectionResult | null = null
+        if (detectDesignSystemComponent) {
+          if (designSystemCache.has(textNode.id)) {
+            childDsResult = designSystemCache.get(textNode.id) ?? null
+          } else {
+            try {
+              childDsResult = detectDesignSystemComponent(textNode)
+            } catch (error) {
+              console.warn(`[ContentTable] Design system detection failed for node ${textNode.id}:`, error)
+              childDsResult = null
+            }
+            designSystemCache.set(textNode.id, childDsResult)
+            
+            // Store in map if detected
+            if (childDsResult && childDsResult.isDesignSystem) {
+              designSystemByNodeId[textNode.id] = childDsResult
+            }
+          }
         }
         
         const childPath = [...currentPath, textNode.name]
@@ -381,14 +437,16 @@ function collectTextNodes(
           jiraTicket: '',
           adaNotes: '',
           // Error message: populate if role === "Error"
-          errorMessage: role === 'Error' ? textNode.characters : ''
+          errorMessage: role === 'Error' ? textNode.characters : '',
+          // Design system detection result (Work-only feature)
+          designSystem: childDsResult && childDsResult.isDesignSystem ? childDsResult : undefined
         }
         
         items.push(item)
       } else if ('children' in child) {
-        // Recursively scan child containers
+        // Recursively scan child containers (pass cache and map down)
         const childPath = [...currentPath, child.name]
-        collectTextNodes(child as SceneNode, items, childPath, ignoreRules)
+        collectTextNodes(child as SceneNode, items, childPath, ignoreRules, detectDesignSystemComponent, designSystemCache, designSystemByNodeId)
       }
     }
   }
@@ -429,22 +487,26 @@ async function exportThumbnail(node: SceneNode): Promise<string | undefined> {
  * 
  * @param selectedNode - The node to scan
  * @param ignoreRules - Optional ignore rules from Work adapter (Work-only feature)
+ * @param detectDesignSystemComponent - Optional design system detector from Work adapter (Work-only feature)
  */
 export async function scanContentTable(
   selectedNode: SceneNode,
-  ignoreRules: ContentTableIgnoreRules | null = null
+  ignoreRules: ContentTableIgnoreRules | null = null,
+  detectDesignSystemComponent?: (node: SceneNode) => DesignSystemDetectionResult | null
 ): Promise<UniversalContentTableV1> {
   const page = selectedNode.parent
   const pageName = page && page.type === 'PAGE' ? page.name : 'Unknown Page'
   const pageId = page && page.type === 'PAGE' ? page.id : ''
   
   const items: ContentItemV1[] = []
+  const designSystemCache = new Map<string, DesignSystemDetectionResult | null>()
+  const designSystemByNodeId: Record<string, DesignSystemDetectionResult> = {}
   
   // Collect all text nodes from the selected container
   // Start with root node name in path
   // CRITICAL: Hidden nodes are automatically skipped by collectTextNodes
-  // Work-only: Ignore rules are applied if provided
-  collectTextNodes(selectedNode, items, [selectedNode.name], ignoreRules)
+  // Work-only: Ignore rules and design system detection are applied if provided
+  collectTextNodes(selectedNode, items, [selectedNode.name], ignoreRules, detectDesignSystemComponent, designSystemCache, designSystemByNodeId)
   
   // Export thumbnail for root node
   const thumbnailDataUrl = await exportThumbnail(selectedNode)
@@ -464,7 +526,8 @@ export async function scanContentTable(
     thumbnailDataUrl: thumbnailDataUrl
   }
   
-  return {
+  // Build result object
+  const result: UniversalContentTableV1 = {
     type: "universal-content-table",
     version: 1,
     generatedAtISO: new Date().toISOString(),
@@ -477,5 +540,11 @@ export async function scanContentTable(
     meta: meta,
     items: items
   }
+  
+  // Add design system detection results if any were found (Work-only feature)
+  if (Object.keys(designSystemByNodeId).length > 0) {
+    result.designSystemByNodeId = designSystemByNodeId
+  }
+  
+  return result
 }
-
