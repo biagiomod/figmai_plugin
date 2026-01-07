@@ -11,6 +11,8 @@ import { routeToolCall } from './core/tools/toolRouter'
 import { summarizeSelection } from './core/context/selection'
 import { buildSelectionContext } from './core/context/selectionContext'
 import { createTextFrameOnCanvas } from './core/figma/createTextFrameOnCanvas'
+import { renderScorecard } from './core/figma/renderScorecard'
+import type { ScorecardData } from './core/figma/renderScorecard'
 import { saveSettings, getSettings } from './core/settings'
 import { ProxyError } from './core/proxy/client'
 import { ProviderError, ProviderErrorType } from './core/provider/provider'
@@ -33,6 +35,7 @@ import type {
   TestResultHandler,
   SettingsResponseHandler,
   ScorecardPlacedHandler,
+  ScorecardResult,
   UniversalContentTableV1,
   Message,
   SelectionState,
@@ -285,81 +288,195 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
 })
 
 /**
- * Place critique text on canvas as a simple text frame
- * MVP: No auto-layout, no parsing, just raw text
+ * Parse Design Critique markdown into scorecard schema
+ * Handles common markdown patterns: scores, sections, lists
  */
-async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNode): Promise<FrameNode> {
-  // Truncate very long text (cap at 20k chars)
-  const MAX_CHARS = 20000
-  let displayText = text
-  if (text.length > MAX_CHARS) {
-    displayText = text.substring(0, MAX_CHARS) + '\n\n(truncated)'
-  }
-  
-  // Load fonts (try Inter Regular, fallback to Roboto Regular)
-  let fontName: FontName
+function parseDesignCritiqueMarkdown(raw: string): ScorecardResult | null {
   try {
-    await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
-    fontName = { family: 'Inter', style: 'Regular' }
-  } catch {
-    try {
-      await figma.loadFontAsync({ family: 'Roboto', style: 'Regular' })
-      fontName = { family: 'Roboto', style: 'Regular' }
-    } catch {
-      // If both fail, use system default
-      fontName = { family: 'Inter', style: 'Regular' }
+    const text = raw.trim()
+    if (!text) return null
+    
+    // Extract overall score (handle various formats)
+    let overallScore = 50 // Default if not found
+    const scorePatterns = [
+      /(?:overall|total)\s*score[:\s]*(\d+(?:\.\d+)?)\s*(?:\/|\s*out\s*of)\s*10/i,
+      /(?:overall|total)\s*score[:\s]*(\d+(?:\.\d+)?)\s*(?:\/|\s*out\s*of)\s*100/i,
+      /####\s*(?:overall|total)\s*score[:\s]*(\d+(?:\.\d+)?)/i,
+      /###\s*(?:overall|total)\s*score[:\s]*(\d+(?:\.\d+)?)/i,
+      /##\s*(?:overall|total)\s*score[:\s]*(\d+(?:\.\d+)?)/i,
+      /#\s*(?:overall|total)\s*score[:\s]*(\d+(?:\.\d+)?)/i,
+      /score[:\s]*(\d+(?:\.\d+)?)\s*(?:\/|\s*out\s*of)\s*10/i,
+      /score[:\s]*(\d+(?:\.\d+)?)\s*(?:\/|\s*out\s*of)\s*100/i
+    ]
+    
+    for (const pattern of scorePatterns) {
+      const match = text.match(pattern)
+      if (match) {
+        const score = parseFloat(match[1])
+        if (!isNaN(score)) {
+          // Convert 0-10 scale to 0-100 if needed
+          if (score <= 10 && pattern.source.includes('10')) {
+            overallScore = Math.round(score * 10)
+          } else if (score <= 100) {
+            overallScore = Math.round(score)
+          }
+          break
+        }
+      }
     }
-  }
-  
-  // Create frame (NOT auto-layout)
-  const frame = figma.createFrame()
-  frame.name = 'FigmAI — Critique'
-  // No layoutMode, no padding, no itemSpacing - just a container
-  
-  // Create text node
-  const textNode = figma.createText()
-  textNode.name = 'Critique Text'
-  textNode.fontName = fontName
-  textNode.fontSize = 12
-  textNode.characters = displayText
-  textNode.textAutoResize = 'HEIGHT'
-  
-  // Constrain width to 640px
-  textNode.resize(640, textNode.height)
-  
-  // Append text to frame
-  frame.appendChild(textNode)
-  
-  // Resize frame to fit text
-  frame.resize(textNode.width, textNode.height)
-  
-  // Calculate placement
-  if (selectedNode) {
-    // Place to the right of selection (+40px)
-    const bounds = 'absoluteBoundingBox' in selectedNode ? selectedNode.absoluteBoundingBox : null
-    if (bounds) {
-      frame.x = bounds.x + bounds.width + 40
-      frame.y = bounds.y
+    
+    // Extract sections using heading patterns
+    const extractSection = (sectionName: string, text: string): string[] => {
+      const patterns = [
+        new RegExp(`(?:^|\\n)#{1,6}\\s*${sectionName}[:\\s]*\\n([\\s\\S]*?)(?=\\n#{1,6}|$)`, 'i'),
+        new RegExp(`(?:^|\\n)##?\\s*${sectionName}[:\\s]*\\n([\\s\\S]*?)(?=\\n#{1,6}|$)`, 'i'),
+        new RegExp(`(?:^|\\n)###?\\s*${sectionName}[:\\s]*\\n([\\s\\S]*?)(?=\\n#{1,6}|$)`, 'i'),
+        new RegExp(`(?:^|\\n)${sectionName}[:\\s]*\\n([\\s\\S]*?)(?=\\n(?:#{1,6}|[A-Z][a-z]+[:\\s]*\\n)|$)`, 'i')
+      ]
+      
+      for (const pattern of patterns) {
+        const match = text.match(pattern)
+        if (match) {
+          const content = match[1].trim()
+          if (content) {
+            // Extract list items (numbered or bulleted)
+            const items: string[] = []
+            const lines = content.split('\n')
+            
+            for (const line of lines) {
+              const trimmed = line.trim()
+              if (!trimmed) continue
+              
+              // Match numbered lists: 1. item, 2. item
+              const numberedMatch = trimmed.match(/^\d+\.\s*(.+)$/)
+              if (numberedMatch) {
+                items.push(numberedMatch[1].trim())
+                continue
+              }
+              
+              // Match bullet lists: - item, • item, * item
+              const bulletMatch = trimmed.match(/^[-•*]\s+(.+)$/)
+              if (bulletMatch) {
+                items.push(bulletMatch[1].trim())
+                continue
+              }
+              
+              // If line doesn't start with list marker but is not empty, include it
+              if (trimmed && !trimmed.match(/^#{1,6}\s/)) {
+                items.push(trimmed)
+              }
+            }
+            
+            return items.filter(item => item.length > 0)
+          }
+        }
+      }
+      
+      return []
+    }
+    
+    const wins = extractSection('wins?', text)
+    const fixes = extractSection('fixes?|improvements?|issues?', text)
+    const checklist = extractSection('checklist|next\\s*steps?|actions?', text)
+    const notes = extractSection('notes?|observations?|other', text)
+    
+    // Generate summary from first paragraph or first few lines
+    let summary = ''
+    const firstParagraph = text.split('\n\n')[0] || text.split('\n').slice(0, 3).join(' ')
+    if (firstParagraph && !firstParagraph.match(/^(overall|total)\s*score/i)) {
+      summary = firstParagraph.trim().substring(0, 200)
     } else {
-      // Fallback: use node position
-      frame.x = ('x' in selectedNode ? selectedNode.x : 0) + ('width' in selectedNode ? selectedNode.width : 0) + 40
-      frame.y = 'y' in selectedNode ? selectedNode.y : 0
+      summary = `Design critique with score ${overallScore}/100`
     }
-  } else {
-    // No selection: place at viewport center
-    const viewport = figma.viewport.center
-    frame.x = viewport.x - frame.width / 2
-    frame.y = viewport.y - frame.height / 2
+    
+    // Create items array from wins and fixes (for schema compatibility)
+    const items: Array<{ label: string; score: number; outOf: number; notes: string }> = []
+    
+    // Add wins as high-scoring items
+    wins.forEach(win => {
+      items.push({
+        label: win.substring(0, 50),
+        score: 4,
+        outOf: 5,
+        notes: win
+      })
+    })
+    
+    // Add fixes as low-scoring items
+    fixes.forEach(fix => {
+      items.push({
+        label: fix.substring(0, 50),
+        score: 2,
+        outOf: 5,
+        notes: fix
+      })
+    })
+    
+    // If no items, create a default item
+    if (items.length === 0) {
+      items.push({
+        label: 'Overall Design',
+        score: Math.round(overallScore / 20), // Convert 0-100 to 0-5 scale
+        outOf: 5,
+        notes: summary
+      })
+    }
+    
+    return {
+      type: 'scorecard',
+      version: 1,
+      summary: summary,
+      overallScore: overallScore,
+      items: items,
+      risks: fixes.length > 0 ? fixes.slice(0, 5) : [], // Use fixes as risks
+      actions: checklist.length > 0 ? checklist : fixes.slice(0, 5) // Use checklist or fixes as actions
+    }
+  } catch (error) {
+    console.error('[DesignCritique] Markdown parser error:', error)
+    return null
   }
+}
+
+/**
+ * Repair Design Critique response by converting markdown/text to JSON
+ * Makes a second LLM call with a focused prompt to extract/convert to scorecard JSON
+ */
+async function repairDesignCritiqueToJson(rawText: string, provider: Provider): Promise<string> {
+  const repairPrompt = `Convert the following design critique into a JSON object matching this exact schema:
+
+{
+  "type": "scorecard",
+  "version": 1,
+  "summary": "1-2 sentences summarizing overall design quality",
+  "overallScore": 0-100,
+  "items": [
+    { "label": "Dimension name", "score": 0-5, "outOf": 5, "notes": "Brief notes" }
+  ],
+  "risks": ["Risk 1", "Risk 2"],
+  "actions": ["Action 1", "Action 2"]
+}
+
+Design critique text:
+${rawText}
+
+Output ONLY a valid JSON object. No markdown, no code fences, no commentary.`
+
+  const repairMessages: ChatRequest['messages'] = [
+    {
+      role: 'user',
+      content: repairPrompt
+    }
+  ]
   
-  // Append to page
-  figma.currentPage.appendChild(frame)
+  console.log('[Main] Sending repair request to provider...')
+  const repaired = await provider.sendChat({
+    messages: repairMessages,
+    assistantId: 'design_critique',
+    assistantName: 'Design Critique',
+    quickActionId: undefined
+  })
   
-  // Scroll into view and select
-  figma.currentPage.selection = [frame]
-  figma.viewport.scrollAndZoomIntoView([frame])
-  
-  return frame
+  return repaired
 }
 
 // Handle quick action
@@ -584,35 +701,333 @@ Use SEND JSON to import or GET JSON to export your designs.`
       quickActionId: action.id
     })
     
-    // Check if this is a Design Critique response - place raw text on canvas
+    // Check if this is a Design Critique response and send to UI
     let designCritiqueHandled = false
     if (assistant.id === 'design_critique' && action.id === 'give-critique') {
       console.log('[Main] Processing Design Critique response, length:', response.length)
       designCritiqueHandled = true
       
       try {
-        // Get selected node if available
-        let selectedNode: SceneNode | undefined
-        if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
-          const node = figma.getNodeById(selectionOrder[0])
-          if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
-            selectedNode = node as SceneNode
+        // Robust JSON extraction function
+        const extractJsonObject = (text: string): string | null => {
+          // Step 1: Try direct parse first
+          try {
+            JSON.parse(text.trim())
+            return text.trim()
+          } catch {
+            // Continue to extraction
+          }
+          
+          // Step 2: Strip common markdown wrappers
+          let cleaned = text.trim()
+          
+          // Remove markdown code fences (```json ... ``` or ``` ... ```)
+          cleaned = cleaned.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
+          
+          // Remove leading/trailing whitespace and common prefixes
+          cleaned = cleaned.replace(/^[\s\n\r]*/, '').replace(/[\s\n\r]*$/, '')
+          
+          // Step 3: Find first '{' and extract balanced JSON object
+          const firstBrace = cleaned.indexOf('{')
+          if (firstBrace === -1) {
+            return null
+          }
+          
+          let depth = 0
+          let inString = false
+          let escapeNext = false
+          let start = firstBrace
+          
+          for (let i = firstBrace; i < cleaned.length; i++) {
+            const char = cleaned[i]
+            
+            if (escapeNext) {
+              escapeNext = false
+              continue
+            }
+            
+            if (char === '\\') {
+              escapeNext = true
+              continue
+            }
+            
+            if (char === '"' && !escapeNext) {
+              inString = !inString
+              continue
+            }
+            
+            if (!inString) {
+              if (char === '{') {
+                depth++
+              } else if (char === '}') {
+                depth--
+                if (depth === 0) {
+                  // Found balanced JSON object
+                  return cleaned.substring(start, i + 1)
+                }
+              }
+            }
+          }
+          
+          return null
+        }
+        
+        // Three-tier fallback: JSON → Markdown Parser → LLM Repair → Error
+        let scorecardResult: ScorecardResult | null = null
+        
+        // Tier 1: Try JSON parsing (direct or extracted)
+        let jsonString: string | null = null
+        let parseMethod: 'direct' | 'extracted' = 'direct'
+        
+        try {
+          // Try direct parse first
+          JSON.parse(response.trim())
+          jsonString = response.trim()
+          parseMethod = 'direct'
+        } catch {
+          // Extract JSON object from response (never throws, returns null on failure)
+          jsonString = extractJsonObject(response)
+          if (jsonString) {
+            parseMethod = 'extracted'
           }
         }
         
-        // Place critique text on canvas
-        await placeCritiqueOnCanvas(response, selectedNode)
-        console.log('[DesignCritique] Critique text placed on canvas')
+        if (jsonString) {
+          console.log(`[DesignCritique] JSON ${parseMethod === 'direct' ? 'direct parse' : 'extraction'} succeeded`)
+          
+          try {
+            const parsed = JSON.parse(jsonString)
+            
+            // Validate strict scorecard schema
+            if (
+              parsed.type === 'scorecard' &&
+              typeof parsed.version === 'number' &&
+              typeof parsed.summary === 'string' &&
+              typeof parsed.overallScore === 'number' &&
+              Array.isArray(parsed.items) &&
+              Array.isArray(parsed.risks) &&
+              Array.isArray(parsed.actions)
+            ) {
+              scorecardResult = {
+                type: 'scorecard',
+                version: parsed.version,
+                summary: parsed.summary,
+                overallScore: parsed.overallScore,
+                items: parsed.items.map((item: any) => ({
+                  label: String(item.label || ''),
+                  score: Number(item.score || 0),
+                  outOf: Number(item.outOf || 5),
+                  notes: String(item.notes || '')
+                })),
+                risks: parsed.risks.map((r: any) => String(r)),
+                actions: parsed.actions.map((a: any) => String(a))
+              }
+              console.log('[DesignCritique] Valid scorecard result parsed from JSON. Score:', scorecardResult.overallScore)
+            } else {
+              console.warn('[DesignCritique] JSON parsed but schema invalid. Expected type=scorecard, got:', parsed)
+              // Fall through to markdown parser
+            }
+              } catch (parseError) {
+            console.log('[DesignCritique] JSON parse failed -> trying markdown parser')
+          }
+        } else {
+          console.log('[DesignCritique] JSON parse failed -> trying markdown parser')
+        }
         
-        // Notify success
-        figma.notify('Critique added to stage')
+        // Tier 2: Try markdown parser if JSON failed
+        if (!scorecardResult) {
+          scorecardResult = parseDesignCritiqueMarkdown(response)
+          if (scorecardResult) {
+            console.log('[DesignCritique] Markdown parser succeeded. Score:', scorecardResult.overallScore)
+            } else {
+            console.log('[DesignCritique] Markdown parser failed')
+          }
+        }
+        
+        // Tier 3: Try LLM repair if both JSON and markdown parsing failed
+        if (!scorecardResult) {
+          console.log('[DesignCritique] Repair attempt starting')
+          
+          try {
+            const repairResponse = await repairDesignCritiqueToJson(response, currentProvider)
+            console.log('[DesignCritique] Repair attempt completed, length:', repairResponse.length)
+            
+            // Try to parse the repaired response
+            let repairedJsonString: string | null = null
+            let repairedParseMethod: 'direct' | 'extracted' = 'direct'
+            
+            try {
+              JSON.parse(repairResponse.trim())
+              repairedJsonString = repairResponse.trim()
+              repairedParseMethod = 'direct'
+            } catch {
+              repairedJsonString = extractJsonObject(repairResponse)
+              if (repairedJsonString) {
+                repairedParseMethod = 'extracted'
+              }
+            }
+            
+            if (repairedJsonString) {
+              console.log(`[DesignCritique] Repaired JSON ${repairedParseMethod === 'direct' ? 'direct parse' : 'extraction'} succeeded`)
+              
+              try {
+                const repairedParsed = JSON.parse(repairedJsonString)
+                
+                // Validate strict scorecard schema
+                if (
+                  repairedParsed.type === 'scorecard' &&
+                  typeof repairedParsed.version === 'number' &&
+                  typeof repairedParsed.summary === 'string' &&
+                  typeof repairedParsed.overallScore === 'number' &&
+                  Array.isArray(repairedParsed.items) &&
+                  Array.isArray(repairedParsed.risks) &&
+                  Array.isArray(repairedParsed.actions)
+                ) {
+                  scorecardResult = {
+                    type: 'scorecard',
+                    version: repairedParsed.version,
+                    summary: repairedParsed.summary,
+                    overallScore: repairedParsed.overallScore,
+                    items: repairedParsed.items.map((item: any) => ({
+                      label: String(item.label || ''),
+                      score: Number(item.score || 0),
+                      outOf: Number(item.outOf || 5),
+                      notes: String(item.notes || '')
+                    })),
+                    risks: repairedParsed.risks.map((r: any) => String(r)),
+                    actions: repairedParsed.actions.map((a: any) => String(a))
+                  }
+                  console.log('[DesignCritique] Repair success! Valid scorecard result parsed. Score:', scorecardResult.overallScore)
+        } else {
+                  console.warn('[DesignCritique] Repaired JSON parsed but schema invalid')
+                }
+              } catch (repairedParseError) {
+                console.error('[DesignCritique] Failed to parse repaired JSON:', repairedParseError)
+        }
+      } else {
+              console.error('[DesignCritique] Repair response did not contain valid JSON')
+            }
+          } catch (repairError) {
+            console.error('[DesignCritique] Repair attempt failed:', repairError)
+          }
+        }
+        
+        // If we have a valid scorecard result, render it
+        if (scorecardResult) {
+          // Send scorecard result to UI
+          figma.ui.postMessage({
+            pluginMessage: {
+              type: 'SCORECARD_RESULT',
+              payload: scorecardResult
+            }
+          })
+          console.log('[DesignCritique] Sent SCORECARD_RESULT to UI')
+          
+          // Render scorecard on canvas if selection exists
+          if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
+            const selectedNode = figma.getNodeById(selectionOrder[0])
+            if (selectedNode && selectedNode.type !== 'DOCUMENT' && selectedNode.type !== 'PAGE') {
+              try {
+                // Convert to legacy format for canvas rendering
+                const legacyScorecardData: ScorecardData = {
+                  score: scorecardResult.overallScore,
+                  summary: scorecardResult.summary,
+                  wins: scorecardResult.items.filter(i => i.score >= 4).map(i => i.label),
+                  fixes: scorecardResult.items.filter(i => i.score < 3).map(i => `${i.label}: ${i.notes}`),
+                  checklist: scorecardResult.items.map(i => i.label),
+                  notes: scorecardResult.risks
+                }
+                await renderScorecard(legacyScorecardData, selectedNode as SceneNode)
+                console.log('[DesignCritique] Scorecard frame rendered on canvas')
+              } catch (canvasError) {
+                console.error('[DesignCritique] Error rendering scorecard on canvas:', canvasError)
+                // Send error but don't fail the whole operation
+                figma.ui.postMessage({
+                  pluginMessage: {
+                    type: 'SCORECARD_ERROR',
+                    error: `Failed to render scorecard on canvas: ${canvasError instanceof Error ? canvasError.message : 'Unknown error'}`,
+                    raw: undefined
+                  }
+                })
+              }
+            }
+          }
+          
+          // Update status message
+          figma.ui.postMessage({
+            pluginMessage: {
+              type: 'SCORECARD_PLACED',
+              success: true,
+              message: 'Scorecard added to stage.'
+            }
+          })
+            return
+        }
+        
+        // Tier 4: All methods failed - show error
+        console.error('[DesignCritique] All parsing methods failed (JSON, markdown, repair)')
+        const errorMessage = 'Failed to parse design critique response. Tried JSON parsing, markdown parsing, and LLM repair.'
+        
+        // Send error to UI - do NOT create text frame or send response to chat
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'SCORECARD_ERROR',
+            error: errorMessage,
+            raw: response // Include full response so UI can show "Show raw response"
+          }
+        })
+        console.log('[DesignCritique] Sent SCORECARD_ERROR to UI')
+        
+        // Update status to error
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'SCORECARD_PLACED',
+            success: false,
+            message: 'Could not parse scorecard. Check console for details.'
+          }
+        })
         return
       } catch (error) {
-        console.error('[DesignCritique] Error placing critique on canvas:', error)
+        // Outer catch for unexpected errors during parsing/rendering
+        console.error('[DesignCritique] Unexpected error processing Design Critique:', error)
         const errorMessage = error instanceof Error 
           ? error.message 
-          : 'Unknown error placing critique on canvas'
-        figma.notify(`Error: ${errorMessage}`)
+          : 'Unknown error processing Design Critique response'
+        
+        // Log first 200 chars of response for debugging (Design Critique only)
+        const responsePreview = response.substring(0, 200)
+        console.log('[DesignCritique] Response preview (first 200 chars):', responsePreview)
+        
+        // Send error to UI - do NOT create text frame or send response to chat
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'SCORECARD_ERROR',
+            error: `Design Critique error: ${errorMessage}`,
+            raw: response // Include full response so UI can show "Show raw response"
+          }
+        })
+        console.log('[DesignCritique] Sent SCORECARD_ERROR to UI')
+        return
+      } catch (error) {
+        // Outer catch for unexpected errors during parsing/rendering
+        console.error('[DesignCritique] Unexpected error processing Design Critique:', error)
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'Unknown error processing Design Critique response'
+        
+        // Log first 200 chars of response for debugging (Design Critique only)
+        const responsePreview = response.substring(0, 200)
+        console.log('[DesignCritique] Response preview (first 200 chars):', responsePreview)
+        
+        // Send error to UI - do NOT create text frame or send response to chat
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'SCORECARD_ERROR',
+            error: `Design Critique error: ${errorMessage}`,
+            raw: response // Include full response so UI can show "Show raw response"
+          }
+        })
+        console.log('[DesignCritique] Sent SCORECARD_ERROR to UI')
         return
       }
     }

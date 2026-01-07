@@ -80,6 +80,9 @@ import {
 
 
 function Plugin() {
+  // Reset token to prevent late-arriving messages from re-hydrating stale state
+  const [resetToken, setResetToken] = useState(0)
+  
   // State
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   
@@ -95,7 +98,7 @@ function Plugin() {
   
   const [provider, setProvider] = useState<LlmProviderId>('openai')
   
-  // Default assistant: Content Table in simple mode, General in advanced mode
+  // Default assistant: General in simple mode, General in advanced mode
   const [assistant, setAssistant] = useState<AssistantType>(() => {
     const currentMode = (() => {
       try {
@@ -106,11 +109,7 @@ function Plugin() {
       }
     })()
     
-    if (currentMode === 'simple') {
-      const contentTable = getAssistant('content_table')
-      return contentTable || getDefaultAssistant()
-    }
-    return getDefaultAssistant()
+    return getDefaultAssistant(currentMode)
   })
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -234,12 +233,9 @@ function Plugin() {
       
       switch (message.type) {
         case 'RESET_DONE':
-          setMessages([])
-          setAssistant(getDefaultAssistant())
-          setMode('advanced')
-          setInput('')
-          setSelectionRequired(false)
-          setIncludeSelection(false)
+          // RESET_DONE from main thread - ensure UI is fully reset
+          // Use current mode (not 'advanced') to preserve user's mode preference
+          resetUIState(mode)
           break
         case 'SELECTION_STATE':
           if (message.state) {
@@ -250,7 +246,15 @@ function Plugin() {
           }
           break
         case 'ASSISTANT_MESSAGE':
-          if (message.message) {
+          // Check resetToken to ignore late-arriving messages after reset
+          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
+          // Exception: Always process RESET_DONE assistant messages (they come after reset)
+          const shouldProcessAssistantMessage = message.message && 
+            (message.resetToken === resetToken || 
+             (resetToken === 0 && message.resetToken === undefined) ||
+             (message.message.role === 'assistant' && message.message.content.includes('intro')))
+          
+          if (shouldProcessAssistantMessage) {
             console.log('[UI] setThinking false - ASSISTANT_MESSAGE received', { role: message.message.role })
             setMessages(prev => {
               // Main thread is the source of truth for user messages (prevents duplicates)
@@ -265,41 +269,90 @@ function Plugin() {
               return [...prev, message.message]
             })
             setIsLoading(false) // Stop loading when message arrives
+          } else {
+            console.log('[UI] Ignoring ASSISTANT_MESSAGE - resetToken mismatch or missing message', { 
+              messageToken: message.resetToken, 
+              currentToken: resetToken 
+            })
           }
           break
         case 'SCORECARD_RESULT':
           // Receive scorecard result from main thread
-          if (message.payload) {
+          // Check resetToken to ignore late-arriving messages after reset
+          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
+          const shouldProcessScorecardResult = message.payload && 
+            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
+          
+          if (shouldProcessScorecardResult) {
             console.log('[UI] Received SCORECARD_RESULT:', message.payload)
             console.log('[UI] setThinking false - SCORECARD_RESULT')
             setScorecard(message.payload)
             setScorecardError(null)
             setIsLoading(false)
+          } else {
+            console.log('[UI] Ignoring SCORECARD_RESULT - resetToken mismatch or missing payload', { 
+              messageToken: message.resetToken, 
+              currentToken: resetToken 
+            })
           }
           break
         case 'SCORECARD_ERROR':
           // Receive scorecard error from main thread
-          console.error('[UI] Received SCORECARD_ERROR:', message.error, message.raw)
-          console.log('[UI] setThinking false - SCORECARD_ERROR')
-          setScorecardError({ error: message.error || 'Unknown error', raw: message.raw })
-          setScorecard(null)
-          setIsLoading(false)
+          // Check resetToken to ignore late-arriving messages after reset
+          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
+          const shouldProcessScorecardError = 
+            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
+          
+          if (shouldProcessScorecardError) {
+            console.error('[UI] Received SCORECARD_ERROR:', message.error, message.raw)
+            console.log('[UI] setThinking false - SCORECARD_ERROR')
+            setScorecardError({ error: message.error || 'Unknown error', raw: message.raw })
+            setScorecard(null)
+            setIsLoading(false)
+          } else {
+            console.log('[UI] Ignoring SCORECARD_ERROR - resetToken mismatch', { 
+              messageToken: message.resetToken, 
+              currentToken: resetToken 
+            })
+          }
           break
         case 'CONTENT_TABLE_GENERATED':
           // Receive content table from main thread
-          if (message.table) {
+          // Check resetToken to ignore late-arriving messages after reset
+          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
+          const shouldProcessContentTable = message.table && 
+            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
+          
+          if (shouldProcessContentTable) {
             console.log('[UI] Received CONTENT_TABLE_GENERATED:', message.table)
             console.log('[UI] setThinking false - CONTENT_TABLE_GENERATED')
             setContentTable(message.table)
             setIsLoading(false)
+          } else {
+            console.log('[UI] Ignoring CONTENT_TABLE_GENERATED - resetToken mismatch or missing table', { 
+              messageToken: message.resetToken, 
+              currentToken: resetToken 
+            })
           }
           break
         case 'CONTENT_TABLE_ERROR':
           // Receive content table error from main thread
-          console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
-          console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
-          setContentTable(null)
-          setIsLoading(false)
+          // Check resetToken to ignore late-arriving messages after reset
+          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
+          const shouldProcessContentTableError = 
+            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
+          
+          if (shouldProcessContentTableError) {
+            console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
+            console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
+            setContentTable(null)
+            setIsLoading(false)
+          } else {
+            console.log('[UI] Ignoring CONTENT_TABLE_ERROR - resetToken mismatch', { 
+              messageToken: message.resetToken, 
+              currentToken: resetToken 
+            })
+          }
           break
         case 'CONTENT_TABLE_REF_IMAGE_READY':
           console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_READY, dataUrl length:', message.dataUrl?.length || 0)
@@ -313,8 +366,12 @@ function Plugin() {
           break
         case 'SCORECARD_PLACED':
           // Update status message when scorecard placement completes
-          // Match status message by stored ID or by finding the latest status message
-          if (message.message !== undefined) {
+          // Check resetToken to ignore late-arriving messages after reset
+          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
+          const shouldProcessScorecardPlaced = message.message !== undefined && 
+            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
+          
+          if (shouldProcessScorecardPlaced) {
             const success = message.success !== false // Default to success if not specified
             const statusStyle: 'success' | 'error' = success ? 'success' : 'error'
             
@@ -356,6 +413,11 @@ function Plugin() {
             })
             console.log('[UI] setThinking false - SCORECARD_PLACED')
             setIsLoading(false)
+          } else {
+            console.log('[UI] Ignoring SCORECARD_PLACED - resetToken mismatch', { 
+              messageToken: message.resetToken, 
+              currentToken: resetToken 
+            })
           }
           break
         case 'TOOL_RESULT':
@@ -424,17 +486,85 @@ function Plugin() {
   // Update assistant when mode changes
   useEffect(() => {
     if (mode === 'simple') {
-      const contentTable = getAssistant('content_table')
-      if (contentTable && assistant.id !== 'content_table') {
-        setAssistant(contentTable)
+      // In simple mode, ensure current assistant is available in simple mode
+      // If not, default to General
+      const simpleAssistants = listAssistantsByMode('simple')
+      const isCurrentAssistantAvailable = simpleAssistants.some(a => a.id === assistant.id)
+      if (!isCurrentAssistantAvailable) {
+        setAssistant(getDefaultAssistant('simple'))
       }
     }
   }, [mode, assistant.id])
   
+  // Comprehensive UI reset function - restores all state to initial values
+  const resetUIState = useCallback((currentMode: Mode) => {
+    // Clear all chat content
+    setMessages([])
+    setIsLoading(false)
+    
+    // Clear all error/success banners
+    setScorecardError(null)
+    setScorecard(null)
+    setContentTable(null)
+    setCopyStatus(null)
+    
+    // Clear input and draft text
+    setInput('')
+    setJsonInput('')
+    setJsonOutput('')
+    
+    // Reset assistant to default for current mode
+    setAssistant(getDefaultAssistant(currentMode))
+    
+    // Close all modals
+    setShowAssistantModal(false)
+    setShowSettingsModal(false)
+    setShowClearChatModal(false)
+    setShowSendJsonModal(false)
+    setShowGetJsonModal(false)
+    setShowFormatModal(false)
+    setShowTableView(false)
+    setShowCopyFormatModal(false)
+    
+    // Reset selection-related state
+    setSelectionRequired(false)
+    setIncludeSelection(false)
+    setShowSelectionHint(false)
+    setShowEmptyInputWarning(false)
+    
+    // Reset Content Table state
+    setSelectedFormat('universal')
+    setPendingAction(null)
+    setIsCopyingTable(false)
+    setIsCopyingRefImage(false)
+    
+    // Reset helper flags
+    setHasShownCode2DesignHelper(false)
+    setHasAutoOpenedSendJson(false)
+    setShowCopySuccess(false)
+    
+    // Reset status message refs
+    latestStatusMessageIdRef.current = null
+    
+    // Reset credits (show on fresh start)
+    setShowCredits(true)
+    setCreditsAutoCollapseTimer(null)
+    hasAutoCollapsedRef.current = false
+    
+    // Increment reset token to invalidate late-arriving messages
+    setResetToken(prev => prev + 1)
+    
+    console.log('[UI] UI state reset complete, resetToken incremented')
+  }, [])
+
   // Handlers
   const handleReset = useCallback(() => {
+    // Perform local UI reset immediately
+    resetUIState(mode)
+    
+    // Also emit RESET to main thread (for main thread state cleanup)
     emit<ResetHandler>('RESET')
-  }, [])
+  }, [mode, resetUIState])
 
   const handleClearChat = useCallback(() => {
     setMessages([])
@@ -461,9 +591,11 @@ function Plugin() {
     
     // Update default assistant when switching modes
     if (selectedMode === 'simple') {
-      const contentTable = getAssistant('content_table')
-      if (contentTable && assistant.id !== 'content_table') {
-        setAssistant(contentTable)
+      // In simple mode, default to General if current assistant is not available in simple mode
+      const simpleAssistants = listAssistantsByMode('simple')
+      const isCurrentAssistantAvailable = simpleAssistants.some(a => a.id === assistant.id)
+      if (!isCurrentAssistantAvailable) {
+        setAssistant(getDefaultAssistant('simple'))
       }
     } else if (selectedMode === 'advanced') {
       // In advanced mode, keep current assistant or default to General

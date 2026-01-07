@@ -72,6 +72,8 @@ Assume the user is an experienced designer who values clarity, prioritization, a
 **Self-check before responding:**
 If you are about to output anything other than raw JSON (markdown, code fences, explanatory text), STOP and rewrite your response to be ONLY valid JSON matching the schema above.
 
+**CRITICAL**: Return ONLY a JSON object. No markdown, no code fences, no commentary.
+
 ---
 
 ## Scoring Guidelines

@@ -319,13 +319,19 @@ export function listAssistants(): Assistant[] {
 
 /**
  * List assistants filtered by mode
- * Simple mode: Only shows Content Table
+ * Simple mode: Shows General, Content Table, and Design Critique
  * Advanced mode: Shows all assistants (including those hidden in simple mode)
  */
 export function listAssistantsByMode(mode: 'simple' | 'advanced'): Assistant[] {
   if (mode === 'simple') {
-    // Simple mode: Only Content Table
-    return ASSISTANTS.filter(a => a.id === 'content_table')
+    // Simple mode: Only General, Content Table, and Design Critique (in that order)
+    const simpleModeIds = ['general', 'content_table', 'design_critique']
+    return ASSISTANTS.filter(a => simpleModeIds.includes(a.id))
+      .sort((a, b) => {
+        const indexA = simpleModeIds.indexOf(a.id)
+        const indexB = simpleModeIds.indexOf(b.id)
+        return indexA - indexB
+      })
   }
   
   // Advanced mode: Show all assistants
@@ -334,8 +340,14 @@ export function listAssistantsByMode(mode: 'simple' | 'advanced'): Assistant[] {
 
 /**
  * Get default assistant
+ * Simple mode: Returns General
+ * Advanced mode: Returns first assistant (General)
  */
-export function getDefaultAssistant(): Assistant {
+export function getDefaultAssistant(mode?: 'simple' | 'advanced'): Assistant {
+  if (mode === 'simple') {
+    const general = ASSISTANTS.find(a => a.id === 'general')
+    return general || ASSISTANTS[0]
+  }
   return ASSISTANTS[0]
 }
 

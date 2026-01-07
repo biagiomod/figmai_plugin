@@ -20,6 +20,30 @@ export interface ScorecardData {
 }
 
 /**
+ * Safely set layoutSizingHorizontal to FILL only if parent is auto-layout
+ */
+function safeSetFill(node: SceneNode): void {
+  // Only FrameNode and TextNode support layoutSizingHorizontal
+  if (node.type !== 'FRAME' && node.type !== 'TEXT') {
+    return
+  }
+  
+  if (node.parent?.type === 'FRAME' && node.parent.layoutMode !== 'NONE') {
+    if (node.type === 'FRAME') {
+      (node as FrameNode).layoutSizingHorizontal = 'FILL'
+    } else if (node.type === 'TEXT') {
+      (node as TextNode).layoutSizingHorizontal = 'FILL'
+    }
+  } else {
+    if (node.type === 'FRAME') {
+      (node as FrameNode).layoutSizingHorizontal = 'FIXED'
+    } else if (node.type === 'TEXT') {
+      (node as TextNode).layoutSizingHorizontal = 'FIXED'
+    }
+  }
+}
+
+/**
  * Create a scorecard frame with structured critique data
  * Positions it 40px to the left of the root container
  */
@@ -32,9 +56,22 @@ export async function renderScorecard(
   await figma.loadFontAsync({ family: 'Inter', style: 'Bold' })
   await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' })
 
-  // Create main frame
+  // Create wrapper frame with auto-layout (required for FILL to work)
+  const wrapper = figma.createFrame()
+  wrapper.name = 'Design Critique — Scorecard'
+  wrapper.layoutMode = 'VERTICAL'
+  wrapper.primaryAxisSizingMode = 'AUTO'
+  wrapper.counterAxisSizingMode = 'FIXED'
+  wrapper.resize(640, 600) // Fixed width, auto height
+  wrapper.paddingTop = 0
+  wrapper.paddingRight = 0
+  wrapper.paddingBottom = 0
+  wrapper.paddingLeft = 0
+  wrapper.itemSpacing = 0
+
+  // Create main content frame (the actual scorecard)
   const frame = figma.createFrame()
-  frame.name = 'Design Critique — Scorecard'
+  frame.name = 'Scorecard Content'
   frame.layoutMode = 'VERTICAL'
   frame.paddingTop = 16
   frame.paddingRight = 16
@@ -45,13 +82,14 @@ export async function renderScorecard(
   frame.strokes = [{ type: 'SOLID', color: { r: 0.85, g: 0.85, b: 0.85 } }]
   frame.strokeWeight = 1
   frame.cornerRadius = 8
-  frame.resize(400, 600) // Initial size, will auto-resize
+  safeSetFill(frame) // Safe to set FILL since wrapper is auto-layout
+  wrapper.appendChild(frame)
 
   // Header row: Title + Score badge
   const headerRow = figma.createFrame()
   headerRow.name = 'Header'
   headerRow.layoutMode = 'HORIZONTAL'
-  headerRow.layoutSizingHorizontal = 'FILL'
+  safeSetFill(headerRow) // Safe to set FILL since frame is auto-layout
   headerRow.layoutSizingVertical = 'HUG'
   headerRow.itemSpacing = 12
   headerRow.counterAxisAlignItems = 'CENTER'
@@ -117,7 +155,7 @@ export async function renderScorecard(
     summaryText.fills = [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
     summaryText.characters = data.summary
     summaryText.textAutoResize = 'HEIGHT'
-    summaryText.layoutSizingHorizontal = 'FILL'
+    safeSetFill(summaryText) // Safe to set FILL since frame is auto-layout
     frame.appendChild(summaryText)
   }
 
@@ -152,18 +190,19 @@ export async function renderScorecard(
   // Find root container and calculate placement
   const rootContainer = findRootContainer(selectedNode)
   
-  // Append to page first (required for auto-layout to calculate size)
-  figma.currentPage.appendChild(frame)
+  // Append wrapper to page first (required for auto-layout to calculate size)
+  figma.currentPage.appendChild(wrapper)
   
-  // Calculate placement coordinates
-  const placement = calculateLeftPlacement(frame, rootContainer)
+  // Calculate placement coordinates (use wrapper for placement)
+  const placement = calculateLeftPlacement(wrapper, rootContainer)
   
-  // Apply placement
-  applyPlacement(frame, placement.x, placement.y)
+  // Apply placement to wrapper
+  applyPlacement(wrapper, placement.x, placement.y)
   
   // Log final position and container info
   console.log('[RenderScorecard] Scorecard positioned:', {
     score: data.score,
+    wrapperPosition: { x: wrapper.x, y: wrapper.y, width: wrapper.width, height: wrapper.height },
     framePosition: { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
     anchorContainer: placement.containerInfo
   })
@@ -180,7 +219,7 @@ function createSection(
   const section = figma.createFrame()
   section.name = title
   section.layoutMode = 'VERTICAL'
-  section.layoutSizingHorizontal = 'FILL'
+  safeSetFill(section) // Safe to set FILL since parent frame is auto-layout
   section.layoutSizingVertical = 'HUG'
   section.itemSpacing = 8
 
@@ -201,7 +240,7 @@ function createSection(
     itemText.fills = [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
     itemText.characters = `• ${item}`
     itemText.textAutoResize = 'HEIGHT'
-    itemText.layoutSizingHorizontal = 'FILL'
+    safeSetFill(itemText) // Safe to set FILL since section is auto-layout
     section.appendChild(itemText)
   }
 
