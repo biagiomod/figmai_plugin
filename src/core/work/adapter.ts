@@ -1,7 +1,9 @@
 /**
  * Work Adapter Interface
- * Public stub implementation for Work-only features
- * Work plugin will override this with real implementations
+ * Defines extension points for Work-only features
+ * 
+ * The Work Plugin can provide implementations via an override file.
+ * See loadAdapter.ts for how the adapter is loaded.
  */
 
 import type { UniversalContentTableV1 } from '../types'
@@ -13,6 +15,42 @@ export interface DesignSystemInfo {
   name: string
   version?: string
   tokens?: Record<string, unknown>
+}
+
+/**
+ * Content Table Ignore Rules
+ * Work-only: Rules for filtering nodes during Content Table scanning
+ */
+export interface ContentTableIgnoreRules {
+  /**
+   * Regex patterns to match against node names
+   * Example: ["^Debug", ".*FPO.*", ".*Test.*"]
+   */
+  nodeNamePatterns?: string[]
+
+  /**
+   * Node ID prefixes to ignore
+   * Example: ["I1234:", "I5678:"]
+   */
+  nodeIdPrefixes?: string[]
+
+  /**
+   * Component keys to allow (whitelist)
+   * If provided, only nodes with these component keys will be included
+   */
+  componentKeyAllowlist?: string[]
+
+  /**
+   * Component keys to deny (blacklist)
+   * Nodes with these component keys will be excluded
+   */
+  componentKeyDenylist?: string[]
+
+  /**
+   * Regex patterns to match against text content values
+   * Example: [".*lorem.*", ".*placeholder.*"]
+   */
+  textValuePatterns?: string[]
 }
 
 /**
@@ -44,15 +82,11 @@ export interface WorkAdapter {
   auth?: {
     getEnterpriseToken(): Promise<string>
   }
-}
 
-/**
- * Public stub implementation
- * Work plugin will override this with real implementations
- */
-export const workAdapter: WorkAdapter = {
-  confluenceApi: undefined, // Work will override
-  designSystem: undefined, // Work will override
-  auth: undefined // Work will override
+  /**
+   * Content Table Ignore Rules
+   * Work-only: Get ignore rules for filtering nodes during Content Table scanning
+   */
+  getContentTableIgnoreRules?: () => ContentTableIgnoreRules
 }
 

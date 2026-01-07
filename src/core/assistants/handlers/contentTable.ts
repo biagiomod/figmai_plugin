@@ -5,6 +5,7 @@
 
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import { scanContentTable } from '../../contentTable/scanner'
+import { loadWorkAdapter } from '../../work/loadAdapter'
 
 export class ContentTableHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string): boolean {
@@ -50,8 +51,14 @@ export class ContentTableHandler implements AssistantHandler {
       // Send "Scanning..." message
       sendAssistantMessage('Scanning...')
 
+      // Load Work adapter and get ignore rules (Work-only feature)
+      // If no override file exists, adapter will be no-op and rules will be null
+      const workAdapter = await loadWorkAdapter()
+      const ignoreRules = workAdapter.getContentTableIgnoreRules?.() || null
+
       // Scan the container (now async for thumbnail export)
-      const contentTable = await scanContentTable(selectedNode as SceneNode)
+      // Pass ignore rules to scanner (will be null in Public Plugin, applied in Work Plugin)
+      const contentTable = await scanContentTable(selectedNode as SceneNode, ignoreRules)
 
       // Send success message
       const itemCount = contentTable.items.length

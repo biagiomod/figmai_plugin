@@ -4,53 +4,89 @@ This document describes all extension points where the Work Plugin can inject pr
 
 ## Overview
 
-The Public Plugin exposes extension points via the Work Adapter (`core/work/adapter.ts`). The Work Plugin implements these extension points in `work/adapter.ts` to add Work-only features without modifying Public Plugin code.
+The Public Plugin exposes extension points via the Work Adapter (`core/work/adapter.ts`). The Work Plugin implements these extension points in `src/work/workAdapter.override.ts` to add Work-only features without modifying Public Plugin code.
+
+The adapter is loaded via `loadWorkAdapter()` which attempts to import the override file, falling back to a no-op adapter if not present.
 
 ## Extension Points
 
 ### 1. Ignore / Filter Rules (Content Table Scanner)
 
-**Location:** `core/contentTable/scanner.ts`
+**Location:** `core/contentTable/scanner.ts` and `core/assistants/handlers/contentTable.ts`
 
-**Purpose:** Filter out nodes that should be ignored during Content Table scanning (e.g., internal components, test content).
+**Purpose:** Filter out nodes that should be ignored during Content Table scanning (e.g., internal components, test content, debug nodes).
 
 **Extension Point:**
 ```typescript
-workAdapter.designSystem?.shouldIgnore(node: SceneNode): boolean
+workAdapter.getContentTableIgnoreRules?: () => ContentTableIgnoreRules
 ```
 
 **When Called:**
-- During Content Table scanning, before adding a node to the table
-- Called for each text node found in the selected container
+- Once per Content Table scan, in the handler before scanning begins
+- Rules are applied to each text node during scanning
 
-**Implementation Example:**
+**Rules Structure:**
 ```typescript
-// work/adapter.ts (Work Plugin)
-workAdapter.designSystem = {
-  shouldIgnore(node: SceneNode): boolean {
-    // Ignore nodes with specific name patterns
-    if (node.name.startsWith('_ignore') || node.name.startsWith('_test')) {
-      return true
-    }
-    
-    // Ignore nodes with specific plugin data
-    if (node.getPluginData('figmai.ignore') === 'true') {
-      return true
-    }
-    
-    // Ignore nodes in specific component libraries
-    if (node.parent?.name === 'Internal Components') {
-      return true
-    }
-    
-    return false
-  }
+interface ContentTableIgnoreRules {
+  nodeNamePatterns?: string[]        // Regex patterns for node names
+  nodeIdPrefixes?: string[]          // Node ID prefixes to ignore
+  componentKeyAllowlist?: string[]   // Component keys to allow (whitelist)
+  componentKeyDenylist?: string[]    // Component keys to deny (blacklist)
+  textValuePatterns?: string[]       // Regex patterns for text content
 }
 ```
 
-**Current Status:** ⚠️ **Not yet implemented** - Extension point exists in adapter interface, but scanner does not yet call it.
+**Implementation Example:**
+```typescript
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter, ContentTableIgnoreRules } from '../core/work/adapter'
 
-**Recommendation:** Add call to `workAdapter.designSystem?.shouldIgnore(node)` in `core/contentTable/scanner.ts` before adding nodes to table.
+const workAdapter: WorkAdapter = {
+  getContentTableIgnoreRules(): ContentTableIgnoreRules {
+    return {
+      // Ignore nodes with names matching these patterns
+      nodeNamePatterns: [
+        '^Debug',           // Nodes starting with "Debug"
+        '.*FPO.*',          // Nodes containing "FPO"
+        '.*Test.*',         // Nodes containing "Test"
+        '^_ignore'          // Nodes starting with "_ignore"
+      ],
+      
+      // Ignore nodes with specific ID prefixes (optional)
+      // nodeIdPrefixes: ['I1234:', 'I5678:'],
+      
+      // Only allow nodes from these component keys (optional)
+      // componentKeyAllowlist: ['abc123', 'def456'],
+      
+      // Deny nodes from these component keys (optional)
+      // componentKeyDenylist: ['xyz789'],
+      
+      // Ignore nodes with text content matching these patterns (optional)
+      textValuePatterns: [
+        '.*lorem.*',        // Text containing "lorem"
+        '.*placeholder.*'   // Text containing "placeholder"
+      ]
+    }
+  }
+}
+
+export default workAdapter
+```
+
+**How It Works:**
+1. Handler loads Work adapter via `loadWorkAdapter()`
+2. Calls `getContentTableIgnoreRules()` if available
+3. Passes rules to `scanContentTable()` which applies them during node collection
+4. Invalid regex patterns are safely ignored (logged as warnings, don't crash)
+5. Rules are applied with OR logic (if any rule matches, node is ignored)
+
+**Current Status:** ✅ **Implemented** - Extension point is called in Content Table handler and applied during scanning.
+
+**Notes:**
+- Regex patterns are compiled safely with try/catch
+- Invalid patterns are logged and ignored (plugin continues normally)
+- If no override file exists, rules are `null` and all nodes are included (Public Plugin behavior)
+- Rules only affect Content Table scanning, not other assistants
 
 ---
 
@@ -96,6 +132,8 @@ workAdapter.designSystem = {
     return null
   }
 }
+
+export default workAdapter
 ```
 
 **Current Status:** ⚠️ **Not yet implemented** - Extension point exists in adapter interface, but no call sites yet.
@@ -156,8 +194,11 @@ interface UniversalContentTableV1 {
 
 **Implementation Example:**
 ```typescript
-// work/adapter.ts (Work Plugin)
-workAdapter.confluenceApi = {
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter } from '../core/work/adapter'
+
+const workAdapter: WorkAdapter = {
+  confluenceApi: {
   async sendTable(table: UniversalContentTableV1, format: string): Promise<void> {
     // Get enterprise auth token
     const token = await workAdapter.auth?.getEnterpriseToken()
@@ -202,6 +243,8 @@ workAdapter.confluenceApi = {
     }
   }
 }
+
+export default workAdapter
 ```
 
 **UI Success/Error Messaging:**
@@ -230,8 +273,11 @@ workAdapter.auth?.getEnterpriseToken(): Promise<string>
 
 **Implementation Example:**
 ```typescript
-// work/adapter.ts (Work Plugin)
-workAdapter.auth = {
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter } from '../core/work/adapter'
+
+const workAdapter: WorkAdapter = {
+  auth: {
   async getEnterpriseToken(): Promise<string> {
     // Get token from secure storage
     const storedToken = await getTokenFromSecureStorage()
@@ -245,6 +291,8 @@ workAdapter.auth = {
     return newToken
   }
 }
+
+export default workAdapter
 ```
 
 **Current Status:** ⚠️ **Not yet implemented** - Extension point exists in adapter interface, but no call sites yet.
@@ -257,7 +305,7 @@ workAdapter.auth = {
 
 The Public Plugin exposes hooks by:
 
-1. **Defining interface** in `core/work/adapter.ts`:
+1. **Defining interface** in `core/work/adapter.ts` (interface only, no implementation):
    ```typescript
    export interface WorkAdapter {
      designSystem?: {
@@ -273,14 +321,12 @@ The Public Plugin exposes hooks by:
    }
    ```
 
-2. **Providing stub implementation**:
+2. **Loading adapter** via `loadWorkAdapter()`:
    ```typescript
-   export const workAdapter: WorkAdapter = {
-     designSystem: undefined,
-     confluenceApi: undefined,
-     auth: undefined
-   }
+   import { loadWorkAdapter } from './core/work/loadAdapter'
+   const workAdapter = await loadWorkAdapter()
    ```
+   This will use the override file if present, otherwise a no-op adapter.
 
 3. **Calling hooks with optional chaining**:
    ```typescript
@@ -303,21 +349,24 @@ The Public Plugin exposes hooks by:
 
 The Work Plugin implements hooks by:
 
-1. **Importing adapter**:
-   ```typescript
-   import { workAdapter } from '../core/work/adapter'
-   ```
+1. **Creating override file**: `src/work/workAdapter.override.ts`
 
-2. **Overriding stubs**:
+2. **Exporting WorkAdapter**:
    ```typescript
-   workAdapter.designSystem = {
-     shouldIgnore(node: SceneNode): boolean {
-       // Implementation
-     },
-     async detectSystem(node: SceneNode): Promise<DesignSystemInfo | null> {
-       // Implementation
+   import type { WorkAdapter } from '../core/work/adapter'
+   
+   const workAdapter: WorkAdapter = {
+     designSystem: {
+       shouldIgnore(node: SceneNode): boolean {
+         // Implementation
+       },
+       async detectSystem(node: SceneNode): Promise<DesignSystemInfo | null> {
+         // Implementation
+       }
      }
    }
+   
+   export default workAdapter
    ```
 
 3. **Following interface contracts**:
@@ -344,15 +393,9 @@ To add a new extension point:
    }
    ```
 
-2. **Add stub** in `core/work/adapter.ts`:
-   ```typescript
-   export const workAdapter: WorkAdapter = {
-     // ... existing stubs
-     newFeature: undefined
-   }
-   ```
+2. **No stub needed** - the loader will use defaultAdapter if override doesn't provide it.
 
-3. **Call hook** in Public Plugin code:
+3. **Call hook** in Public Plugin code (using `loadWorkAdapter()`):
    ```typescript
    if (workAdapter.newFeature) {
      const result = await workAdapter.newFeature.doSomething(input)
@@ -361,7 +404,7 @@ To add a new extension point:
 
 4. **Document** in this file (EXTENSION_POINTS.md)
 
-5. **Implement** in Work Plugin's `work/adapter.ts`
+5. **Implement** in Work Plugin's `src/work/workAdapter.override.ts`
 
 ## Best Practices
 
@@ -385,10 +428,11 @@ To add a new extension point:
 
 Extension points allow the Work Plugin to inject proprietary behavior without modifying Public Plugin code. All extension points are:
 
-- ✅ Defined in `core/work/adapter.ts`
+- ✅ Defined in `core/work/adapter.ts` (interface)
+- ✅ Loaded via `loadWorkAdapter()` (uses override if present, no-op otherwise)
 - ✅ Called with optional chaining
-- ✅ Implemented in Work Plugin's `work/adapter.ts`
+- ✅ Implemented in Work Plugin's `src/work/workAdapter.override.ts`
 - ✅ Documented in this file
 
-This ensures clean separation between Public and Work plugins while maintaining extensibility.
+This ensures clean separation between Public and Work plugins while maintaining extensibility. The Public Plugin compiles and runs without any Work-specific code.
 

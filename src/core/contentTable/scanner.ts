@@ -4,6 +4,7 @@
  */
 
 import type { UniversalContentTableV1, ContentItemV1, TableMetaV1 } from './types'
+import type { ContentTableIgnoreRules } from '../work/adapter'
 // Note: SceneNode, TextNode, BaseNode are global types from @figma/plugin-typings (ambient types)
 
 /**
@@ -195,24 +196,106 @@ function inferFieldRole(node: TextNode, path: string): string | undefined {
 }
 
 /**
+ * Compile regex patterns safely, returning null for invalid patterns
+ */
+function compileRegexPattern(pattern: string): RegExp | null {
+  try {
+    return new RegExp(pattern)
+  } catch (error) {
+    console.warn(`[ContentTable] Invalid regex pattern ignored: "${pattern}"`, error)
+    return null
+  }
+}
+
+/**
+ * Check if a text node should be ignored based on ignore rules
+ */
+function shouldIgnoreTextNode(
+  node: TextNode,
+  componentContext: { key?: string },
+  ignoreRules: ContentTableIgnoreRules | null
+): boolean {
+  if (!ignoreRules) {
+    return false // No rules = don't ignore
+  }
+
+  // Check node name patterns
+  if (ignoreRules.nodeNamePatterns && ignoreRules.nodeNamePatterns.length > 0) {
+    for (const pattern of ignoreRules.nodeNamePatterns) {
+      const regex = compileRegexPattern(pattern)
+      if (regex && regex.test(node.name)) {
+        return true // Matched ignore pattern
+      }
+    }
+  }
+
+  // Check node ID prefixes
+  if (ignoreRules.nodeIdPrefixes && ignoreRules.nodeIdPrefixes.length > 0) {
+    for (const prefix of ignoreRules.nodeIdPrefixes) {
+      if (node.id.startsWith(prefix)) {
+        return true // Matched ID prefix
+      }
+    }
+  }
+
+  // Check component key allowlist (if provided, only allow these)
+  if (ignoreRules.componentKeyAllowlist && ignoreRules.componentKeyAllowlist.length > 0) {
+    if (!componentContext.key || !ignoreRules.componentKeyAllowlist.includes(componentContext.key)) {
+      return true // Not in allowlist
+    }
+  }
+
+  // Check component key denylist
+  if (ignoreRules.componentKeyDenylist && ignoreRules.componentKeyDenylist.length > 0) {
+    if (componentContext.key && ignoreRules.componentKeyDenylist.includes(componentContext.key)) {
+      return true // In denylist
+    }
+  }
+
+  // Check text value patterns
+  if (ignoreRules.textValuePatterns && ignoreRules.textValuePatterns.length > 0) {
+    for (const pattern of ignoreRules.textValuePatterns) {
+      const regex = compileRegexPattern(pattern)
+      if (regex && regex.test(node.characters)) {
+        return true // Matched text value pattern
+      }
+    }
+  }
+
+  return false // No matches = don't ignore
+}
+
+/**
  * Recursively collect all text nodes from a node's subtree
  * Enhanced with deterministic ordering (top-to-bottom, left-to-right)
  * CRITICAL: Ignores hidden layers (node.visible === false) and does NOT traverse their children
+ * Applies ignore rules if provided (Work-only feature)
  */
-function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPath: string[] = []): void {
+function collectTextNodes(
+  rootNode: SceneNode,
+  items: ContentItemV1[],
+  currentPath: string[] = [],
+  ignoreRules: ContentTableIgnoreRules | null = null
+): void {
   // CRITICAL RULE: Skip hidden nodes entirely
   if (!rootNode.visible) {
     return // Do NOT traverse children of hidden nodes
   }
   
-  // If this is a text node, add it to items
+  // If this is a text node, check ignore rules and add to items if not ignored
   if (rootNode.type === 'TEXT') {
     const textNode = rootNode as TextNode
+    const componentContext = getComponentContext(textNode)
+    
+    // Check if this node should be ignored (Work-only feature)
+    if (shouldIgnoreTextNode(textNode, componentContext, ignoreRules)) {
+      return // Skip this node, but continue traversing children
+    }
+    
     const breadcrumb = currentPath.length > 0 
       ? currentPath.join(' / ')
       : textNode.name
     
-    const componentContext = getComponentContext(textNode)
     const nodeUrl = buildCanonicalFigmaUrl(textNode.id)
     const role = inferFieldRole(textNode, breadcrumb)
     
@@ -260,10 +343,16 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
       
       if (child.type === 'TEXT') {
         const textNode = child as TextNode
+        const componentContext = getComponentContext(textNode)
+        
+        // Check if this node should be ignored (Work-only feature)
+        if (shouldIgnoreTextNode(textNode, componentContext, ignoreRules)) {
+          continue // Skip this node, continue to next child
+        }
+        
         const childPath = [...currentPath, textNode.name]
         const breadcrumb = childPath.join(' / ')
         
-        const componentContext = getComponentContext(textNode)
         const nodeUrl = buildCanonicalFigmaUrl(textNode.id)
         const role = inferFieldRole(textNode, breadcrumb)
         
@@ -299,7 +388,7 @@ function collectTextNodes(rootNode: SceneNode, items: ContentItemV1[], currentPa
       } else if ('children' in child) {
         // Recursively scan child containers
         const childPath = [...currentPath, child.name]
-        collectTextNodes(child as SceneNode, items, childPath)
+        collectTextNodes(child as SceneNode, items, childPath, ignoreRules)
       }
     }
   }
@@ -337,8 +426,14 @@ async function exportThumbnail(node: SceneNode): Promise<string | undefined> {
 /**
  * Scan selected container and generate Universal Content Table
  * Now async to support thumbnail export
+ * 
+ * @param selectedNode - The node to scan
+ * @param ignoreRules - Optional ignore rules from Work adapter (Work-only feature)
  */
-export async function scanContentTable(selectedNode: SceneNode): Promise<UniversalContentTableV1> {
+export async function scanContentTable(
+  selectedNode: SceneNode,
+  ignoreRules: ContentTableIgnoreRules | null = null
+): Promise<UniversalContentTableV1> {
   const page = selectedNode.parent
   const pageName = page && page.type === 'PAGE' ? page.name : 'Unknown Page'
   const pageId = page && page.type === 'PAGE' ? page.id : ''
@@ -348,7 +443,8 @@ export async function scanContentTable(selectedNode: SceneNode): Promise<Univers
   // Collect all text nodes from the selected container
   // Start with root node name in path
   // CRITICAL: Hidden nodes are automatically skipped by collectTextNodes
-  collectTextNodes(selectedNode, items, [selectedNode.name])
+  // Work-only: Ignore rules are applied if provided
+  collectTextNodes(selectedNode, items, [selectedNode.name], ignoreRules)
   
   // Export thumbnail for root node
   const thumbnailDataUrl = await exportThumbnail(selectedNode)

@@ -1446,7 +1446,8 @@ function Plugin() {
     if (!contentTable) return
     
     // Use Work adapter if available
-    const { workAdapter } = await import('./core/work/adapter')
+    const { loadWorkAdapter } = await import('./core/work/loadAdapter')
+    const workAdapter = await loadWorkAdapter()
     if (workAdapter.confluenceApi) {
       try {
         await workAdapter.confluenceApi.sendTable(contentTable, format)

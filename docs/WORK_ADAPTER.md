@@ -12,90 +12,116 @@ The Work Adapter pattern provides a clean boundary between the Public Plugin (op
 ## Architecture
 
 ```
-Public Plugin                    Work Plugin
-─────────────────               ─────────────────
-core/work/adapter.ts            work/adapter.ts
-  (stubs)            ────────→    (real implementations)
+Public Plugin                          Work Plugin
+─────────────────                     ─────────────────
+core/work/loadAdapter.ts               src/work/workAdapter.override.ts
+  (loader)              ────────→      (real implementations)
+  ↓
+core/work/defaultAdapter.ts
+  (no-op fallback)
 ```
 
-The Public Plugin defines stubs in `core/work/adapter.ts`:
+The Public Plugin uses a loader pattern:
+1. `loadAdapter.ts` attempts to import `src/work/workAdapter.override.ts`
+2. If override exists, uses it
+3. If override doesn't exist, falls back to `defaultAdapter.ts` (no-op)
 
-```typescript
-export const workAdapter: WorkAdapter = {
-  confluenceApi: undefined, // Work will override
-  designSystem: undefined, // Work will override
-  auth: undefined // Work will override
-}
-```
-
-The Work Plugin overrides these stubs with real implementations.
+The Work Plugin provides a single override file that exports a `WorkAdapter`.
 
 ## How the Work Plugin Overrides
 
-### Method 1: Module Replacement (Recommended)
+### Override File Location
 
-The Work Plugin can use module replacement to override the adapter:
+Create a single file: `src/work/workAdapter.override.ts`
+
+**IMPORTANT:** This file is NOT committed to the Public repo (see `.gitignore`).
+
+### Override File Export Options
+
+The override file can export a `WorkAdapter` in two ways:
+
+#### Option 1: Default Export (Recommended)
 
 ```typescript
-// work/adapter.ts (Work Plugin)
-import { workAdapter } from '../core/work/adapter'
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter, DesignSystemInfo } from '../core/work/adapter'
+import type { UniversalContentTableV1 } from '../core/types'
 
-// Override stubs with real implementations
-workAdapter.confluenceApi = {
-  async sendTable(table: UniversalContentTableV1, format: string): Promise<void> {
-    // Real Confluence API call
-    const response = await fetch('https://confluence.internal/api/...', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${await getEnterpriseToken()}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        table: table,
-        format: format
+const workAdapter: WorkAdapter = {
+  confluenceApi: {
+    async sendTable(table: UniversalContentTableV1, format: string): Promise<void> {
+      // Real Confluence API call
+      const response = await fetch('https://confluence.internal/api/...', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${await getEnterpriseToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          table: table,
+          format: format
+        })
       })
-    })
-    if (!response.ok) {
-      throw new Error(`Confluence API error: ${response.statusText}`)
+      if (!response.ok) {
+        throw new Error(`Confluence API error: ${response.statusText}`)
+      }
+    }
+  },
+
+  designSystem: {
+    async detectSystem(node: SceneNode): Promise<DesignSystemInfo | null> {
+      // Real design system detection logic
+      return { name: 'Internal Design System', version: '2.0' }
+    },
+    
+    shouldIgnore(node: SceneNode): boolean {
+      // Real ignore rules
+      return node.name.startsWith('_ignore') || 
+             node.getPluginData('figmai.ignore') === 'true'
+    }
+  },
+
+  auth: {
+    async getEnterpriseToken(): Promise<string> {
+      // Real enterprise auth
+      return await getTokenFromSSO()
     }
   }
 }
 
-workAdapter.designSystem = {
-  async detectSystem(node: SceneNode): Promise<DesignSystemInfo | null> {
-    // Real design system detection logic
-    // Check node properties, component library, etc.
-    return { name: 'Internal Design System', version: '2.0' }
-  },
-  
-  shouldIgnore(node: SceneNode): boolean {
-    // Real ignore rules
-    // Check node name patterns, component properties, etc.
-    return node.name.startsWith('_ignore') || 
-           node.getPluginData('figmai.ignore') === 'true'
-  }
-}
-
-workAdapter.auth = {
-  async getEnterpriseToken(): Promise<string> {
-    // Real enterprise auth
-    // Get token from secure storage, SSO, etc.
-    return await getTokenFromSSO()
-  }
-}
+export default workAdapter
 ```
 
-### Method 2: Direct Import Override
-
-Alternatively, the Work Plugin can directly import and override:
+#### Option 2: Named Export Function
 
 ```typescript
-// In Work Plugin's entry point or initialization
-import { workAdapter } from './core/work/adapter'
-import { setupWorkAdapter } from './work/adapter'
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter } from '../core/work/adapter'
 
-setupWorkAdapter(workAdapter)
+export function createWorkAdapter(): WorkAdapter {
+  return {
+    confluenceApi: {
+      // ... implementation
+    },
+    designSystem: {
+      // ... implementation
+    },
+    auth: {
+      // ... implementation
+    }
+  }
+}
 ```
+
+### How the Loader Works
+
+The Public Plugin's `loadAdapter.ts`:
+1. Attempts to import `../../work/workAdapter.override`
+2. Checks for `default` export (WorkAdapter object)
+3. Checks for `createWorkAdapter()` function export
+4. Falls back to `defaultAdapter.ts` (no-op) if override doesn't exist
+
+This allows the Public Plugin to compile and run without any Work-specific code.
 
 ## What Belongs in the Work-Only File
 
@@ -173,8 +199,9 @@ workAdapter.auth = {
 ### Public Plugin Usage (ui.tsx)
 
 ```typescript
-// Dynamically import adapter
-const { workAdapter } = await import('./core/work/adapter')
+// Load adapter (will use override if present, otherwise no-op)
+const { loadWorkAdapter } = await import('./core/work/loadAdapter')
+const workAdapter = await loadWorkAdapter()
 
 if (workAdapter.confluenceApi) {
   await workAdapter.confluenceApi.sendTable(table, format)
@@ -190,13 +217,13 @@ if (workAdapter.confluenceApi) {
 
 Copy the entire Public Plugin codebase to the Work Plugin repository.
 
-### Step 2: Create Work Adapter File
+### Step 2: Create Work Adapter Override File
 
-Create `work/adapter.ts` in the Work Plugin with real implementations.
+Create `src/work/workAdapter.override.ts` in the Work Plugin with real implementations.
 
-### Step 3: Override Adapter
+### Step 3: Export WorkAdapter
 
-Use module replacement or direct import to override the adapter stubs.
+Export a `WorkAdapter` from the override file (see "How the Work Plugin Overrides" above).
 
 ### Step 4: Test Work Features
 
@@ -207,11 +234,11 @@ Test Confluence integration, design system detection, and enterprise auth.
 When Public Plugin is updated:
 
 1. Pull Public changes
-2. Merge conflicts (if any) will only be in `work/adapter.ts`
+2. Merge conflicts (if any) will only be in `src/work/workAdapter.override.ts`
 3. Test Work features still work
 4. Deploy
 
-**Expected merge conflicts:** Only in `work/adapter.ts` (single file)
+**Expected merge conflicts:** Only in `src/work/workAdapter.override.ts` (single file, not committed to Public repo)
 
 ## Extension Points
 
@@ -288,13 +315,14 @@ describe('Work Adapter', () => {
 
 ### Adapter methods are undefined
 
-- Check that Work Plugin's `work/adapter.ts` is properly overriding stubs
-- Verify module replacement is working
-- Check import paths
+- Check that `src/work/workAdapter.override.ts` exists and exports a valid `WorkAdapter`
+- Verify the override file uses correct export format (default or `createWorkAdapter()`)
+- Check that the override file path matches: `src/work/workAdapter.override.ts`
+- Enable DEBUG in `loadAdapter.ts` to see loader logs
 
-### Merge conflicts in adapter file
+### Merge conflicts in override file
 
-- This is expected and normal
+- This is expected and normal (override file is not in Public repo, but may exist locally)
 - Resolve conflicts by keeping Work-specific implementations
 - Test after resolving conflicts
 
@@ -306,12 +334,23 @@ describe('Work Adapter', () => {
 
 ---
 
+## Override File Path
+
+**Exact path:** `src/work/workAdapter.override.ts`
+
+**Export contract:**
+- Default export: `export default workAdapter` (where `workAdapter` is a `WorkAdapter`)
+- OR named export: `export function createWorkAdapter(): WorkAdapter`
+
+**Git ignore:** This file is ignored by `.gitignore` and should NOT be committed to the Public repo.
+
 ## Summary
 
-The Work Adapter pattern provides a clean, single-file boundary between Public and Work plugins. All proprietary logic lives in `work/adapter.ts`, ensuring:
+The Work Adapter pattern provides a clean, single-file boundary between Public and Work plugins. All proprietary logic lives in `src/work/workAdapter.override.ts`, ensuring:
 
 - ✅ Public Plugin remains clean and open-sourceable
-- ✅ Work Plugin can override behavior without forking
-- ✅ Future updates merge cleanly (conflicts only in adapter file)
+- ✅ Work Plugin can drop in a single override file without forking
+- ✅ Public Plugin compiles and runs without override file (uses no-op adapter)
+- ✅ Future updates merge cleanly (override file not in Public repo)
 - ✅ Proprietary logic is isolated and secure
 

@@ -12,3 +12,8 @@ node_modules/
 *.clean
 *.final
 *.fix
+
+# Work-only override files (not committed to Public repo)
+src/work/workAdapter.override.ts
+src/work/credentials.override.ts
+src/work/*.override.ts
