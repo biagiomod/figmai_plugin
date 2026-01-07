@@ -81,6 +81,7 @@ import { BRAND } from './core/brand'
 import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant } from './assistants'
 import type { Assistant as AssistantType, QuickAction } from './assistants'
 import { SettingsModal } from './ui/components/SettingsModal'
+import { ConfluenceModal } from './ui/components/ConfluenceModal'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
 import { parseRichText } from './core/richText/parseRichText'
 import { enhanceRichText } from './core/richText/enhancers'
@@ -222,6 +223,8 @@ function Plugin() {
   const [pendingAction, setPendingAction] = useState<'copy' | 'view' | 'confluence' | null>(null)
   const [isCopyingRefImage, setIsCopyingRefImage] = useState(false)
   const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
+  const [showConfluenceModal, setShowConfluenceModal] = useState(false)
+  const [confluenceFormat, setConfluenceFormat] = useState<TableFormatPreset>('universal')
   // Clipboard debug state
   const [showPasteDebug, setShowPasteDebug] = useState(false)
   const [debugHtml, setDebugHtml] = useState('')
@@ -605,6 +608,7 @@ function Plugin() {
     setShowFormatModal(false)
     setShowTableView(false)
     setShowCopyFormatModal(false)
+    setShowConfluenceModal(false)
     
     // Reset selection-related state
     setSelectionRequired(false)
@@ -1441,49 +1445,16 @@ function Plugin() {
     }
   }, [contentTable, debugLog])
   
-  // Send to Confluence (uses Work adapter)
-  const handleSendToConfluence = useCallback(async (format: TableFormatPreset) => {
-    if (!contentTable) return
-    
-    // Use Work adapter if available
-    const { loadWorkAdapter } = await import('./core/work/loadAdapter')
-    const workAdapter = await loadWorkAdapter()
-    if (workAdapter.confluenceApi) {
-      try {
-        await workAdapter.confluenceApi.sendTable(contentTable, format)
-        const message: Message = {
-          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          role: 'assistant',
-          content: `Table sent to Confluence (${format}).`,
-          timestamp: Date.now()
-        }
-        setMessages(prev => [...prev, message])
-        return
-      } catch (error) {
-        const errorMessage: Message = {
-          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          role: 'assistant',
-          content: `Failed to send to Confluence: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          timestamp: Date.now()
-        }
-        setMessages(prev => [...prev, errorMessage])
-        return
-      }
-    }
-    
-    // Fallback: Show message and copy instead
+  // Handle Confluence modal success (add chat bubble)
+  const handleConfluenceSuccess = useCallback(() => {
     const message: Message = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       role: 'assistant',
-      content: 'Confluence integration not configured — copying HTML instead.',
+      content: 'Table sent to Confluence',
       timestamp: Date.now()
     }
     setMessages(prev => [...prev, message])
-    
-    // Copy table with Universal preset (unless user chose Dev Only)
-    const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal'
-    await handleCopyTable(copyFormat)
-  }, [contentTable, handleCopyTable])
+  }, [])
   
   // Download HTML file
   const handleDownloadHtml = useCallback((format: TableFormatPreset) => {
@@ -2867,6 +2838,16 @@ ${htmlTable}
         />
       )}
       
+      {/* Confluence Modal */}
+      {showConfluenceModal && contentTable && (
+        <ConfluenceModal
+          contentTable={contentTable}
+          format={confluenceFormat}
+          onClose={() => setShowConfluenceModal(false)}
+          onSuccess={handleConfluenceSuccess}
+        />
+      )}
+      
       {/* Format Selection Modal for Content Table */}
       {showFormatModal && contentTable && (
         <div style={{
@@ -2925,18 +2906,9 @@ ${htmlTable}
                         setShowTableView(true)
                         setSelectedFormat(format)
                       } else if (action === 'confluence') {
-                        // Show message first, then copy
-                        const message: Message = {
-                          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                          role: 'assistant',
-                          content: 'Confluence integration not configured yet — copying table instead.',
-                          timestamp: Date.now()
-                        }
-                        setMessages(prev => [...prev, message])
-                        
-                        // Copy table with Universal preset (unless user chose Dev Only)
-                        const copyFormat = format === 'dev-only' ? 'dev-only' : 'universal'
-                        handleCopyTable(copyFormat, 'html') // Default to HTML for Confluence stub
+                        // Show Confluence modal with selected format
+                        setConfluenceFormat(format)
+                        setShowConfluenceModal(true)
                       }
                     }
                   }}

@@ -10,6 +10,7 @@ import type { WorkAdapter } from './adapter'
 export function createDefaultWorkAdapter(): WorkAdapter {
   return {
     confluenceApi: undefined,
+    createConfluence: undefined,
     designSystem: undefined,
     auth: undefined,
     getContentTableIgnoreRules: undefined,

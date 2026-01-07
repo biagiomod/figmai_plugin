@@ -84,6 +84,20 @@ export interface WorkAdapter {
   }
 
   /**
+   * Create Confluence page
+   * Work-only: Create a new Confluence page with XHTML content
+   * 
+   * @param args - Arguments for creating the page
+   * @param args.confluenceTitle - Title for the Confluence page
+   * @param args.confluenceTemplateXhtml - XHTML-encoded table content
+   * @returns Promise resolving to the created page URL (if available)
+   */
+  createConfluence?: (args: {
+    confluenceTitle: string
+    confluenceTemplateXhtml: string
+  }) => Promise<{ url?: string }>
+
+  /**
    * Design System Detection
    * Work-only: Detect design system from Figma nodes
    */

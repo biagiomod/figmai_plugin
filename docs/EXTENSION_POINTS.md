@@ -243,53 +243,40 @@ export default workAdapter
 
 ### 3. Confluence Integration
 
-**Location:** `ui.tsx` (UI thread)
+**Location:** `ui/components/ConfluenceModal.tsx` and `ui.tsx` (UI thread)
 
-**Purpose:** Send Content Tables to Confluence as formatted HTML/TSV/JSON.
+**Purpose:** Send Content Tables to Confluence as formatted XHTML pages.
 
 **Extension Point:**
 ```typescript
-workAdapter.confluenceApi?.sendTable(
-  table: UniversalContentTableV1,
-  format: string
-): Promise<void>
+workAdapter.createConfluence?: (args: {
+  confluenceTitle: string
+  confluenceTemplateXhtml: string
+}) => Promise<{ url?: string }>
 ```
 
 **When Called:**
-- When user clicks "Send to Confluence" button in Content Table UI
+- When user clicks "Send to Confluence" quick action in Content Table UI
+- User selects table format (Universal, Dev Only, etc.)
+- User enters title in modal and clicks "Send"
 - Called from UI thread (not main thread)
 
-**Payload Shape:**
-```typescript
-interface UniversalContentTableV1 {
-  meta: {
-    version: '1.0'
-    generatedAt: string
-    source: string // e.g., "Figma Selection"
-  }
-  items: Array<{
-    id: string
-    text: string
-    path: string // Breadcrumb path
-    component?: {
-      kind: 'component' | 'componentSet' | 'instance' | 'custom'
-      name: string
-      key?: string
-      variantProperties?: Record<string, string>
-    }
-  }>
-}
-```
+**UI Flow:**
+1. **Input Stage**: User enters title for Confluence page
+2. **Processing Stage**: Animated "Processing" indicator while sending
+3. **Success Stage**: "Successfully sent to Confluence" message + optional "Go to Confluence" button (if URL returned)
+4. **Error Stage**: Error message with "Back" and "Close" buttons
 
-**Format Options:**
-- `'html'`: HTML table format (for Confluence)
-- `'tsv'`: Tab-separated values
-- `'json'`: JSON format
+**XHTML Encoding:**
+- Public plugin builds XHTML table using `universalTableToHtml()` from `core/contentTable/renderers.ts`
+- XHTML is encoded using `encodeXhtmlDocument()` from `core/encoding/xhtml.ts`
+- Work adapter receives fully-encoded XHTML ready for Confluence API
 
-**XHTML Encoding Requirement:**
-- Confluence requires XHTML-encoded content
-- Special characters must be escaped: `<`, `>`, `&`, `"`, `'`
-- Use `universalTableToHtml()` from `core/contentTable/renderers.ts` which handles encoding
+**Public Plugin Behavior:**
+- If `workAdapter.createConfluence` is undefined (no Work override), Public plugin simulates success after 600-900ms delay
+- Modal still shows full 3-stage flow (Input → Processing → Success)
+- Success message appears, but no "Go to Confluence" button (no URL returned)
+- Chat bubble "Table sent to Confluence" appears on successful close
 
 **Implementation Example:**
 ```typescript
@@ -297,22 +284,14 @@ interface UniversalContentTableV1 {
 import type { WorkAdapter } from '../core/work/adapter'
 
 const workAdapter: WorkAdapter = {
-  confluenceApi: {
-  async sendTable(table: UniversalContentTableV1, format: string): Promise<void> {
+  async createConfluence(args: {
+    confluenceTitle: string
+    confluenceTemplateXhtml: string
+  }): Promise<{ url?: string }> {
     // Get enterprise auth token
     const token = await workAdapter.auth?.getEnterpriseToken()
     if (!token) {
       throw new Error('Enterprise auth token not available')
-    }
-    
-    // Convert table to requested format
-    let content: string
-    if (format === 'html') {
-      content = universalTableToHtml(table)
-    } else if (format === 'tsv') {
-      content = universalTableToTsv(table)
-    } else {
-      content = universalTableToJson(table)
     }
     
     // Send to Confluence API
@@ -325,11 +304,11 @@ const workAdapter: WorkAdapter = {
       },
       body: JSON.stringify({
         type: 'page',
-        title: `Content Table - ${new Date().toISOString()}`,
+        title: args.confluenceTitle,
         space: { key: 'DESIGN' },
         body: {
           storage: {
-            value: content,
+            value: args.confluenceTemplateXhtml,
             representation: 'storage'
           }
         }
@@ -340,18 +319,21 @@ const workAdapter: WorkAdapter = {
       const error = await response.text()
       throw new Error(`Confluence API error: ${response.status} ${error}`)
     }
+    
+    const result = await response.json()
+    return { url: result._links?.webui || result.url }
   }
 }
 
 export default workAdapter
 ```
 
-**UI Success/Error Messaging:**
-- Success: UI shows message "Table sent to Confluence (html)."
-- Error: UI shows error message with details
-- Fallback: If adapter is undefined, UI falls back to copying to clipboard
+**UI Success/Error Handling:**
+- Success: Modal shows success state, chat bubble "Table sent to Confluence" appears on close
+- Error: Modal shows error state with error message, user can go back or close
+- Fallback (no Work adapter): Public plugin simulates success, chat bubble still appears
 
-**Current Status:** ✅ **Implemented** - Extension point exists and is called from UI.
+**Current Status:** ✅ **Implemented** - Extension point exists, modal UI implemented, Public plugin works with or without Work override.
 
 ---
 
