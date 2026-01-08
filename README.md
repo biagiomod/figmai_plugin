@@ -2,7 +2,7 @@
 
 AI-powered design assistance for Figma. Provides multiple specialized assistants for design critique, content extraction, accessibility review, and more.
 
-*Built with [Create Figma Plugin](https://yuanqing.github.io/create-figma-plugin/).*
+*Built with -> [Create Figma Plugin](https://yuanqing.github.io/create-figma-plugin/).*
 
 ---
 
