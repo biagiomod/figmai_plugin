@@ -329,6 +329,16 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       }))
   )
   
+  // Check if handler exists for chat messages (actionId: undefined)
+  const handler = getHandler(currentAssistant.id, undefined)
+  let finalChatMessages = chatMessages
+  if (handler && handler.prepareMessages) {
+    const prepared = handler.prepareMessages(chatMessages)
+    if (prepared) {
+      finalChatMessages = prepared
+    }
+  }
+  
   // Call provider
   try {
     if (!currentProvider) {
@@ -343,7 +353,7 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       }
     }
     const response = await currentProvider.sendChat({
-      messages: chatMessages,
+      messages: finalChatMessages,
       assistantId: currentAssistant.id,
       assistantName: currentAssistant.label,
       selection: selectionContext?.selection,
@@ -352,6 +362,25 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       quickActionId: undefined
     })
     
+    // Check if handler can process the response
+    if (handler) {
+      const handlerContext = {
+        assistantId: currentAssistant.id,
+        actionId: undefined, // Chat message, not quick action
+        response,
+        selectionOrder,
+        selection: selectionContext?.selection || summarizeSelection(selectionOrder),
+        provider: currentProvider!,
+        sendAssistantMessage
+      }
+      
+      const result = await handler.handleResponse(handlerContext)
+      if (result.handled) {
+        return // Handler processed it (rendered screens, etc.)
+      }
+    }
+    
+    // Only send to chat if handler didn't handle it
     sendAssistantMessage(response)
   } catch (error) {
     const errorMessage = errorToString(error)

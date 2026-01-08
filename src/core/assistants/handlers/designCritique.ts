@@ -12,7 +12,7 @@ import { placeCritiqueOnCanvas } from '../../figma/placeCritiqueFallback'
 import { getTopLevelContainerNode } from '../../stage/anchor'
 
 export class DesignCritiqueHandler implements AssistantHandler {
-  canHandle(assistantId: string, actionId: string): boolean {
+  canHandle(assistantId: string, actionId: string | undefined): boolean {
     return assistantId === 'design_critique' && actionId === 'give-critique'
   }
 

@@ -11,7 +11,7 @@ import type { Provider, NormalizedMessage } from '../../provider/provider'
  */
 export interface HandlerContext {
   assistantId: string
-  actionId: string
+  actionId: string | undefined
   response: string
   selectionOrder: string[]
   selection: SelectionState
@@ -35,8 +35,9 @@ export interface HandlerResult {
 export interface AssistantHandler {
   /**
    * Check if this handler can handle the given assistant/action combination
+   * actionId is undefined for chat messages, or a string for quick actions
    */
-  canHandle(assistantId: string, actionId: string): boolean
+  canHandle(assistantId: string, actionId: string | undefined): boolean
 
   /**
    * Optionally modify messages before sending to provider

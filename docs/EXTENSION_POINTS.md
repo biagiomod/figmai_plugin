@@ -468,7 +468,148 @@ const workAdapter: WorkAdapter = {
 
 ---
 
-### 5. Design System Detection (Legacy)
+### 5. Design Workshop Assistant
+
+**Location:** `core/assistants/handlers/designWorkshop.ts`, `core/designWorkshop/`
+
+**Purpose:** Generate 1-5 Figma screens on-canvas from a strict JSON specification. Screens are placed in a new Section on the current page, completely ignoring any selection.
+
+#### Overview
+
+The Design Workshop assistant allows users to describe screens in natural language, and the AI generates a JSON specification that is then rendered to Figma screens. The implementation includes:
+
+- **JSON-only enforcement**: Model output must be valid JSON (no prose, no markdown, no code fences)
+- **Validation**: Non-throwing validation with errors/warnings
+- **Normalization**: Fills safe defaults, enforces 1-5 screen limit
+- **Repair flow**: If validation fails, asks model to fix JSON and retries
+- **Deterministic rendering**: Same spec always produces same visual result
+- **Section-based placement**: Screens are placed in a new Section, ignoring selection
+
+#### DesignSpecV1 Schema
+
+**Required Fields:**
+- `type`: Must be `"designScreens"` (immutable)
+- `version`: Must be `1` (immutable - bump version for breaking changes)
+- `meta.title`: String (required)
+- `canvas.device.kind`: `"mobile" | "tablet" | "desktop"` (required)
+- `canvas.device.width`: Positive number (required)
+- `canvas.device.height`: Positive number (required)
+- `render.intent.fidelity`: `"wireframe" | "medium" | "hi" | "creative"` (required)
+- `screens`: Array of 1-5 screen objects (required)
+
+**Screen Structure:**
+```typescript
+{
+  name: string
+  layout?: {
+    direction?: "vertical" | "horizontal"
+    padding?: number | { top?: number; right?: number; bottom?: number; left?: number }
+    gap?: number
+  }
+  blocks: Array<BlockSpec>
+}
+```
+
+**Block Types (Minimal Set):**
+- `heading`: `{ type: "heading", text: string, level?: 1 | 2 | 3 }`
+- `bodyText`: `{ type: "bodyText", text: string }`
+- `button`: `{ type: "button", text: string, variant?: "primary" | "secondary" | "tertiary" }`
+- `input`: `{ type: "input", label?: string, placeholder?: string, inputType?: "text" | "email" | "password" }`
+- `card`: `{ type: "card", title?: string, content: string }`
+- `spacer`: `{ type: "spacer", height?: number }`
+- `image`: `{ type: "image", src?: string, alt?: string, width?: number, height?: number }`
+
+**Fidelity Modes:**
+- **wireframe**: Grayscale, simple placeholders, minimal typography, no shadows/corners
+- **medium**: Basic colors, clear hierarchy, subtle borders, light shadows, basic rounded corners
+- **hi**: Full colors, rich typography, refined borders, layered shadows, generous rounded corners
+- **creative**: Bold colors, experimental typography, large rounded corners, dramatic shadows
+
+#### Validation and Normalization
+
+**Location:** `core/designWorkshop/validate.ts`
+
+**Functions:**
+- `validateDesignSpecV1(spec)`: Returns `{ ok: boolean, warnings: string[], errors: string[] }`
+  - Checks required fields, device kind/dimensions, fidelity enum, screen count (1-5)
+  - Validates each block type and required fields
+  - Never throws - returns errors in result
+
+- `normalizeDesignSpecV1(spec)`: Returns normalized `DesignSpecV1`
+  - Fills device defaults (mobile: 375x812, tablet: 768x1024, desktop: 1920x1080)
+  - Sets fidelity default to "medium" if missing
+  - Fills layout defaults (direction: "vertical", padding: 16, gap: 12)
+  - **Enforces 1-5 screens**: Truncates if >5, sets `meta.truncationNotice`
+  - Fills block defaults (heading level, button variant, spacer height, etc.)
+  - Returns deep-cloned normalized copy (never mutates input)
+
+#### Rendering
+
+**Location:** `core/designWorkshop/renderer.ts`
+
+**Function:** `renderDesignSpecToSection(spec: DesignSpecV1): Promise<{ section: FrameNode, screens: FrameNode[] }>`
+
+**Section Placement:**
+- Creates new Section (FrameNode) on `figma.currentPage`
+- **NO SELECTION ANCHORING** - completely ignores selection
+- Placement logic:
+  - If existing nodes: finds lowest/bottom-most bounding box, places Section at `y = lowestBottom + 120px`
+  - If no nodes: places at `x=0, y=0` (ensures `y >= 0`)
+  - Clamps to prevent off-canvas
+
+**Screen Rendering:**
+- Creates 1-5 device-sized screen frames inside Section
+- Each screen uses auto-layout based on `layout` spec
+- Screens arranged horizontally with 80px spacing
+- Blocks rendered in order with fidelity-specific styling
+- Deterministic output (same spec = same visual result)
+
+#### JSON Enforcement and Repair
+
+**Location:** `core/assistants/handlers/designWorkshop.ts`
+
+**JSON Enforcement:**
+- System message: "Return ONLY valid JSON. No prose. No markdown. No code fences."
+- Final user message: Describes schema keys and 1-5 screen limit
+
+**Repair Flow:**
+- If JSON parsing or validation fails, calls model with repair prompt
+- Repair prompt includes full schema structure
+- Retries validation after repair
+- If repair fails, shows error message to user
+
+#### UI Feedback
+
+- **While generating**: Shows "Analyzing..." with animated spinner (reuses existing pattern)
+- **On success**: Appends chat bubble "Screens placed on stage"
+- **If truncated**: Appends "Generated 5 screens. Ask for more to continue."
+
+#### Future: Design System Reference Packs
+
+**Status:** 📋 **Documentation Placeholder Only** - Not implemented yet
+
+**Concept:**
+Design System Reference Packs would be JSON document packs that describe design system tokens and components. This would allow the Design Workshop renderer to use actual design system components instead of primitives.
+
+**Where It Would Plug In:**
+- Could extend `render.intent` with optional `dsReferencePack?: string` field
+- Renderer would load pack JSON and map block intents to components
+- Example: `"button/primary"` → lookup component key from pack → create instance
+
+**How It Would Work:**
+1. Work Plugin provides DS Reference Pack JSON (describes tokens, components, mappings)
+2. Pack loaded at runtime (or bundled with Work Plugin)
+3. Renderer checks pack before rendering primitives
+4. If pack has mapping for block intent, use component instance
+5. Otherwise, fall back to primitive rendering (current behavior)
+
+**Current Status:** ⚠️ **Not Implemented** - This is a future enhancement placeholder. Current implementation uses primitive rendering only.
+
+**Current Status:** ✅ **Implemented** - Design Workshop assistant is fully functional with JSON enforcement, validation, normalization, repair flow, and deterministic rendering.
+
+---
+
+### 6. Design System Detection (Legacy)
 
 **Location:** Where design system detection is needed (e.g., selection context, Content Table scanner)
 

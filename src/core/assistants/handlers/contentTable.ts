@@ -9,7 +9,7 @@ import { loadWorkAdapter } from '../../work/loadAdapter'
 import { normalizeContentTableV1, validateContentTableV1 } from '../../contentTable/validate'
 
 export class ContentTableHandler implements AssistantHandler {
-  canHandle(assistantId: string, actionId: string): boolean {
+  canHandle(assistantId: string, actionId: string | undefined): boolean {
     return assistantId === 'content_table' && actionId === 'generate-table'
   }
 

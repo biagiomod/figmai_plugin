@@ -144,7 +144,8 @@ import {
   AskIcon,
   ContentTableIcon,
   SpellCheckIcon,
-  TrashIcon
+  TrashIcon,
+  LightBulbRaysIcon
 } from './ui/icons'
 
 
@@ -1561,7 +1562,8 @@ ${htmlTable}
       'CautionIcon': <CautionIcon width={16} height={16} />,
       'AskIcon': <AskIcon width={16} height={16} />,
       'ContentTableIcon': <ContentTableIcon width={16} height={16} />,
-      'SpellCheckIcon': <SpellCheckIcon width={16} height={16} />
+      'SpellCheckIcon': <SpellCheckIcon width={16} height={16} />,
+      'LightBulbRaysIcon': <LightBulbRaysIcon width={16} height={16} />
     }
     
     return iconMap[iconId] || null
