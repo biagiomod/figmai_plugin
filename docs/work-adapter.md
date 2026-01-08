@@ -1,5 +1,11 @@
 # Work Adapter Pattern
 
+**For:** Developers implementing Work Plugin features  
+**Purpose:** Understand the Work adapter pattern and how to override Public Plugin behavior  
+**When to read:** Before implementing Work-only features or migrating to Work Plugin
+
+---
+
 ## Purpose
 
 The Work Adapter pattern provides a clean boundary between the Public Plugin (open source) and the Work Plugin (proprietary/internal version). All Work-only features are injected via a **single adapter file**, ensuring:
@@ -256,7 +262,7 @@ The Public Plugin calls the Work adapter at these points:
 4. **Enterprise Auth** (where needed)
    - Calls `workAdapter.auth?.getEnterpriseToken()` to get auth tokens
 
-See `docs/EXTENSION_POINTS.md` for detailed documentation of each extension point.
+See `docs/extension-points.md` for detailed documentation of each extension point.
 
 ## Best Practices
 

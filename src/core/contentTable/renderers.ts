@@ -5,7 +5,7 @@
  * All outputs (HTML, TSV, JSON) are generated from the same UniversalContentTableV1 JSON
  * to prevent drift and ensure consistency.
  * 
- * Column definitions are generated from content-models.md via presets.generated.ts
+ * Column definitions are generated from docs/content-models.md via presets.generated.ts
  */
 
 import type { UniversalContentTableV1, TableFormatPreset } from './types'

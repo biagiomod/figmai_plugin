@@ -6,31 +6,36 @@ Complete guide for migrating the FigmAI plugin to restricted work environments.
 
 ## Documentation Files
 
-1. **[Portability Analysis](./portability-analysis.md)** ⭐ START HERE
+1. **[Work Migration Guide](../work-migration.md)** ⭐ START HERE
+   - Complete step-by-step migration guide
+   - Prerequisites and checklists
+   - Extension points implementation
+   - Configuration and troubleshooting
+   - Verification checklist
+
+2. **[Portability Analysis](./portability-analysis.md)**
    - Risk findings and portability assessment
    - Required configuration changes
    - Extension point recommendations
    - Implementation priorities
 
-2. **[Work Environment Migration Guide](./work-environment.md)**
-   - Step-by-step migration instructions
-   - Pre-migration checklist
-   - Configuration setup
-   - Troubleshooting
+3. **[Extension Points Reference](../extension-points.md)**
+   - All extension points (Work Adapter hooks)
+   - Implementation guide (Component Scanner, KB Loader, Compliance Hook, Custom Provider)
+   - Examples and best practices
 
-3. **[Extension Points Guide](./extension-points.md)**
-   - Component scanner implementation
-   - Knowledge base loader implementation
-   - Compliance hook implementation
-   - Custom provider implementation
+4. **[Work Adapter Pattern](../work-adapter.md)**
+   - Work adapter architecture
+   - Override mechanism
+   - Migration path
 
-4. **[Configuration Guide](../configuration.md)**
+5. **[Configuration Guide](../configuration.md)**
    - Configuration schema reference
    - Environment variables
    - Config file format
    - Settings UI guide
 
-5. **[Security Guide](../security.md)**
+6. **[Security Guide](../security.md)**
    - Data storage locations
    - Credential management
    - Network security
@@ -40,9 +45,9 @@ Complete guide for migrating the FigmAI plugin to restricted work environments.
 
 ## Quick Start
 
-1. **Read:** [Portability Analysis](./portability-analysis.md) for overview
-2. **Review:** [Work Environment Migration Guide](./work-environment.md) for steps
-3. **Implement:** Extensions as needed (see [Extension Points](./extension-points.md))
+1. **Read:** [Work Migration Guide](../work-migration.md) for complete migration steps
+2. **Review:** [Portability Analysis](./portability-analysis.md) for risk assessment
+3. **Implement:** Extensions as needed (see [Extension Points](../extension-points.md))
 4. **Configure:** Use [Configuration Guide](../configuration.md)
 5. **Validate:** Follow verification checklist in migration guide
 

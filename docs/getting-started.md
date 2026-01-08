@@ -1,8 +1,13 @@
-# AI Comprehension Guide
+# Getting Started
 
-This guide helps AI coding assistants (DevGPT Cline, GPT-4.1, etc.) understand and work with the FigmAI plugin codebase.
+**For:** AI coding assistants (DevGPT Cline, GPT-4.1) and human developers  
+**Purpose:** Single guide to understand the FigmAI plugin architecture and codebase
+
+---
 
 ## Quick Start
+
+### For AI Assistants
 
 If you're an AI assistant trying to understand this codebase:
 
@@ -10,7 +15,33 @@ If you're an AI assistant trying to understand this codebase:
 2. **Understand flow**: Read `main.ts` header comment for message routing
 3. **Understand UI**: Read `ui.tsx` header comment for UI architecture
 4. **Understand handlers**: Read `core/assistants/handlers/base.ts` for handler contract
-5. **Understand Work boundary**: Read `docs/WORK_ADAPTER.md` for Work plugin pattern
+5. **Understand Work boundary**: Read `docs/work-adapter.md` for Work plugin pattern
+
+### For Human Developers
+
+1. **Project overview**: Read `README.md` for high-level architecture
+2. **Contribution guide**: Read `CONTRIBUTING.md` for development guidelines
+3. **Work migration**: Read `docs/work-migration.md` for Work Plugin setup
+4. **Extension points**: Read `docs/extension-points.md` for available hooks
+
+---
+
+## Project Overview
+
+FigmAI is a Figma plugin that integrates Large Language Models (LLMs) to provide intelligent design assistance. The plugin supports multiple "assistants," each specialized for different tasks:
+
+- **Design Critique**: Evaluates designs and provides structured feedback
+- **Content Table**: Extracts and organizes text content from designs
+- **Accessibility**: Reviews designs for accessibility compliance
+- **UX Copy Review**: Analyzes and improves copy
+- **Dev Handoff**: Generates developer-friendly specifications
+- **General Assistant**: Answers design questions and provides guidance
+
+The plugin architecture is designed to be **Public Plugin** (open source) with a clean extension point for **Work Plugin** (proprietary/internal version) via a single adapter file.
+
+For detailed architecture, see `README.md`.
+
+---
 
 ## Large Files
 
@@ -47,6 +78,8 @@ The codebase has some large files that might be intimidating:
 - Messages arrive via postMessage from main thread
 - Don't add business logic here (delegate to main thread)
 - UI components are in `ui/components/`
+
+---
 
 ## Similar-Sounding Systems
 
@@ -102,6 +135,8 @@ The codebase has some large files that might be intimidating:
 **How to tell:**
 - Pre-LLM: Handler runs before `provider.sendChat()`
 - Post-LLM: Handler runs after `provider.sendChat()`
+
+---
 
 ## Implicit Assumptions
 
@@ -159,6 +194,8 @@ The codebase has some large files that might be intimidating:
 - Public Plugin defines stubs
 - Work Plugin overrides stubs
 - Use optional chaining when calling adapter methods
+
+---
 
 ## Common Patterns
 
@@ -245,6 +282,8 @@ await renderDocumentToStage(documentIR, {
 })
 ```
 
+---
+
 ## Anti-Patterns
 
 ### ❌ Don't Add Assistant-Specific Logic to main.ts
@@ -314,6 +353,8 @@ import { placeArtifactFrame } from './core/figma/artifacts/placeArtifact'
 await placeArtifactFrame(frame, { selectedNode })
 ```
 
+---
+
 ## Entry Points for Common Tasks
 
 ### Adding a New Assistant
@@ -333,8 +374,10 @@ await placeArtifactFrame(frame, { selectedNode })
 
 ### Work Features
 1. `core/work/adapter.ts` - Adapter interface
-2. `docs/WORK_ADAPTER.md` - Work adapter documentation
-3. `docs/EXTENSION_POINTS.md` - Extension points
+2. `docs/work-adapter.md` - Work adapter documentation
+3. `docs/extension-points.md` - Extension points
+
+---
 
 ## Key Files to Understand
 
@@ -355,6 +398,8 @@ await placeArtifactFrame(frame, { selectedNode })
 - `core/output/normalize/index.ts` - Response normalization
 - `core/tools/toolRouter.ts` - Tool routing
 - `core/contentTable/scanner.ts` - Content table scanning
+
+---
 
 ## Troubleshooting
 
@@ -378,6 +423,8 @@ await placeArtifactFrame(frame, { selectedNode })
 - Check adapter methods are called with optional chaining (`?.`)
 - Check fallbacks are provided when adapter is undefined
 
+---
+
 ## Summary
 
 This codebase follows clear patterns:
@@ -394,3 +441,11 @@ When in doubt:
 3. Check Work adapter documentation
 4. Read file header comments
 
+---
+
+## Next Steps
+
+- **For AI Assistants**: See `docs/work-migration.md` for migration tasks
+- **For Human Developers**: See `CONTRIBUTING.md` for contribution guidelines
+- **For Work Migration**: See `docs/work-migration.md` for step-by-step guide
+- **For Extension Points**: See `docs/extension-points.md` for available hooks

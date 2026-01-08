@@ -1,15 +1,17 @@
-# DevGPT Cline Task Brief
+# AI Task Brief
 
-**For:** DevGPT Cline (gpt-4.1-2025-04014) executing Work Plugin migration tasks  
-**Purpose:** Quick reference for common migration tasks
+**For:** AI coding assistants (DevGPT Cline, GPT-4.1, etc.) executing Work Plugin migration tasks  
+**Purpose:** Quick reference for common migration tasks and error patterns  
+**When to read:** During active migration work for quick lookups
 
 ---
 
 ## Quick Start
 
 1. **Read:** `README.md` (architecture overview)
-2. **Read:** `docs/WORK_MIGRATION_PLAYBOOK.md` (step-by-step guide)
-3. **Reference:** `docs/EXTENSION_POINTS.md` (available hooks)
+2. **Read:** `docs/getting-started.md` (comprehensive guide)
+3. **Read:** `docs/work-migration.md` (step-by-step migration guide)
+4. **Reference:** `docs/extension-points.md` (available hooks)
 
 ---
 
@@ -18,7 +20,7 @@
 ### Task: Add Work-Only Feature
 
 **Steps:**
-1. Check `docs/EXTENSION_POINTS.md` for existing extension point
+1. Check `docs/extension-points.md` for existing extension point
 2. If exists: Implement in `src/work/workAdapter.override.ts`
 3. If not exists: Add to `core/work/adapter.ts` interface first
 4. Test: Build and verify feature works
@@ -61,7 +63,7 @@ const workAdapter: WorkAdapter = {
 3. Use `buildConfluenceXhtmlFromTable` for XHTML (canonical pipeline)
 4. Test: Generate table → Send to Confluence → Verify API call
 
-**Reference:** `docs/EXTENSION_POINTS.md` → "Confluence Integration Hook"
+**Reference:** `docs/extension-points.md` → "Confluence Integration Hook"
 
 ---
 
@@ -73,7 +75,7 @@ const workAdapter: WorkAdapter = {
 3. Optionally implement `shouldIgnore` to filter nodes
 4. Test: Select DS component → Verify detection
 
-**Reference:** `docs/EXTENSION_POINTS.md` → "Design System Component Detection"
+**Reference:** `docs/extension-points.md` → "Design System Component Detection"
 
 ---
 
@@ -86,7 +88,7 @@ const workAdapter: WorkAdapter = {
 4. Return modified table
 5. Test: Generate table → Verify processing applied
 
-**Reference:** `docs/EXTENSION_POINTS.md` → "Content Table Post-Processing"
+**Reference:** `docs/extension-points.md` → "Content Table Post-Processing"
 
 ---
 
@@ -163,9 +165,9 @@ Before completing task:
 ## Reference Files
 
 - **Architecture:** `README.md`
-- **Migration Steps:** `docs/WORK_MIGRATION_PLAYBOOK.md`
-- **Extension Points:** `docs/EXTENSION_POINTS.md`
-- **Work Pattern:** `docs/WORK_ADAPTER.md`
-- **AI Guide:** `docs/AI_GUIDE.md`
-- **Message Contract:** See `src/main.ts` and `src/ui.tsx` headers
+- **Getting Started:** `docs/getting-started.md`
+- **Migration Steps:** `docs/work-migration.md`
+- **Extension Points:** `docs/extension-points.md`
+- **Work Pattern:** `docs/work-adapter.md`
+- **Message Contract:** `docs/message-contract.md`
 
