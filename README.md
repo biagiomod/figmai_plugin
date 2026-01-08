@@ -386,6 +386,26 @@ Rebuilds automatically on file changes.
 2. Search for `Import plugin from manifest…` via Quick Actions
 3. Select the generated `manifest.json` file
 
+### Importing from GitHub ZIP
+
+To import the plugin into Figma Desktop from a GitHub ZIP download:
+
+1. **Download ZIP** from GitHub (Code → Download ZIP)
+2. **Unzip** the downloaded file
+3. **Build the plugin:**
+   ```bash
+   cd figmai_plugin
+   npm install
+   npm run build
+   ```
+   This generates `manifest.json` and `build/` directory.
+4. **Import in Figma Desktop:**
+   - Open Figma Desktop
+   - Plugins → Development → Import plugin from manifest...
+   - Select `manifest.json` from the unzipped directory
+
+**Note:** The `build/` directory is not committed to git (standard practice). You must run `npm run build` before importing from a ZIP download.
+
 ### Debugging
 
 Use `console.log` statements. Open developer console via `Show/Hide Console` in Quick Actions.
