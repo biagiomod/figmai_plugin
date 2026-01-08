@@ -5,7 +5,7 @@
  * Section placement: below lowest existing node + 120px, or at origin if no nodes.
  */
 
-import type { DesignSpecV1, BlockSpec } from './types'
+import type { DesignSpecV1, BlockSpec, RenderReport } from './types'
 import { loadFonts, createTextNode, createAutoLayoutFrameSafe } from '../stage/primitives'
 
 /**
@@ -15,9 +15,139 @@ import { loadFonts, createTextNode, createAutoLayoutFrameSafe } from '../stage/p
  * Screens are arranged horizontally with 80px spacing.
  * 
  * @param spec - Normalized DesignSpecV1
- * @returns Section node and array of screen frames
+ * @param runId - Run identifier for logging
+ * @returns Section node, array of screen frames, and render report
  */
-export async function renderDesignSpecToSection(spec: DesignSpecV1): Promise<{ section: FrameNode, screens: FrameNode[] }> {
+export async function renderDesignSpecToSection(
+  spec: DesignSpecV1,
+  runId?: string
+): Promise<{ section: FrameNode, screens: FrameNode[], report: RenderReport }> {
+  // Initialize render report
+  const report: RenderReport = {
+    consumedFields: [],
+    unusedFields: [],
+    fallbacks: []
+  }
+  
+  // Track consumed fields
+  const consumedFields = new Set<string>()
+  
+  // Track fidelity usage
+  if (spec.render?.intent?.fidelity) {
+    consumedFields.add('render.intent.fidelity')
+    report.consumedFields.push({
+      field: 'render.intent.fidelity',
+      value: spec.render.intent.fidelity,
+      influence: `Applied ${spec.render.intent.fidelity} fidelity styling (typography, corners, shadows)`
+    })
+  }
+  
+  // Track intent usage
+  if (spec.meta?.intent) {
+    const intent = spec.meta.intent
+    if (intent.appType) {
+      consumedFields.add('meta.intent.appType')
+      report.consumedFields.push({
+        field: 'meta.intent.appType',
+        value: intent.appType,
+        influence: `Influenced screen content and naming for ${intent.appType} app type`
+      })
+    }
+    if (intent.tone) {
+      consumedFields.add('meta.intent.tone')
+      report.consumedFields.push({
+        field: 'meta.intent.tone',
+        value: intent.tone,
+        influence: `Applied ${intent.tone} tone styling (corner radius, color palette)`
+      })
+    }
+    if (intent.primaryColor) {
+      consumedFields.add('meta.intent.primaryColor')
+      report.consumedFields.push({
+        field: 'meta.intent.primaryColor',
+        value: intent.primaryColor,
+        influence: `Used ${intent.primaryColor} as primary color in buttons and accents`
+      })
+    }
+    if (intent.accentColors && intent.accentColors.length > 0) {
+      consumedFields.add('meta.intent.accentColors')
+      // Note: Currently only first accent color is used
+      if (intent.accentColors.length > 1) {
+        report.unusedFields.push({
+          field: 'meta.intent.accentColors[1+]',
+          value: intent.accentColors.slice(1),
+          reason: 'Only first accent color is currently supported in rendering'
+        })
+      }
+      report.consumedFields.push({
+        field: 'meta.intent.accentColors[0]',
+        value: intent.accentColors[0],
+        influence: `Used ${intent.accentColors[0]} as accent color`
+      })
+    }
+  }
+  
+  // Track style keywords
+  if (spec.render?.intent?.styleKeywords && spec.render.intent.styleKeywords.length > 0) {
+    consumedFields.add('render.intent.styleKeywords')
+    report.consumedFields.push({
+      field: 'render.intent.styleKeywords',
+      value: spec.render.intent.styleKeywords,
+      influence: `Applied style keywords: ${spec.render.intent.styleKeywords.join(', ')}`
+    })
+  }
+  
+  // Track brand tone
+  if (spec.render?.intent?.brandTone) {
+    consumedFields.add('render.intent.brandTone')
+    report.consumedFields.push({
+      field: 'render.intent.brandTone',
+      value: spec.render.intent.brandTone,
+      influence: `Applied brand tone: ${spec.render.intent.brandTone}`
+    })
+  }
+  
+  // Track density
+  if (spec.render?.intent?.density) {
+    consumedFields.add('render.intent.density')
+    report.consumedFields.push({
+      field: 'render.intent.density',
+      value: spec.render.intent.density,
+      influence: `Applied ${spec.render.intent.density} density (spacing adjustments)`
+    })
+  } else {
+    report.fallbacks.push({
+      field: 'render.intent.density',
+      fallback: 'default comfortable density'
+    })
+  }
+  
+  // Check for unused fields
+  if (spec.meta?.intent?.keywords && spec.meta.intent.keywords.length > 0) {
+    if (!consumedFields.has('meta.intent.keywords')) {
+      report.unusedFields.push({
+        field: 'meta.intent.keywords',
+        value: spec.meta.intent.keywords,
+        reason: 'Keywords are extracted but not yet used in rendering logic'
+      })
+    }
+  }
+  
+  if (spec.meta?.intent?.avoidColors && spec.meta.intent.avoidColors.length > 0) {
+    report.unusedFields.push({
+      field: 'meta.intent.avoidColors',
+      value: spec.meta.intent.avoidColors,
+      reason: 'Avoid colors not yet implemented in rendering'
+    })
+  }
+  
+  if (spec.meta?.intent?.theme) {
+    report.unusedFields.push({
+      field: 'meta.intent.theme',
+      value: spec.meta.intent.theme,
+      reason: 'Theme (light/dark) not yet implemented in rendering'
+    })
+  }
   // Create Section (using FrameNode as SectionNode may not be available)
   const section = figma.createFrame()
   section.name = `Design Workshop — ${spec.meta.title || 'Screens'}`
@@ -35,9 +165,10 @@ export async function renderDesignSpecToSection(spec: DesignSpecV1): Promise<{ s
   // Create screen frames
   const screens: FrameNode[] = []
   const fidelity = spec.render.intent.fidelity
+  const intent = spec.meta?.intent
 
   for (const screenSpec of spec.screens) {
-    const screenFrame = await renderScreen(screenSpec, spec.canvas.device, fidelity)
+    const screenFrame = await renderScreen(screenSpec, spec.canvas.device, fidelity, intent)
     section.appendChild(screenFrame)
     screens.push(screenFrame)
   }
@@ -54,7 +185,7 @@ export async function renderDesignSpecToSection(spec: DesignSpecV1): Promise<{ s
   figma.currentPage.selection = [section]
   figma.viewport.scrollAndZoomIntoView([section])
 
-  return { section, screens }
+  return { section, screens, report }
 }
 
 /**
@@ -63,7 +194,8 @@ export async function renderDesignSpecToSection(spec: DesignSpecV1): Promise<{ s
 async function renderScreen(
   screenSpec: DesignSpecV1['screens'][0],
   device: DesignSpecV1['canvas']['device'],
-  fidelity: DesignSpecV1['render']['intent']['fidelity']
+  fidelity: DesignSpecV1['render']['intent']['fidelity'],
+  intent?: DesignSpecV1['meta']['intent']
 ): Promise<FrameNode> {
   const screenFrame = figma.createFrame()
   screenFrame.name = screenSpec.name || 'Screen'
@@ -98,12 +230,12 @@ async function renderScreen(
 
   // Render blocks
   for (const block of screenSpec.blocks) {
-    const blockNode = await renderBlock(block, fidelity, device.width - (screenFrame.paddingLeft + screenFrame.paddingRight))
+    const blockNode = await renderBlock(block, fidelity, device.width - (screenFrame.paddingLeft + screenFrame.paddingRight), intent)
     screenFrame.appendChild(blockNode)
   }
 
   // Apply fidelity-specific styling to screen frame
-  applyFidelityStyling(screenFrame, fidelity)
+  applyFidelityStyling(screenFrame, fidelity, intent)
 
   return screenFrame
 }
@@ -114,7 +246,8 @@ async function renderScreen(
 async function renderBlock(
   block: BlockSpec,
   fidelity: DesignSpecV1['render']['intent']['fidelity'],
-  maxWidth: number
+  maxWidth: number,
+  intent?: DesignSpecV1['meta']['intent']
 ): Promise<SceneNode> {
   const fonts = await loadFonts()
 
@@ -156,10 +289,10 @@ async function renderBlock(
       })
       buttonFrame.appendChild(buttonText)
       
-      // Apply button styling
-      buttonFrame.fills = [getButtonFill(block.variant || 'primary', fidelity)]
-      buttonFrame.strokes = [getButtonStroke(block.variant || 'primary', fidelity)]
-      buttonFrame.cornerRadius = getCornerRadius(fidelity)
+      // Apply button styling (use intent colors if available)
+      buttonFrame.fills = [getButtonFill(block.variant || 'primary', fidelity, intent)]
+      buttonFrame.strokes = [getButtonStroke(block.variant || 'primary', fidelity, intent)]
+      buttonFrame.cornerRadius = getCornerRadius(fidelity, intent)
       buttonFrame.effects = getButtonEffects(fidelity)
       
       buttonFrame.resize(maxWidth, buttonFrame.height)
@@ -191,8 +324,8 @@ async function renderBlock(
       
       // Apply input styling
       inputFrame.fills = [getInputFill(fidelity)]
-      inputFrame.strokes = [getInputStroke(fidelity)]
-      inputFrame.cornerRadius = getCornerRadius(fidelity)
+      inputFrame.strokes = [getInputStroke(fidelity, intent)]
+      inputFrame.cornerRadius = getCornerRadius(fidelity, intent)
       inputFrame.effects = getInputEffects(fidelity)
       
       inputFrame.resize(maxWidth, inputFrame.height)
@@ -223,8 +356,8 @@ async function renderBlock(
       
       // Apply card styling
       cardFrame.fills = [getCardFill(fidelity)]
-      cardFrame.strokes = [getCardStroke(fidelity)]
-      cardFrame.cornerRadius = getCornerRadius(fidelity)
+      cardFrame.strokes = [getCardStroke(fidelity, intent)]
+      cardFrame.cornerRadius = getCornerRadius(fidelity, intent)
       cardFrame.effects = getCardEffects(fidelity)
       
       cardFrame.resize(maxWidth, cardFrame.height)
@@ -249,8 +382,8 @@ async function renderBlock(
       
       // Apply image placeholder styling
       imageFrame.fills = [getImageFill(fidelity)]
-      imageFrame.strokes = [getImageStroke(fidelity)]
-      imageFrame.cornerRadius = getCornerRadius(fidelity)
+      imageFrame.strokes = [getImageStroke(fidelity, intent)]
+      imageFrame.cornerRadius = getCornerRadius(fidelity, intent)
       
       // Add placeholder text if wireframe
       if (fidelity === 'wireframe') {
@@ -329,7 +462,7 @@ function calculateSectionPlacement(section: FrameNode): { x: number; y: number }
 /**
  * Apply fidelity-specific styling to screen frame
  */
-function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']['intent']['fidelity']): void {
+function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): void {
   switch (fidelity) {
     case 'wireframe':
       frame.fills = [{ type: 'SOLID', color: { r: 0.88, g: 0.88, b: 0.88 } }] // #E0E0E0
@@ -465,7 +598,22 @@ function getTextColor(fidelity: DesignSpecV1['render']['intent']['fidelity']): P
   }
 }
 
-function getButtonFill(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getButtonFill(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+  // Use intent primary color if available and variant is primary
+  if (variant === 'primary' && intent?.primaryColor) {
+    const color = parseColor(intent.primaryColor)
+    if (color) {
+      return { type: 'SOLID', color }
+    }
+  }
+  
+  // Use intent accent color for secondary if available
+  if (variant === 'secondary' && intent?.accentColors && intent.accentColors.length > 0) {
+    const color = parseColor(intent.accentColors[0])
+    if (color) {
+      return { type: 'SOLID', color }
+    }
+  }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.88, g: 0.88, b: 0.88 } } // #E0E0E0
@@ -508,7 +656,14 @@ function getButtonTextColor(variant: 'primary' | 'secondary' | 'tertiary', fidel
   }
 }
 
-function getButtonStroke(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getButtonStroke(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+  // Use intent primary color for stroke if available and variant is primary
+  if (variant === 'primary' && intent?.primaryColor) {
+    const color = parseColor(intent.primaryColor)
+    if (color) {
+      return { type: 'SOLID', color, opacity: 0.3 }
+    }
+  }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.6, g: 0.6, b: 0.6 }, opacity: 1 } // #999999
@@ -571,7 +726,14 @@ function getInputFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): P
   }
 }
 
-function getInputStroke(fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getInputStroke(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+  // Use intent primary color for input stroke if available
+  if (intent?.primaryColor) {
+    const color = parseColor(intent.primaryColor)
+    if (color) {
+      return { type: 'SOLID', color, opacity: 0.2 }
+    }
+  }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.6, g: 0.6, b: 0.6 }, opacity: 1 } // #999999
@@ -623,7 +785,14 @@ function getCardFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): Pa
   }
 }
 
-function getCardStroke(fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getCardStroke(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+  // Use intent primary color for card stroke if available
+  if (intent?.primaryColor) {
+    const color = parseColor(intent.primaryColor)
+    if (color) {
+      return { type: 'SOLID', color, opacity: 0.15 }
+    }
+  }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.6, g: 0.6, b: 0.6 }, opacity: 1 } // #999999
@@ -689,7 +858,14 @@ function getImageFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): P
   }
 }
 
-function getImageStroke(fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getImageStroke(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+  // Use intent primary color for image stroke if available
+  if (intent?.primaryColor) {
+    const color = parseColor(intent.primaryColor)
+    if (color) {
+      return { type: 'SOLID', color, opacity: 0.2 }
+    }
+  }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.6, g: 0.6, b: 0.6 }, opacity: 1 } // #999999
@@ -715,15 +891,68 @@ function getPlaceholderColor(fidelity: DesignSpecV1['render']['intent']['fidelit
   }
 }
 
-function getCornerRadius(fidelity: DesignSpecV1['render']['intent']['fidelity']): number {
+function getCornerRadius(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): number {
+  let baseRadius: number
   switch (fidelity) {
     case 'wireframe':
-      return 0
+      baseRadius = 0
+      break
     case 'medium':
-      return 6
+      baseRadius = 6
+      break
     case 'hi':
-      return 12
+      baseRadius = 12
+      break
     case 'creative':
-      return 20
+      baseRadius = 20
+      break
   }
+  
+  // Adjust based on tone: playful = more rounded, serious = less rounded
+  if (intent?.tone === 'playful') {
+    return baseRadius * 1.5
+  } else if (intent?.tone === 'serious') {
+    return baseRadius * 0.7
+  }
+  
+  return baseRadius
+}
+
+/**
+ * Parse color string to RGB color object
+ * Supports semantic color names and hex values
+ */
+function parseColor(colorStr: string): { r: number; g: number; b: number } | null {
+  const lower = colorStr.toLowerCase().trim()
+  
+  // Semantic color names
+  const colorMap: Record<string, { r: number; g: number; b: number }> = {
+    pink: { r: 1, g: 0.4, b: 0.7 },
+    blue: { r: 0.2, g: 0.4, b: 0.9 },
+    green: { r: 0.2, g: 0.7, b: 0.4 },
+    purple: { r: 0.6, g: 0.3, b: 0.9 },
+    orange: { r: 1, g: 0.5, b: 0.2 },
+    red: { r: 0.9, g: 0.2, b: 0.2 },
+    yellow: { r: 1, g: 0.9, b: 0.2 },
+    navy: { r: 0.1, g: 0.2, b: 0.5 },
+    teal: { r: 0.2, g: 0.6, b: 0.6 },
+    magenta: { r: 1, g: 0.2, b: 0.8 }
+  }
+  
+  if (colorMap[lower]) {
+    return colorMap[lower]
+  }
+  
+  // Try hex parsing
+  if (lower.startsWith('#')) {
+    const hex = lower.slice(1)
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16) / 255
+      const g = parseInt(hex.slice(2, 4), 16) / 255
+      const b = parseInt(hex.slice(4, 6), 16) / 255
+      return { r, g, b }
+    }
+  }
+  
+  return null
 }

@@ -5,12 +5,17 @@
 
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import type { NormalizedMessage } from '../../provider/provider'
-import type { DesignSpecV1 } from '../../designWorkshop/types'
+import type { DesignSpecV1, DesignIntent, RenderReport } from '../../designWorkshop/types'
 import { validateDesignSpecV1, normalizeDesignSpecV1 } from '../../designWorkshop/validate'
 import { renderDesignSpecToSection } from '../../designWorkshop/renderer'
 import { extractJsonFromResponse } from '../../output/normalize'
+import { loadFonts, createTextNode } from '../../stage/primitives'
 
 export class DesignWorkshopHandler implements AssistantHandler {
+  // Store latest user request and intent for handleResponse
+  private latestUserRequest: string = ''
+  private latestIntent: DesignIntent = {}
+
   canHandle(assistantId: string, actionId: string | undefined): boolean {
     return assistantId === 'design_workshop' && (actionId === 'generate-screens' || actionId === undefined)
   }
@@ -22,6 +27,18 @@ export class DesignWorkshopHandler implements AssistantHandler {
       ? userMessages[userMessages.length - 1].content 
       : 'Generate design screens'
     
+    // Store for use in handleResponse
+    this.latestUserRequest = latestUserRequest
+    
+    // Extract intent from user request (simple keyword-based extraction)
+    const intent = this.extractIntent(latestUserRequest, messages)
+    
+    // Store intent for use in handleResponse
+    this.latestIntent = intent
+    
+    // Build intent summary for prompt
+    const intentSummary = this.formatIntentSummary(intent)
+    
     // Inject JSON-only enforcement messages for Design Workshop
     return [
       {
@@ -31,21 +48,23 @@ export class DesignWorkshopHandler implements AssistantHandler {
       ...messages,
       {
         role: 'user',
-        content: `Based on the user's request: "${latestUserRequest}"
+        content: `=== USER REQUEST ===
+"${latestUserRequest}"
 
-Generate 1-5 screens that match the user's specifications. Follow their requirements for:
-- App type and purpose (e.g., Mindfulness app, Fitness app, FinTech app)
-- Colors and styling (e.g., "use the color pink", "blue colors")
-- Fidelity level (wireframe, medium, hi, creative)
-- Screen types (e.g., onboarding, home, profile, etc.)
-- Any other specific requirements mentioned
+=== EXTRACTED INTENT ===
+${intentSummary}
 
+=== SCHEMA REQUIREMENTS ===
 Output must be a single JSON object matching the DesignSpecV1 schema exactly:
 
 {
   "type": "designScreens",
   "version": 1,
-  "meta": { "title": "string" },
+  "meta": { 
+    "title": "string",
+    "userRequest": "${latestUserRequest.replace(/"/g, '\\"')}",
+    "intent": { /* extracted intent fields */ }
+  },
   "canvas": {
     "device": {
       "kind": "mobile" | "tablet" | "desktop",
@@ -57,7 +76,8 @@ Output must be a single JSON object matching the DesignSpecV1 schema exactly:
     "intent": {
       "fidelity": "wireframe" | "medium" | "hi" | "creative",
       "styleKeywords": ["string"],
-      "brandTone": "string"
+      "brandTone": "string",
+      "density": "compact" | "comfortable" | "spacious"
     }
   },
   "screens": [
@@ -81,13 +101,162 @@ Output must be a single JSON object matching the DesignSpecV1 schema exactly:
   ]
 }
 
+=== STYLING RULES ===
+1. Map user's app type/genre to screen names and content (e.g., "game" → game-like screens, "fintech" → financial app screens).
+2. Map tone/genre/keywords to render.intent:
+   - "playful", "fun", "game" → use creative fidelity, rounded corners, bright colors
+   - "serious", "professional", "fintech" → use hi fidelity, restrained palette
+   - "calm", "mindfulness" → use medium/hi fidelity, soft colors, spacious density
+3. Map color requests to render.intent.styleKeywords and brandTone:
+   - If user mentions specific colors (e.g., "pink", "blue"), include them in styleKeywords
+   - If user mentions color as "accent", use it sparingly in buttons/highlights
+   - Express colors as semantic names (e.g., "pink", "navy blue") or hex values
+4. Map fidelity requests:
+   - "wireframe" → wireframe
+   - "medium" or no mention → medium
+   - "hi", "high", "high-fidelity" → hi
+   - "creative", "playful", "bold" → creative
+5. Map screen types from user request to screen names (e.g., "onboarding" → "Onboarding", "home" → "Home").
+
 CRITICAL: 
 - Generate 1-5 screens only. If more are requested, generate exactly 5 and include meta.truncationNotice.
-- Follow the user's request exactly (app type, colors, fidelity, screen types).
-- Use render.intent.fidelity, styleKeywords, and brandTone to capture user's styling preferences.
+- Follow the user's request EXACTLY (app type, colors, fidelity, screen types).
+- Include meta.userRequest and meta.intent in your output.
+- Use render.intent.fidelity, styleKeywords, brandTone, and density to capture user's styling preferences.
 - Return JSON only, no other text.`
       }
     ]
+  }
+
+  /**
+   * Extract design intent from user request and message history
+   */
+  private extractIntent(userRequest: string, messages: NormalizedMessage[]): DesignIntent {
+    const intent: DesignIntent = {}
+    const lowerRequest = userRequest.toLowerCase()
+    
+    // Extract app type/genre
+    const appTypes = ['game', 'fintech', 'mindfulness', 'fitness', 'dashboard', 'social', 'ecommerce', 'banking', 'health']
+    for (const appType of appTypes) {
+      if (lowerRequest.includes(appType)) {
+        intent.appType = appType
+        break
+      }
+    }
+    
+    // Extract tone
+    if (lowerRequest.includes('playful') || lowerRequest.includes('fun') || lowerRequest.includes('game')) {
+      intent.tone = 'playful'
+    } else if (lowerRequest.includes('serious') || lowerRequest.includes('professional')) {
+      intent.tone = 'serious'
+    } else if (lowerRequest.includes('calm') || lowerRequest.includes('peaceful')) {
+      intent.tone = 'calm'
+    }
+    
+    // Extract keywords
+    const keywords: string[] = []
+    const keywordPatterns = ['minimalist', 'bold', 'modern', 'classic', 'vibrant', 'soft']
+    for (const keyword of keywordPatterns) {
+      if (lowerRequest.includes(keyword)) {
+        keywords.push(keyword)
+      }
+    }
+    if (keywords.length > 0) {
+      intent.keywords = keywords
+    }
+    
+    // Extract colors
+    const colorPatterns = [
+      { pattern: /pink|rose|magenta/gi, name: 'pink' },
+      { pattern: /blue|navy|azure/gi, name: 'blue' },
+      { pattern: /green|emerald|mint/gi, name: 'green' },
+      { pattern: /purple|violet|lavender/gi, name: 'purple' },
+      { pattern: /orange|amber|peach/gi, name: 'orange' },
+      { pattern: /red|crimson|scarlet/gi, name: 'red' },
+      { pattern: /yellow|gold|amber/gi, name: 'yellow' }
+    ]
+    
+    const foundColors: string[] = []
+    for (const { pattern, name } of colorPatterns) {
+      if (pattern.test(userRequest)) {
+        foundColors.push(name)
+      }
+    }
+    
+    if (foundColors.length > 0) {
+      intent.primaryColor = foundColors[0]
+      if (foundColors.length > 1) {
+        intent.accentColors = foundColors.slice(1)
+      }
+    }
+    
+    // Extract fidelity
+    if (lowerRequest.includes('wireframe')) {
+      intent.fidelity = 'wireframe'
+    } else if (lowerRequest.includes('hi') || lowerRequest.includes('high') || lowerRequest.includes('high-fidelity')) {
+      intent.fidelity = 'hi'
+    } else if (lowerRequest.includes('creative') || lowerRequest.includes('playful') || lowerRequest.includes('bold')) {
+      intent.fidelity = 'creative'
+    } else if (lowerRequest.includes('medium')) {
+      intent.fidelity = 'medium'
+    }
+    
+    // Extract density
+    if (lowerRequest.includes('compact') || lowerRequest.includes('dense')) {
+      intent.density = 'compact'
+    } else if (lowerRequest.includes('spacious') || lowerRequest.includes('airy')) {
+      intent.density = 'spacious'
+    } else if (lowerRequest.includes('comfortable')) {
+      intent.density = 'comfortable'
+    }
+    
+    // Extract screen archetypes
+    const archetypes: string[] = []
+    const archetypePatterns = ['onboarding', 'home', 'profile', 'settings', 'stats', 'store', 'dashboard', 'login', 'signup']
+    for (const archetype of archetypePatterns) {
+      if (lowerRequest.includes(archetype)) {
+        archetypes.push(archetype)
+      }
+    }
+    if (archetypes.length > 0) {
+      intent.screenArchetypes = archetypes
+    }
+    
+    return intent
+  }
+
+  /**
+   * Format intent summary for LLM prompt
+   */
+  private formatIntentSummary(intent: DesignIntent): string {
+    const parts: string[] = []
+    
+    if (intent.appType) {
+      parts.push(`App Type: ${intent.appType}`)
+    }
+    if (intent.tone) {
+      parts.push(`Tone: ${intent.tone}`)
+    }
+    if (intent.keywords && intent.keywords.length > 0) {
+      parts.push(`Keywords: ${intent.keywords.join(', ')}`)
+    }
+    if (intent.primaryColor) {
+      parts.push(`Primary Color: ${intent.primaryColor}`)
+    }
+    if (intent.accentColors && intent.accentColors.length > 0) {
+      parts.push(`Accent Colors: ${intent.accentColors.join(', ')}`)
+    }
+    if (intent.fidelity) {
+      parts.push(`Fidelity: ${intent.fidelity}`)
+    }
+    if (intent.density) {
+      parts.push(`Density: ${intent.density}`)
+    }
+    if (intent.screenArchetypes && intent.screenArchetypes.length > 0) {
+      parts.push(`Screen Types: ${intent.screenArchetypes.join(', ')}`)
+    }
+    
+    return parts.length > 0 ? parts.join('\n') : 'No explicit intent extracted (use defaults)'
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
@@ -122,28 +291,70 @@ CRITICAL:
       }
       
       // Validate spec
-      console.log(`[DW ${runId}] BEFORE validateDesignSpecV1`)
+      console.log(`[DW][VALIDATION] ${runId} - Starting validation`)
       const validation = validateDesignSpecV1(parsed)
       
       if (!validation.ok) {
-        console.log(`[DW ${runId}] Validation failed:`, validation.errors)
+        console.log(`[DW][VALIDATION] ${runId} - Validation failed:`, validation.errors)
         // Attempt repair with cleaned response
         return await this.attemptRepair(context, cleanedResponse, runId)
       }
       
       if (validation.warnings.length > 0) {
-        console.log(`[DW ${runId}] Validation warnings:`, validation.warnings)
+        console.log(`[DW][VALIDATION] ${runId} - Warnings:`, validation.warnings)
       }
       
+      // Store user request, runId, and intent in spec before normalizing
+      const spec = parsed as DesignSpecV1
+      if (!spec.meta) {
+        spec.meta = { title: 'Screens' }
+      }
+      spec.meta.userRequest = this.latestUserRequest
+      spec.meta.runId = runId
+      
+      // Merge extracted intent with any intent from LLM response
+      if (!spec.meta.intent) {
+        spec.meta.intent = this.latestIntent
+      } else {
+        // Merge: LLM intent takes precedence, but fill gaps from extracted intent
+        const llmIntent = spec.meta.intent
+        spec.meta.intent = {
+          ...this.latestIntent,
+          ...llmIntent,
+          keywords: llmIntent.keywords || this.latestIntent.keywords,
+          accentColors: llmIntent.accentColors || this.latestIntent.accentColors,
+          screenArchetypes: llmIntent.screenArchetypes || this.latestIntent.screenArchetypes
+        }
+      }
+      
+      console.log(`[DW][INTENT] ${runId} - User request: "${this.latestUserRequest}"`)
+      console.log(`[DW][INTENT] ${runId} - Extracted intent:`, JSON.stringify(spec.meta.intent, null, 2))
+      
       // Normalize spec (enforces 1-5 screens)
-      console.log(`[DW ${runId}] BEFORE normalizeDesignSpecV1`)
-      const normalized = normalizeDesignSpecV1(parsed as DesignSpecV1)
-      console.log(`[DW ${runId}] AFTER normalizeDesignSpecV1`, { screenCount: normalized.screens.length })
+      console.log(`[DW][SPEC] ${runId} - Normalizing spec`)
+      const normalized = normalizeDesignSpecV1(spec)
+      console.log(`[DW][SPEC] ${runId} - Normalized: ${normalized.screens.length} screens`)
       
       // Render to section
-      console.log(`[DW ${runId}] BEFORE renderDesignSpecToSection`)
-      await renderDesignSpecToSection(normalized)
-      console.log(`[DW ${runId}] AFTER renderDesignSpecToSection`, { status: 'SUCCESS' })
+      console.log(`[DW][RENDER] ${runId} - Starting render`)
+      const renderResult = await renderDesignSpecToSection(normalized, runId)
+      console.log(`[DW][RENDER] ${runId} - Render complete`)
+      
+      // Log render report
+      if (renderResult.report) {
+        console.log(`[DW][REPORT] ${runId} - Consumed fields:`, renderResult.report.consumedFields.length)
+        console.log(`[DW][REPORT] ${runId} - Unused fields:`, renderResult.report.unusedFields.length)
+        console.log(`[DW][REPORT] ${runId} - Fallbacks:`, renderResult.report.fallbacks.length)
+        
+        if (renderResult.report.unusedFields.length > 0) {
+          renderResult.report.unusedFields.forEach(field => {
+            console.log(`[DW][UNUSED_FIELD] ${runId} - ${field.field}:`, field.value, field.reason || '')
+          })
+        }
+      }
+      
+      // Create observability artifacts
+      await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
       
       // Send completion message
       sendAssistantMessage('Screens placed on stage')
@@ -269,9 +480,34 @@ ${originalResponse.substring(0, 2000)}`
         return { handled: true, message: 'Error: Design spec validation failed' }
       }
       
+      // Store user request, runId, and intent in repaired spec
+      const repairedSpec = repaired as DesignSpecV1
+      if (!repairedSpec.meta) {
+        repairedSpec.meta = { title: 'Screens' }
+      }
+      repairedSpec.meta.userRequest = this.latestUserRequest
+      repairedSpec.meta.runId = runId
+      
+      // Merge extracted intent with any intent from LLM response
+      if (!repairedSpec.meta.intent) {
+        repairedSpec.meta.intent = this.latestIntent
+      } else {
+        const llmIntent = repairedSpec.meta.intent
+        repairedSpec.meta.intent = {
+          ...this.latestIntent,
+          ...llmIntent,
+          keywords: llmIntent.keywords || this.latestIntent.keywords,
+          accentColors: llmIntent.accentColors || this.latestIntent.accentColors,
+          screenArchetypes: llmIntent.screenArchetypes || this.latestIntent.screenArchetypes
+        }
+      }
+      
       // Normalize and render
-      const normalized = normalizeDesignSpecV1(repaired as DesignSpecV1)
-      await renderDesignSpecToSection(normalized)
+      const normalized = normalizeDesignSpecV1(repairedSpec)
+      const renderResult = await renderDesignSpecToSection(normalized, runId)
+      
+      // Create observability artifacts
+      await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
       
       context.sendAssistantMessage('Screens placed on stage')
       if (normalized.meta.truncationNotice) {
@@ -285,6 +521,169 @@ ${originalResponse.substring(0, 2000)}`
       context.sendAssistantMessage('Error: Could not repair design spec. Please try again.')
       figma.notify('Error: Failed to repair design spec')
       return { handled: true, message: 'Error: Could not repair design spec' }
+    }
+  }
+
+  /**
+   * Create observability artifacts on stage
+   * Places an annotation frame near the section with user request, intent, and spec summary
+   */
+  private async createObservabilityArtifacts(
+    spec: DesignSpecV1,
+    report: RenderReport | undefined,
+    runId: string,
+    section: FrameNode
+  ): Promise<void> {
+    try {
+      const fonts = await loadFonts()
+      
+      // Create annotation frame
+      const annotationFrame = figma.createFrame()
+      annotationFrame.name = `Design Workshop — Spec & Intent (${runId})`
+      annotationFrame.layoutMode = 'VERTICAL'
+      annotationFrame.primaryAxisSizingMode = 'AUTO'
+      annotationFrame.counterAxisSizingMode = 'AUTO'
+      annotationFrame.paddingTop = 16
+      annotationFrame.paddingRight = 16
+      annotationFrame.paddingBottom = 16
+      annotationFrame.paddingLeft = 16
+      annotationFrame.itemSpacing = 12
+      annotationFrame.fills = [{ type: 'SOLID', color: { r: 0.98, g: 0.98, b: 0.98 } }]
+      annotationFrame.strokes = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.8 }, opacity: 1 }]
+      annotationFrame.strokeWeight = 1
+      annotationFrame.cornerRadius = 8
+      
+      // Title
+      const titleText = await createTextNode('Design Workshop — Spec & Intent', {
+        fontSize: 14,
+        fontName: fonts.bold,
+        fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1 } }]
+      })
+      titleText.name = 'Title'
+      annotationFrame.appendChild(titleText)
+      
+      // Run ID
+      const runIdText = await createTextNode(`Run: ${runId}`, {
+        fontSize: 11,
+        fontName: fonts.regular,
+        fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }]
+      })
+      runIdText.name = 'Run ID'
+      annotationFrame.appendChild(runIdText)
+      
+      // User Request
+      if (spec.meta.userRequest) {
+        const userRequestLabel = await createTextNode('User Request:', {
+          fontSize: 12,
+          fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
+        })
+        userRequestLabel.name = 'User Request Label'
+        annotationFrame.appendChild(userRequestLabel)
+        
+        const userRequestText = await createTextNode(`"${spec.meta.userRequest}"`, {
+          fontSize: 11,
+          fontName: fonts.regular,
+          fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
+        })
+        userRequestText.name = 'User Request'
+        userRequestText.resize(300, userRequestText.height)
+        annotationFrame.appendChild(userRequestText)
+      }
+      
+      // Intent Summary
+      if (spec.meta.intent) {
+        const intentLabel = await createTextNode('Intent:', {
+          fontSize: 12,
+          fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
+        })
+        intentLabel.name = 'Intent Label'
+        annotationFrame.appendChild(intentLabel)
+        
+        const intentParts: string[] = []
+        if (spec.meta.intent.appType) intentParts.push(`App: ${spec.meta.intent.appType}`)
+        if (spec.meta.intent.tone) intentParts.push(`Tone: ${spec.meta.intent.tone}`)
+        if (spec.meta.intent.primaryColor) intentParts.push(`Color: ${spec.meta.intent.primaryColor}`)
+        if (spec.meta.intent.fidelity) intentParts.push(`Fidelity: ${spec.meta.intent.fidelity}`)
+        
+        if (intentParts.length > 0) {
+          const intentText = await createTextNode(intentParts.join(' • '), {
+            fontSize: 11,
+            fontName: fonts.regular,
+            fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
+          })
+          intentText.name = 'Intent'
+          intentText.resize(300, intentText.height)
+          annotationFrame.appendChild(intentText)
+        }
+      }
+      
+      // Render Report Summary
+      if (report) {
+        const reportParts: string[] = []
+        if (report.consumedFields.length > 0) {
+          reportParts.push(`Applied: ${report.consumedFields.length} fields`)
+        }
+        if (report.unusedFields.length > 0) {
+          reportParts.push(`Unused: ${report.unusedFields.length} fields`)
+        }
+        if (report.fallbacks.length > 0) {
+          reportParts.push(`Fallbacks: ${report.fallbacks.length}`)
+        }
+        
+        if (reportParts.length > 0) {
+          const reportLabel = await createTextNode('Render Report:', {
+            fontSize: 12,
+            fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
+          })
+          reportLabel.name = 'Report Label'
+          annotationFrame.appendChild(reportLabel)
+          
+          const reportText = await createTextNode(reportParts.join(' • '), {
+            fontSize: 11,
+            fontName: fonts.regular,
+            fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
+          })
+          reportText.name = 'Report'
+          reportText.resize(300, reportText.height)
+          annotationFrame.appendChild(reportText)
+        }
+      }
+      
+      // Spec Summary (truncated JSON)
+      const specLabel = await createTextNode('Spec (preview):', {
+        fontSize: 12,
+        fontName: fonts.bold,
+        fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
+      })
+      specLabel.name = 'Spec Label'
+      annotationFrame.appendChild(specLabel)
+      
+      const specPreview = {
+        screens: spec.screens.length,
+        fidelity: spec.render.intent.fidelity,
+        device: spec.canvas.device.kind
+      }
+      const specText = await createTextNode(JSON.stringify(specPreview, null, 2), {
+        fontSize: 10,
+        fontName: fonts.regular,
+        fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
+      })
+      specText.name = 'Spec Preview'
+      specText.resize(300, specText.height)
+      annotationFrame.appendChild(specText)
+      
+      // Position annotation frame to the right of section
+      annotationFrame.x = section.x + section.width + 40
+      annotationFrame.y = section.y
+      
+      // Append to page
+      figma.currentPage.appendChild(annotationFrame)
+    } catch (error) {
+      console.error(`[DW] Error creating observability artifacts:`, error)
+      // Don't fail the whole operation if observability fails
     }
   }
 }

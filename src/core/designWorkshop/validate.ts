@@ -11,12 +11,16 @@
 import type { DesignSpecV1, BlockSpec } from './types'
 
 /**
- * Validation result
+ * Validation result with severity levels
  */
 export interface ValidationResult {
   ok: boolean
   warnings: string[]
   errors: string[]
+  /** Info-level messages (non-critical) */
+  info: string[]
+  /** Severity levels: 'error' | 'warning' | 'info' */
+  severity: Array<{ level: 'error' | 'warning' | 'info'; message: string; field?: string }>
 }
 
 /**
@@ -34,80 +38,118 @@ export interface ValidationResult {
 export function validateDesignSpecV1(spec: unknown): ValidationResult {
   const warnings: string[] = []
   const errors: string[] = []
+  const info: string[] = []
+  const severity: Array<{ level: 'error' | 'warning' | 'info'; message: string; field?: string }> = []
 
   // Check if spec is an object
   if (!spec || typeof spec !== 'object') {
     errors.push('Spec is not an object')
-    return { ok: false, warnings, errors }
+    severity.push({ level: 'error', message: 'Spec is not an object' })
+    return { ok: false, warnings, errors, info, severity }
   }
 
-  const s = spec as Record<string, unknown>
+  const specObj = spec as Record<string, unknown>
 
   // Check required top-level fields
-  if (s.type !== 'designScreens') {
+  if (specObj.type !== 'designScreens') {
     errors.push('Missing or invalid type field (must be "designScreens")')
+    severity.push({ level: 'error', message: 'Missing or invalid type field (must be "designScreens")', field: 'type' })
   }
 
-  if (typeof s.version !== 'number' || s.version !== 1) {
+  if (typeof specObj.version !== 'number' || specObj.version !== 1) {
     errors.push('Missing or invalid version field (must be 1)')
+    severity.push({ level: 'error', message: 'Missing or invalid version field (must be 1)', field: 'version' })
   }
 
-  if (!s.meta || typeof s.meta !== 'object') {
+  if (!specObj.meta || typeof specObj.meta !== 'object') {
     errors.push('Missing or invalid meta field')
+    severity.push({ level: 'error', message: 'Missing or invalid meta field', field: 'meta' })
   } else {
-    const meta = s.meta as Record<string, unknown>
+    const meta = specObj.meta as Record<string, unknown>
     if (typeof meta.title !== 'string') {
       errors.push('meta.title is missing or invalid')
+      severity.push({ level: 'error', message: 'meta.title is missing or invalid', field: 'meta.title' })
     }
   }
 
-  if (!s.canvas || typeof s.canvas !== 'object') {
+  if (!specObj.canvas || typeof specObj.canvas !== 'object') {
     errors.push('Missing or invalid canvas field')
+    severity.push({ level: 'error', message: 'Missing or invalid canvas field', field: 'canvas' })
   } else {
-    const canvas = s.canvas as Record<string, unknown>
+    const canvas = specObj.canvas as Record<string, unknown>
     if (!canvas.device || typeof canvas.device !== 'object') {
       errors.push('canvas.device is missing or invalid')
+      severity.push({ level: 'error', message: 'canvas.device is missing or invalid', field: 'canvas.device' })
     } else {
       const device = canvas.device as Record<string, unknown>
       if (!['mobile', 'tablet', 'desktop'].includes(device.kind as string)) {
         errors.push('canvas.device.kind is missing or invalid (must be "mobile", "tablet", or "desktop")')
+        severity.push({ level: 'error', message: 'canvas.device.kind is missing or invalid (must be "mobile", "tablet", or "desktop")', field: 'canvas.device.kind' })
       }
       if (typeof device.width !== 'number' || device.width <= 0) {
         errors.push('canvas.device.width is missing or invalid (must be positive number)')
+        severity.push({ level: 'error', message: 'canvas.device.width is missing or invalid (must be positive number)', field: 'canvas.device.width' })
       }
       if (typeof device.height !== 'number' || device.height <= 0) {
         errors.push('canvas.device.height is missing or invalid (must be positive number)')
+        severity.push({ level: 'error', message: 'canvas.device.height is missing or invalid (must be positive number)', field: 'canvas.device.height' })
       }
     }
   }
 
-  if (!s.render || typeof s.render !== 'object') {
+  if (!specObj.render || typeof specObj.render !== 'object') {
     errors.push('Missing or invalid render field')
+    severity.push({ level: 'error', message: 'Missing or invalid render field', field: 'render' })
   } else {
-    const render = s.render as Record<string, unknown>
+    const render = specObj.render as Record<string, unknown>
     if (!render.intent || typeof render.intent !== 'object') {
       errors.push('render.intent is missing or invalid')
+      severity.push({ level: 'error', message: 'render.intent is missing or invalid', field: 'render.intent' })
     } else {
       const intent = render.intent as Record<string, unknown>
       if (!['wireframe', 'medium', 'hi', 'creative'].includes(intent.fidelity as string)) {
         errors.push('render.intent.fidelity is missing or invalid (must be "wireframe", "medium", "hi", or "creative")')
+        severity.push({ level: 'error', message: 'render.intent.fidelity is missing or invalid (must be "wireframe", "medium", "hi", or "creative")', field: 'render.intent.fidelity' })
       }
     }
   }
 
   // Check screens array
-  if (!Array.isArray(s.screens)) {
+  if (!Array.isArray(specObj.screens)) {
     errors.push('screens is not an array')
-    return { ok: errors.length === 0, warnings, errors }
+    severity.push({ level: 'error', message: 'screens is not an array', field: 'screens' })
+    return { ok: errors.length === 0, warnings, errors, info, severity }
   }
 
-  const screens = s.screens as unknown[]
+  const screens = specObj.screens as unknown[]
   
   // Check screen count
   if (screens.length === 0) {
     errors.push('screens array is empty (must have at least 1 screen)')
+    severity.push({ level: 'error', message: 'screens array is empty (must have at least 1 screen)', field: 'screens' })
   } else if (screens.length > 5) {
     warnings.push(`screens array has ${screens.length} items (will be truncated to 5)`)
+    severity.push({ level: 'warning', message: `screens array has ${screens.length} items (will be truncated to 5)`, field: 'screens' })
+  }
+  
+  // Check intent completeness
+  if (specObj.meta && typeof specObj.meta === 'object') {
+    const meta = specObj.meta as Record<string, unknown>
+    if (!meta.intent) {
+      info.push('No intent specified in meta (will use defaults)')
+      severity.push({ level: 'info', message: 'No intent specified in meta (will use defaults)', field: 'meta.intent' })
+    } else {
+      const intent = meta.intent as Record<string, unknown>
+      if (!intent.appType && !intent.tone && !intent.primaryColor) {
+        info.push('Intent is minimal (appType, tone, or primaryColor not specified)')
+        severity.push({ level: 'info', message: 'Intent is minimal (appType, tone, or primaryColor not specified)', field: 'meta.intent' })
+      }
+    }
+    
+    if (!meta.userRequest) {
+      info.push('No userRequest stored in meta (traceability reduced)')
+      severity.push({ level: 'info', message: 'No userRequest stored in meta (traceability reduced)', field: 'meta.userRequest' })
+    }
   }
 
   // Validate each screen
@@ -181,10 +223,24 @@ export function validateDesignSpecV1(spec: unknown): ValidationResult {
     })
   })
 
+  // Add all errors and warnings to severity array
+  errors.forEach(err => {
+    if (!severity.some(s => s.message === err && s.level === 'error')) {
+      severity.push({ level: 'error', message: err })
+    }
+  })
+  warnings.forEach(warn => {
+    if (!severity.some(s => s.message === warn && s.level === 'warning')) {
+      severity.push({ level: 'warning', message: warn })
+    }
+  })
+  
   return {
     ok: errors.length === 0,
     warnings,
-    errors
+    errors,
+    info,
+    severity
   }
 }
 
