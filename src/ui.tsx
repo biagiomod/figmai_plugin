@@ -148,6 +148,56 @@ import {
   LightBulbRaysIcon
 } from './ui/icons'
 
+// --- Chat content helpers for Design Workshop UX cleanup ---
+
+/**
+ * Clean chat content by removing internal generation metadata tags
+ * Removes patterns like "generate: 1/100 (1%)" that should not appear in user-facing chat
+ * Also removes duplicate paragraphs within the same message
+ */
+function cleanChatContent(raw: string): string {
+  if (!raw) return ''
+
+  // Strip internal generation metadata like: "generate: 1/100 (1%)"
+  let text = raw
+    .replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '') // generate: X/Y (Z%)
+    .replace(/generate:\s*\d+\/\d+/gi, '')            // generate: X/Y
+    .replace(/\(\d+%\)/g, '')                         // standalone "(Z%)"
+    .trim()
+
+  // Remove duplicate paragraphs (split by newlines, keep unique)
+  // Do this BEFORE collapsing whitespace to preserve paragraph structure
+  const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
+  const uniqueLines: string[] = []
+  const seen = new Set<string>()
+  
+  for (const line of lines) {
+    const normalized = line.trim().toLowerCase().replace(/\s+/g, ' ')
+    // Only skip if we've seen this exact normalized line before
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      uniqueLines.push(line.trim())
+    }
+  }
+
+  text = uniqueLines.join('\n')
+  
+  // Collapse multiple spaces to single space (but preserve newlines)
+  text = text.replace(/[ \t]+/g, ' ').trim()
+
+  return text
+}
+
+/**
+ * Check if a message looks like a Design Workshop intro message
+ */
+function isDesignWorkshopIntro(text: string): boolean {
+  const normalized = cleanChatContent(text).toLowerCase()
+  return (
+    normalized.includes('welcome to your design workshop assistant') ||
+    normalized.includes('i generate 1-5 figma screens from a json specification')
+  )
+}
 
 function Plugin() {
   // Reset token to prevent late-arriving messages from re-hydrating stale state
@@ -313,16 +363,36 @@ function Plugin() {
           if (shouldProcessAssistantMessage) {
             console.log('[UI] setThinking false - ASSISTANT_MESSAGE received', { role: message.message.role })
             setMessages(prev => {
-              // Main thread is the source of truth for user messages (prevents duplicates)
-              // If this is a user message and we have status messages, ensure user appears first
-              if (message.message.role === 'user') {
+              const incoming = message.message as Message
+
+              // User messages: keep existing behavior
+              if (incoming.role === 'user') {
                 const statusMessages = prev.filter(m => m.isStatus)
                 const nonStatusMessages = prev.filter(m => !m.isStatus)
                 // Put user message before status messages for correct order
-                return [...nonStatusMessages, message.message, ...statusMessages]
+                return [...nonStatusMessages, incoming, ...statusMessages]
               }
-              // Assistant messages are added normally
-              return [...prev, message.message]
+
+              // Assistant messages: clean + dedupe
+              const cleanedContent = cleanChatContent(incoming.content)
+              const looksLikeWorkshopIntro = isDesignWorkshopIntro(cleanedContent)
+
+              if (looksLikeWorkshopIntro) {
+                // Check if we already have a similar intro message (compare cleaned content)
+                const hasDuplicate = prev.some(m => {
+                  if (m.role !== 'assistant') return false
+                  const prevCleaned = cleanChatContent(m.content)
+                  return isDesignWorkshopIntro(prevCleaned)
+                })
+
+                if (hasDuplicate) {
+                  console.log('[UI] Skipping duplicate Design Workshop intro message')
+                  return prev
+                }
+              }
+
+              const cleanedMessage: Message = { ...incoming, content: cleanedContent }
+              return [...prev, cleanedMessage]
             })
             setIsLoading(false) // Stop loading when message arrives
           } else {
@@ -2007,13 +2077,17 @@ ${htmlTable}
                   }}>
                     {(() => {
                       try {
+                        // Clean content before rendering: remove internal metadata tags
+                        const contentToRender = cleanChatContent(message.content)
+
                         // Always parse and render with RichTextRenderer for assistant messages
-                        const ast = parseRichText(message.content)
+                        const ast = parseRichText(contentToRender)
                         const enhanced = enhanceRichText(ast)
                         return <RichTextRenderer nodes={enhanced} />
                       } catch (error) {
                         // Fallback to plain text if parsing fails
                         console.error('[UI] RichText parsing error:', error)
+                        const cleanedFallback = cleanChatContent(message.content)
                         return (
                           <div style={{
                             fontSize: 'var(--font-size-sm)',
@@ -2025,7 +2099,7 @@ ${htmlTable}
                             msUserSelect: 'text',
                             cursor: 'text'
                           }}>
-                            {message.content}
+                            {cleanedFallback}
                           </div>
                         )
                       }

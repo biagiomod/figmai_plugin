@@ -96,14 +96,17 @@ CRITICAL:
     console.log(`[DW ${runId}] START`, { assistantId: context.assistantId, actionId: context.actionId })
     
     try {
-      console.log(`[DW ${runId}] RAW_RESPONSE_HEAD`, response.slice(0, 200))
-      console.log(`[DW ${runId}] RAW_RESPONSE_LENGTH`, response.length)
+      // Clean response: remove internal metadata tags like "generate: 1/100 (1%)"
+      let cleanedResponse = response.replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '').trim()
+      
+      console.log(`[DW ${runId}] RAW_RESPONSE_HEAD`, cleanedResponse.slice(0, 200))
+      console.log(`[DW ${runId}] RAW_RESPONSE_LENGTH`, cleanedResponse.length)
       
       // Extract JSON from response (strip code fences if present)
-      let jsonString = extractJsonFromResponse(response)
+      let jsonString = extractJsonFromResponse(cleanedResponse)
       if (!jsonString) {
         // Try direct parse if extraction failed
-        jsonString = response.trim()
+        jsonString = cleanedResponse.trim()
         // Remove code fences manually
         jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '')
       }
@@ -114,8 +117,8 @@ CRITICAL:
         parsed = JSON.parse(jsonString)
       } catch (parseError) {
         console.log(`[DW ${runId}] JSON parse error:`, parseError)
-        // Attempt repair
-        return await this.attemptRepair(context, response, runId)
+        // Attempt repair with cleaned response
+        return await this.attemptRepair(context, cleanedResponse, runId)
       }
       
       // Validate spec
@@ -124,8 +127,8 @@ CRITICAL:
       
       if (!validation.ok) {
         console.log(`[DW ${runId}] Validation failed:`, validation.errors)
-        // Attempt repair
-        return await this.attemptRepair(context, response, runId)
+        // Attempt repair with cleaned response
+        return await this.attemptRepair(context, cleanedResponse, runId)
       }
       
       if (validation.warnings.length > 0) {

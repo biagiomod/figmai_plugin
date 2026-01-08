@@ -322,7 +322,7 @@ You identify design errors, inconsistencies, and quality issues that could cause
   {
     id: 'design_workshop',
     label: 'Design Workshop',
-    intro: 'I generate 1-5 Figma screens from a JSON specification. Describe the screens you want, and I\'ll create them on the canvas.',
+    intro: '**Welcome to your Design Workshop Assistant!**\n\nI generate 1-5 Figma screens from a JSON specification. Describe the screens you want, and I\'ll create them on the canvas.',
     promptMarkdown: `# Design Workshop Assistant
 
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.
@@ -384,8 +384,8 @@ You MUST respond with valid JSON in this exact format (NO markdown fences, NO ot
     quickActions: [
       {
         id: 'generate-screens',
-        label: 'Generate Screens',
-        templateMessage: 'Generate 1-5 screens based on my description. Use medium fidelity by default.',
+        label: 'Demo: Generate Screens',
+        templateMessage: 'Generating demo screen/s using medium fidelity.',
         requiresSelection: false
       }
     ]

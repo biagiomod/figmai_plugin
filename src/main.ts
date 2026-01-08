@@ -202,12 +202,51 @@ function sendSelectionState() {
   figma.ui.postMessage({ pluginMessage: { type: 'SELECTION_STATE', state } })
 }
 
+// Clean chat content by removing internal generation metadata tags
+// Removes patterns like "generate: 1/100 (1%)" that should not appear in user-facing chat
+// Also removes duplicate lines/paragraphs within the same message
+function cleanChatContent(raw: string): string {
+  if (!raw) return ''
+
+  // Strip internal generation metadata like: "generate: 1/100 (1%)"
+  let text = raw
+    .replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '') // generate: X/Y (Z%)
+    .replace(/generate:\s*\d+\/\d+/gi, '')            // generate: X/Y
+    .replace(/\(\d+%\)/g, '')                         // standalone "(Z%)"
+    .trim()
+
+  // Remove duplicate lines (split by newlines, keep unique)
+  // Do this BEFORE collapsing whitespace to preserve line structure
+  const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
+  const uniqueLines: string[] = []
+  const seen = new Set<string>()
+  
+  for (const line of lines) {
+    const normalized = line.trim().toLowerCase().replace(/\s+/g, ' ')
+    // Only skip if we've seen this exact normalized line before
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      uniqueLines.push(line.trim())
+    }
+  }
+
+  text = uniqueLines.join('\n')
+  
+  // Collapse multiple spaces to single space (but preserve newlines)
+  text = text.replace(/[ \t]+/g, ' ').trim()
+
+  return text
+}
+
 // Send assistant message to UI
 function sendAssistantMessage(content: string, toolCallId?: string) {
+  // Clean content before sending to remove internal metadata tags
+  const cleanedContent = cleanChatContent(content)
+  
   const message: Message = {
     id: generateMessageId(),
     role: 'assistant',
-    content,
+    content: cleanedContent,
     timestamp: Date.now(),
     toolCallId
   }
@@ -260,22 +299,47 @@ on<RequestSelectionStateHandler>('REQUEST_SELECTION_STATE', function () {
   sendSelectionState()
 })
 
+// Helper to check if a message looks like a Design Workshop intro (local to main.ts)
+function isDesignWorkshopIntroMessage(content: string): boolean {
+  const normalized = content.toLowerCase()
+  return (
+    normalized.includes('welcome to your design workshop assistant') ||
+    normalized.includes('i generate 1-5 figma screens from a json specification')
+  )
+}
+
 // Handle set assistant
 on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
   console.log('[Main] onmessage SET_ASSISTANT', { assistantId })
   const assistant = getAssistant(assistantId)
   if (assistant) {
     currentAssistant = assistant
-    // Send assistant intro message
-    const introMessage: Message = {
-      id: generateMessageId(),
-      role: 'assistant',
-      content: assistant.intro,
-      timestamp: Date.now()
+    
+    // Check if we already have an intro message for this assistant to prevent duplicates
+    // For Design Workshop, check using the helper; for others, check by content match
+    const hasExistingIntro = messageHistory.some(m => {
+      if (m.role !== 'assistant') return false
+      if (assistantId === 'design_workshop') {
+        return isDesignWorkshopIntroMessage(m.content)
+      }
+      // For other assistants, check if content matches intro
+      return m.content.includes(assistant.intro.substring(0, 30))
+    })
+    
+    if (!hasExistingIntro) {
+      // Send assistant intro message
+      const introMessage: Message = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: assistant.intro,
+        timestamp: Date.now()
+      }
+      messageHistory.push(introMessage)
+      console.log('[Main] postMessage ASSISTANT_MESSAGE (assistant intro)')
+      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: introMessage } })
+    } else {
+      console.log('[Main] Skipping duplicate intro message for assistant:', assistantId)
     }
-    messageHistory.push(introMessage)
-    console.log('[Main] postMessage ASSISTANT_MESSAGE (assistant intro)')
-    figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: introMessage } })
   }
 })
 
@@ -301,6 +365,10 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
     timestamp: Date.now()
   }
   messageHistory.push(userMessage)
+  
+  // Send user message to UI (main thread is source of truth)
+  console.log('[Main] Sending user message to UI (single source of truth):', userMessage.id)
+  figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
   
   // Build selection context if needed
   let selectionContext: Awaited<ReturnType<typeof buildSelectionContext>> | undefined
