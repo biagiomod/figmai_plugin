@@ -11,8 +11,7 @@ import { h } from 'preact'
 import { useState, useCallback, useEffect } from 'preact/hooks'
 import { Button, Textbox } from '@create-figma-plugin/ui'
 import type { UniversalContentTableV1, TableFormatPreset } from '../../core/types'
-import { universalTableToHtml } from '../../core/contentTable/renderers'
-import { encodeXhtmlDocument } from '../../core/encoding/xhtml'
+import { buildConfluenceXhtmlFromTable } from '../../core/contentTable/export/confluence'
 import { loadWorkAdapter } from '../../core/work/loadAdapter'
 
 interface ConfluenceModalProps {
@@ -40,12 +39,21 @@ export function ConfluenceModal({ contentTable, format, onClose, onSuccess }: Co
     setErrorMessage(null)
 
     try {
-      // Build XHTML table content
-      const { html } = universalTableToHtml(contentTable, format)
-      const xhtmlContent = encodeXhtmlDocument(html)
-
       // Load Work adapter
       const workAdapter = await loadWorkAdapter()
+
+      // Build XHTML using canonical pipeline
+      // This applies postProcessContentTable hook (if present), converts to HTML, then XHTML-encodes
+      const { xhtml: xhtmlContent } = await buildConfluenceXhtmlFromTable({
+        table: contentTable,
+        format,
+        postProcess: workAdapter.postProcessContentTable,
+        selectionContext: {
+          pageId: contentTable.source.pageId,
+          pageName: contentTable.source.pageName,
+          rootNodeId: contentTable.meta.rootNodeId
+        }
+      })
 
       // Call createConfluence if available, otherwise simulate success
       if (workAdapter.createConfluence) {
@@ -313,4 +321,3 @@ export function ConfluenceModal({ contentTable, format, onClose, onSuccess }: Co
     </div>
   )
 }
-

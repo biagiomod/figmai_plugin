@@ -189,7 +189,286 @@ export default workAdapter
 
 ---
 
-### 3. Design System Detection (Legacy)
+### 3. Post-Process Content Table
+
+**Location:** `core/assistants/handlers/contentTable.ts`
+
+**Purpose:** Modify the scanned Content Table after scanning but before it's used/exported. This allows Work to apply proprietary rules for handling content from design system components (redaction, normalization, replacement, grouping, etc.) without embedding proprietary logic in the Public plugin.
+
+**Extension Point:**
+```typescript
+workAdapter.postProcessContentTable?: (args: {
+  table: UniversalContentTableV1
+  selectionContext?: {
+    pageId?: string
+    pageName?: string
+    rootNodeId?: string
+  }
+}) => UniversalContentTableV1 | Promise<UniversalContentTableV1>
+```
+
+**When Called:**
+- After `scanContentTable()` completes successfully
+- Before the table is:
+  - Sent to UI (via `CONTENT_TABLE_GENERATED` message)
+  - Exported (Confluence, CSV, etc.)
+  - Used by any other process
+- Called exactly once per Content Table generation
+
+**Selection Context:**
+The `selectionContext` is automatically extracted from the table:
+- `pageId`: From `table.source.pageId`
+- `pageName`: From `table.source.pageName`
+- `rootNodeId`: From `table.meta.rootNodeId`
+
+**Use Cases:**
+- **Redaction**: Remove or mask sensitive content from DS components
+- **Normalization**: Standardize content values (e.g., date formats, currency)
+- **Replacement**: Replace placeholder text with actual content
+- **Grouping**: Reorganize items based on DS rules
+- **Filtering**: Remove items that shouldn't be exported (beyond ignore rules)
+- **Enrichment**: Add metadata or transform content based on DS detection results
+
+**Implementation Example:**
+```typescript
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter, UniversalContentTableV1 } from '../core/work/adapter'
+
+const workAdapter: WorkAdapter = {
+  async postProcessContentTable(args: {
+    table: UniversalContentTableV1
+    selectionContext?: {
+      pageId?: string
+      pageName?: string
+      rootNodeId?: string
+    }
+  }): Promise<UniversalContentTableV1> {
+    const { table, selectionContext } = args
+    
+    // Example: Redact sensitive content from DS components
+    const processedItems = table.items.map(item => {
+      // If item is from a design system component, redact sensitive content
+      if (item.designSystem?.isDesignSystem) {
+        // Example: Redact email addresses, phone numbers, etc.
+        const redactedValue = item.content.value
+          .replace(/[\w.-]+@[\w.-]+\.\w+/g, '[REDACTED]')
+          .replace(/\d{3}-\d{3}-\d{4}/g, '[REDACTED]')
+        
+        return {
+          ...item,
+          content: {
+            ...item.content,
+            value: redactedValue
+          }
+        }
+      }
+      
+      return item
+    })
+    
+    // Example: Normalize content values
+    const normalizedItems = processedItems.map(item => {
+      // Example: Normalize currency formatting
+      const normalizedValue = item.content.value
+        .replace(/\$(\d+)/g, '$$$1.00') // $100 -> $100.00
+      
+      return {
+        ...item,
+        content: {
+          ...item.content,
+          value: normalizedValue
+        }
+      }
+    })
+    
+    // Example: Filter out items based on DS rules
+    const filteredItems = normalizedItems.filter(item => {
+      // Example: Keep only items from specific DS components
+      if (item.designSystem?.isDesignSystem) {
+        return item.designSystem.systemName === 'Internal Design System v2'
+      }
+      return true // Keep non-DS items
+    })
+    
+    // Return modified table
+    return {
+      ...table,
+      items: filteredItems
+    }
+  }
+}
+
+export default workAdapter
+```
+
+**Error Handling:**
+- If the hook throws an error, it's caught and logged
+- The original (unmodified) table is used instead
+- Content Table generation flow is never broken by post-processing errors
+- Error is logged to console: `[ContentTableHandler] Error in postProcessContentTable hook: <error>`
+
+**Return Value:**
+- Must return a `UniversalContentTableV1` (can be the original table or a modified copy)
+- Can be synchronous or async (Promise)
+- If hook is `undefined` or returns the original table unchanged, no processing occurs
+
+**Current Status:** ✅ **Implemented** - Extension point is called in Content Table handler after scanning completes.
+
+**Notes:**
+- Hook is optional - if not implemented, table is used as-is (Public Plugin behavior)
+- Hook can modify any part of the table (items, meta, source, etc.)
+- Hook receives the full table structure, allowing comprehensive transformations
+- Selection context is provided for context-aware processing (e.g., page-specific rules)
+- Hook is called after ignore rules and DS detection have already been applied
+- This is the place to implement DS-specific content handling rules
+
+---
+
+### 4. Content Table Schema Invariants and Validation
+
+**Location:** `core/contentTable/validate.ts` and `core/assistants/handlers/contentTable.ts`
+
+**Purpose:** Define and enforce schema invariants for `UniversalContentTableV1` to ensure stable Public↔Work contract.
+
+#### Schema Invariants
+
+**Required Fields (Public Guarantees):**
+
+**UniversalContentTableV1:**
+- `type`: Must be `"universal-content-table"` (immutable)
+- `version`: Must be `1` (immutable - bump version for breaking changes)
+- `generatedAtISO`: ISO date string (required)
+- `source`: Object with `pageId`, `pageName`, `selectionNodeId`, `selectionName` (all required strings)
+- `meta`: `TableMetaV1` object with all required fields (see below)
+- `items`: Array of `ContentItemV1` (required, may be empty array)
+
+**TableMetaV1:**
+- `contentModel`, `contentStage`, `adaStatus`, `legalStatus`, `lastUpdated`, `version`, `rootNodeId`, `rootNodeName`, `rootNodeUrl`: All required strings
+
+**ContentItemV1:**
+- `id`, `nodeId`, `nodeUrl`: Required strings
+- `component`: Required object with `kind` (string) and `name` (string)
+- `field`: Required object with `label` (string) and `path` (string)
+- `content`: Required object with `type: "text"` and `value` (string)
+- `meta`: Required object with `visible` (boolean) and `locked` (boolean)
+
+**Optional Fields:**
+- `designSystemByNodeId`: Optional object map (Record<string, DesignSystemDetectionResult>)
+- Per-item optional fields: `textLayerName`, `notes`, `contentKey`, `jiraTicket`, `adaNotes`, `errorMessage`, `designSystem`
+- `meta.thumbnailDataUrl`: Optional string
+- `field.role`: Optional string
+- `component.key`, `component.variantProperties`: Optional
+
+#### Public Guarantees (What Will Not Change)
+
+These fields are guaranteed to exist and maintain their shape without a version bump:
+- `type` and `version` fields (immutable identifiers)
+- Required field names and types
+- `items` array structure (always an array)
+- Required nested object shapes (component, field, content, meta)
+
+#### Work Extension Permissions
+
+**What `postProcessContentTable` CAN modify:**
+- ✅ `items[]` array (add, remove, reorder, modify items)
+- ✅ `items[].content.value` (redact, replace, normalize)
+- ✅ `items[].notes`, `items[].adaNotes`, `items[].jiraTicket` (add metadata)
+- ✅ `items[].designSystem` (add/modify detection results)
+- ✅ `meta.contentModel`, `meta.contentStage`, `meta.adaStatus`, `meta.legalStatus` (update status fields)
+- ✅ `designSystemByNodeId` (add/modify detection map)
+
+**What `postProcessContentTable` MUST NOT modify:**
+- ❌ `type` (must remain `"universal-content-table"`)
+- ❌ `version` (must remain `1` - bump version for breaking changes)
+- ❌ `source` structure (pageId, pageName, selectionNodeId, selectionName must remain)
+- ❌ Required field names (cannot rename or remove required fields)
+- ❌ Required field types (cannot change string → number, etc.)
+
+**Recommended Patterns:**
+- **Deep clone before modifying**: Always clone the input table to avoid mutating the original
+- **Preserve required fields**: Ensure all required fields exist in returned table
+- **Return valid schema**: Returned table must pass validation (normalization will fix minor issues, but don't rely on it)
+- **Handle errors gracefully**: If processing fails, return original table (never throw)
+
+#### Validation and Normalization
+
+**Location:** `core/contentTable/validate.ts`
+
+**Functions:**
+- `validateContentTableV1(table)`: Returns `{ ok: boolean, warnings: string[], errors: string[] }`
+  - Checks required fields, item shapes, type correctness
+  - Never throws - returns errors in result
+  - Dev-only logging (controlled by `CONFIG.dev.enableContentTableValidationLogging`)
+
+- `normalizeContentTableV1(table)`: Returns normalized `UniversalContentTableV1`
+  - Ensures arrays are arrays
+  - Fills missing required fields with safe defaults
+  - Does NOT delete information - only adds defaults
+  - Returns deep-cloned normalized copy (never mutates input)
+
+**When Applied:**
+- Normalization: After `scanContentTable()` and after `postProcessContentTable()` in Content Table handler
+- Normalization: In Confluence export pipeline (before HTML conversion)
+- Validation: After normalization in Content Table handler (dev-only warnings/errors)
+
+**Error Handling:**
+- Validation errors are logged (dev-only) but never break the flow
+- Normalization always succeeds (fills defaults if needed)
+- If validation fails, table is still used (with warnings logged)
+
+#### Example: Safe postProcessContentTable Implementation
+
+```typescript
+// src/work/workAdapter.override.ts (Work Plugin)
+import type { WorkAdapter, UniversalContentTableV1 } from '../core/work/adapter'
+
+const workAdapter: WorkAdapter = {
+  async postProcessContentTable(args: {
+    table: UniversalContentTableV1
+    selectionContext?: { pageId?: string; pageName?: string; rootNodeId?: string }
+  }): Promise<UniversalContentTableV1> {
+    const { table } = args
+    
+    // ✅ GOOD: Deep clone before modifying
+    const processed = JSON.parse(JSON.stringify(table)) as UniversalContentTableV1
+    
+    // ✅ GOOD: Modify content values (allowed)
+    processed.items = processed.items.map(item => ({
+      ...item,
+      content: {
+        ...item.content,
+        value: item.designSystem?.isDesignSystem 
+          ? '[REDACTED]' 
+          : item.content.value
+      }
+    }))
+    
+    // ✅ GOOD: Add metadata (allowed)
+    processed.items = processed.items.map(item => ({
+      ...item,
+      notes: item.designSystem?.isDesignSystem 
+        ? `${item.notes || ''} [FPO-DS Component]`.trim()
+        : item.notes
+    }))
+    
+    // ❌ BAD: Don't modify immutable fields
+    // processed.type = 'something-else' // WRONG
+    // processed.version = 2 // WRONG (bump version in schema, not here)
+    
+    // ❌ BAD: Don't remove required fields
+    // delete processed.source // WRONG
+    // delete processed.items[0].content // WRONG
+    
+    return processed
+  }
+}
+```
+
+**Current Status:** ✅ **Implemented** - Validation and normalization utilities exist, wired into Content Table handler and Confluence export pipeline.
+
+---
+
+### 5. Design System Detection (Legacy)
 
 **Location:** Where design system detection is needed (e.g., selection context, Content Table scanner)
 
@@ -267,10 +546,20 @@ workAdapter.createConfluence?: (args: {
 3. **Success Stage**: "Successfully sent to Confluence" message + optional "Go to Confluence" button (if URL returned)
 4. **Error Stage**: Error message with "Back" and "Close" buttons
 
+**Export Pipeline:**
+Confluence export uses a canonical pipeline (`buildConfluenceXhtmlFromTable` in `core/contentTable/export/confluence.ts`):
+1. **Post-Process**: Applies `postProcessContentTable` hook (if present) - allows Work to redact/normalize content
+2. **Convert to HTML**: Uses `universalTableToHtml()` from `core/contentTable/renderers.ts`
+3. **XHTML-Encode**: Uses `encodeXhtmlDocument()` from `core/encoding/xhtml.ts`
+4. **Return**: XHTML string ready for Confluence API
+
+This ensures Work can apply DS content handling rules once, and everything downstream is consistent.
+
 **XHTML Encoding:**
-- Public plugin builds XHTML table using `universalTableToHtml()` from `core/contentTable/renderers.ts`
 - XHTML is encoded using `encodeXhtmlDocument()` from `core/encoding/xhtml.ts`
 - Work adapter receives fully-encoded XHTML ready for Confluence API
+- Encoding happens after post-processing, so redacted/normalized content is properly encoded
+- Work implementation includes a safety check to re-encode if content appears unencoded (double-guard)
 
 **Public Plugin Behavior:**
 - If `workAdapter.createConfluence` is undefined (no Work override), Public plugin simulates success after 600-900ms delay
@@ -278,55 +567,84 @@ workAdapter.createConfluence?: (args: {
 - Success message appears, but no "Go to Confluence" button (no URL returned)
 - Chat bubble "Table sent to Confluence" appears on successful close
 
+**Payload Shape:**
+The Work implementation sends exactly this payload structure:
+```json
+{
+  "type": "createConfluence",
+  "confluenceTitle": "<user input>",
+  "confluenceTemplate": "<XHTML-encoded table string>"
+}
+```
+
+**Authentication:**
+- Uses browser session authentication (`credentials: 'include'` in fetch)
+- No explicit auth headers required (relies on browser cookies/session)
+- Endpoint is configured in `src/work/credentials.override.ts` (git-ignored)
+
+**Response Handling:**
+- Parses response JSON for URL in common keys: `url`, `link`, `location`, `_links.webui`, `_links.self`
+- Returns `{ url?: string }` - if URL found, modal shows "Go to Confluence" button
+- If no URL in response, returns `{}` and modal shows success without button
+
+**Error Handling:**
+- Non-2xx responses throw `Error` with status code and first 200 chars of response text
+- Errors surface as readable messages in modal Error stage
+- No raw object dumps - all errors are user-friendly strings
+
 **Implementation Example:**
 ```typescript
 // src/work/workAdapter.override.ts (Work Plugin)
 import type { WorkAdapter } from '../core/work/adapter'
+import { confluenceEndpoint } from './credentials.override'
+import { encodeXhtmlDocument } from '../core/encoding/xhtml'
 
 const workAdapter: WorkAdapter = {
   async createConfluence(args: {
     confluenceTitle: string
     confluenceTemplateXhtml: string
   }): Promise<{ url?: string }> {
-    // Get enterprise auth token
-    const token = await workAdapter.auth?.getEnterpriseToken()
-    if (!token) {
-      throw new Error('Enterprise auth token not available')
+    // Double-check XHTML encoding (UI already does it, but be safe)
+    let xhtmlContent = args.confluenceTemplateXhtml
+    if (!isXhtmlEncoded(xhtmlContent)) {
+      xhtmlContent = encodeXhtmlDocument(xhtmlContent)
     }
     
-    // Send to Confluence API
-    const response = await fetch('https://confluence.internal/api/content', {
+    // Build payload exactly as specified
+    const payload = {
+      type: 'createConfluence',
+      confluenceTitle: args.confluenceTitle,
+      confluenceTemplate: xhtmlContent
+    }
+    
+    const response = await fetch(confluenceEndpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Atlassian-Token': 'no-check'
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        type: 'page',
-        title: args.confluenceTitle,
-        space: { key: 'DESIGN' },
-        body: {
-          storage: {
-            value: args.confluenceTemplateXhtml,
-            representation: 'storage'
-          }
-        }
-      })
+      body: JSON.stringify(payload),
+      credentials: 'include' // Use browser session for auth
     })
     
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`Confluence API error: ${response.status} ${error}`)
+      const errorText = await response.text()
+      const errorSnippet = errorText.substring(0, 200)
+      throw new Error(`Confluence API error (${response.status}): ${errorSnippet}`)
     }
     
     const result = await response.json()
-    return { url: result._links?.webui || result.url }
+    const url = result.url || result.link || result.location || result._links?.webui || result._links?.self
+    return { url }
   }
 }
 
 export default workAdapter
 ```
+
+**Configuration:**
+- Endpoint configured in `src/work/credentials.override.ts` (git-ignored)
+- See `src/work/README.md` for setup instructions
+- Placeholder endpoint must be replaced with actual Confluence API endpoint
 
 **UI Success/Error Handling:**
 - Success: Modal shows success state, chat bubble "Table sent to Confluence" appears on close

@@ -16,5 +16,11 @@ export const CONFIG = {
   },
   
   // Default mode
-  defaultMode: 'advanced' as const
+  defaultMode: 'advanced' as const,
+  
+  // Dev-only flags
+  dev: {
+    // Enable Content Table validation logging (warnings/errors in console)
+    enableContentTableValidationLogging: false
+  }
 } as const

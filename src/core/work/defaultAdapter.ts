@@ -14,6 +14,7 @@ export function createDefaultWorkAdapter(): WorkAdapter {
     designSystem: undefined,
     auth: undefined,
     getContentTableIgnoreRules: undefined,
-    detectDesignSystemComponent: undefined
+    detectDesignSystemComponent: undefined,
+    postProcessContentTable: undefined
   }
 }

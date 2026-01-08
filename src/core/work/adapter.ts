@@ -129,4 +129,34 @@ export interface WorkAdapter {
    * @returns Detection result, or null if not a DS component
    */
   detectDesignSystemComponent?: (node: SceneNode) => DesignSystemDetectionResult | null
+
+  /**
+   * Post-Process Content Table
+   * Work-only: Modify the scanned Content Table after scanning but before export/use
+   * 
+   * This hook allows Work to apply proprietary rules for:
+   * - Redacting sensitive content from DS components
+   * - Normalizing content values
+   * - Replacing placeholder text
+   * - Grouping or reorganizing items
+   * - Applying DS-specific transformations
+   * 
+   * Called AFTER scanning completes but BEFORE:
+   * - Table is sent to UI
+   * - Table is exported (Confluence, CSV, etc.)
+   * - Table is used by any other process
+   * 
+   * @param args - Arguments for post-processing
+   * @param args.table - The scanned Content Table (can be modified and returned)
+   * @param args.selectionContext - Optional context about the selection (extracted from table)
+   * @returns Modified table (or original if no changes needed)
+   */
+  postProcessContentTable?: (args: {
+    table: UniversalContentTableV1
+    selectionContext?: {
+      pageId?: string
+      pageName?: string
+      rootNodeId?: string
+    }
+  }) => UniversalContentTableV1 | Promise<UniversalContentTableV1>
 }

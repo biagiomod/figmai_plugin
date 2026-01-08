@@ -6,6 +6,7 @@
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import { scanContentTable } from '../../contentTable/scanner'
 import { loadWorkAdapter } from '../../work/loadAdapter'
+import { normalizeContentTableV1, validateContentTableV1 } from '../../contentTable/validate'
 
 export class ContentTableHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string): boolean {
@@ -59,7 +60,50 @@ export class ContentTableHandler implements AssistantHandler {
 
       // Scan the container (now async for thumbnail export)
       // Pass ignore rules and design system detector to scanner (will be null/undefined in Public Plugin, applied in Work Plugin)
-      const contentTable = await scanContentTable(selectedNode as SceneNode, ignoreRules, detectDesignSystemComponent)
+      let contentTable = await scanContentTable(selectedNode as SceneNode, ignoreRules, detectDesignSystemComponent)
+
+      // Post-process Content Table (Work-only hook)
+      // Called AFTER scanning but BEFORE sending to UI/export
+      // If hook throws, catch and log but continue with original table (never break the flow)
+      if (workAdapter.postProcessContentTable) {
+        try {
+          // Extract selection context from table
+          const selectionContext = {
+            pageId: contentTable.source.pageId,
+            pageName: contentTable.source.pageName,
+            rootNodeId: contentTable.meta.rootNodeId
+          }
+
+          // Call post-process hook (may be async)
+          const processedTable = await workAdapter.postProcessContentTable({
+            table: contentTable,
+            selectionContext
+          })
+
+          // Use processed table if hook returned a modified version
+          contentTable = processedTable
+
+          console.log('[ContentTableHandler] Content table post-processed by Work adapter')
+        } catch (error) {
+          // Log error but continue with original table (never break the flow)
+          console.error('[ContentTableHandler] Error in postProcessContentTable hook:', error)
+          // Continue with original contentTable
+        }
+      }
+
+      // Normalize and validate Content Table (schema hardening)
+      // Normalize ensures required fields exist with safe defaults
+      contentTable = normalizeContentTableV1(contentTable)
+
+      // Validate schema invariants (dev-only warnings/errors, never breaks flow)
+      const validation = validateContentTableV1(contentTable)
+      if (!validation.ok && validation.errors.length > 0) {
+        // Log validation errors (dev-only, controlled by CONFIG.dev.enableContentTableValidationLogging)
+        console.error('[ContentTableHandler] Content table validation errors:', validation.errors)
+      }
+      if (validation.warnings.length > 0) {
+        console.warn('[ContentTableHandler] Content table validation warnings:', validation.warnings)
+      }
 
       // Send success message
       const itemCount = contentTable.items.length
@@ -70,7 +114,7 @@ export class ContentTableHandler implements AssistantHandler {
         sendAssistantMessage('Table generated')
       }
 
-      // Send table to UI
+      // Send table to UI (normalized and validated)
       figma.ui.postMessage({
         pluginMessage: {
           type: 'CONTENT_TABLE_GENERATED',
