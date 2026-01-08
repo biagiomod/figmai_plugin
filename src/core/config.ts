@@ -21,6 +21,8 @@ export const CONFIG = {
   // Dev-only flags
   dev: {
     // Enable Content Table validation logging (warnings/errors in console)
-    enableContentTableValidationLogging: false
+    enableContentTableValidationLogging: false,
+    // Enable clipboard debug logging (console logs and debug UI)
+    enableClipboardDebugLogging: false
   }
 } as const

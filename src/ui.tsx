@@ -78,6 +78,7 @@ import { h } from 'preact'
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
 import { BRAND } from './core/brand'
+import { CONFIG } from './core/config'
 import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant } from './assistants'
 import type { Assistant as AssistantType, QuickAction } from './assistants'
 import { SettingsModal } from './ui/components/SettingsModal'
@@ -110,10 +111,6 @@ import type {
   Assistant,
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
-  RunPlaceholderScorecardHandler,
-  PlaceholderScorecardPlacedHandler,
-  PlaceholderScorecardErrorHandler,
-  RunScorecardV2PlaceholderHandler
 } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
@@ -230,27 +227,11 @@ function Plugin() {
   const [debugHtml, setDebugHtml] = useState('')
   const [debugTsv, setDebugTsv] = useState('')
   const [copyStatus, setCopyStatus] = useState<{ success: boolean; message: string } | null>(null)
-  const DEBUG_CLIPBOARD = true // Debug flag - can be toggled
-  const DEBUG_LOG_ENDPOINT = 'http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6'
   
-  // Debug logging function
+  // Debug logging function (gated behind CONFIG.dev.enableClipboardDebugLogging)
   const debugLog = useCallback((message: string, data?: Record<string, unknown>) => {
-    if (DEBUG_CLIPBOARD) {
+    if (CONFIG.dev.enableClipboardDebugLogging) {
       console.log(`[Clipboard] ${message}`, data || '')
-      // Send to debug log endpoint
-      fetch(DEBUG_LOG_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'ui.tsx:handleCopyTable',
-          message: `[Clipboard] ${message}`,
-          data: data || {},
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {}) // Silently fail if endpoint unavailable
     }
   }, [])
   
@@ -1635,22 +1616,6 @@ ${htmlTable}
     return true
   })
 
-  // Placeholder scorecard handler (home screen only, Simple Mode)
-  const handlePlaceholderScorecard = useCallback(() => {
-    console.log('[UI] Placeholder Scorecard clicked')
-    setIsLoading(true)
-    emit<RunPlaceholderScorecardHandler>('RUN_PLACEHOLDER_SCORECARD')
-  }, [])
-
-  // Scorecard v2 placeholder handler (home screen only, Simple Mode)
-  const handleScorecardV2Placeholder = useCallback(() => {
-    console.log('[UI] Scorecard v2 Placeholder clicked')
-    setIsLoading(true)
-    emit<RunScorecardV2PlaceholderHandler>('RUN_SCORECARD_V2_PLACEHOLDER')
-  }, [])
-
-  // Show placeholder scorecard buttons on home screen (Simple Mode only)
-  const showPlaceholderScorecard = messages.length === 0 && mode === 'simple'
   
   return (
     <div style={{
@@ -2383,7 +2348,7 @@ ${htmlTable}
         gap: 'var(--spacing-sm)'
       }}>
         {/* Quick Actions - Above input */}
-        {(quickActions.length > 0 || showPlaceholderScorecard) && (
+        {quickActions.length > 0 && (
           <div style={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -2425,51 +2390,6 @@ ${htmlTable}
                 </button>
               )
             })}
-            {/* Placeholder Scorecard buttons (home screen, Simple Mode only) */}
-            {showPlaceholderScorecard && (
-              <div>
-                <button
-                  onClick={handlePlaceholderScorecard}
-                  disabled={isLoading}
-                  style={{
-                    padding: 'var(--spacing-xs) var(--spacing-sm)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: isLoading ? 'var(--muted)' : 'var(--bg-secondary)',
-                    color: isLoading ? 'var(--muted)' : 'var(--fg)',
-                    cursor: isLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 'var(--font-size-xs)',
-                    fontFamily: 'var(--font-family)',
-                    whiteSpace: 'nowrap',
-                    fontWeight: 'var(--font-weight-normal)',
-                    opacity: isLoading ? 0.5 : 1
-                  }}
-                  title="Render a placeholder scorecard on the canvas."
-                >
-                  Scorecard (Placeholder)
-                </button>
-                <button
-                  onClick={handleScorecardV2Placeholder}
-                  disabled={isLoading}
-                  style={{
-                    padding: 'var(--spacing-xs) var(--spacing-sm)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: isLoading ? 'var(--muted)' : 'var(--bg-secondary)',
-                    color: isLoading ? 'var(--muted)' : 'var(--fg)',
-                    cursor: isLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 'var(--font-size-xs)',
-                    fontFamily: 'var(--font-family)',
-                    whiteSpace: 'nowrap',
-                    fontWeight: 'var(--font-weight-normal)',
-                    opacity: isLoading ? 0.5 : 1
-                  }}
-                  title="Render a v2 placeholder scorecard on the canvas."
-                >
-                  Scorecard v2 (placeholder)
-                </button>
-              </div>
-            )}
           </div>
         )}
         
@@ -3220,7 +3140,7 @@ ${htmlTable}
                   )}
                   {isCopyingRefImage ? 'Getting...' : 'Get Ref Image'}
                 </button>
-                {DEBUG_CLIPBOARD && (
+                {CONFIG.dev.enableClipboardDebugLogging && (
                   <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => setShowPasteDebug(true)}
@@ -3714,7 +3634,7 @@ ${htmlTable}
       )}
       
       {/* Paste Debug Panel */}
-      {showPasteDebug && DEBUG_CLIPBOARD && (
+      {showPasteDebug && CONFIG.dev.enableClipboardDebugLogging && (
         <div style={{
           position: 'fixed',
           top: 0,
