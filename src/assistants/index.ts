@@ -413,8 +413,9 @@ export function listAssistants(): Assistant[] {
  */
 export function listAssistantsByMode(mode: 'simple' | 'advanced'): Assistant[] {
   if (mode === 'simple') {
-    // Simple mode: Only General, Content Table, and Design Critique (in that order)
-    const simpleModeIds = ['general', 'content_table', 'design_critique']
+    // Simple mode: Show a focused set of assistants in a friendly order
+    // Order: General → Content Table → Design Critique → Design Workshop
+    const simpleModeIds = ['general', 'content_table', 'design_critique', 'design_workshop']
     return ASSISTANTS.filter(a => simpleModeIds.includes(a.id))
       .sort((a, b) => {
         const indexA = simpleModeIds.indexOf(a.id)
