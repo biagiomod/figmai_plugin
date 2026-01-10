@@ -145,7 +145,8 @@ import {
   ContentTableIcon,
   SpellCheckIcon,
   TrashIcon,
-  LightBulbRaysIcon
+  LightBulbRaysIcon,
+  PathIcon
 } from './ui/icons'
 
 // --- Chat content helpers for Design Workshop UX cleanup ---
@@ -1633,7 +1634,8 @@ ${htmlTable}
       'AskIcon': <AskIcon width={16} height={16} />,
       'ContentTableIcon': <ContentTableIcon width={16} height={16} />,
       'SpellCheckIcon': <SpellCheckIcon width={16} height={16} />,
-      'LightBulbRaysIcon': <LightBulbRaysIcon width={16} height={16} />
+      'LightBulbRaysIcon': <LightBulbRaysIcon width={16} height={16} />,
+      'PathIcon': <PathIcon width={16} height={16} />
     }
     
     return iconMap[iconId] || null

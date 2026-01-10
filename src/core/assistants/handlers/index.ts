@@ -7,6 +7,7 @@ import type { AssistantHandler } from './base'
 import { ContentTableHandler } from './contentTable'
 import { DesignCritiqueHandler } from './designCritique'
 import { DesignWorkshopHandler } from './designWorkshop'
+import { DiscoveryCopilotHandler } from './discovery'
 
 /**
  * All registered handlers
@@ -14,7 +15,8 @@ import { DesignWorkshopHandler } from './designWorkshop'
 const handlers: AssistantHandler[] = [
   new ContentTableHandler(),
   new DesignCritiqueHandler(),
-  new DesignWorkshopHandler()
+  new DesignWorkshopHandler(),
+  new DiscoveryCopilotHandler()
 ]
 
 /**
