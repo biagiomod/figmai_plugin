@@ -170,7 +170,7 @@ function errorToString(error: unknown): string {
 
 // State
 let currentAssistant: Assistant = getDefaultAssistant()
-let currentMode: 'simple' | 'advanced' = CONFIG.defaultMode
+let currentMode: 'simple' | 'advanced' | 'content-mvp' = CONFIG.defaultMode
 let currentProviderId: LlmProviderId = CONFIG.provider
 let currentProvider: Provider | null = null
 let messageHistory: Message[] = []
@@ -308,23 +308,39 @@ function isDesignWorkshopIntroMessage(content: string): boolean {
   )
 }
 
+// Helper to check if a message looks like a Content Table Assistant intro (local to main.ts)
+function isContentTableIntroMessage(content: string): boolean {
+  const normalized = content.toLowerCase()
+  return normalized.includes('welcome to your content table assistant')
+}
+
 // Handle set assistant
 on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
   console.log('[Main] onmessage SET_ASSISTANT', { assistantId })
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:318',message:'SET_ASSISTANT received',data:{assistantId,messageHistoryLength:messageHistory.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   const assistant = getAssistant(assistantId)
   if (assistant) {
     currentAssistant = assistant
     
     // Check if we already have an intro message for this assistant to prevent duplicates
-    // For Design Workshop, check using the helper; for others, check by content match
+    // For Design Workshop and Content Table, check using specific helpers; for others, check by content match
     const hasExistingIntro = messageHistory.some(m => {
       if (m.role !== 'assistant') return false
       if (assistantId === 'design_workshop') {
         return isDesignWorkshopIntroMessage(m.content)
       }
+      if (assistantId === 'content_table') {
+        // Check for the specific welcome line to ensure full intro is present
+        return isContentTableIntroMessage(m.content)
+      }
       // For other assistants, check if content matches intro
       return m.content.includes(assistant.intro.substring(0, 30))
     })
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:338',message:'hasExistingIntro check result',data:{assistantId,hasExistingIntro,messageHistoryPreview:messageHistory.map(m => ({role:m.role,contentPreview:m.content.substring(0,50)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     
     if (!hasExistingIntro) {
       // Send assistant intro message
@@ -334,17 +350,28 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
         content: assistant.intro,
         timestamp: Date.now()
       }
+      console.log('[Main] Sending intro message for', assistantId)
+      console.log('[Main] Intro content (raw):', JSON.stringify(introMessage.content))
+      console.log('[Main] Intro content (lines):', introMessage.content.split('\n'))
+      console.log('[Main] Intro content length:', introMessage.content.length)
       messageHistory.push(introMessage)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:352',message:'About to postMessage ASSISTANT_MESSAGE',data:{assistantId,messageId:introMessage.id,contentLength:introMessage.content.length,contentPreview:introMessage.content.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.log('[Main] postMessage ASSISTANT_MESSAGE (assistant intro)')
       figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: introMessage } })
     } else {
       console.log('[Main] Skipping duplicate intro message for assistant:', assistantId)
+      console.log('[Main] Existing intro check - messageHistory:', messageHistory.map(m => ({ role: m.role, contentPreview: m.content.substring(0, 50) })))
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:356',message:'Skipping duplicate intro',data:{assistantId,messageHistoryLength:messageHistory.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
     }
   }
 })
 
 // Handle set mode
-on<SetModeHandler>('SET_MODE', function (mode: 'simple' | 'advanced') {
+on<SetModeHandler>('SET_MODE', function (mode: 'simple' | 'advanced' | 'content-mvp') {
   currentMode = mode
 })
 

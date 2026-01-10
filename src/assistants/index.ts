@@ -110,7 +110,7 @@ export const ASSISTANTS: Assistant[] = [
   {
     id: 'content_table',
     label: 'Content Table',
-    intro: 'I generate structured content inventories and tables from your designs. Select a single container to scan all text content.',
+    intro: '**Welcome to your Content Table Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.',
     promptMarkdown: `# Content Table Assistant
 
 You are **FigmAI's Content Table Assistant**, a content strategist and information architect embedded inside a Figma plugin.
@@ -508,7 +508,12 @@ export function listAssistants(): Assistant[] {
  * Simple mode: Shows General, Content Table, and Design Critique
  * Advanced mode: Shows all assistants (including those hidden in simple mode)
  */
-export function listAssistantsByMode(mode: 'simple' | 'advanced'): Assistant[] {
+export function listAssistantsByMode(mode: 'simple' | 'advanced' | 'content-mvp'): Assistant[] {
+  if (mode === 'content-mvp') {
+    // Content-MVP mode: Only show Content Table Assistant
+    return ASSISTANTS.filter(a => a.id === 'content_table')
+  }
+  
   if (mode === 'simple') {
     // Simple mode: Show a focused set of assistants in a friendly order
     // Order: General → Content Table → Design Critique → Design Workshop
@@ -527,10 +532,16 @@ export function listAssistantsByMode(mode: 'simple' | 'advanced'): Assistant[] {
 
 /**
  * Get default assistant
+ * Content-MVP mode: Returns Content Table
  * Simple mode: Returns General
  * Advanced mode: Returns first assistant (General)
  */
-export function getDefaultAssistant(mode?: 'simple' | 'advanced'): Assistant {
+export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'): Assistant {
+  if (mode === 'content-mvp') {
+    const contentTable = ASSISTANTS.find(a => a.id === 'content_table')
+    return contentTable || ASSISTANTS[0]
+  }
+  
   if (mode === 'simple') {
     const general = ASSISTANTS.find(a => a.id === 'general')
     return general || ASSISTANTS[0]

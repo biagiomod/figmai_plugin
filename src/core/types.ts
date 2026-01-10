@@ -12,7 +12,7 @@ import type { UniversalContentTableV1, TableFormatPreset } from './contentTable/
 
 export type LlmProviderId = 'openai' | 'claude' | 'copilot'
 
-export type Mode = 'simple' | 'advanced'
+export type Mode = 'simple' | 'advanced' | 'content-mvp'
 
 export type AssistantKind = 'ai' | 'tool' | 'hybrid'
 

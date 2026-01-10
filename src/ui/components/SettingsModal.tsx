@@ -18,16 +18,16 @@ interface SettingsModalProps {
 
 export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsModalProps) {
   // Initialize mode from currentMode prop (reflects actual current mode)
-  // If currentMode is not provided, fall back to localStorage, then default to 'simple'
+  // If currentMode is not provided, fall back to localStorage, then default to 'content-mvp'
   const [mode, setMode] = useState<Mode>(() => {
     if (currentMode) {
       return currentMode
     }
     try {
       const saved = localStorage.getItem('figmai-mode')
-      return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+      return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
     } catch {
-      return 'simple'
+      return 'content-mvp'
     }
   })
   
@@ -39,9 +39,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     }
     try {
       const saved = localStorage.getItem('figmai-mode')
-      return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+      return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
     } catch {
-      return 'simple'
+      return 'content-mvp'
     }
   })
   const [proxyBaseUrl, setProxyBaseUrl] = useState('')
@@ -255,6 +255,51 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             width: '100%',
             backgroundColor: 'var(--surface-modal)'
           }}>
+            <button
+              onClick={() => handleModeChange('content-mvp')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleModeChange('content-mvp')
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: 'none',
+                borderRight: '1px solid var(--border-subtle)',
+                borderRadius: 0,
+                backgroundColor: mode === 'content-mvp' ? '#ffffff' : 'var(--surface-modal)',
+                color: mode === 'content-mvp' ? '#000000' : 'var(--fg-secondary)',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: mode === 'content-mvp' ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                transition: 'background-color 0.15s ease, color 0.15s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = '2px solid var(--accent)'
+                e.currentTarget.style.outlineOffset = '-2px'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (mode !== 'content-mvp') {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (mode !== 'content-mvp') {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
+                  e.currentTarget.style.color = 'var(--fg-secondary)'
+                }
+              }}
+            >
+              Content-MVP
+            </button>
             <button
               onClick={() => handleModeChange('simple')}
               onKeyDown={(e) => {

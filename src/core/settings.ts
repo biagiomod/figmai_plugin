@@ -4,7 +4,7 @@
  */
 
 export interface Settings {
-  mode?: 'simple' | 'advanced'
+  mode?: 'simple' | 'advanced' | 'content-mvp'
   proxyBaseUrl: string
   authMode: 'shared_token' | 'session_token'
   sharedToken?: string

@@ -159,6 +159,9 @@ import {
 function cleanChatContent(raw: string): string {
   if (!raw) return ''
 
+  console.log('[cleanChatContent] Input (raw):', JSON.stringify(raw))
+  console.log('[cleanChatContent] Input lines:', raw.split('\n'))
+
   // Strip internal generation metadata like: "generate: 1/100 (1%)"
   let text = raw
     .replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '') // generate: X/Y (Z%)
@@ -166,26 +169,74 @@ function cleanChatContent(raw: string): string {
     .replace(/\(\d+%\)/g, '')                         // standalone "(Z%)"
     .trim()
 
+  // CRITICAL: Preserve welcome lines for assistants - never remove these
+  const welcomeLinePatterns = [
+    /welcome to your content table assistant/i,
+    /welcome to your design workshop assistant/i,
+    /welcome to your/i
+  ]
+  
   // Remove duplicate paragraphs (split by newlines, keep unique)
   // Do this BEFORE collapsing whitespace to preserve paragraph structure
+  // Note: This preserves markdown formatting (e.g., **bold**) and unique lines
+  // The welcome line "**Welcome to your Content Table Assistant**" will be preserved
+  // as it's different from the description line when normalized
   const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
+  console.log('[cleanChatContent] After split and filter, lines:', lines)
   const uniqueLines: string[] = []
   const seen = new Set<string>()
+  let welcomeLineFound: string | null = null
   
   for (const line of lines) {
     const normalized = line.trim().toLowerCase().replace(/\s+/g, ' ')
+    // Test both original line and normalized line to catch markdown-wrapped welcome lines
+    const isWelcomeLine = welcomeLinePatterns.some(pattern => pattern.test(line) || pattern.test(normalized))
+    
+    console.log('[cleanChatContent] Processing line:', JSON.stringify(line), 'normalized:', normalized, 'isWelcomeLine:', isWelcomeLine)
+    
+    // Always preserve welcome lines, even if they appear to be duplicates
+    if (isWelcomeLine) {
+      if (!welcomeLineFound) {
+        welcomeLineFound = line.trim()
+        uniqueLines.push(line.trim())
+        console.log('[cleanChatContent] Added welcome line to uniqueLines')
+      } else {
+        console.log('[cleanChatContent] Welcome line already found, skipping duplicate')
+      }
+      continue
+    }
+    
     // Only skip if we've seen this exact normalized line before
+    // This preserves the original line with markdown formatting
     if (!seen.has(normalized)) {
       seen.add(normalized)
       uniqueLines.push(line.trim())
+      console.log('[cleanChatContent] Added line to uniqueLines')
+    } else {
+      console.log('[cleanChatContent] Skipping duplicate line:', normalized)
+    }
+  }
+  
+  // Ensure welcome line is at the beginning if it exists
+  if (welcomeLineFound) {
+    const welcomeIndex = uniqueLines.findIndex(line => {
+      const normalized = line.trim().toLowerCase().replace(/\s+/g, ' ')
+      return welcomeLinePatterns.some(pattern => pattern.test(line) || pattern.test(normalized))
+    })
+    if (welcomeIndex > 0) {
+      const welcomeLine = uniqueLines.splice(welcomeIndex, 1)[0]
+      uniqueLines.unshift(welcomeLine)
+      console.log('[cleanChatContent] Moved welcome line to beginning')
     }
   }
 
   text = uniqueLines.join('\n')
+  console.log('[cleanChatContent] After deduplication, text:', JSON.stringify(text))
   
   // Collapse multiple spaces to single space (but preserve newlines)
   text = text.replace(/[ \t]+/g, ' ').trim()
 
+  console.log('[cleanChatContent] Final output:', JSON.stringify(text))
   return text
 }
 
@@ -207,26 +258,26 @@ function Plugin() {
   // State
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   
-  // Load mode from localStorage, default to 'simple' for first-time users
+  // Load mode from localStorage, default to 'content-mvp' for first-time users
   const [mode, setMode] = useState<Mode>(() => {
     try {
       const saved = localStorage.getItem('figmai-mode')
-      return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+      return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
     } catch {
-      return 'simple'
+      return 'content-mvp'
     }
   })
   
   const [provider, setProvider] = useState<LlmProviderId>('openai')
   
-  // Default assistant: General in simple mode, General in advanced mode
+  // Default assistant: Content Table in content-mvp mode, General in simple mode, General in advanced mode
   const [assistant, setAssistant] = useState<AssistantType>(() => {
     const currentMode = (() => {
       try {
         const saved = localStorage.getItem('figmai-mode')
-        return (saved === 'simple' || saved === 'advanced') ? saved : 'simple'
+        return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
       } catch {
-        return 'simple'
+        return 'content-mvp'
       }
     })()
     
@@ -353,6 +404,9 @@ function Plugin() {
           }
           break
         case 'ASSISTANT_MESSAGE':
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:406',message:'ASSISTANT_MESSAGE received',data:{hasMessage:!!message.message,resetToken,messageResetToken:message.resetToken,role:message.message?.role,contentPreview:message.message?.content?.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           // Check resetToken to ignore late-arriving messages after reset
           // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
           // Exception: Always process RESET_DONE assistant messages (they come after reset)
@@ -360,6 +414,9 @@ function Plugin() {
             (message.resetToken === resetToken || 
              (resetToken === 0 && message.resetToken === undefined) ||
              (message.message.role === 'assistant' && message.message.content.includes('intro')))
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:414',message:'shouldProcessAssistantMessage check',data:{shouldProcess:shouldProcessAssistantMessage,resetToken,messageResetToken:message.resetToken,hasMessage:!!message.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           
           if (shouldProcessAssistantMessage) {
             console.log('[UI] setThinking false - ASSISTANT_MESSAGE received', { role: message.message.role })
@@ -375,7 +432,17 @@ function Plugin() {
               }
 
               // Assistant messages: clean + dedupe
+              console.log('[UI] Received assistant message, raw content:', JSON.stringify(incoming.content))
+              console.log('[UI] Received assistant message, content lines:', incoming.content.split('\n'))
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:431',message:'Before cleanChatContent',data:{rawContent:incoming.content,contentLength:incoming.content.length,prevMessagesCount:prev.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
               const cleanedContent = cleanChatContent(incoming.content)
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:433',message:'After cleanChatContent',data:{cleanedContent,cleanedLength:cleanedContent.length,rawLength:incoming.content.length,isEmpty:cleanedContent.length === 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+              console.log('[UI] After cleanChatContent, cleaned content:', JSON.stringify(cleanedContent))
+              console.log('[UI] After cleanChatContent, cleaned lines:', cleanedContent.split('\n'))
               const looksLikeWorkshopIntro = isDesignWorkshopIntro(cleanedContent)
 
               if (looksLikeWorkshopIntro) {
@@ -393,7 +460,11 @@ function Plugin() {
               }
 
               const cleanedMessage: Message = { ...incoming, content: cleanedContent }
-              return [...prev, cleanedMessage]
+              const newMessages = [...prev, cleanedMessage]
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:451',message:'Adding message to state',data:{messageId:cleanedMessage.id,contentLength:cleanedContent.length,prevCount:prev.length,newCount:newMessages.length,hasWelcomeLine:cleanedContent.toLowerCase().includes('welcome to your content table assistant'),finalMessages:newMessages.map(m => ({id:m.id,role:m.role,contentPreview:m.content.substring(0,50)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+              // #endregion
+              return newMessages
             })
             setIsLoading(false) // Stop loading when message arrives
           } else {
@@ -401,6 +472,9 @@ function Plugin() {
               messageToken: message.resetToken, 
               currentToken: resetToken 
             })
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:455',message:'Message filtered out',data:{resetToken,messageResetToken:message.resetToken,hasMessage:!!message.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
           }
           break
         case 'SCORECARD_RESULT':
@@ -619,9 +693,40 @@ function Plugin() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
   
+  // Send Content Table Assistant intro on initial load if in Content-MVP mode
+  // Use a ref to track if we've already sent the initial SET_ASSISTANT to prevent duplicates
+  const hasSentInitialSetAssistant = useRef(false)
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:678',message:'Content-MVP useEffect triggered',data:{mode,assistantId:assistant.id,conditionMet:mode === 'content-mvp' && assistant.id === 'content_table',hasSentInitial:hasSentInitialSetAssistant.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    // Only run once on mount, and only if we're in Content-MVP mode with Content Table assistant
+    // Also check ref to prevent duplicate calls
+    if (mode === 'content-mvp' && assistant.id === 'content_table' && !hasSentInitialSetAssistant.current) {
+      console.log('[UI] Content-MVP mode detected, sending SET_ASSISTANT for content_table')
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:682',message:'Sending SET_ASSISTANT for content_table',data:{mode,assistantId:assistant.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      // Set ref BEFORE emitting to prevent race conditions
+      hasSentInitialSetAssistant.current = true
+      // Send the intro message - main thread will check for duplicates
+      emit<SetAssistantHandler>('SET_ASSISTANT', 'content_table')
+    }
+  }, []) // Only run on mount
+
   // Update assistant when mode changes
   useEffect(() => {
-    if (mode === 'simple') {
+    if (mode === 'content-mvp') {
+      // In content-mvp mode, ensure we're using Content Table Assistant
+      // Only send SET_ASSISTANT if assistant actually changed (not on initial mount when already correct)
+      if (assistant.id !== 'content_table') {
+        const contentTableAssistant = getDefaultAssistant('content-mvp')
+        setAssistant(contentTableAssistant)
+        // Mark as sent to prevent the mount useEffect from also sending
+        hasSentInitialSetAssistant.current = true
+        emit<SetAssistantHandler>('SET_ASSISTANT', contentTableAssistant.id)
+      }
+    } else if (mode === 'simple') {
       // In simple mode, ensure current assistant is available in simple mode
       // If not, default to General
       const simpleAssistants = listAssistantsByMode('simple')
@@ -727,7 +832,13 @@ function Plugin() {
     }
     
     // Update default assistant when switching modes
-    if (selectedMode === 'simple') {
+    if (selectedMode === 'content-mvp') {
+      // In content-mvp mode, always switch to Content Table Assistant
+      const contentTableAssistant = getDefaultAssistant('content-mvp')
+      setAssistant(contentTableAssistant)
+      // Emit SET_ASSISTANT to trigger intro message
+      emit<SetAssistantHandler>('SET_ASSISTANT', contentTableAssistant.id)
+    } else if (selectedMode === 'simple') {
       // In simple mode, default to General if current assistant is not available in simple mode
       const simpleAssistants = listAssistantsByMode('simple')
       const isCurrentAssistantAvailable = simpleAssistants.some(a => a.id === assistant.id)
@@ -1648,12 +1759,13 @@ ${htmlTable}
   
   // Content Table: Add dynamic quick actions when table is generated
   const contentTableQuickActions: QuickAction[] = contentTable && assistant.id === 'content_table' ? [
-    {
+    // Hide "Send to Confluence" in Content-MVP mode
+    ...(mode !== 'content-mvp' ? [{
       id: 'send-to-confluence',
       label: 'Send to Confluence',
       templateMessage: 'Send table to Confluence',
       requiresSelection: false
-    },
+    }] : []),
     {
       id: 'copy-table',
       label: 'Copy Table',
@@ -1751,51 +1863,53 @@ ${htmlTable}
             alignItems: 'center',
             gap: 'var(--spacing-xs)'
           }}>
-          {/* OpenAI */}
-          <button
-            onClick={() => handleProviderClick('openai')}
-            style={{
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-xs)',
-              padding: '0 var(--spacing-sm)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--bg)',
-              color: 'var(--fg)',
-              cursor: 'pointer',
-              fontSize: 'var(--font-size-xs)',
-              fontFamily: 'var(--font-family)',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              outline: provider === 'openai' ? 'none' : 'none',
-              boxShadow: provider === 'openai' ? '0 0 0 1px rgba(0, 0, 0, 0.1)' : 'none'
-            }}
-            onMouseEnter={(e) => {
-              if (provider !== 'openai') {
-                e.currentTarget.style.borderColor = 'var(--border)'
-                e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (provider !== 'openai') {
-                e.currentTarget.style.borderColor = 'var(--border)'
-                e.currentTarget.style.backgroundColor = 'var(--bg)'
-              }
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.outline = '2px solid var(--accent)'
-              e.currentTarget.style.outlineOffset = '2px'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.outline = 'none'
-            }}
-            title="OpenAI"
-          >
-            <OpenAIIcon width={16} height={16} />
-            <span>OpenAI</span>
-          </button>
+          {/* OpenAI - Hidden in Content-MVP mode */}
+          {mode !== 'content-mvp' && (
+            <button
+              onClick={() => handleProviderClick('openai')}
+              style={{
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs)',
+                padding: '0 var(--spacing-sm)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg)',
+                color: 'var(--fg)',
+                cursor: 'pointer',
+                fontSize: 'var(--font-size-xs)',
+                fontFamily: 'var(--font-family)',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+                outline: provider === 'openai' ? 'none' : 'none',
+                boxShadow: provider === 'openai' ? '0 0 0 1px rgba(0, 0, 0, 0.1)' : 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (provider !== 'openai') {
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (provider !== 'openai') {
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  e.currentTarget.style.backgroundColor = 'var(--bg)'
+                }
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = '2px solid var(--accent)'
+                e.currentTarget.style.outlineOffset = '2px'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = 'none'
+              }}
+              title="OpenAI"
+            >
+              <OpenAIIcon width={16} height={16} />
+              <span>OpenAI</span>
+            </button>
+          )}
           
           {/* Claude - Hidden in Simple Mode */}
           {mode === 'advanced' && (
@@ -2032,6 +2146,9 @@ ${htmlTable}
         )}
         
         {messages.map(message => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2148',message:'Rendering message',data:{messageId:message.id,role:message.role,contentLength:message.content.length,contentPreview:message.content.substring(0,100),hasWelcomeLine:message.content.toLowerCase().includes('welcome to your content table assistant'),messagesCount:messages.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+          // #endregion
           return (
             <div
               key={message.id}
@@ -2080,11 +2197,23 @@ ${htmlTable}
                     {(() => {
                       try {
                         // Clean content before rendering: remove internal metadata tags
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2197',message:'Before render cleanChatContent',data:{messageId:message.id,originalContent:message.content,originalLength:message.content.length,hasWelcomeLine:message.content.toLowerCase().includes('welcome to your content table assistant')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                        // #endregion
                         const contentToRender = cleanChatContent(message.content)
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2200',message:'After render cleanChatContent',data:{messageId:message.id,cleanedContent:contentToRender,cleanedLength:contentToRender.length,hasWelcomeLine:contentToRender.toLowerCase().includes('welcome to your content table assistant'),lines:contentToRender.split('\n')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                        // #endregion
 
                         // Always parse and render with RichTextRenderer for assistant messages
                         const ast = parseRichText(contentToRender)
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2209',message:'After parseRichText',data:{messageId:message.id,astNodeCount:ast.length,astNodes:ast.map(n => ({type:n.type,textPreview:n.type === 'paragraph' ? n.text.substring(0,50) : ''}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                        // #endregion
                         const enhanced = enhanceRichText(ast)
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2210',message:'After enhanceRichText',data:{messageId:message.id,enhancedNodeCount:enhanced.length,enhancedNodes:enhanced.map(n => ({type:n.type,textPreview:n.type === 'paragraph' ? n.text.substring(0,50) : ''}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                        // #endregion
                         return <RichTextRenderer nodes={enhanced} />
                       } catch (error) {
                         // Fallback to plain text if parsing fails
@@ -2490,14 +2619,19 @@ ${htmlTable}
           value={input}
           onValueInput={setInput}
           onKeyDown={handleKeyDown}
-          placeholder="Ask me anything"
+          disabled={mode === 'content-mvp'}
+          placeholder={mode === 'content-mvp' ? 'AI is not available in Content-MVP mode' : 'Ask me anything'}
           style={{
             width: '100%',
             minHeight: '60px',
             maxHeight: '120px',
             resize: 'none',
             fontFamily: 'var(--font-family)',
-            fontSize: 'var(--font-size-md)'
+            fontSize: 'var(--font-size-md)',
+            backgroundColor: mode === 'content-mvp' ? 'var(--bg-secondary)' : 'var(--bg)',
+            color: mode === 'content-mvp' ? 'var(--fg-disabled)' : 'var(--fg)',
+            borderColor: mode === 'content-mvp' ? 'var(--border-subtle)' : 'var(--border)',
+            cursor: mode === 'content-mvp' ? 'not-allowed' : 'text'
           }}
         />
         
@@ -2604,15 +2738,15 @@ ${htmlTable}
           <button
             type="button"
             onClick={handleSend}
-            disabled={selectionRequired && !selectionState.hasSelection}
+            disabled={mode === 'content-mvp' || (selectionRequired && !selectionState.hasSelection)}
             style={{
               width: '36px',
               height: '36px',
               padding: '0',
               border: 'none',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: (selectionRequired && !selectionState.hasSelection) ? 'var(--muted)' : 'var(--accent)',
-              cursor: (selectionRequired && !selectionState.hasSelection) ? 'not-allowed' : 'pointer',
+              backgroundColor: (mode === 'content-mvp' || (selectionRequired && !selectionState.hasSelection)) ? 'var(--muted)' : 'var(--accent)',
+              cursor: (mode === 'content-mvp' || (selectionRequired && !selectionState.hasSelection)) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -2665,6 +2799,18 @@ ${htmlTable}
             }}>
               Select Assistant
             </div>
+            {mode === 'content-mvp' && (
+              <div style={{
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--fg-secondary)',
+                padding: 'var(--spacing-sm)',
+                backgroundColor: 'var(--surface-row)',
+                borderRadius: 'var(--radius-sm)',
+                flexShrink: 0
+              }}>
+                Please change to another mode to expose additional Assistants
+              </div>
+            )}
             <div style={{ 
               display: 'flex', 
               flexDirection: 'column', 

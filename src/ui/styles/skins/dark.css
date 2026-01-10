@@ -56,4 +56,40 @@
   --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
 
+/* Placeholder text styling for dark mode - ensure visibility with maximum specificity */
+[data-theme="dark"] textarea::placeholder,
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::-webkit-input-placeholder,
+[data-theme="dark"] input::-webkit-input-placeholder,
+[data-theme="dark"] textarea::-moz-placeholder,
+[data-theme="dark"] input::-moz-placeholder,
+[data-theme="dark"] textarea:-ms-input-placeholder,
+[data-theme="dark"] input:-ms-input-placeholder,
+[data-theme="dark"] textarea[placeholder]::placeholder,
+[data-theme="dark"] input[placeholder]::placeholder,
+[data-theme="dark"] textarea[placeholder]::-webkit-input-placeholder,
+[data-theme="dark"] input[placeholder]::-webkit-input-placeholder,
+[data-theme="dark"] textarea[placeholder]::-moz-placeholder,
+[data-theme="dark"] input[placeholder]::-moz-placeholder,
+[data-theme="dark"] textarea[placeholder]:-ms-input-placeholder,
+[data-theme="dark"] input[placeholder]:-ms-input-placeholder {
+  color: #b3b3b3 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #b3b3b3 !important;
+}
+
+/* Additional fallback for any textarea/input in dark mode - use fg-secondary for better visibility */
+[data-theme="dark"] textarea[disabled]::placeholder,
+[data-theme="dark"] input[disabled]::placeholder,
+[data-theme="dark"] textarea[disabled]::-webkit-input-placeholder,
+[data-theme="dark"] input[disabled]::-webkit-input-placeholder,
+[data-theme="dark"] textarea[disabled][placeholder]::placeholder,
+[data-theme="dark"] input[disabled][placeholder]::placeholder,
+[data-theme="dark"] textarea[disabled][placeholder]::-webkit-input-placeholder,
+[data-theme="dark"] input[disabled][placeholder]::-webkit-input-placeholder {
+  color: var(--fg-secondary) !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: var(--fg-secondary) !important;
+}
+
 
