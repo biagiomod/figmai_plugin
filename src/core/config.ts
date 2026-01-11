@@ -23,6 +23,8 @@ export const CONFIG = {
     // Enable Content Table validation logging (warnings/errors in console)
     enableContentTableValidationLogging: false,
     // Enable clipboard debug logging (console logs and debug UI)
-    enableClipboardDebugLogging: false
+    enableClipboardDebugLogging: false,
+    // Enable sync API error detection (catches runtime errors from sync node APIs)
+    enableSyncApiErrorDetection: true
   }
 } as const

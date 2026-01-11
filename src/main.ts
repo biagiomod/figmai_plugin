@@ -193,6 +193,38 @@ async function initializeProvider() {
 console.log('[Main] Build version:', BUILD_VERSION)
 initializeProvider()
 
+// Runtime error detection for sync API calls (dev mode only)
+if (CONFIG.dev.enableSyncApiErrorDetection) {
+  // Wrap console.error to catch sync API errors
+  const originalConsoleError = console.error
+  console.error = function(...args: any[]) {
+    const errorMessage = args.join(' ')
+    // Detect sync API errors
+    if (errorMessage.includes('getNodeById') && 
+        errorMessage.includes('Cannot call with documentAccess: dynamic-page')) {
+      console.error('[SYNC_API_ERROR] ⚠️ Detected sync getNodeById call!')
+      console.error('[SYNC_API_ERROR] Error message:', errorMessage)
+      console.error('[SYNC_API_ERROR] Stack trace:', new Error().stack)
+      console.error('[SYNC_API_ERROR] This indicates a sync API call exists somewhere in the codebase')
+      console.error('[SYNC_API_ERROR] Please search for: figma.getNodeById( or .getNodeById(')
+    }
+    if (errorMessage.includes('getStyleById') && 
+        errorMessage.includes('Cannot call with documentAccess: dynamic-page')) {
+      console.error('[SYNC_API_ERROR] ⚠️ Detected sync getStyleById call!')
+      console.error('[SYNC_API_ERROR] Error message:', errorMessage)
+      console.error('[SYNC_API_ERROR] Stack trace:', new Error().stack)
+    }
+    if (errorMessage.includes('getVariableById') && 
+        errorMessage.includes('Cannot call with documentAccess: dynamic-page')) {
+      console.error('[SYNC_API_ERROR] ⚠️ Detected sync getVariableById call!')
+      console.error('[SYNC_API_ERROR] Error message:', errorMessage)
+      console.error('[SYNC_API_ERROR] Stack trace:', new Error().stack)
+    }
+    // Call original console.error
+    originalConsoleError.apply(console, args)
+  }
+}
+
 // Generate unique message ID
 function generateMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`

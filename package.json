@@ -22,9 +22,18 @@
     "editorType": [
       "figma"
     ],
-    "id": "figmai_plugin",
+    "id": "1592005586211314002",
     "name": "FigmAI",
     "main": "src/main.ts",
-    "ui": "src/ui.tsx"
+    "ui": "src/ui.tsx",
+    "documentAccess": "dynamic-page",
+    "networkAccess": {
+      "allowedDomains": [
+        "https://api.openai.com",
+        "https://overobedient-buddy-leathern.ngrok-free.dev",
+        "http://localhost:8787"
+      ],
+      "reasoning": "This plugin makes outbound requests to an LLM provider (OpenAI) and to a user-operated proxy/tunnel endpoint (ngrok) used to route requests in environments where direct access may be restricted. Localhost access is required for development and for enterprise workflows that run a local proxy service on the user's machine."
+    }
   }
 }
