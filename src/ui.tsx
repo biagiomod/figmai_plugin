@@ -115,6 +115,7 @@ import type {
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { PRESET_INFO } from './core/contentTable/presets.generated'
+import { BUILD_VERSION } from './core/build'
 
 // Import CSS
 import './ui/styles/theme.css'
@@ -252,6 +253,9 @@ function isDesignWorkshopIntro(text: string): boolean {
 }
 
 function Plugin() {
+  // Log build version on component mount
+  console.log('[UI] Build version:', BUILD_VERSION)
+  
   // Reset token to prevent late-arriving messages from re-hydrating stale state
   const [resetToken, setResetToken] = useState(0)
   

@@ -117,6 +117,7 @@ import { renderScorecard, renderScorecardV2, type ScorecardData } from './core/f
 import { removeExistingArtifacts } from './core/figma/artifacts/placeArtifact'
 import { getHandler } from './core/assistants/handlers'
 import { getTopLevelContainerNode } from './core/stage/anchor'
+import { BUILD_VERSION } from './core/build'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -189,6 +190,7 @@ async function initializeProvider() {
 }
 
 // Initialize on startup
+console.log('[Main] Build version:', BUILD_VERSION)
 initializeProvider()
 
 // Generate unique message ID
