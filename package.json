@@ -15,6 +15,7 @@
     "generate-presets": "tsx scripts/generate-presets.ts",
     "prebuild": "npm run generate-presets",
     "build": "build-figma-plugin --typecheck --minify",
+    "postbuild": "node scripts/check-sync-api.js",
     "watch": "npm run generate-presets && build-figma-plugin --typecheck --watch"
   },
   "figma-plugin": {
