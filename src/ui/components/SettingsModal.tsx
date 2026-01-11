@@ -55,6 +55,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   const [testDiagnostics, setTestDiagnostics] = useState<{
     url?: string
     method?: string
+    headers?: Record<string, string>
+    credentials?: string
     statusCode?: number
     responseBody?: string
     errorName?: string
@@ -810,6 +812,28 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
                 <div style={{ marginBottom: 'var(--spacing-xs)' }}>
                   <strong>Method:</strong> {testDiagnostics.method || 'N/A'}
                 </div>
+                {testDiagnostics.headers && (
+                  <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                    <strong>Headers:</strong>
+                    <div style={{
+                      marginTop: 'var(--spacing-xs)',
+                      padding: 'var(--spacing-xs)',
+                      backgroundColor: 'var(--bg)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontFamily: 'monospace',
+                      fontSize: 'var(--font-size-xs)'
+                    }}>
+                      {Object.entries(testDiagnostics.headers).map(([key, value]) => (
+                        <div key={key}>{key}: {value}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {testDiagnostics.credentials !== undefined && (
+                  <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                    <strong>Credentials:</strong> {testDiagnostics.credentials}
+                  </div>
+                )}
                 {testDiagnostics.statusCode !== undefined && (
                   <div style={{ marginBottom: 'var(--spacing-xs)' }}>
                     <strong>Status Code:</strong> {testDiagnostics.statusCode}

@@ -31,8 +31,8 @@ async function fetchWithTimeout(
       method: options.method,
       headers: options.headers,
       body: options.body,
-      signal: controller.signal,
-      credentials: options.credentials
+      signal: controller.signal
+      // Note: credentials intentionally omitted to match curl behavior and avoid CORS issues
     }
     return await fetch(url, sanitizedOptions)
   } finally {
@@ -142,11 +142,10 @@ export class InternalApiProvider implements Provider {
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload),
-          credentials: 'include' // Session-based auth via browser cookies
+          body: JSON.stringify(payload)
+          // Note: credentials omitted to match curl behavior and avoid CORS issues
         },
         settings.requestTimeoutMs
       )
@@ -162,7 +161,7 @@ export class InternalApiProvider implements Provider {
         // Map HTTP status codes to user-friendly messages
         if (response.status === 401) {
           throw new ProviderError(
-            'Authentication failed. Please ensure you\'re connected to your organization network and logged in to your organization account. If this persists, try using Proxy mode instead.',
+            'Authentication failed. Please ensure you\'re connected to your organization network. If this persists, try using Proxy mode instead.',
             ProviderErrorType.AUTHENTICATION,
             response.status,
             errorText,
@@ -181,8 +180,8 @@ export class InternalApiProvider implements Provider {
           const isCorsError = response.status === 0
           throw new ProviderError(
             isCorsError
-              ? 'Session authentication may not be available in this environment. Please use Proxy mode instead.'
-              : `Could not connect to Internal API. Please check your network connection and ensure you're on your organization network. If session authentication is not available in this environment, use Proxy mode instead.`,
+              ? 'CORS error: The request was blocked. Please verify the origin is in manifest.json networkAccess.allowedDomains and the server allows requests from Figma.'
+              : `Could not connect to Internal API. Please check your network connection and ensure you're on your organization network.`,
             ProviderErrorType.NETWORK,
             response.status,
             errorText,
@@ -300,6 +299,8 @@ export class InternalApiProvider implements Provider {
     diagnostics?: {
       url: string
       method: string
+      headers?: Record<string, string>
+      credentials?: string
       statusCode?: number
       responseBody?: string
       errorName?: string
@@ -328,11 +329,10 @@ export class InternalApiProvider implements Provider {
     const requestOptions: RequestInit = {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload),
-      credentials: 'include'
+      body: JSON.stringify(payload)
+      // Note: credentials omitted to match curl behavior and avoid CORS issues
     }
     
     try {
@@ -360,16 +360,23 @@ export class InternalApiProvider implements Provider {
         responseBody = 'Unable to read response body'
       }
       
+      // Build diagnostics with request options
+      const diagnostics = {
+        url,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'none' as const, // Explicitly show credentials are not used
+        statusCode,
+        responseBody
+      }
+      
       if (!response.ok) {
         return {
           success: false,
           message: `Connection failed: ${response.status} ${response.statusText}`,
-          diagnostics: {
-            url,
-            method: 'POST',
-            statusCode,
-            responseBody
-          }
+          diagnostics
         }
       }
       
@@ -377,12 +384,7 @@ export class InternalApiProvider implements Provider {
       return {
         success: true,
         message: `Connection successful. Response received.`,
-        diagnostics: {
-          url,
-          method: 'POST',
-          statusCode,
-          responseBody
-        }
+        diagnostics
       }
     } catch (error) {
       // Fetch error - likely CORS or network issue
@@ -400,6 +402,10 @@ export class InternalApiProvider implements Provider {
         diagnostics: {
           url,
           method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'none' as const, // Explicitly show credentials are not used
           errorName,
           errorMessage
         }
