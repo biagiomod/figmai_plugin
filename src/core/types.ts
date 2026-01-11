@@ -153,7 +153,11 @@ export interface SaveSettingsHandler extends EventHandler {
 
 export interface TestProxyConnectionHandler extends EventHandler {
   name: 'TEST_PROXY_CONNECTION'
-  handler: () => void
+  handler: (options?: {
+    connectionType?: 'proxy' | 'internal-api'
+    internalApiUrl?: string
+    proxyBaseUrl?: string
+  }) => void
 }
 
 export interface RequestSettingsHandler extends EventHandler {

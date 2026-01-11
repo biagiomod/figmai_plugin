@@ -825,19 +825,51 @@ on<RequestSettingsHandler>('REQUEST_SETTINGS', async function () {
 })
 
 // Handle test proxy connection
-on<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', async function () {
+on<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', async function (options?: {
+  connectionType?: 'proxy' | 'internal-api'
+  internalApiUrl?: string
+  proxyBaseUrl?: string
+}) {
   try {
-    if (!currentProvider) {
-      currentProvider = await createProvider(currentProviderId)
+    // Get current settings to determine connection type if not provided
+    const settings = await getSettings()
+    const testConnectionType = options?.connectionType || settings.connectionType || 'proxy'
+    
+    // Create the appropriate provider based on connection type
+    let testProvider: Provider
+    if (testConnectionType === 'internal-api') {
+      // Force create Internal API provider for testing
+      const { InternalApiProvider } = await import('./core/provider/internalApiProvider')
+      testProvider = new InternalApiProvider()
+      // Pass URL directly to avoid race condition with settings persistence
+      const result = await (testProvider as any).testConnection(options?.internalApiUrl)
+      figma.ui.postMessage({ 
+        pluginMessage: { 
+          type: 'TEST_RESULT', 
+          success: result.success, 
+          message: result.message,
+          diagnostics: result.diagnostics // Include diagnostics if present
+        } 
+      })
+      return
+    } else {
+      // Use proxy provider (existing behavior - unchanged)
+      if (!currentProvider) {
+        currentProvider = await createProvider(currentProviderId)
+      }
+      testProvider = currentProvider
+      // Proxy provider doesn't accept URL parameter (maintains backward compatibility)
+      const result = await testProvider.testConnection()
+      figma.ui.postMessage({ 
+        pluginMessage: { 
+          type: 'TEST_RESULT', 
+          success: result.success, 
+          message: result.message,
+          diagnostics: (result as any).diagnostics // Include diagnostics if present
+        } 
+      })
+      return
     }
-    const result = await currentProvider.testConnection()
-    figma.ui.postMessage({ 
-      pluginMessage: { 
-        type: 'TEST_RESULT', 
-        success: result.success, 
-        message: result.message 
-      } 
-    })
   } catch (error) {
     const errorMessage = errorToString(error)
     figma.ui.postMessage({ 

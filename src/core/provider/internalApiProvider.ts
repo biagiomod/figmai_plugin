@@ -291,44 +291,118 @@ export class InternalApiProvider implements Provider {
 
   /**
    * Test connection to Internal API
+   * Returns diagnostic information for debugging
+   * @param internalApiUrl Optional URL to test. If not provided, reads from settings.
    */
-  async testConnection(): Promise<{ success: boolean; message: string }> {
-    const settings = await getSettings()
+  async testConnection(internalApiUrl?: string): Promise<{ 
+    success: boolean
+    message: string
+    diagnostics?: {
+      url: string
+      method: string
+      statusCode?: number
+      responseBody?: string
+      errorName?: string
+      errorMessage?: string
+    }
+  }> {
+    // Use provided URL or fall back to settings
+    const urlToTest = internalApiUrl || (await getSettings()).internalApiUrl
     
-    if (!settings.internalApiUrl) {
+    if (!urlToTest) {
       return {
         success: false,
         message: 'Internal API URL not configured'
       }
     }
     
+    const url = this.normalizeInternalApiUrl(urlToTest)
+    const payload = {
+      type: 'generalChat',
+      message: 'test'
+    }
+    
+    // Get settings for timeout (always needed)
+    const settings = await getSettings()
+    
+    const requestOptions: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      credentials: 'include'
+    }
+    
     try {
-      // Send a test request
-      const result = await this.sendChat({
-        messages: [
-          {
-            role: 'user',
-            content: 'test'
-          }
-        ]
-      })
+      const response = await fetchWithTimeout(
+        url,
+        requestOptions,
+        settings.requestTimeoutMs
+      )
       
-      // If we got a response (even empty), connection works
-      return {
-        success: true,
-        message: `Connection successful. Response received.`
+      // Try to read response body
+      let responseBody = ''
+      let statusCode = response.status
+      
+      try {
+        const text = await response.text()
+        responseBody = text.substring(0, 300) // First 300 chars
+        // Try to parse as JSON to get a cleaner view
+        try {
+          const json = JSON.parse(text)
+          responseBody = JSON.stringify(json).substring(0, 300)
+        } catch {
+          // Keep as text if not JSON
+        }
+      } catch {
+        responseBody = 'Unable to read response body'
       }
-    } catch (error) {
-      if (error instanceof ProviderError) {
+      
+      if (!response.ok) {
         return {
           success: false,
-          message: error.message
+          message: `Connection failed: ${response.status} ${response.statusText}`,
+          diagnostics: {
+            url,
+            method: 'POST',
+            statusCode,
+            responseBody
+          }
         }
+      }
+      
+      // Success
+      return {
+        success: true,
+        message: `Connection successful. Response received.`,
+        diagnostics: {
+          url,
+          method: 'POST',
+          statusCode,
+          responseBody
+        }
+      }
+    } catch (error) {
+      // Fetch error - likely CORS or network issue
+      const errorName = error instanceof Error ? error.name : 'Unknown'
+      const errorMessage = error instanceof Error ? error.message : errorToString(error)
+      
+      let userMessage = `Connection test failed: ${errorMessage}`
+      if (errorName === 'TypeError' && errorMessage.includes('fetch')) {
+        userMessage += '\n\nThis is commonly caused by CORS or a missing/incorrect networkAccess.allowedDomains origin in manifest.json.'
       }
       
       return {
         success: false,
-        message: `Connection test failed: ${errorToString(error)}`
+        message: userMessage,
+        diagnostics: {
+          url,
+          method: 'POST',
+          errorName,
+          errorMessage
+        }
       }
     }
   }

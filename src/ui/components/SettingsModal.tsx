@@ -52,7 +52,35 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   const [sessionToken, setSessionToken] = useState('')
   const [defaultModel, setDefaultModel] = useState('gpt-4.1-mini')
   const [testStatus, setTestStatus] = useState<{ success: boolean; message: string } | null>(null)
+  const [testDiagnostics, setTestDiagnostics] = useState<{
+    url?: string
+    method?: string
+    statusCode?: number
+    responseBody?: string
+    errorName?: string
+    errorMessage?: string
+  } | null>(null)
   const [isTesting, setIsTesting] = useState(false)
+  
+  // Extract origin from URL for manifest validation
+  const getOriginFromUrl = (url: string): string | null => {
+    try {
+      const urlObj = new URL(url.trim())
+      return `${urlObj.protocol}//${urlObj.host}`
+    } catch {
+      return null
+    }
+  }
+  
+  // Check if URL has a path (for manifest warning)
+  const hasPath = (url: string): boolean => {
+    try {
+      const urlObj = new URL(url.trim())
+      return urlObj.pathname !== '/' && urlObj.pathname !== ''
+    } catch {
+      return false
+    }
+  }
   
   // Load settings on mount
   useEffect(() => {
@@ -68,6 +96,12 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           success: message.success,
           message: message.message
         })
+        // Store diagnostics if present
+        if (message.diagnostics) {
+          setTestDiagnostics(message.diagnostics)
+        } else {
+          setTestDiagnostics(null)
+        }
       } else if (message.type === 'SETTINGS_RESPONSE' && message.settings) {
         const settings = message.settings as Settings
         // Load from localStorage first (takes priority), then settings, then currentMode, then default to 'simple'
@@ -188,8 +222,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   const handleTest = useCallback(() => {
     setIsTesting(true)
     setTestStatus(null)
+    setTestDiagnostics(null) // Clear previous diagnostics
     
-    // Save settings first, then test
+    // Prepare settings for saving (for persistence)
     const settings: Partial<Settings> = {
       mode,
       connectionType,
@@ -201,12 +236,15 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       defaultModel: connectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined
     }
     
+    // Save settings for persistence (async, but we don't wait for it)
     emit<SaveSettingsHandler>('SAVE_SETTINGS', settings)
     
-    // Wait a bit for settings to save, then test
-    setTimeout(() => {
-      emit<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION')
-    }, 100)
+    // Test immediately with current UI values (no race condition)
+    emit<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', {
+      connectionType,
+      internalApiUrl: connectionType === 'internal-api' ? internalApiUrl.trim() : undefined,
+      proxyBaseUrl: connectionType === 'proxy' ? proxyBaseUrl.trim() : undefined
+    })
   }, [mode, connectionType, proxyBaseUrl, internalApiUrl, authMode, sharedToken, sessionToken, defaultModel])
   
   return (
@@ -682,6 +720,30 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
                 width: '100%'
               }}
             />
+            {/* Manifest validation warning */}
+            {internalApiUrl.trim() && hasPath(internalApiUrl) && (
+              <div style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--warning)',
+                marginTop: 'var(--spacing-xs)',
+                padding: 'var(--spacing-xs)',
+                backgroundColor: 'var(--hint-bg)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--warning)'
+              }}>
+                <strong>Manifest Warning:</strong> The URL includes a path. The manifest.json <code>networkAccess.allowedDomains</code> requires only the origin (scheme + host), not the full path. Ensure <code>package.json</code> includes: <code>{getOriginFromUrl(internalApiUrl) || 'origin'}</code>
+              </div>
+            )}
+            {/* Origin display for manifest validation */}
+            {internalApiUrl.trim() && getOriginFromUrl(internalApiUrl) && (
+              <div style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--fg-secondary)',
+                marginTop: 'var(--spacing-xs)'
+              }}>
+                Origin for manifest: <code style={{ fontFamily: 'monospace', backgroundColor: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: '2px' }}>{getOriginFromUrl(internalApiUrl)}</code>
+              </div>
+            )}
           </div>
         )}
         
@@ -704,15 +766,107 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         
         {/* Test Status */}
         {testStatus && (
-          <div style={{
-            padding: 'var(--spacing-sm)',
-            backgroundColor: testStatus.success ? 'var(--success)' : 'var(--error)',
-            color: '#ffffff',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: 'var(--font-size-xs)'
-          }}>
-            {testStatus.success ? '✓ ' : '✗ '}
-            {testStatus.message}
+          <div>
+            <div style={{
+              padding: 'var(--spacing-sm)',
+              backgroundColor: testStatus.success ? 'var(--success)' : 'var(--error)',
+              color: '#ffffff',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 'var(--font-size-xs)',
+              marginBottom: testDiagnostics ? 'var(--spacing-sm)' : 0
+            }}>
+              {testStatus.success ? '✓ ' : '✗ '}
+              {testStatus.message}
+            </div>
+            
+            {/* Diagnostics Panel - only show for Internal API mode */}
+            {testDiagnostics && connectionType === 'internal-api' && (
+              <div style={{
+                padding: 'var(--spacing-sm)',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--font-size-xs)',
+                fontFamily: 'monospace',
+                color: 'var(--fg)',
+                marginTop: 'var(--spacing-xs)'
+              }}>
+                <div style={{
+                  fontWeight: 'var(--font-weight-semibold)',
+                  marginBottom: 'var(--spacing-xs)',
+                  color: 'var(--fg)',
+                  fontFamily: 'var(--font-family)'
+                }}>
+                  Diagnostics:
+                </div>
+                <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                  <strong>Fetch URL:</strong> {testDiagnostics.url || 'N/A'}
+                </div>
+                {testDiagnostics.url && getOriginFromUrl(testDiagnostics.url) && (
+                  <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                    <strong>Origin (for manifest):</strong> <code style={{ fontFamily: 'monospace', backgroundColor: 'var(--bg)', padding: '2px 4px', borderRadius: '2px' }}>{getOriginFromUrl(testDiagnostics.url)}</code>
+                  </div>
+                )}
+                <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                  <strong>Method:</strong> {testDiagnostics.method || 'N/A'}
+                </div>
+                {testDiagnostics.statusCode !== undefined && (
+                  <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                    <strong>Status Code:</strong> {testDiagnostics.statusCode}
+                  </div>
+                )}
+                {testDiagnostics.responseBody && (
+                  <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                    <strong>Response Body (first 300 chars):</strong>
+                    <div style={{
+                      marginTop: 'var(--spacing-xs)',
+                      padding: 'var(--spacing-xs)',
+                      backgroundColor: 'var(--bg)',
+                      borderRadius: 'var(--radius-sm)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      maxHeight: '150px',
+                      overflowY: 'auto'
+                    }}>
+                      {testDiagnostics.responseBody}
+                    </div>
+                  </div>
+                )}
+                {testDiagnostics.errorName && (
+                  <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                    <strong>Error Name:</strong> {testDiagnostics.errorName}
+                  </div>
+                )}
+                {testDiagnostics.errorMessage && (
+                  <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+                    <strong>Error Message:</strong>
+                    <div style={{
+                      marginTop: 'var(--spacing-xs)',
+                      padding: 'var(--spacing-xs)',
+                      backgroundColor: 'var(--bg)',
+                      borderRadius: 'var(--radius-sm)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}>
+                      {testDiagnostics.errorMessage}
+                    </div>
+                  </div>
+                )}
+                {testDiagnostics.errorName && (
+                  <div style={{
+                    marginTop: 'var(--spacing-xs)',
+                    padding: 'var(--spacing-xs)',
+                    backgroundColor: 'var(--hint-bg)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 'var(--font-size-xs)',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--fg)'
+                  }}>
+                    <strong>Hint:</strong> This is commonly caused by CORS or a missing/incorrect <code>networkAccess.allowedDomains</code> origin in <code>manifest.json</code>. Ensure the origin (scheme + host) is listed in <code>package.json</code> under <code>figma-plugin.networkAccess.allowedDomains</code>.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
         
