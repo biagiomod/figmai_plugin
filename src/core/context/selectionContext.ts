@@ -53,7 +53,7 @@ export async function buildSelectionContext(
   
   // Always include summary when selection exists
   if (selection.hasSelection) {
-    context.selectionSummary = formatSelectionSummary(extractSelectionSummary(selectionOrder))
+    context.selectionSummary = formatSelectionSummary(await extractSelectionSummary(selectionOrder))
   }
   
   // Include images only when vision is required AND provider supports it

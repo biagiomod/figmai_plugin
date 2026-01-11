@@ -4,6 +4,8 @@
  * Optimized for signal quality: extracts meaningful, interpretable context
  */
 
+import { CONFIG } from '../config'
+
 export interface SelectionSummary {
   count: number
   nodes: Array<{
@@ -117,11 +119,42 @@ function extractComponentProperties(node: InstanceNode): Record<string, unknown>
 }
 
 /**
+ * Resolve component name for an instance node (async-safe for dynamic-page)
+ * Returns null if component is external/unavailable
+ */
+async function resolveInstanceComponentName(instance: InstanceNode): Promise<string | null> {
+  try {
+    const main = await instance.getMainComponentAsync().catch(() => null)
+    
+    if (CONFIG.dev.enableSyncApiErrorDetection) {
+      console.log('[INSTANCE_DEBUG] resolveInstanceComponentName:', {
+        nodeId: instance.id,
+        nodeName: instance.name,
+        nodeType: instance.type,
+        hasMainComponent: !!main,
+        mainComponentName: main?.name
+      })
+    }
+    
+    return main?.name ?? null
+  } catch (error) {
+    if (CONFIG.dev.enableSyncApiErrorDetection) {
+      console.warn('[INSTANCE_DEBUG] resolveInstanceComponentName failed:', {
+        nodeId: instance.id,
+        nodeName: instance.name,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+    return null
+  }
+}
+
+/**
  * Extract detailed selection summary
  * Optimized for signal quality: extracts meaningful, interpretable context
  * Keeps output concise and deterministic with truncation
  */
-export function extractSelectionSummary(selectionOrder?: string[]): SelectionSummary {
+export async function extractSelectionSummary(selectionOrder?: string[]): Promise<SelectionSummary> {
   const selection = figma.currentPage.selection
   const count = selection.length
 
@@ -157,6 +190,26 @@ export function extractSelectionSummary(selectionOrder?: string[]): SelectionSum
     orderedNodes.push(...selection)
   }
 
+  // First, resolve all instance component names in parallel
+  const instanceNodes: Array<{ node: InstanceNode; index: number }> = []
+  orderedNodes.forEach((node, index) => {
+    if (node.type === 'INSTANCE') {
+      instanceNodes.push({ node: node as InstanceNode, index })
+    }
+  })
+
+  // Resolve all instance component names in parallel
+  const instanceComponentNames = await Promise.all(
+    instanceNodes.map(({ node }) => resolveInstanceComponentName(node))
+  )
+
+  // Create a map for quick lookup
+  const instanceNameMap = new Map<string, string | null>()
+  instanceNodes.forEach(({ node }, i) => {
+    instanceNameMap.set(node.id, instanceComponentNames[i])
+  })
+
+  // Now map nodes, using resolved component names
   const nodes = orderedNodes.map(node => {
     const summary: SelectionSummary['nodes'][0] = {
       id: node.id,
@@ -274,8 +327,9 @@ export function extractSelectionSummary(selectionOrder?: string[]): SelectionSum
       } else if (node.type === 'INSTANCE') {
         summary.isInstance = true
         const instanceNode = node as InstanceNode
-        if (instanceNode.mainComponent) {
-          summary.componentName = instanceNode.mainComponent.name
+        const componentName = instanceNameMap.get(instanceNode.id) ?? null
+        if (componentName) {
+          summary.componentName = componentName
         }
         // Extract component properties
         const props = extractComponentProperties(instanceNode)

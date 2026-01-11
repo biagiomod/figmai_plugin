@@ -5,6 +5,7 @@
 
 import type { UniversalContentTableV1, ContentItemV1, TableMetaV1 } from './types'
 import type { ContentTableIgnoreRules, DesignSystemDetectionResult } from '../work/adapter'
+import { CONFIG } from '../config'
 // Note: SceneNode, TextNode, BaseNode are global types from @figma/plugin-typings (ambient types)
 
 /**
@@ -33,21 +34,55 @@ function buildBreadcrumbPath(rootNode: SceneNode, targetNode: SceneNode): string
 }
 
 /**
- * Get component context for a node
- * Enhanced to detect component instances and extract variant properties
+ * Resolve main component for an instance node (async-safe for dynamic-page)
+ * Returns null if component is external/unavailable
  */
-function getComponentContext(node: SceneNode): {
+async function resolveInstanceMainComponent(instance: InstanceNode): Promise<ComponentNode | null> {
+  try {
+    const main = await instance.getMainComponentAsync().catch(() => null)
+    
+    if (CONFIG.dev.enableSyncApiErrorDetection) {
+      console.log('[INSTANCE_DEBUG] resolveInstanceMainComponent:', {
+        nodeId: instance.id,
+        nodeName: instance.name,
+        nodeType: instance.type,
+        hasMainComponent: !!main,
+        mainComponentName: main?.name,
+        mainComponentKey: main?.key
+      })
+    }
+    
+    return main
+  } catch (error) {
+    if (CONFIG.dev.enableSyncApiErrorDetection) {
+      console.warn('[INSTANCE_DEBUG] resolveInstanceMainComponent failed:', {
+        nodeId: instance.id,
+        nodeName: instance.name,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+    return null
+  }
+}
+
+type ComponentContext = {
   kind: "component" | "componentSet" | "instance" | "custom"
   name: string
   key?: string
   variantProperties?: Record<string, string>
-} {
+}
+
+/**
+ * Get component context for a node
+ * Enhanced to detect component instances and extract variant properties
+ */
+async function getComponentContext(node: SceneNode): Promise<ComponentContext> {
   let current: BaseNode | null = node
   
   while (current) {
     if (current.type === 'INSTANCE') {
       const instance = current as InstanceNode
-      const mainComponent = instance.mainComponent
+      const mainComponent = await resolveInstanceMainComponent(instance)
       if (mainComponent) {
         // Extract variant properties if available
         const variantProperties: Record<string, string> | undefined = 
@@ -272,7 +307,7 @@ function shouldIgnoreTextNode(
  * Applies ignore rules if provided (Work-only feature)
  * Records design system detection results (Work-only feature)
  */
-function collectTextNodes(
+async function collectTextNodes(
   rootNode: SceneNode,
   items: ContentItemV1[],
   currentPath: string[] = [],
@@ -280,7 +315,7 @@ function collectTextNodes(
   detectDesignSystemComponent?: (node: SceneNode) => DesignSystemDetectionResult | null,
   designSystemCache: Map<string, DesignSystemDetectionResult | null> = new Map(),
   designSystemByNodeId: Record<string, DesignSystemDetectionResult> = {}
-): void {
+): Promise<void> {
   // CRITICAL RULE: Skip hidden nodes entirely
   if (!rootNode.visible) {
     return // Do NOT traverse children of hidden nodes
@@ -315,7 +350,7 @@ function collectTextNodes(
   // If this is a text node, check ignore rules and add to items if not ignored
   if (rootNode.type === 'TEXT') {
     const textNode = rootNode as TextNode
-    const componentContext = getComponentContext(textNode)
+    const componentContext = await getComponentContext(textNode)
     
     // Check if this node should be ignored (Work-only feature)
     if (shouldIgnoreTextNode(textNode, componentContext, ignoreRules)) {
@@ -378,7 +413,7 @@ function collectTextNodes(
       
       if (child.type === 'TEXT') {
         const textNode = child as TextNode
-        const componentContext = getComponentContext(textNode)
+        const componentContext = await getComponentContext(textNode)
         
         // Check if this node should be ignored (Work-only feature)
         if (shouldIgnoreTextNode(textNode, componentContext, ignoreRules)) {
@@ -446,7 +481,7 @@ function collectTextNodes(
       } else if ('children' in child) {
         // Recursively scan child containers (pass cache and map down)
         const childPath = [...currentPath, child.name]
-        collectTextNodes(child as SceneNode, items, childPath, ignoreRules, detectDesignSystemComponent, designSystemCache, designSystemByNodeId)
+        await collectTextNodes(child as SceneNode, items, childPath, ignoreRules, detectDesignSystemComponent, designSystemCache, designSystemByNodeId)
       }
     }
   }
@@ -506,7 +541,7 @@ export async function scanContentTable(
   // Start with root node name in path
   // CRITICAL: Hidden nodes are automatically skipped by collectTextNodes
   // Work-only: Ignore rules and design system detection are applied if provided
-  collectTextNodes(selectedNode, items, [selectedNode.name], ignoreRules, detectDesignSystemComponent, designSystemCache, designSystemByNodeId)
+  await collectTextNodes(selectedNode, items, [selectedNode.name], ignoreRules, detectDesignSystemComponent, designSystemCache, designSystemByNodeId)
   
   // Export thumbnail for root node
   const thumbnailDataUrl = await exportThumbnail(selectedNode)
