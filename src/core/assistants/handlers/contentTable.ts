@@ -32,7 +32,7 @@ export class ContentTableHandler implements AssistantHandler {
     }
 
     // Get the selected node
-    const selectedNode = figma.getNodeById(selectionOrder[0])
+    const selectedNode = await figma.getNodeByIdAsync(selectionOrder[0])
     if (!selectedNode) {
       const errorMsg = 'Selected node not found.'
       sendAssistantMessage(errorMsg)

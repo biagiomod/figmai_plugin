@@ -666,7 +666,7 @@ Use SEND JSON to import or GET JSON to export your designs.`
       console.log('[DC] quickActionId=', action.id)
       console.log('[DC] hasSelection=', selectionContext.selection.hasSelection)
       if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
-        const node = figma.getNodeById(selectionOrder[0])
+        const node = await figma.getNodeByIdAsync(selectionOrder[0])
         if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
           const anchor = getTopLevelContainerNode(node as SceneNode)
           console.log('[DC] selectedNode=', node.name, 'id=', node.id)
@@ -870,7 +870,7 @@ on<RunPlaceholderScorecardHandler>('RUN_PLACEHOLDER_SCORECARD', async function (
     // Get selected node if available
     let selectedNode: SceneNode | undefined
     if (selectionOrder.length > 0) {
-      const node = figma.getNodeById(selectionOrder[0])
+      const node = await figma.getNodeByIdAsync(selectionOrder[0])
       if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
         selectedNode = node as SceneNode
       }
@@ -910,7 +910,7 @@ on<RunScorecardV2PlaceholderHandler>('RUN_SCORECARD_V2_PLACEHOLDER', async funct
     // Get selected node if available
     let selectedNode: SceneNode | undefined
     if (selectionOrder.length > 0) {
-      const node = figma.getNodeById(selectionOrder[0])
+      const node = await figma.getNodeByIdAsync(selectionOrder[0])
       if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
         selectedNode = node as SceneNode
       }
@@ -976,7 +976,7 @@ on<RunScorecardV2PlaceholderHandler>('RUN_SCORECARD_V2_PLACEHOLDER', async funct
 on<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', async function (rootNodeId: string) {
   console.log('[Main] EXPORT_CONTENT_TABLE_REF_IMAGE received', { rootNodeId })
   try {
-    const node = figma.getNodeById(rootNodeId)
+    const node = await figma.getNodeByIdAsync(rootNodeId)
     if (!node) {
       console.error('[Main] Export Ref Image: Node not found for rootNodeId:', rootNodeId)
       figma.ui.postMessage({

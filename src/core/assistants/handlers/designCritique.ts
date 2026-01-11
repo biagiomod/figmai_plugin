@@ -40,7 +40,7 @@ export class DesignCritiqueHandler implements AssistantHandler {
       // Get selected node if available
       let selectedNode: SceneNode | undefined
       if (selection.hasSelection && selectionOrder.length > 0) {
-        const node = figma.getNodeById(selectionOrder[0])
+        const node = await figma.getNodeByIdAsync(selectionOrder[0])
         if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
           selectedNode = node as SceneNode
           // DEBUG: Log selected node and computed anchor for verification
@@ -207,7 +207,7 @@ ${response.substring(0, 2000)}`
       try {
         let selectedNode: SceneNode | undefined
         if (selection.hasSelection && selectionOrder.length > 0) {
-          const node = figma.getNodeById(selectionOrder[0])
+          const node = await figma.getNodeByIdAsync(selectionOrder[0])
           if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
             selectedNode = node as SceneNode
           }

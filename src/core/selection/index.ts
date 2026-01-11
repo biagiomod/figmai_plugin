@@ -6,18 +6,18 @@
 /**
  * Get selection context (selected node, anchor node, summary text)
  */
-export function getSelectionContext(selectionOrder: string[]): {
+export async function getSelectionContext(selectionOrder: string[]): Promise<{
   selectedNode?: SceneNode
   anchorNode?: SceneNode
   summaryText: string
-} {
+}> {
   if (selectionOrder.length === 0) {
     return {
       summaryText: 'No selection'
     }
   }
 
-  const selectedNode = figma.getNodeById(selectionOrder[0])
+  const selectedNode = await figma.getNodeByIdAsync(selectionOrder[0])
   if (!selectedNode || selectedNode.type === 'DOCUMENT' || selectedNode.type === 'PAGE') {
     return {
       summaryText: 'Invalid selection'
