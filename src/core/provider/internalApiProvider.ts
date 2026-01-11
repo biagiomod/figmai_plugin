@@ -93,6 +93,113 @@ export class InternalApiProvider implements Provider {
   }
 
   /**
+   * Extract assistant text from Internal API response
+   * Handles multiple wrapper formats including nested JSON strings
+   * 
+   * Format A: { "Prompts": [ { "ResponseFromAssistant": "<text>" } ] }
+   * Format B: { "result": "<text OR JSON-string>" }
+   * 
+   * Key behavior:
+   * - If result is a string (even if it looks like JSON), return it as-is
+   * - If entire response is a JSON-encoded string, parse once and extract
+   * - Fallback to returning original string (pretty-printed) if no wrappers found
+   * 
+   * Test cases:
+   * A) { "Prompts": [{ "ResponseFromAssistant": "Hello" }] } -> "Hello"
+   * B) { "result": "Hello" } -> "Hello"
+   * C) { "result": "{\"type\":\"designScreens\"}" } -> "{\"type\":\"designScreens\"}" (return as-is, don't parse)
+   * D) "{\"Prompts\":[{\"ResponseFromAssistant\":\"Hello\"}]}" -> "Hello" (parse string, extract)
+   * E) "{\"result\":\"Hello\"}" -> "Hello" (parse string, extract)
+   * F) { "other": "data" } with originalString -> pretty-printed JSON (fallback)
+   * 
+   * @param response The response data (can be object, string, etc.)
+   * @param depth Recursion depth counter (max 2 to prevent infinite loops)
+   * @param originalString The original string if response was parsed from a string
+   * @returns Extracted text string or null if nothing found
+   */
+  private extractInternalApiAssistantText(
+    response: unknown,
+    depth: number = 0,
+    originalString?: string
+  ): string | null {
+    // Depth limit to prevent infinite recursion
+    if (depth >= 2) {
+      // If we have an original string, return it (pretty-printed if it was JSON)
+      if (originalString) {
+        try {
+          const parsed = JSON.parse(originalString)
+          return JSON.stringify(parsed, null, 2)
+        } catch {
+          return originalString
+        }
+      }
+      return null
+    }
+
+    // Step 1: If response is a string, try to parse it as JSON
+    if (typeof response === 'string') {
+      const trimmed = response.trim()
+      // If it looks like JSON, try to parse it
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          // Recursively extract from parsed JSON, preserving original string
+          return this.extractInternalApiAssistantText(parsed, depth + 1, trimmed)
+        } catch {
+          // Not valid JSON, return as plain text
+          return trimmed
+        }
+      }
+      // Not JSON-like, return as plain text
+      return trimmed
+    }
+
+    // Step 2: If response is not an object, return null
+    if (!response || typeof response !== 'object' || Array.isArray(response)) {
+      return null
+    }
+
+    const responseObj = response as Record<string, unknown>
+
+    // Step 3: Try Format A: Prompts[0].ResponseFromAssistant
+    if (responseObj.Prompts && Array.isArray(responseObj.Prompts) && responseObj.Prompts.length > 0) {
+      const firstPrompt = responseObj.Prompts[0] as Record<string, unknown>
+      if (firstPrompt && typeof firstPrompt.ResponseFromAssistant === 'string') {
+        // Only use ResponseFromAssistant (not the typo "ResponsedFromAssistant")
+        return firstPrompt.ResponseFromAssistant
+      }
+    }
+
+    // Step 4: Try Format B: response.result
+    if (responseObj.result !== undefined) {
+      // If result is a string, return it as-is (even if it looks like JSON)
+      // This handles case C: JSON-encoded string in result is the final answer
+      if (typeof responseObj.result === 'string') {
+        return responseObj.result
+      }
+      // If result is an object, recursively extract from it
+      if (typeof responseObj.result === 'object' && responseObj.result !== null) {
+        return this.extractInternalApiAssistantText(responseObj.result, depth + 1, originalString)
+      }
+    }
+
+    // Step 5: Fallback - if we have an original string and no wrappers found,
+    // return the original string (pretty-printed if it was JSON)
+    if (originalString) {
+      try {
+        const parsed = JSON.parse(originalString)
+        // If parsed object doesn't have Prompts/result, return pretty-printed JSON
+        return JSON.stringify(parsed, null, 2)
+      } catch {
+        return originalString
+      }
+    }
+
+    // No valid format found and no original string to fall back to
+    return null
+  }
+
+  /**
    * Send chat request to Internal API
    */
   async sendChat(request: ChatRequest): Promise<string> {
@@ -198,54 +305,55 @@ export class InternalApiProvider implements Provider {
       }
       
       let data: unknown
+      let responseText: string | null = null
+      
       try {
+        // Try to parse as JSON first
         data = await response.json()
+        // Extract using helper function
+        responseText = this.extractInternalApiAssistantText(data)
       } catch (parseError) {
         // If JSON parsing fails, try to read as text
         try {
           const text = await response.text()
           if (text) {
-            // Try to parse as JSON again
-            try {
-              data = JSON.parse(text)
-            } catch {
-              // Return as plain text if not JSON
+            // Try to extract from text (which might be a JSON-encoded string)
+            responseText = this.extractInternalApiAssistantText(text)
+            // If extraction failed, return the text as-is (plain text response)
+            if (!responseText) {
               return text
             }
           }
         } catch {
           // Ignore text read errors
         }
-        throw new ProviderError(
-          'Invalid response format from Internal API: expected JSON or text',
-          ProviderErrorType.INVALID_REQUEST,
-          response.status
-        )
+        
+        // If we still don't have a response text, throw error
+        if (!responseText) {
+          throw new ProviderError(
+            'Invalid response format from Internal API: expected JSON or text',
+            ProviderErrorType.INVALID_REQUEST,
+            response.status
+          )
+        }
       }
       
-      // Parse response - support both format A and format B
-      // Format A (preferred): { "Prompts": [ { "ResponseFromAssistant": "<text>" } ] }
-      // Format B (fallback): { "result": "<text>" }
-      let responseText: string | undefined
-      
-      if (data && typeof data === 'object') {
-        const responseObj = data as Record<string, unknown>
+      // If extraction returned null, try to get a fallback
+      if (!responseText) {
+        // If data is a string, return it
+        if (typeof data === 'string') {
+          return data
+        }
         
-        // Try format A first
-        if (responseObj.Prompts && Array.isArray(responseObj.Prompts) && responseObj.Prompts.length > 0) {
-          const firstPrompt = responseObj.Prompts[0] as Record<string, unknown>
-          if (firstPrompt && typeof firstPrompt.ResponseFromAssistant === 'string') {
-            responseText = firstPrompt.ResponseFromAssistant
+        // If data is an object without wrappers, return pretty-printed JSON
+        if (data && typeof data === 'object') {
+          try {
+            return JSON.stringify(data, null, 2)
+          } catch {
+            // Fall through to error
           }
         }
         
-        // Fall back to format B if format A didn't work
-        if (!responseText && typeof responseObj.result === 'string') {
-          responseText = responseObj.result
-        }
-      }
-      
-      if (!responseText) {
         if (CONFIG.dev.enableSyncApiErrorDetection) {
           console.error('[InternalApiProvider] Invalid response format:', data)
         }
