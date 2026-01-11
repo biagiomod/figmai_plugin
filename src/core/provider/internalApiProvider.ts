@@ -230,11 +230,11 @@ export class InternalApiProvider implements Provider {
     
     const payload = {
       type: 'generalChat',
-      message: userMessages,
-      knowledgeBase: 'general',
-      knowledgeBaseSelect: 'general',
-      kbName: 'general',
-      assistant: 'general'
+      message: userMessages
+    //   knowledgeBase: 'general',
+    //   knowledgeBaseSelect: 'general',
+    //   kbName: 'general',
+    //   assistant: 'general'
     }
     
     const url = baseUrl
@@ -432,11 +432,11 @@ export class InternalApiProvider implements Provider {
     const url = this.normalizeInternalApiUrl(urlToTest)
     const payload = {
       type: 'generalChat',
-      message: 'test',
-      knowledgeBase: 'general',
-      knowledgeBaseSelect: 'general',
-      kbName: 'general',
-      assistant: 'general'
+      message: 'test'
+    //   knowledgeBase: 'general',
+    //   knowledgeBaseSelect: 'general',
+    //   kbName: 'general',
+    //   assistant: 'general'
     }
     
     // Get settings for timeout (always needed)
