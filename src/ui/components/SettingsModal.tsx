@@ -44,7 +44,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       return 'content-mvp'
     }
   })
+  const [connectionType, setConnectionType] = useState<'proxy' | 'internal-api'>('proxy')
   const [proxyBaseUrl, setProxyBaseUrl] = useState('')
+  const [internalApiUrl, setInternalApiUrl] = useState('')
   const [authMode, setAuthMode] = useState<'shared_token' | 'session_token'>('shared_token')
   const [sharedToken, setSharedToken] = useState('')
   const [sessionToken, setSessionToken] = useState('')
@@ -96,7 +98,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             return prevMode
           })
         }
+        setConnectionType(settings.connectionType || 'proxy')
         setProxyBaseUrl(settings.proxyBaseUrl || '')
+        setInternalApiUrl(settings.internalApiUrl || '')
         setAuthMode(settings.authMode || 'shared_token')
         setSharedToken(settings.sharedToken || '')
         setSessionToken(settings.sessionToken || '')
@@ -165,11 +169,13 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   const handleSave = useCallback(() => {
     const settings: Partial<Settings> = {
       mode,
-      proxyBaseUrl: proxyBaseUrl.trim(),
-      authMode,
-      sharedToken: authMode === 'shared_token' ? sharedToken.trim() : undefined,
-      sessionToken: authMode === 'session_token' ? sessionToken.trim() : undefined,
-      defaultModel: defaultModel.trim() || 'gpt-4.1-mini'
+      connectionType,
+      proxyBaseUrl: connectionType === 'proxy' ? proxyBaseUrl.trim() : undefined,
+      internalApiUrl: connectionType === 'internal-api' ? internalApiUrl.trim() : undefined,
+      authMode: connectionType === 'proxy' ? authMode : undefined,
+      sharedToken: connectionType === 'proxy' && authMode === 'shared_token' ? sharedToken.trim() : undefined,
+      sessionToken: connectionType === 'proxy' && authMode === 'session_token' ? sessionToken.trim() : undefined,
+      defaultModel: connectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined
     }
     
     emit<SaveSettingsHandler>('SAVE_SETTINGS', settings)
@@ -177,7 +183,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       onModeChange(mode)
     }
     onClose()
-  }, [mode, proxyBaseUrl, authMode, sharedToken, sessionToken, defaultModel, onClose, onModeChange])
+  }, [mode, connectionType, proxyBaseUrl, internalApiUrl, authMode, sharedToken, sessionToken, defaultModel, onClose, onModeChange])
   
   const handleTest = useCallback(() => {
     setIsTesting(true)
@@ -186,11 +192,13 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     // Save settings first, then test
     const settings: Partial<Settings> = {
       mode,
-      proxyBaseUrl: proxyBaseUrl.trim(),
-      authMode,
-      sharedToken: authMode === 'shared_token' ? sharedToken.trim() : undefined,
-      sessionToken: authMode === 'session_token' ? sessionToken.trim() : undefined,
-      defaultModel: defaultModel.trim() || 'gpt-4.1-mini'
+      connectionType,
+      proxyBaseUrl: connectionType === 'proxy' ? proxyBaseUrl.trim() : undefined,
+      internalApiUrl: connectionType === 'internal-api' ? internalApiUrl.trim() : undefined,
+      authMode: connectionType === 'proxy' ? authMode : undefined,
+      sharedToken: connectionType === 'proxy' && authMode === 'shared_token' ? sharedToken.trim() : undefined,
+      sessionToken: connectionType === 'proxy' && authMode === 'session_token' ? sessionToken.trim() : undefined,
+      defaultModel: connectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined
     }
     
     emit<SaveSettingsHandler>('SAVE_SETTINGS', settings)
@@ -199,7 +207,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     setTimeout(() => {
       emit<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION')
     }, 100)
-  }, [mode, proxyBaseUrl, authMode, sharedToken, sessionToken, defaultModel])
+  }, [mode, connectionType, proxyBaseUrl, internalApiUrl, authMode, sharedToken, sessionToken, defaultModel])
   
   return (
     <div style={{
@@ -210,8 +218,10 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       bottom: 0,
       backgroundColor: 'var(--overlay)',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
+      paddingTop: '16px',
+      paddingBottom: '16px',
       zIndex: 1000
     }} onClick={onClose}>
       <div style={{
@@ -221,7 +231,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         padding: 'var(--spacing-lg)',
         maxWidth: '400px',
         width: '90%',
-        maxHeight: '90vh',
+        height: 'calc(100vh - 32px)',
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
@@ -410,111 +420,250 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           LLM Model Settings
         </div>
         
-        {/* Proxy Base URL */}
+        {/* Connection Type Toggle */}
         <div>
-          <label style={{
-            display: 'block',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 'var(--font-weight-medium)',
-            marginBottom: 'var(--spacing-xs)',
-            color: 'var(--fg)'
+          <div style={{
+            display: 'flex',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            overflow: 'hidden',
+            width: '100%',
+            backgroundColor: 'var(--surface-modal)'
           }}>
-            Proxy Base URL
-          </label>
-          <Textbox
-            value={proxyBaseUrl}
-            onValueInput={setProxyBaseUrl}
-            placeholder="https://proxy.example.com"
-            style={{
-              width: '100%'
-            }}
-          />
-        </div>
-        
-        {/* Default Model */}
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 'var(--font-weight-medium)',
-            marginBottom: 'var(--spacing-xs)',
-            color: 'var(--fg)'
-          }}>
-            Default Model
-          </label>
-          <Textbox
-            value={defaultModel}
-            onValueInput={setDefaultModel}
-            placeholder="gpt-4.1-mini"
-            style={{
-              width: '100%'
-            }}
-          />
-        </div>
-        
-        {/* Auth Mode */}
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 'var(--font-weight-medium)',
-            marginBottom: 'var(--spacing-xs)',
-            color: 'var(--fg)'
-          }}>
-            Authentication Mode
-          </label>
-          <select
-            value={authMode}
-            onChange={(e) => setAuthMode((e.target as HTMLSelectElement).value as 'shared_token' | 'session_token')}
-            style={{
-              width: '100%',
-              padding: 'var(--spacing-sm)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--bg)',
-              color: 'var(--fg)',
-              fontSize: 'var(--font-size-sm)',
-              fontFamily: 'var(--font-family)'
-            }}
-          >
-            <option value="shared_token">Shared Token (Personal)</option>
-            <option value="session_token">Session Token (Commercial - Coming soon)</option>
-          </select>
-        </div>
-        
-        {/* Shared Token */}
-        {authMode === 'shared_token' && (
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: 'var(--font-weight-medium)',
-              marginBottom: 'var(--spacing-xs)',
-              color: 'var(--fg)'
-            }}>
-              Shared Token
-            </label>
-            <input
-              type="password"
-              value={sharedToken}
-              onInput={(e) => setSharedToken((e.target as HTMLInputElement).value)}
-              placeholder="Enter your shared token"
-              style={{
-                width: '100%',
-                padding: 'var(--spacing-sm)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--bg)',
-                color: 'var(--fg)',
-                fontSize: 'var(--font-size-sm)',
-                fontFamily: 'var(--font-family)'
+            <button
+              onClick={() => setConnectionType('internal-api')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setConnectionType('internal-api')
+                }
               }}
-            />
+              style={{
+                flex: 1,
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: 'none',
+                borderRight: '1px solid var(--border-subtle)',
+                borderRadius: 0,
+                backgroundColor: connectionType === 'internal-api' ? '#ffffff' : 'var(--surface-modal)',
+                color: connectionType === 'internal-api' ? '#000000' : 'var(--fg-secondary)',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: connectionType === 'internal-api' ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                transition: 'background-color 0.15s ease, color 0.15s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = '2px solid var(--accent)'
+                e.currentTarget.style.outlineOffset = '-2px'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (connectionType !== 'internal-api') {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (connectionType !== 'internal-api') {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
+                  e.currentTarget.style.color = 'var(--fg-secondary)'
+                }
+              }}
+            >
+              Internal API
+            </button>
+            <button
+              onClick={() => setConnectionType('proxy')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setConnectionType('proxy')
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                border: 'none',
+                borderRadius: 0,
+                backgroundColor: connectionType === 'proxy' ? '#ffffff' : 'var(--surface-modal)',
+                color: connectionType === 'proxy' ? '#000000' : 'var(--fg-secondary)',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: connectionType === 'proxy' ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                transition: 'background-color 0.15s ease, color 0.15s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = '2px solid var(--accent)'
+                e.currentTarget.style.outlineOffset = '-2px'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (connectionType !== 'proxy') {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (connectionType !== 'proxy') {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
+                  e.currentTarget.style.color = 'var(--fg-secondary)'
+                }
+              }}
+            >
+              Proxy
+            </button>
+          </div>
+        </div>
+        
+        {/* Proxy Mode Fields */}
+        {connectionType === 'proxy' && (
+          <div>
+            {/* Proxy Base URL */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-medium)',
+                marginBottom: 'var(--spacing-xs)',
+                color: 'var(--fg)'
+              }}>
+                Proxy Base URL
+              </label>
+              <Textbox
+                value={proxyBaseUrl}
+                onValueInput={setProxyBaseUrl}
+                placeholder="https://proxy.example.com"
+                style={{
+                  width: '100%'
+                }}
+              />
+            </div>
+            
+            {/* Default Model */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-medium)',
+                marginBottom: 'var(--spacing-xs)',
+                color: 'var(--fg)'
+              }}>
+                Default Model
+              </label>
+              <Textbox
+                value={defaultModel}
+                onValueInput={setDefaultModel}
+                placeholder="gpt-4.1-mini"
+                style={{
+                  width: '100%'
+                }}
+              />
+            </div>
+            
+            {/* Auth Mode */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-medium)',
+                marginBottom: 'var(--spacing-xs)',
+                color: 'var(--fg)'
+              }}>
+                Authentication Mode
+              </label>
+              <select
+                value={authMode}
+                onChange={(e) => setAuthMode((e.target as HTMLSelectElement).value as 'shared_token' | 'session_token')}
+                style={{
+                  width: '100%',
+                  padding: 'var(--spacing-sm)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg)',
+                  color: 'var(--fg)',
+                  fontSize: 'var(--font-size-sm)',
+                  fontFamily: 'var(--font-family)'
+                }}
+              >
+                <option value="shared_token">Shared Token (Personal)</option>
+                <option value="session_token">Session Token (Commercial - Coming soon)</option>
+              </select>
+            </div>
+            
+            {/* Shared Token */}
+            {authMode === 'shared_token' && (
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 'var(--font-weight-medium)',
+                  marginBottom: 'var(--spacing-xs)',
+                  color: 'var(--fg)'
+                }}>
+                  Shared Token
+                </label>
+                <input
+                  type="password"
+                  value={sharedToken}
+                  onInput={(e) => setSharedToken((e.target as HTMLInputElement).value)}
+                  placeholder="Enter your shared token"
+                  style={{
+                    width: '100%',
+                    padding: 'var(--spacing-sm)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--bg)',
+                    color: 'var(--fg)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontFamily: 'var(--font-family)'
+                  }}
+                />
+              </div>
+            )}
+            
+            {/* Session Token */}
+            {authMode === 'session_token' && (
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 'var(--font-weight-medium)',
+                  marginBottom: 'var(--spacing-xs)',
+                  color: 'var(--fg)'
+                }}>
+                  Session Token
+                </label>
+                <Textbox
+                  value={sessionToken}
+                  onValueInput={setSessionToken}
+                  placeholder="Coming soon"
+                  disabled
+                  style={{
+                    width: '100%',
+                    opacity: 0.6
+                  }}
+                />
+                <div style={{
+                  fontSize: 'var(--font-size-xs)',
+                  color: 'var(--muted)',
+                  marginTop: 'var(--spacing-xs)'
+                }}>
+                  Session token will be set via portal flow in the future.
+                </div>
+              </div>
+            )}
           </div>
         )}
         
-        {/* Session Token */}
-        {authMode === 'session_token' && (
+        {/* Internal API Mode Fields */}
+        {connectionType === 'internal-api' && (
           <div>
             <label style={{
               display: 'block',
@@ -523,25 +672,16 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
               marginBottom: 'var(--spacing-xs)',
               color: 'var(--fg)'
             }}>
-              Session Token
+              Endpoint
             </label>
             <Textbox
-              value={sessionToken}
-              onValueInput={setSessionToken}
-              placeholder="Coming soon"
-              disabled
+              value={internalApiUrl}
+              onValueInput={setInternalApiUrl}
+              placeholder="https://api.example.com/llm/endpoint"
               style={{
-                width: '100%',
-                opacity: 0.6
+                width: '100%'
               }}
             />
-            <div style={{
-              fontSize: 'var(--font-size-xs)',
-              color: 'var(--muted)',
-              marginTop: 'var(--spacing-xs)'
-            }}>
-              Session token will be set via portal flow in the future.
-            </div>
           </div>
         )}
         
@@ -549,7 +689,11 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         <div>
           <Button
             onClick={handleTest}
-            disabled={!proxyBaseUrl.trim() || isTesting}
+            disabled={
+              (connectionType === 'proxy' && !proxyBaseUrl.trim()) ||
+              (connectionType === 'internal-api' && !internalApiUrl.trim()) ||
+              isTesting
+            }
             style={{
               width: '100%'
             }}
@@ -592,7 +736,12 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
               fontFamily: 'var(--font-family)',
               fontWeight: 'var(--font-weight-medium)',
               transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease',
-              outline: 'none'
+              outline: 'none',
+              height: '32px',
+              minHeight: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             onFocus={(e) => {
               e.currentTarget.style.outline = '2px solid var(--accent)'
@@ -614,7 +763,20 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           </button>
           <Button
             onClick={handleSave}
-            disabled={!proxyBaseUrl.trim()}
+            disabled={
+              (connectionType === 'proxy' && !proxyBaseUrl.trim()) ||
+              (connectionType === 'internal-api' && !internalApiUrl.trim())
+            }
+            style={{
+              height: '32px',
+              minHeight: '32px',
+              borderRadius: 'var(--radius-sm)',
+              padding: 'var(--spacing-sm) var(--spacing-md)',
+              fontSize: 'var(--font-size-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           >
             Save
           </Button>

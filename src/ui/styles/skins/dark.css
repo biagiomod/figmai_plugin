@@ -92,4 +92,25 @@
   -webkit-text-fill-color: var(--fg-secondary) !important;
 }
 
+/* Disabled button text styling for dark mode - ensure legible dark gray text */
+[data-theme="dark"] button[disabled],
+[data-theme="dark"] button:disabled {
+  color: #666666 !important;
+  -webkit-text-fill-color: #666666 !important;
+  opacity: 1 !important;
+}
+
+/* Disabled button text styling for @create-figma-plugin/ui Button component in dark mode */
+/* Target all possible child elements that might contain text */
+[data-theme="dark"] button[disabled] *,
+[data-theme="dark"] button:disabled *,
+[data-theme="dark"] button[disabled] span,
+[data-theme="dark"] button:disabled span,
+[data-theme="dark"] button[disabled] .button-text,
+[data-theme="dark"] button:disabled .button-text {
+  color: #666666 !important;
+  -webkit-text-fill-color: #666666 !important;
+  opacity: 1 !important;
+}
+
 

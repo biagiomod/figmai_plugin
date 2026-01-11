@@ -5,7 +5,9 @@
 
 export interface Settings {
   mode?: 'simple' | 'advanced' | 'content-mvp'
+  connectionType?: 'proxy' | 'internal-api'
   proxyBaseUrl: string
+  internalApiUrl?: string
   authMode: 'shared_token' | 'session_token'
   sharedToken?: string
   sessionToken?: string
@@ -16,6 +18,7 @@ export interface Settings {
 const SETTINGS_KEY = 'figmai_settings'
 
 const DEFAULT_SETTINGS: Settings = {
+  connectionType: 'proxy',
   proxyBaseUrl: '',
   authMode: 'shared_token',
   defaultModel: 'gpt-4.1-mini',
@@ -30,6 +33,13 @@ function normalizeProxyBaseUrl(url: string): string {
 }
 
 /**
+ * Normalize internal API URL: trim whitespace and remove trailing slashes
+ */
+function normalizeInternalApiUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '')
+}
+
+/**
  * Get settings from storage with defaults
  */
 export async function getSettings(): Promise<Settings> {
@@ -40,9 +50,16 @@ export async function getSettings(): Promise<Settings> {
         ...DEFAULT_SETTINGS,
         ...stored
       } as Settings
-      // Normalize proxyBaseUrl when loading
+      // Normalize URLs when loading
       if (merged.proxyBaseUrl) {
         merged.proxyBaseUrl = normalizeProxyBaseUrl(merged.proxyBaseUrl)
+      }
+      if (merged.internalApiUrl) {
+        merged.internalApiUrl = normalizeInternalApiUrl(merged.internalApiUrl)
+      }
+      // Backward compatibility: if connectionType is undefined, default to proxy
+      if (!merged.connectionType) {
+        merged.connectionType = 'proxy'
       }
       return merged
     }
@@ -64,9 +81,16 @@ export async function saveSettings(settings: Partial<Settings>): Promise<void> {
       ...settings
     }
     
-    // Normalize proxyBaseUrl before saving
+    // Normalize URLs before saving
     if (updated.proxyBaseUrl) {
       updated.proxyBaseUrl = normalizeProxyBaseUrl(updated.proxyBaseUrl)
+    }
+    if (updated.internalApiUrl) {
+      updated.internalApiUrl = normalizeInternalApiUrl(updated.internalApiUrl)
+    }
+    // Backward compatibility: if connectionType is undefined, default to proxy
+    if (!updated.connectionType) {
+      updated.connectionType = 'proxy'
     }
     
     await figma.clientStorage.setAsync(SETTINGS_KEY, updated)
