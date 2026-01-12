@@ -2568,7 +2568,7 @@ ${htmlTable}
           }}>
             {quickActions.map((action: QuickAction) => {
               const isDisabled = action.requiresSelection && !selectionState.hasSelection
-              const isPrimary = assistant.id === 'design_critique' && action.id === 'give-critique'
+              const isPrimary = (assistant.id === 'design_critique' && action.id === 'give-critique') || (assistant.id === 'content_table' && action.id === 'generate-table')
               
               return (
                 <button
