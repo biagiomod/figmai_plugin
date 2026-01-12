@@ -197,7 +197,10 @@ function renderContentModel1(universalTable: UniversalContentTableV1): string {
       
       // Col 7: Content (actual content value)
       const content = item.content.value || ''
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(content)}</td>`
+      // Escape HTML and preserve newlines and carriage returns as <br> tags
+      // Handle \r\n (Windows), \n (Unix), and \r (old Mac) line breaks
+      const escapedContent = escapeHtml(content).replace(/\r\n|\r|\n/g, '<br>')
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapedContent}</td>`
       
       // Col 8: Rules/Comment (blank)
       html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
@@ -235,7 +238,10 @@ function renderContentModel1(universalTable: UniversalContentTableV1): string {
       
       // Col 7: Content (actual content value)
       const content = item.content.value || ''
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(content)}</td>`
+      // Escape HTML and preserve newlines and carriage returns as <br> tags
+      // Handle \r\n (Windows), \n (Unix), and \r (old Mac) line breaks
+      const escapedContent = escapeHtml(content).replace(/\r\n|\r|\n/g, '<br>')
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapedContent}</td>`
       
       // Col 8: Rules/Comment (blank)
       html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
@@ -316,7 +322,9 @@ function renderContentOnly(universalTable: UniversalContentTableV1): string {
     
     // Col 7: Content (populated with actual content value)
     const content = item.content.value || ''
-    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapeHtml(content)}</td>`
+    // Escape HTML and preserve newlines as <br> tags
+    const escapedContent = escapeHtml(content).replace(/\n/g, '<br>')
+    html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapedContent}</td>`
     
     // Col 8: Rules/Comment (blank)
     html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff;"></td>`
@@ -549,9 +557,10 @@ export function universalTableToHtml(
       if (col.key === 'figmaRef') {
         cellHtml = renderFigmaRef(cell)
       } else {
-        // Escape cell content and preserve newlines as <br>
+        // Escape cell content and preserve newlines and carriage returns as <br>
+        // Handle \r\n (Windows), \n (Unix), and \r (old Mac) line breaks
         const cellStr = String(cell || '')
-        const escapedCell = escapeHtml(cellStr).replace(/\n/g, '<br>')
+        const escapedCell = escapeHtml(cellStr).replace(/\r\n|\r|\n/g, '<br>')
         cellHtml = escapedCell
       }
       

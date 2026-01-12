@@ -301,6 +301,187 @@ function shouldIgnoreTextNode(
 }
 
 /**
+ * Normalize text content for Content Table Assistant
+ * - Detects and normalizes list formats (numbered/bullet) to dash-prefixed format
+ * - Only normalizes when 2+ lines match list-item patterns (reduces false positives)
+ * - Preserves special characters exactly as they appear
+ * - Preserves all line breaks and carriage returns exactly as they appear
+ * - Keeps lists as single text blocks (including header lines)
+ * 
+ * Supported numbered markers: "1-", "1 -", "1.", "1)", "2-", etc.
+ * Supported bullet markers: "•", "-", "*"
+ */
+function normalizeContentTableText(text: string): string {
+  // #region agent log
+  console.log('🔍 [NORMALIZE] Function called with text:', text?.substring(0, 200));
+  console.log('🔍 [NORMALIZE] Text length:', text?.length);
+  const logEntry1 = {location:'scanner.ts:314',message:'normalizeContentTableText called',data:{textLength:text?.length,textPreview:text?.substring(0,100),hasText:!!text},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'};
+  fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry1)}).catch(()=>{});
+  // #endregion
+  
+  if (!text || text.trim().length === 0) {
+    // #region agent log
+    const logEntry2 = {location:'scanner.ts:316',message:'Early return: empty text',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'};
+    console.log('[DEBUG]', logEntry2);
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry2)}).catch(()=>{});
+    // #endregion
+    return text
+  }
+
+  // Split by line breaks while preserving the original line break style
+  // Handle \r\n (Windows), \n (Unix), and \r (old Mac) line breaks
+  const lineBreakRegex = /\r\n|\r|\n/
+  const lines = text.split(lineBreakRegex)
+  
+  // #region agent log
+  console.log('🔍 [NORMALIZE] Lines split:', lines.length, 'lines');
+  console.log('🔍 [NORMALIZE] Line contents:', lines.map((l, i) => `${i}: "${l}"`));
+  const logEntry3 = {location:'scanner.ts:323',message:'Lines split',data:{lineCount:lines.length,lines:lines.map((l,i)=>({index:i,content:l,length:l.length,firstChars:l.substring(0,20)})),hasNewlines:text.includes('\n'),hasCarriageReturns:text.includes('\r')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'};
+  fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry3)}).catch(()=>{});
+  // #endregion
+  
+  // Detect the original line break style used in the text
+  // Default to \n if no line breaks found, otherwise use the first one encountered
+  let lineBreakStyle = '\n'
+  if (text.includes('\r\n')) {
+    lineBreakStyle = '\r\n'
+  } else if (text.includes('\r')) {
+    lineBreakStyle = '\r'
+  } else if (text.includes('\n')) {
+    lineBreakStyle = '\n'
+  }
+  
+  // Helper function to check if a line is a numbered list item
+  function isNumberedListItem(line: string): boolean {
+    // Match: optional whitespace, digits, optional whitespace, then period/paren/dash, optional whitespace, then content
+    // Patterns: "1.", "1. ", "1 -", "1-", "1)", "1 )", etc.
+    const match = line.match(/^\s*\d+\s*[\.\)\-]\s*(.+)$/)
+    const result = match !== null && match[1].trim().length > 0
+    // #region agent log
+    if (line.trim().length > 0) {
+      console.log('🔍 [NORMALIZE] Checking numbered pattern for line:', `"${line}"`, 'Match:', match !== null, 'Result:', result);
+      const logEntry4 = {location:'scanner.ts:339',message:'isNumberedListItem check',data:{line,lineLength:line.length,firstChars:line.substring(0,30),matchFound:match!==null,hasContent:match?match[1].trim().length>0:false,result,charCodes:Array.from(line.substring(0,10)).map(c=>c.charCodeAt(0))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry4)}).catch(()=>{});
+    }
+    // #endregion
+    return result
+  }
+  
+  // Helper function to check if a line is a bullet list item
+  function isBulletListItem(line: string): boolean {
+    // Match: optional whitespace, bullet character (•, -, *), optional whitespace, then content
+    const match = line.match(/^\s*[•\-\*]\s*(.+)$/)
+    const result = match !== null && match[1].trim().length > 0
+    // #region agent log
+    if (line.trim().length > 0) {
+      console.log('🔍 [NORMALIZE] Checking bullet pattern for line:', `"${line}"`, 'Match:', match !== null, 'Result:', result);
+      const logEntry5 = {location:'scanner.ts:346',message:'isBulletListItem check',data:{line,lineLength:line.length,firstChars:line.substring(0,30),matchFound:match!==null,hasContent:match?match[1].trim().length>0:false,result,charCodes:Array.from(line.substring(0,10)).map(c=>c.charCodeAt(0))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry5)}).catch(()=>{});
+    }
+    // #endregion
+    return result
+  }
+  
+  // Helper function to extract content after numbered marker
+  function extractNumberedContent(line: string): string | null {
+    const match = line.match(/^\s*\d+\s*[\.\)\-]\s*(.+)$/)
+    return match ? match[1].trimStart() : null
+  }
+  
+  // Helper function to extract content after bullet marker
+  function extractBulletContent(line: string): string | null {
+    const match = line.match(/^\s*[•\-\*]\s*(.+)$/)
+    return match ? match[1].trimStart() : null
+  }
+  
+  // Count lines that match list patterns (must have content after marker)
+  let listItemCount = 0
+  for (const line of lines) {
+    if (isNumberedListItem(line) || isBulletListItem(line)) {
+      listItemCount++
+    }
+  }
+  
+  // Count non-empty lines (for detecting unmarked lists)
+  const nonEmptyLines = lines.filter(line => line.trim().length > 0)
+  const hasUnmarkedList = listItemCount === 0 && nonEmptyLines.length >= 3 && lines.length >= 3
+  
+  // #region agent log
+  console.log('🔍 [NORMALIZE] List item count:', listItemCount, 'out of', lines.length, 'total lines');
+  console.log('🔍 [NORMALIZE] Non-empty lines:', nonEmptyLines.length, 'Has unmarked list:', hasUnmarkedList);
+  console.log('🔍 [NORMALIZE] Will normalize:', listItemCount >= 2 || hasUnmarkedList);
+  const logEntry6 = {location:'scanner.ts:368',message:'List item count check',data:{listItemCount,totalLines:lines.length,nonEmptyLines:nonEmptyLines.length,hasUnmarkedList,willNormalize:listItemCount>=2||hasUnmarkedList},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+  fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry6)}).catch(()=>{});
+  // #endregion
+  
+  // Normalize if we have 2+ marked list items OR if we detect an unmarked list (3+ non-empty lines)
+  const shouldNormalize = listItemCount >= 2 || hasUnmarkedList
+  
+  if (!shouldNormalize) {
+    // #region agent log
+    const logEntry7 = {location:'scanner.ts:372',message:'Early return: insufficient list items',data:{listItemCount,nonEmptyLines:nonEmptyLines.length,hasUnmarkedList,returningOriginal:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+    console.log('🔍 [NORMALIZE] Early return - not normalizing');
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry7)}).catch(()=>{});
+    // #endregion
+    return text // Return unchanged if not enough list items
+  }
+  
+  // Normalize list items
+  const normalizedLines = lines.map((line, index) => {
+    // Check for numbered pattern
+    const numberedContent = extractNumberedContent(line)
+    if (numberedContent !== null && numberedContent.length > 0) {
+      const normalized = `- ${numberedContent}`
+      // #region agent log
+      console.log('🔍 [NORMALIZE] Normalized numbered item:', line, '→', normalized);
+      const logEntry8 = {location:'scanner.ts:380',message:'Normalized numbered list item',data:{lineIndex:index,original:line,normalized},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry8)}).catch(()=>{});
+      // #endregion
+      return normalized
+    }
+    
+    // Check for bullet pattern
+    const bulletContent = extractBulletContent(line)
+    if (bulletContent !== null && bulletContent.length > 0) {
+      const normalized = `- ${bulletContent}`
+      // #region agent log
+      console.log('🔍 [NORMALIZE] Normalized bullet item:', line, '→', normalized);
+      const logEntry9 = {location:'scanner.ts:386',message:'Normalized bullet list item',data:{lineIndex:index,original:line,normalized},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'};
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry9)}).catch(()=>{});
+      // #endregion
+      return normalized
+    }
+    
+    // Handle unmarked list items (when we detected an unmarked list but this line doesn't have a marker)
+    // Only normalize non-empty lines that aren't the first line (first line might be a header)
+    if (hasUnmarkedList && line.trim().length > 0 && index > 0) {
+      // Skip empty lines, but normalize content lines after the first
+      const normalized = `- ${line.trimStart()}`
+      // #region agent log
+      console.log('🔍 [NORMALIZE] Normalized unmarked list item:', line, '→', normalized);
+      // #endregion
+      return normalized
+    }
+    
+    // Non-list line: return unchanged (preserves header lines, special characters, and carriage returns)
+    return line
+  })
+  
+  // Rejoin with the original line break style to preserve line breaks and carriage returns
+  const result = normalizedLines.join(lineBreakStyle)
+  
+  // #region agent log
+  console.log('🔍 [NORMALIZE] Returning result. Changed:', result !== text);
+  console.log('🔍 [NORMALIZE] Original:', text.substring(0, 200));
+  console.log('🔍 [NORMALIZE] Result:', result.substring(0, 200));
+  const logEntry10 = {location:'scanner.ts:394',message:'normalizeContentTableText returning result',data:{originalLength:text.length,resultLength:result.length,resultPreview:result.substring(0,200),wasChanged:result!==text},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'};
+  fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry10)}).catch(()=>{});
+  // #endregion
+  
+  return result
+}
+
+/**
  * Recursively collect all text nodes from a node's subtree
  * Enhanced with deterministic ordering (top-to-bottom, left-to-right)
  * CRITICAL: Ignores hidden layers (node.visible === false) and does NOT traverse their children
@@ -379,7 +560,20 @@ async function collectTextNodes(
       },
       content: {
         type: 'text',
-        value: textNode.characters
+        value: (() => {
+          // #region agent log
+          console.log('🔍 [SCANNER] About to normalize text from node:', textNode.name, 'Text preview:', textNode.characters.substring(0, 100));
+          const logEntry11 = {location:'scanner.ts:520',message:'Calling normalizeContentTableText from collectTextNodes (root)',data:{nodeId:textNode.id,nodeName:textNode.name,charactersLength:textNode.characters.length,charactersPreview:textNode.characters.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'};
+          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry11)}).catch(()=>{});
+          // #endregion
+          const normalized = normalizeContentTableText(textNode.characters)
+          // #region agent log
+          const logEntry12 = {location:'scanner.ts:523',message:'normalizeContentTableText result (root)',data:{nodeId:textNode.id,normalizedLength:normalized.length,normalizedPreview:normalized.substring(0,100),wasChanged:normalized!==textNode.characters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'};
+          console.log('[DEBUG]', logEntry12);
+          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry12)}).catch(()=>{});
+          // #endregion
+          return normalized
+        })()
       },
       textLayerName: textNode.name, // For TEXT nodes only
       meta: {
@@ -459,7 +653,7 @@ async function collectTextNodes(
           },
           content: {
             type: 'text',
-            value: textNode.characters
+            value: normalizeContentTableText(textNode.characters)
           },
           textLayerName: textNode.name, // For TEXT nodes only
           meta: {
