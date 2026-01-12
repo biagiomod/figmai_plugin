@@ -272,6 +272,27 @@ Please provide guidance on:
 4. Fallback: return original string (pretty-printed if JSON)
 ```
 
+### Required Project Files for LLM Response Handling/Parsing Issue
+
+The following files are relevant to the LLM response handling/parsing issue:
+
+**Provider Layer (Response Extraction & Normalization):**
+• `src/core/provider/internalApiProvider.ts` - Internal API provider implementation with `extractInternalApiAssistantText()` method
+• `src/core/provider/provider.ts` - Provider interface definition (`Provider`, `ChatRequest`, `ChatResponse`)
+• `src/core/provider/normalize.ts` - Generic response text extraction utility (`extractResponseText()`)
+• `src/core/proxy/client.ts` - Proxy provider implementation (uses `extractResponseText()` for comparison)
+
+**Response Parsing & JSON Extraction:**
+• `src/core/output/normalize/index.ts` - JSON extraction utilities (`extractJsonFromResponse()`, `parseScorecardJson()`, `fromDesignCritiqueJson()`)
+
+**Main Thread Integration:**
+• `src/main.ts` - Main thread that orchestrates provider calls, receives responses, and passes them to assistant handlers
+
+**Assistant Handlers (Response Parsing):**
+• `src/core/assistants/handlers/base.ts` - Base handler interface (`HandlerContext`, `HandlerResult`, `AssistantHandler`)
+• `src/core/assistants/handlers/designCritique.ts` - Design Critique handler that parses scorecard JSON from LLM responses
+• `src/core/assistants/handlers/designWorkshop.ts` - Design Workshop handler that parses design spec JSON from LLM responses
+
 ---
 
 ## Success Criteria
