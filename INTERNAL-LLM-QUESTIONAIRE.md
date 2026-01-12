@@ -2,10 +2,9 @@
 
 ## Purpose
 
-This document is designed to help diagnose and resolve two critical issues when using the FigmAI plugin with an Internal API endpoint:
+This document is designed to help diagnose and resolve a critical issue when using the FigmAI plugin with an Internal API endpoint:
 
-1. **Knowledge Base Routing Issue**: Internal API is returning responses from a specialized knowledge base instead of the general chat, despite sending `type: "generalChat"` in the payload.
-2. **Response Parsing Issue**: The plugin is not correctly parsing/handling LLM responses from the Internal API.
+**Response Parsing Issue**: The plugin is not correctly parsing/handling LLM responses from the Internal API.
 
 ---
 
@@ -65,7 +64,7 @@ This document is designed to help diagnose and resolve two critical issues when 
 	10. Assistant handler renders result (scorecard, screens, etc.) or sends to chat UI
 
 •	**Current Internal API Implementation**:
-	•	Request payload: `{ type: 'generalChat', message: '<userMessages>', knowledgeBase: 'general' }`
+	•	Request payload: `{ type: 'generalChat', message: '<userMessages>', kbName: 'general' }`
 	•	Request method: POST
 	•	Request headers: `Content-Type: application/json`
 	•	No credentials header (session-based auth via browser cookies)
@@ -97,8 +96,8 @@ This document is designed to help diagnose and resolve two critical issues when 
 ### Current Implementation Status
 
 •	**Payload Configuration**: ✅ Implemented
-	•	`sendChat()` includes `knowledgeBase: 'general'` in payload
-	•	`testConnection()` includes `knowledgeBase: 'general'` in payload
+	•	`sendChat()` includes `kbName: 'general'` in payload
+	•	`testConnection()` includes `kbName: 'general'` in payload
 
 •	**Response Parsing**: ✅ Implemented
 	•	Helper function `extractInternalApiAssistantText()` handles multiple formats
@@ -106,125 +105,89 @@ This document is designed to help diagnose and resolve two critical issues when 
 	•	Handles JSON-encoded strings in `result` field by returning them as-is
 
 •	**Known Issues**:
-	•	Issue 1: Internal API may be ignoring `knowledgeBase: 'general'` parameter
-	•	Issue 2: Response parsing may not be handling all response shapes correctly
+	•	Response parsing may not be handling all response shapes correctly
 
 ---
 
-## Yes / No Questions for Internal LLM (Numbered)
+## Yes / No Questions for Internal LLM (Numbered, fact-finding only)
 
 ### Architecture & Boundaries
 
-1.	Yes / No — Should all Internal API response normalization happen inside the Provider layer (before Assistants see the data)?
+1.	Yes / No — Does the Internal API deliver responses in a way that requires normalization before Assistants consume them?
 
-2.	Yes / No — Is it correct that Assistants should only ever receive a string payload, regardless of transport?
+2.	Yes / No — Is it correct that Assistants only receive string payloads from the Internal API (never objects)?
 
-3.	Yes / No — Is returning raw JSON as a string (not parsed) the safest default for downstream Assistants?
+3.	Yes / No — Is returning raw JSON as a string (not parsed) consistent with how the Internal API is typically consumed?
 
 ### Response Shape Handling
 
-4.	Yes / No — Should the provider check for `Prompts[0].ResponseFromAssistant` first, then fall back to `result`?
+4.	Yes / No — Does the Internal API ever return `Prompts[0].ResponseFromAssistant`?
 
-5.	Yes / No — If `result` is a JSON-encoded string, should it be passed through unchanged (not `JSON.parse`)?
+5.	Yes / No — Does the Internal API ever return a `result` field that is a JSON-encoded string (not an object)?
 
-6.	Yes / No — Is it acceptable to ignore unknown top-level keys as long as a usable string is extracted?
+6.	Yes / No — Does the Internal API include additional top-level keys that can be ignored without losing assistant text?
 
-7.	Yes / No — Should the provider handle cases where `result` contains a nested object (not just a string)?
+7.	Yes / No — Does the Internal API return `result` as an object (not just a string) in some responses?
 
-8.	Yes / No — If the response contains both `Prompts` and `result`, should `Prompts` take precedence?
+8.	Yes / No — When both `Prompts` and `result` are present, is `Prompts` the authoritative source?
 
 ### Error & Edge Cases
 
-9.	Yes / No — Should malformed or unexpected response shapes fail gracefully by returning the raw response as a string?
+9.	Yes / No — Do malformed or unexpected response shapes still include any usable assistant text?
 
-10.	Yes / No — Is it preferable to avoid throwing errors inside the Provider for response-shape mismatches?
+10.	Yes / No — Does the Internal API ever return response-shape mismatches that still need to be surfaced to users?
 
-11.	Yes / No — Should error messages returned from the Internal API be surfaced as plain text strings to Assistants?
+11.	Yes / No — Are error messages from the Internal API already plain text within the response body?
 
-12.	Yes / No — If the response is an empty object `{}`, should the provider return an empty string or throw an error?
+12.	Yes / No — Has the Internal API ever returned an empty object `{}` for successful requests?
 
-13.	Yes / No — Should the provider handle HTTP 200 responses that contain error information in the response body?
+13.	Yes / No — Does the Internal API ever return HTTP 200 responses that actually contain error information?
 
 ### Compatibility & Safety
 
-14.	Yes / No — Does this approach preserve full backward compatibility with the existing Proxy implementation?
+14.	Yes / No — Are Internal API responses already compatible with downstream Assistants that currently parse Proxy responses?
 
-15.	Yes / No — Does normalizing at the Provider layer reduce long-term maintenance risk?
+15.	Yes / No — Does normalizing at the Provider layer align with how Internal API clients are expected to consume responses?
 
-16.	Yes / No — Is this approach consistent with best practices for multi-backend LLM clients?
-
-### Knowledge Base Handling
-
-17.	Yes / No — Is explicitly sending `knowledgeBase: "general"` sufficient to prevent routing to internal knowledge bases?
-
-18.	Yes / No — Should this field be hard-coded (not user-configurable) for safety?
-
-19.	Yes / No — If the Internal API ignores the `knowledgeBase` parameter, should the plugin detect this and surface a warning?
-
-20.	Yes / No — Could the Internal API be using a different parameter name (e.g., `knowledge_base`, `kb`, `source`) instead of `knowledgeBase`?
-
-21.	Yes / No — Should the plugin send `knowledgeBase: "general"` as a query parameter instead of (or in addition to) the request body?
-
-22.	Yes / No — Could the Internal API require the `knowledgeBase` parameter in a different location (headers, query string, nested object)?
+16.	Yes / No — Is this Internal API usage consistent with common multi-backend LLM client patterns?
 
 ### Response Format Detection
 
-23.	Yes / No — Should the provider log the raw response structure (first 500 chars) when extraction fails for debugging?
+17.	Yes / No — Does the Internal API ever return response bodies that benefit from logging the first 500 chars for debugging?
 
-24.	Yes / No — Is it possible the Internal API returns a different wrapper format that hasn't been accounted for?
+18.	Yes / No — Are there wrapper formats beyond `Prompts` and `result` that the Internal API can return?
 
-25.	Yes / No — Should the provider handle responses where the actual content is nested deeper than 2 levels?
+19.	Yes / No — Are there cases where the assistant content is nested deeper than 2 levels in the Internal API responses?
 
 ### Final Validation
 
-26.	Yes / No — With this design, should all current Assistants (Design Critique, Workshop, Content Table, etc.) work unchanged?
+20.	Yes / No — With the current Internal API response shapes, can all current Assistants (Design Critique, Workshop, Content Table, etc.) operate unchanged?
 
-27.	Yes / No — Is there any additional normalization step required that has not been covered above?
+21.	Yes / No — Is there any additional normalization the Internal API expects clients to perform that isn’t already covered?
 
-28.	Yes / No — Should the provider validate that the extracted string is non-empty before returning it?
+22.	Yes / No — Does the Internal API ever return empty strings where assistant text is expected?
 
-29.	Yes / No — If the response contains metadata fields (e.g., `status`, `timestamp`, `requestId`), should these be ignored during extraction?
+23.	Yes / No — Are metadata fields (e.g., `status`, `timestamp`, `requestId`) safe to ignore when extracting assistant text?
 
 ---
 
 ## Optional Fill-in-the-Blank (Safe)
 
-30.	The single most important invariant the Provider should guarantee is:
+24.	The single most important invariant the Provider should guarantee is:
 "All downstream consumers receive ______________________."
 
-31.	The biggest risk if response normalization is done inside Assistants instead of Providers is:
+25.	The biggest risk if response normalization is done inside Assistants instead of Providers is:
 "____________________________________________."
 
-32.	If the Internal API is ignoring `knowledgeBase: "general"`, the most likely causes are:
+26.	If response parsing is failing, the most likely response shapes we're missing are:
 "____________________________________________."
 
-33.	If response parsing is failing, the most likely response shapes we're missing are:
-"____________________________________________."
-
-34.	The best way to debug response parsing issues without exposing sensitive data is:
+27.	The best way to debug response parsing issues without exposing sensitive data is:
 "____________________________________________."
 
 ---
 
 ## Diagnostic Information Requested
-
-### For Knowledge Base Routing Issue
-
-Please provide guidance on:
-
-•	**Parameter Format**: What is the exact format the Internal API expects for specifying the knowledge base?
-	•	Is it `knowledgeBase`, `knowledge_base`, `kb`, `source`, or something else?
-	•	Should it be in the request body, query parameters, or headers?
-	•	Is the value `"general"` correct, or should it be `"default"`, `"chat"`, or another value?
-
-•	**API Behavior**: How does the Internal API determine which knowledge base to use?
-	•	Is there a default knowledge base if the parameter is missing?
-	•	Are there any authentication/session-based overrides that might ignore the parameter?
-	•	Is there a priority order (e.g., session settings > request parameter)?
-
-•	**Verification**: How can we verify that the request is actually reaching the general knowledge base?
-	•	Are there response headers or metadata that indicate which knowledge base was used?
-	•	Is there a test endpoint that confirms knowledge base selection?
 
 ### For Response Parsing Issue
 
@@ -232,7 +195,6 @@ Please provide guidance on:
 
 •	**Response Structure**: What are all possible response formats the Internal API can return?
 	•	Are there formats beyond Format A (`Prompts[0].ResponseFromAssistant`) and Format B (`result`)?
-	•	Can the response structure vary based on the knowledge base used?
 	•	Are there error response formats that differ from success formats?
 
 •	**JSON-Encoded Strings**: When `result` contains a JSON-encoded string, what is the expected behavior?
@@ -284,7 +246,7 @@ Please provide guidance on:
 {
   type: 'generalChat',
   message: '<combined user messages>',
-  knowledgeBase: 'general'
+  kbName: 'general'
 }
 
 // Request configuration
@@ -316,14 +278,12 @@ Please provide guidance on:
 
 The implementation will be considered successful when:
 
-1. ✅ All Internal API requests include `knowledgeBase: "general"` in the payload
-2. ✅ Internal API returns responses from the general knowledge base (not specialized KBs)
-3. ✅ All response formats are correctly parsed and normalized to strings
-4. ✅ Design Critique Assistant works with Internal API (receives and parses JSON correctly)
-5. ✅ Design Workshop Assistant works with Internal API (receives and parses JSON correctly)
-6. ✅ General chat works with Internal API (receives and displays text correctly)
-7. ✅ Proxy mode continues to work unchanged (regression test passes)
-8. ✅ No Assistant code needs modification to support Internal API
+1. ✅ All response formats are correctly parsed and normalized to strings
+2. ✅ Design Critique Assistant works with Internal API (receives and parses JSON correctly)
+3. ✅ Design Workshop Assistant works with Internal API (receives and parses JSON correctly)
+4. ✅ General chat works with Internal API (receives and displays text correctly)
+5. ✅ Proxy mode continues to work unchanged (regression test passes)
+6. ✅ No Assistant code needs modification to support Internal API
 
 ---
 
