@@ -231,7 +231,7 @@ export class InternalApiProvider implements Provider {
         const payload = {
             type: 'generalChat',
             message: userMessages,
-            kbName: 'general'
+            kbName: 'figma'
             //   knowledgeBase: 'general',
             //   knowledgeBaseSelect: 'general',
             //   assistant: 'general'
@@ -433,7 +433,7 @@ export class InternalApiProvider implements Provider {
         const payload = {
             type: 'generalChat',
             message: 'test',
-            kbName: 'general'
+            kbName: 'figma'
             //   knowledgeBase: 'general',
             //   knowledgeBaseSelect: 'general',
             //   assistant: 'general'
