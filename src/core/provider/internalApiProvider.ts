@@ -93,6 +93,31 @@ export class InternalApiProvider implements Provider {
     }
 
     /**
+     * Clean JSON string by parsing and re-stringifying
+     * This escapes control characters (like literal newlines) that would break JSON.parse()
+     * 
+     * @param str The string to clean (may be JSON or plain text)
+     * @returns Cleaned JSON string if input was JSON, otherwise original string unchanged
+     */
+    private cleanJsonString(str: string): string {
+        const trimmed = str.trim();
+        
+        // Only process if it looks like JSON (starts with { or [)
+        if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+            return str; // Return original if not JSON-like
+        }
+        
+        // Try to parse and re-stringify (this escapes control characters)
+        try {
+            const parsed = JSON.parse(trimmed);
+            return JSON.stringify(parsed);
+        } catch {
+            // If parsing fails, return original string unchanged
+            return str;
+        }
+    }
+
+    /**
      * Extract assistant text from Internal API response
      * Simplified version based on proven old plugin logic
      * 
@@ -138,15 +163,15 @@ export class InternalApiProvider implements Provider {
         if (responseObj.Prompts && Array.isArray(responseObj.Prompts) && responseObj.Prompts.length > 0) {
             const firstPrompt = responseObj.Prompts[0] as Record<string, unknown>;
             if (firstPrompt && typeof firstPrompt.ResponseFromAssistant === 'string') {
-                return firstPrompt.ResponseFromAssistant;
+                return this.cleanJsonString(firstPrompt.ResponseFromAssistant);
             }
         }
 
         // Format B: result field (fallback)
         if ('result' in responseObj && responseObj.result != null) {
-            // If result is a string, return it as-is (even if it looks like JSON)
+            // If result is a string, clean it (may contain unescaped control characters)
             if (typeof responseObj.result === 'string') {
-                return responseObj.result;
+                return this.cleanJsonString(responseObj.result);
             }
 
             // If result is an object, stringify it (for JSON responses like Design Critique)
