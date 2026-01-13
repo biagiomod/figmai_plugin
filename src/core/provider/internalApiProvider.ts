@@ -145,7 +145,7 @@ export class InternalApiProvider implements Provider {
         // If response is a string, return it directly
         if (typeof response === 'string') {
             const trimmed = response.trim();
-            return trimmed.length > 0 ? trimmed : null;
+            return trimmed.length > 0 ? this.cleanJsonString(trimmed) : null;
         }
 
         // If response is not an object, convert to string
