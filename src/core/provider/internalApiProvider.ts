@@ -109,9 +109,9 @@ export class InternalApiProvider implements Provider {
 
         // Escape control characters BEFORE parsing
         const escaped = trimmed
-            .replace(/\\n/g, '\n')
-            .replace(/\\t/g, '\t')
-            .replace(/\\r/g, '\r');
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t');
 
 
         try {
@@ -123,13 +123,6 @@ export class InternalApiProvider implements Provider {
         }
 
 
-        try {
-            const parsed = JSON.parse(trimmed);
-            return JSON.stringify(parsed);
-        } catch {
-            // If parsing fails, return original string unchanged
-            return str;
-        }
     }
 
     /**
