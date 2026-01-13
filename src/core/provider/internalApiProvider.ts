@@ -116,6 +116,14 @@ export class InternalApiProvider implements Provider {
 
         try {
             const parsed = JSON.parse(escaped);
+
+            // If parsed is a wrapper with 'result' field containing a string, extract it
+            if (parsed && typeof parsed === 'object' && 'result' in parsed) {
+                if (typeof parsed.result === 'string') {
+                    return parsed.result; // Return the inner string
+                }
+            }
+
             return JSON.stringify(parsed);
         } catch {
             // If parsing fails, return original string unchanged
