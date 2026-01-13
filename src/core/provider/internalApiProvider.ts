@@ -94,109 +94,81 @@ export class InternalApiProvider implements Provider {
 
     /**
      * Extract assistant text from Internal API response
-     * Handles multiple wrapper formats including nested JSON strings
+     * Simplified version based on proven old plugin logic
      * 
+     * LLM Suite returns responses in two formats:
      * Format A: { "Prompts": [ { "ResponseFromAssistant": "<text>" } ] }
-     * Format B: { "result": "<text OR JSON-string>" }
+     * Format B: { "result": "<text>" } OR { "result": { ... } }
      * 
      * Key behavior:
-     * - If result is a string (even if it looks like JSON), return it as-is
-     * - If entire response is a JSON-encoded string, parse once and extract
-     * - Fallback to returning original string (pretty-printed) if no wrappers found
-     * 
-     * Test cases:
-     * A) { "Prompts": [{ "ResponseFromAssistant": "Hello" }] } -> "Hello"
-     * B) { "result": "Hello" } -> "Hello"
-     * C) { "result": "{\"type\":\"designScreens\"}" } -> "{\"type\":\"designScreens\"}" (return as-is, don't parse)
-     * D) "{\"Prompts\":[{\"ResponseFromAssistant\":\"Hello\"}]}" -> "Hello" (parse string, extract)
-     * E) "{\"result\":\"Hello\"}" -> "Hello" (parse string, extract)
-     * F) { "other": "data" } with originalString -> pretty-printed JSON (fallback)
+     * - Prioritizes Format A (Prompts[0].ResponseFromAssistant) when present
+     * - Falls back to Format B (result field)
+     * - Returns strings as-is (including JSON-encoded strings)
+     * - JSON.stringify ONLY when result is an actual object
+     * - No recursion, depth limits, or speculative parsing
+     * - Assistants remain responsible for their own JSON parsing
      * 
      * @param response The response data (can be object, string, etc.)
-     * @param depth Recursion depth counter (max 2 to prevent infinite loops)
-     * @param originalString The original string if response was parsed from a string
      * @returns Extracted text string or null if nothing found
      */
-    private extractInternalApiAssistantText(
-        response: unknown,
-        depth: number = 0,
-        originalString?: string
-    ): string | null {
-        // Depth limit to prevent infinite recursion
-        if (depth >= 2) {
-            // If we have an original string, return it (pretty-printed if it was JSON)
-            if (originalString) {
-                try {
-                    const parsed = JSON.parse(originalString)
-                    return JSON.stringify(parsed, null, 2)
-                } catch {
-                    return originalString
-                }
-            }
-            return null
+    private extractInternalApiAssistantText(response: unknown): string | null {
+        // Handle null/undefined
+        if (!response) {
+            return null;
         }
 
-        // Step 1: If response is a string, try to parse it as JSON
+        // If response is a string, return it directly
         if (typeof response === 'string') {
-            const trimmed = response.trim()
-            // If it looks like JSON, try to parse it
-            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            const trimmed = response.trim();
+            return trimmed.length > 0 ? trimmed : null;
+        }
+
+        // If response is not an object, convert to string
+        if (typeof response !== 'object' || Array.isArray(response)) {
+            // Arrays are not a valid response format - return null
+            if (Array.isArray(response)) {
+                return null;
+            }
+            return String(response);
+        }
+
+        const responseObj = response as Record<string, unknown>;
+
+        // Format A: Prompts[0].ResponseFromAssistant (priority check)
+        if (responseObj.Prompts && Array.isArray(responseObj.Prompts) && responseObj.Prompts.length > 0) {
+            const firstPrompt = responseObj.Prompts[0] as Record<string, unknown>;
+            if (firstPrompt && typeof firstPrompt.ResponseFromAssistant === 'string') {
+                return firstPrompt.ResponseFromAssistant;
+            }
+        }
+
+        // Format B: result field (fallback)
+        if ('result' in responseObj && responseObj.result != null) {
+            // If result is a string, return it as-is (even if it looks like JSON)
+            if (typeof responseObj.result === 'string') {
+                return responseObj.result;
+            }
+
+            // If result is an object, stringify it (for JSON responses like Design Critique)
+            if (typeof responseObj.result === 'object' && !Array.isArray(responseObj.result)) {
                 try {
-                    const parsed = JSON.parse(trimmed)
-                    // Recursively extract from parsed JSON, preserving original string
-                    return this.extractInternalApiAssistantText(parsed, depth + 1, trimmed)
+                    return JSON.stringify(responseObj.result, null, 2);
                 } catch {
-                    // Not valid JSON, return as plain text
-                    return trimmed
+                    return String(responseObj.result);
                 }
             }
-            // Not JSON-like, return as plain text
-            return trimmed
-        }
 
-        // Step 2: If response is not an object, return null
-        if (!response || typeof response !== 'object' || Array.isArray(response)) {
-            return null
-        }
-
-        const responseObj = response as Record<string, unknown>
-
-        // Step 3: Try Format A: Prompts[0].ResponseFromAssistant
-        if (responseObj.Prompts && Array.isArray(responseObj.Prompts) && responseObj.Prompts.length > 0) {
-            const firstPrompt = responseObj.Prompts[0] as Record<string, unknown>
-            if (firstPrompt && typeof firstPrompt.ResponseFromAssistant === 'string') {
-                // Only use ResponseFromAssistant (not the typo "ResponsedFromAssistant")
-                return firstPrompt.ResponseFromAssistant
+            // Arrays in result are not a valid format - return null
+            if (Array.isArray(responseObj.result)) {
+                return null;
             }
+
+            // Otherwise convert to string
+            return String(responseObj.result);
         }
 
-        // Step 4: Try Format B: response.result
-        if (responseObj.result !== undefined) {
-            // If result is a string, return it as-is (even if it looks like JSON)
-            // This handles case C: JSON-encoded string in result is the final answer
-            if (typeof responseObj.result === 'string') {
-                return responseObj.result
-            }
-            // If result is an object, recursively extract from it
-            if (typeof responseObj.result === 'object' && responseObj.result !== null) {
-                return this.extractInternalApiAssistantText(responseObj.result, depth + 1, originalString)
-            }
-        }
-
-        // Step 5: Fallback - if we have an original string and no wrappers found,
-        // return the original string (pretty-printed if it was JSON)
-        if (originalString) {
-            try {
-                const parsed = JSON.parse(originalString)
-                // If parsed object doesn't have Prompts/result, return pretty-printed JSON
-                return JSON.stringify(parsed, null, 2)
-            } catch {
-                return originalString
-            }
-        }
-
-        // No valid format found and no original string to fall back to
-        return null
+        // No recognized format found
+        return null;
     }
 
     /**
