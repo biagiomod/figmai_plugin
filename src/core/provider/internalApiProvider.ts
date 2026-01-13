@@ -106,8 +106,23 @@ export class InternalApiProvider implements Provider {
         if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
             return str; // Return original if not JSON-like
         }
-        
-        // Try to parse and re-stringify (this escapes control characters)
+
+        // Escape control characters BEFORE parsing
+        const escaped = trimmed
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\r/g, '\r');
+
+
+        try {
+            const parsed = JSON.parse(escaped);
+            return JSON.stringify(parsed);
+        } catch {
+            // If parsing fails, return original string unchanged
+            return str;
+        }
+
+
         try {
             const parsed = JSON.parse(trimmed);
             return JSON.stringify(parsed);
