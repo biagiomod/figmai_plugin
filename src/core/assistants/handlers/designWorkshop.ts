@@ -23,22 +23,22 @@ export class DesignWorkshopHandler implements AssistantHandler {
   prepareMessages(messages: NormalizedMessage[]): NormalizedMessage[] {
     // Extract the latest user message (the actual request)
     const userMessages = messages.filter(m => m.role === 'user')
-    const latestUserRequest = userMessages.length > 0 
-      ? userMessages[userMessages.length - 1].content 
+    const latestUserRequest = userMessages.length > 0
+      ? userMessages[userMessages.length - 1].content
       : 'Generate design screens'
-    
+
     // Store for use in handleResponse
     this.latestUserRequest = latestUserRequest
-    
+
     // Extract intent from user request (simple keyword-based extraction)
     const intent = this.extractIntent(latestUserRequest, messages)
-    
+
     // Store intent for use in handleResponse
     this.latestIntent = intent
-    
+
     // Build intent summary for prompt
     const intentSummary = this.formatIntentSummary(intent)
-    
+
     // Inject JSON-only enforcement messages for Design Workshop
     return [
       {
@@ -134,7 +134,7 @@ CRITICAL:
   private extractIntent(userRequest: string, messages: NormalizedMessage[]): DesignIntent {
     const intent: DesignIntent = {}
     const lowerRequest = userRequest.toLowerCase()
-    
+
     // Extract app type/genre
     const appTypes = ['game', 'fintech', 'mindfulness', 'fitness', 'dashboard', 'social', 'ecommerce', 'banking', 'health']
     for (const appType of appTypes) {
@@ -143,7 +143,7 @@ CRITICAL:
         break
       }
     }
-    
+
     // Extract tone
     if (lowerRequest.includes('playful') || lowerRequest.includes('fun') || lowerRequest.includes('game')) {
       intent.tone = 'playful'
@@ -152,7 +152,7 @@ CRITICAL:
     } else if (lowerRequest.includes('calm') || lowerRequest.includes('peaceful')) {
       intent.tone = 'calm'
     }
-    
+
     // Extract keywords
     const keywords: string[] = []
     const keywordPatterns = ['minimalist', 'bold', 'modern', 'classic', 'vibrant', 'soft']
@@ -164,7 +164,7 @@ CRITICAL:
     if (keywords.length > 0) {
       intent.keywords = keywords
     }
-    
+
     // Extract colors
     const colorPatterns = [
       { pattern: /pink|rose|magenta/gi, name: 'pink' },
@@ -175,21 +175,21 @@ CRITICAL:
       { pattern: /red|crimson|scarlet/gi, name: 'red' },
       { pattern: /yellow|gold|amber/gi, name: 'yellow' }
     ]
-    
+
     const foundColors: string[] = []
     for (const { pattern, name } of colorPatterns) {
       if (pattern.test(userRequest)) {
         foundColors.push(name)
       }
     }
-    
+
     if (foundColors.length > 0) {
       intent.primaryColor = foundColors[0]
       if (foundColors.length > 1) {
         intent.accentColors = foundColors.slice(1)
       }
     }
-    
+
     // Extract fidelity
     if (lowerRequest.includes('wireframe')) {
       intent.fidelity = 'wireframe'
@@ -200,7 +200,7 @@ CRITICAL:
     } else if (lowerRequest.includes('medium')) {
       intent.fidelity = 'medium'
     }
-    
+
     // Extract density
     if (lowerRequest.includes('compact') || lowerRequest.includes('dense')) {
       intent.density = 'compact'
@@ -209,7 +209,7 @@ CRITICAL:
     } else if (lowerRequest.includes('comfortable')) {
       intent.density = 'comfortable'
     }
-    
+
     // Extract screen archetypes
     const archetypes: string[] = []
     const archetypePatterns = ['onboarding', 'home', 'profile', 'settings', 'stats', 'store', 'dashboard', 'login', 'signup']
@@ -221,7 +221,7 @@ CRITICAL:
     if (archetypes.length > 0) {
       intent.screenArchetypes = archetypes
     }
-    
+
     return intent
   }
 
@@ -230,7 +230,7 @@ CRITICAL:
    */
   private formatIntentSummary(intent: DesignIntent): string {
     const parts: string[] = []
-    
+
     if (intent.appType) {
       parts.push(`App Type: ${intent.appType}`)
     }
@@ -255,7 +255,7 @@ CRITICAL:
     if (intent.screenArchetypes && intent.screenArchetypes.length > 0) {
       parts.push(`Screen Types: ${intent.screenArchetypes.join(', ')}`)
     }
-    
+
     return parts.length > 0 ? parts.join('\n') : 'No explicit intent extracted (use defaults)'
   }
 
@@ -263,14 +263,14 @@ CRITICAL:
     const { response, provider, sendAssistantMessage } = context
     const runId = `dw_${Date.now()}`
     console.log(`[DW ${runId}] START`, { assistantId: context.assistantId, actionId: context.actionId })
-    
+
     try {
       // Clean response: remove internal metadata tags like "generate: 1/100 (1%)"
       let cleanedResponse = response.replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '').trim()
-      
+
       console.log(`[DW ${runId}] RAW_RESPONSE_HEAD`, cleanedResponse.slice(0, 200))
       console.log(`[DW ${runId}] RAW_RESPONSE_LENGTH`, cleanedResponse.length)
-      
+
       // Extract JSON from response (strip code fences if present)
       let jsonString = extractJsonFromResponse(cleanedResponse)
       if (!jsonString) {
@@ -279,31 +279,37 @@ CRITICAL:
         // Remove code fences manually
         jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '')
       }
-      
+
       // Parse JSON
       let parsed: unknown
       try {
         parsed = JSON.parse(jsonString)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          console.log(`[DW ${runId}] PARSED_JSON_KEYS:`, Object.keys(parsed));
+        }
+        const fullJson = JSON.stringify(parsed, null, 2);
+        console.log(`[DW ${runId}] PARSED_JSON_FULL (${fullJson.length} chars):`,
+          fullJson.length > 2000 ? fullJson.substring(0, 2000) + '...' : fullJson);
       } catch (parseError) {
         console.log(`[DW ${runId}] JSON parse error:`, parseError)
         // Attempt repair with cleaned response
         return await this.attemptRepair(context, cleanedResponse, runId)
       }
-      
+
       // Validate spec
       console.log(`[DW][VALIDATION] ${runId} - Starting validation`)
       const validation = validateDesignSpecV1(parsed)
-      
+
       if (!validation.ok) {
         console.log(`[DW][VALIDATION] ${runId} - Validation failed:`, validation.errors)
         // Attempt repair with cleaned response
         return await this.attemptRepair(context, cleanedResponse, runId)
       }
-      
+
       if (validation.warnings.length > 0) {
         console.log(`[DW][VALIDATION] ${runId} - Warnings:`, validation.warnings)
       }
-      
+
       // Store user request, runId, and intent in spec before normalizing
       const spec = parsed as DesignSpecV1
       if (!spec.meta) {
@@ -311,7 +317,7 @@ CRITICAL:
       }
       spec.meta.userRequest = this.latestUserRequest
       spec.meta.runId = runId
-      
+
       // Merge extracted intent with any intent from LLM response
       if (!spec.meta.intent) {
         spec.meta.intent = this.latestIntent
@@ -326,56 +332,56 @@ CRITICAL:
           screenArchetypes: llmIntent.screenArchetypes || this.latestIntent.screenArchetypes
         }
       }
-      
+
       console.log(`[DW][INTENT] ${runId} - User request: "${this.latestUserRequest}"`)
       console.log(`[DW][INTENT] ${runId} - Extracted intent:`, JSON.stringify(spec.meta.intent, null, 2))
-      
+
       // Normalize spec (enforces 1-5 screens)
       console.log(`[DW][SPEC] ${runId} - Normalizing spec`)
       const normalized = normalizeDesignSpecV1(spec)
       console.log(`[DW][SPEC] ${runId} - Normalized: ${normalized.screens.length} screens`)
-      
+
       // Render to section
       console.log(`[DW][RENDER] ${runId} - Starting render`)
       const renderResult = await renderDesignSpecToSection(normalized, runId)
       console.log(`[DW][RENDER] ${runId} - Render complete`)
-      
+
       // Log render report
       if (renderResult.report) {
         console.log(`[DW][REPORT] ${runId} - Consumed fields:`, renderResult.report.consumedFields.length)
         console.log(`[DW][REPORT] ${runId} - Unused fields:`, renderResult.report.unusedFields.length)
         console.log(`[DW][REPORT] ${runId} - Fallbacks:`, renderResult.report.fallbacks.length)
-        
+
         if (renderResult.report.unusedFields.length > 0) {
           renderResult.report.unusedFields.forEach(field => {
             console.log(`[DW][UNUSED_FIELD] ${runId} - ${field.field}:`, field.value, field.reason || '')
           })
         }
       }
-      
+
       // Create observability artifacts
       await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
-      
+
       // Send completion message
       sendAssistantMessage('Screens placed on stage')
-      
+
       // If truncation notice exists, send additional message
       if (normalized.meta.truncationNotice) {
         sendAssistantMessage(normalized.meta.truncationNotice)
       }
-      
+
       figma.notify('Screens generated successfully')
-      
+
       return { handled: true }
     } catch (error) {
       console.error(`[DW ${runId}] Error:`, error)
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Unknown error processing design spec'
-      
+
       sendAssistantMessage(`Error: ${errorMessage}`)
       figma.notify(`Error generating screens: ${errorMessage}`)
-      
+
       return { handled: true, message: `Error: ${errorMessage}` }
     }
   }
@@ -389,7 +395,7 @@ CRITICAL:
     runId: string
   ): Promise<HandlerResult> {
     console.log(`[DW ${runId}] BEFORE repair attempt`)
-    
+
     try {
       const repairPrompt = `Convert the following to valid JSON matching the DesignSpecV1 schema exactly. Return JSON only, no other text.
 
@@ -442,24 +448,24 @@ ${originalResponse.substring(0, 2000)}`
           content: repairPrompt
         }
       ]
-      
+
       const repairResponse = await context.provider.sendChat({
         messages: repairMessages,
         assistantId: context.assistantId,
         assistantName: 'Design Workshop',
         quickActionId: context.actionId
       })
-      
+
       console.log(`[DW ${runId}] repair response length:`, repairResponse.length)
       console.log(`[DW ${runId}] repair response head:`, repairResponse.substring(0, 200))
-      
+
       // Extract and parse repaired JSON
       let repairJsonString = extractJsonFromResponse(repairResponse)
       if (!repairJsonString) {
         repairJsonString = repairResponse.trim()
         repairJsonString = repairJsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '')
       }
-      
+
       let repaired: unknown
       try {
         repaired = JSON.parse(repairJsonString)
@@ -469,17 +475,17 @@ ${originalResponse.substring(0, 2000)}`
         figma.notify('Error: Invalid JSON format')
         return { handled: true, message: 'Error: Could not parse design spec' }
       }
-      
+
       // Validate repaired spec
       const repairValidation = validateDesignSpecV1(repaired)
-      
+
       if (!repairValidation.ok) {
         console.log(`[DW ${runId}] Repair validation failed:`, repairValidation.errors)
         context.sendAssistantMessage('Error: Design spec validation failed. Please try again.')
         figma.notify('Error: Invalid design spec format')
         return { handled: true, message: 'Error: Design spec validation failed' }
       }
-      
+
       // Store user request, runId, and intent in repaired spec
       const repairedSpec = repaired as DesignSpecV1
       if (!repairedSpec.meta) {
@@ -487,7 +493,7 @@ ${originalResponse.substring(0, 2000)}`
       }
       repairedSpec.meta.userRequest = this.latestUserRequest
       repairedSpec.meta.runId = runId
-      
+
       // Merge extracted intent with any intent from LLM response
       if (!repairedSpec.meta.intent) {
         repairedSpec.meta.intent = this.latestIntent
@@ -501,19 +507,19 @@ ${originalResponse.substring(0, 2000)}`
           screenArchetypes: llmIntent.screenArchetypes || this.latestIntent.screenArchetypes
         }
       }
-      
+
       // Normalize and render
       const normalized = normalizeDesignSpecV1(repairedSpec)
       const renderResult = await renderDesignSpecToSection(normalized, runId)
-      
+
       // Create observability artifacts
       await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
-      
+
       context.sendAssistantMessage('Screens placed on stage')
       if (normalized.meta.truncationNotice) {
         context.sendAssistantMessage(normalized.meta.truncationNotice)
       }
-      
+
       figma.notify('Screens generated successfully (repaired)')
       return { handled: true }
     } catch (repairError) {
@@ -536,7 +542,7 @@ ${originalResponse.substring(0, 2000)}`
   ): Promise<void> {
     try {
       const fonts = await loadFonts()
-      
+
       // Create annotation frame
       const annotationFrame = figma.createFrame()
       annotationFrame.name = `Design Workshop — Spec & Intent (${runId})`
@@ -552,7 +558,7 @@ ${originalResponse.substring(0, 2000)}`
       annotationFrame.strokes = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.8 }, opacity: 1 }]
       annotationFrame.strokeWeight = 1
       annotationFrame.cornerRadius = 8
-      
+
       // Title
       const titleText = await createTextNode('Design Workshop — Spec & Intent', {
         fontSize: 14,
@@ -561,7 +567,7 @@ ${originalResponse.substring(0, 2000)}`
       })
       titleText.name = 'Title'
       annotationFrame.appendChild(titleText)
-      
+
       // Run ID
       const runIdText = await createTextNode(`Run: ${runId}`, {
         fontSize: 11,
@@ -570,7 +576,7 @@ ${originalResponse.substring(0, 2000)}`
       })
       runIdText.name = 'Run ID'
       annotationFrame.appendChild(runIdText)
-      
+
       // User Request
       if (spec.meta.userRequest) {
         const userRequestLabel = await createTextNode('User Request:', {
@@ -580,7 +586,7 @@ ${originalResponse.substring(0, 2000)}`
         })
         userRequestLabel.name = 'User Request Label'
         annotationFrame.appendChild(userRequestLabel)
-        
+
         const userRequestText = await createTextNode(`"${spec.meta.userRequest}"`, {
           fontSize: 11,
           fontName: fonts.regular,
@@ -590,7 +596,7 @@ ${originalResponse.substring(0, 2000)}`
         userRequestText.resize(300, userRequestText.height)
         annotationFrame.appendChild(userRequestText)
       }
-      
+
       // Intent Summary
       if (spec.meta.intent) {
         const intentLabel = await createTextNode('Intent:', {
@@ -600,13 +606,13 @@ ${originalResponse.substring(0, 2000)}`
         })
         intentLabel.name = 'Intent Label'
         annotationFrame.appendChild(intentLabel)
-        
+
         const intentParts: string[] = []
         if (spec.meta.intent.appType) intentParts.push(`App: ${spec.meta.intent.appType}`)
         if (spec.meta.intent.tone) intentParts.push(`Tone: ${spec.meta.intent.tone}`)
         if (spec.meta.intent.primaryColor) intentParts.push(`Color: ${spec.meta.intent.primaryColor}`)
         if (spec.meta.intent.fidelity) intentParts.push(`Fidelity: ${spec.meta.intent.fidelity}`)
-        
+
         if (intentParts.length > 0) {
           const intentText = await createTextNode(intentParts.join(' • '), {
             fontSize: 11,
@@ -618,7 +624,7 @@ ${originalResponse.substring(0, 2000)}`
           annotationFrame.appendChild(intentText)
         }
       }
-      
+
       // Render Report Summary
       if (report) {
         const reportParts: string[] = []
@@ -631,7 +637,7 @@ ${originalResponse.substring(0, 2000)}`
         if (report.fallbacks.length > 0) {
           reportParts.push(`Fallbacks: ${report.fallbacks.length}`)
         }
-        
+
         if (reportParts.length > 0) {
           const reportLabel = await createTextNode('Render Report:', {
             fontSize: 12,
@@ -640,7 +646,7 @@ ${originalResponse.substring(0, 2000)}`
           })
           reportLabel.name = 'Report Label'
           annotationFrame.appendChild(reportLabel)
-          
+
           const reportText = await createTextNode(reportParts.join(' • '), {
             fontSize: 11,
             fontName: fonts.regular,
@@ -651,7 +657,7 @@ ${originalResponse.substring(0, 2000)}`
           annotationFrame.appendChild(reportText)
         }
       }
-      
+
       // Spec Summary (truncated JSON)
       const specLabel = await createTextNode('Spec (preview):', {
         fontSize: 12,
@@ -660,7 +666,7 @@ ${originalResponse.substring(0, 2000)}`
       })
       specLabel.name = 'Spec Label'
       annotationFrame.appendChild(specLabel)
-      
+
       const specPreview = {
         screens: spec.screens.length,
         fidelity: spec.render.intent.fidelity,
@@ -674,11 +680,11 @@ ${originalResponse.substring(0, 2000)}`
       specText.name = 'Spec Preview'
       specText.resize(300, specText.height)
       annotationFrame.appendChild(specText)
-      
+
       // Position annotation frame to the right of section
       annotationFrame.x = section.x + section.width + 40
       annotationFrame.y = section.y
-      
+
       // Append to page
       figma.currentPage.appendChild(annotationFrame)
     } catch (error) {
