@@ -160,9 +160,6 @@ import {
 function cleanChatContent(raw: string): string {
   if (!raw) return ''
 
-  console.log('[cleanChatContent] Input (raw):', JSON.stringify(raw))
-  console.log('[cleanChatContent] Input lines:', raw.split('\n'))
-
   // Strip internal generation metadata like: "generate: 1/100 (1%)"
   let text = raw
     .replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '') // generate: X/Y (Z%)
@@ -183,7 +180,6 @@ function cleanChatContent(raw: string): string {
   // The welcome line "**Welcome to your Content Table Assistant**" will be preserved
   // as it's different from the description line when normalized
   const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
-  console.log('[cleanChatContent] After split and filter, lines:', lines)
   const uniqueLines: string[] = []
   const seen = new Set<string>()
   let welcomeLineFound: string | null = null
@@ -193,16 +189,11 @@ function cleanChatContent(raw: string): string {
     // Test both original line and normalized line to catch markdown-wrapped welcome lines
     const isWelcomeLine = welcomeLinePatterns.some(pattern => pattern.test(line) || pattern.test(normalized))
     
-    console.log('[cleanChatContent] Processing line:', JSON.stringify(line), 'normalized:', normalized, 'isWelcomeLine:', isWelcomeLine)
-    
     // Always preserve welcome lines, even if they appear to be duplicates
     if (isWelcomeLine) {
       if (!welcomeLineFound) {
         welcomeLineFound = line.trim()
         uniqueLines.push(line.trim())
-        console.log('[cleanChatContent] Added welcome line to uniqueLines')
-      } else {
-        console.log('[cleanChatContent] Welcome line already found, skipping duplicate')
       }
       continue
     }
@@ -212,9 +203,6 @@ function cleanChatContent(raw: string): string {
     if (!seen.has(normalized)) {
       seen.add(normalized)
       uniqueLines.push(line.trim())
-      console.log('[cleanChatContent] Added line to uniqueLines')
-    } else {
-      console.log('[cleanChatContent] Skipping duplicate line:', normalized)
     }
   }
   
@@ -227,17 +215,14 @@ function cleanChatContent(raw: string): string {
     if (welcomeIndex > 0) {
       const welcomeLine = uniqueLines.splice(welcomeIndex, 1)[0]
       uniqueLines.unshift(welcomeLine)
-      console.log('[cleanChatContent] Moved welcome line to beginning')
     }
   }
 
   text = uniqueLines.join('\n')
-  console.log('[cleanChatContent] After deduplication, text:', JSON.stringify(text))
   
   // Collapse multiple spaces to single space (but preserve newlines)
   text = text.replace(/[ \t]+/g, ' ').trim()
 
-  console.log('[cleanChatContent] Final output:', JSON.stringify(text))
   return text
 }
 
@@ -408,9 +393,6 @@ function Plugin() {
           }
           break
         case 'ASSISTANT_MESSAGE':
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:406',message:'ASSISTANT_MESSAGE received',data:{hasMessage:!!message.message,resetToken,messageResetToken:message.resetToken,role:message.message?.role,contentPreview:message.message?.content?.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           // Check resetToken to ignore late-arriving messages after reset
           // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
           // Exception: Always process RESET_DONE assistant messages (they come after reset)
@@ -418,9 +400,6 @@ function Plugin() {
             (message.resetToken === resetToken || 
              (resetToken === 0 && message.resetToken === undefined) ||
              (message.message.role === 'assistant' && message.message.content.includes('intro')))
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:414',message:'shouldProcessAssistantMessage check',data:{shouldProcess:shouldProcessAssistantMessage,resetToken,messageResetToken:message.resetToken,hasMessage:!!message.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           
           if (shouldProcessAssistantMessage) {
             console.log('[UI] setThinking false - ASSISTANT_MESSAGE received', { role: message.message.role })
@@ -436,17 +415,7 @@ function Plugin() {
               }
 
               // Assistant messages: clean + dedupe
-              console.log('[UI] Received assistant message, raw content:', JSON.stringify(incoming.content))
-              console.log('[UI] Received assistant message, content lines:', incoming.content.split('\n'))
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:431',message:'Before cleanChatContent',data:{rawContent:incoming.content,contentLength:incoming.content.length,prevMessagesCount:prev.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-              // #endregion
               const cleanedContent = cleanChatContent(incoming.content)
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:433',message:'After cleanChatContent',data:{cleanedContent,cleanedLength:cleanedContent.length,rawLength:incoming.content.length,isEmpty:cleanedContent.length === 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-              // #endregion
-              console.log('[UI] After cleanChatContent, cleaned content:', JSON.stringify(cleanedContent))
-              console.log('[UI] After cleanChatContent, cleaned lines:', cleanedContent.split('\n'))
               const looksLikeWorkshopIntro = isDesignWorkshopIntro(cleanedContent)
 
               if (looksLikeWorkshopIntro) {
@@ -465,9 +434,6 @@ function Plugin() {
 
               const cleanedMessage: Message = { ...incoming, content: cleanedContent }
               const newMessages = [...prev, cleanedMessage]
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:451',message:'Adding message to state',data:{messageId:cleanedMessage.id,contentLength:cleanedContent.length,prevCount:prev.length,newCount:newMessages.length,hasWelcomeLine:cleanedContent.toLowerCase().includes('welcome to your content table assistant'),finalMessages:newMessages.map(m => ({id:m.id,role:m.role,contentPreview:m.content.substring(0,50)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-              // #endregion
               return newMessages
             })
             setIsLoading(false) // Stop loading when message arrives
@@ -476,9 +442,6 @@ function Plugin() {
               messageToken: message.resetToken, 
               currentToken: resetToken 
             })
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:455',message:'Message filtered out',data:{resetToken,messageResetToken:message.resetToken,hasMessage:!!message.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
           }
           break
         case 'SCORECARD_RESULT':
@@ -701,16 +664,10 @@ function Plugin() {
   // Use a ref to track if we've already sent the initial SET_ASSISTANT to prevent duplicates
   const hasSentInitialSetAssistant = useRef(false)
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:678',message:'Content-MVP useEffect triggered',data:{mode,assistantId:assistant.id,conditionMet:mode === 'content-mvp' && assistant.id === 'content_table',hasSentInitial:hasSentInitialSetAssistant.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     // Only run once on mount, and only if we're in Content-MVP mode with Content Table assistant
     // Also check ref to prevent duplicate calls
     if (mode === 'content-mvp' && assistant.id === 'content_table' && !hasSentInitialSetAssistant.current) {
       console.log('[UI] Content-MVP mode detected, sending SET_ASSISTANT for content_table')
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:682',message:'Sending SET_ASSISTANT for content_table',data:{mode,assistantId:assistant.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       // Set ref BEFORE emitting to prevent race conditions
       hasSentInitialSetAssistant.current = true
       // Send the intro message - main thread will check for duplicates
@@ -2150,9 +2107,6 @@ ${htmlTable}
         )}
         
         {messages.map(message => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2148',message:'Rendering message',data:{messageId:message.id,role:message.role,contentLength:message.content.length,contentPreview:message.content.substring(0,100),hasWelcomeLine:message.content.toLowerCase().includes('welcome to your content table assistant'),messagesCount:messages.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-          // #endregion
           return (
             <div
               key={message.id}
@@ -2201,23 +2155,11 @@ ${htmlTable}
                     {(() => {
                       try {
                         // Clean content before rendering: remove internal metadata tags
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2197',message:'Before render cleanChatContent',data:{messageId:message.id,originalContent:message.content,originalLength:message.content.length,hasWelcomeLine:message.content.toLowerCase().includes('welcome to your content table assistant')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                        // #endregion
                         const contentToRender = cleanChatContent(message.content)
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2200',message:'After render cleanChatContent',data:{messageId:message.id,cleanedContent:contentToRender,cleanedLength:contentToRender.length,hasWelcomeLine:contentToRender.toLowerCase().includes('welcome to your content table assistant'),lines:contentToRender.split('\n')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                        // #endregion
 
                         // Always parse and render with RichTextRenderer for assistant messages
                         const ast = parseRichText(contentToRender)
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2209',message:'After parseRichText',data:{messageId:message.id,astNodeCount:ast.length,astNodes:ast.map(n => ({type:n.type,textPreview:n.type === 'paragraph' ? n.text.substring(0,50) : ''}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                        // #endregion
                         const enhanced = enhanceRichText(ast)
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ui.tsx:2210',message:'After enhanceRichText',data:{messageId:message.id,enhancedNodeCount:enhanced.length,enhancedNodes:enhanced.map(n => ({type:n.type,textPreview:n.type === 'paragraph' ? n.text.substring(0,50) : ''}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                        // #endregion
                         return <RichTextRenderer nodes={enhanced} />
                       } catch (error) {
                         // Fallback to plain text if parsing fails

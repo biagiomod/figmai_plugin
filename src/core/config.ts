@@ -25,6 +25,8 @@ export const CONFIG = {
     // Enable clipboard debug logging (console logs and debug UI)
     enableClipboardDebugLogging: false,
     // Enable sync API error detection (catches runtime errors from sync node APIs)
-    enableSyncApiErrorDetection: true
+    enableSyncApiErrorDetection: true,
+    // Enable Design Critique verbose debug logging
+    enableDesignCritiqueDebugLogging: false
   }
 } as const

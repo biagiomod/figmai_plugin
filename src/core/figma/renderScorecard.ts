@@ -7,6 +7,7 @@
 
 import { placeArtifactFrame, removeExistingArtifacts } from './artifacts/placeArtifact'
 import { loadFonts, createTextNode } from '../stage/primitives'
+import { CONFIG } from '../config'
 
 /**
  * Scorecard Data
@@ -710,9 +711,12 @@ export async function renderScorecardV2(
   debug?: { runId?: string }
 ): Promise<FrameNode> {
   const runId = debug?.runId || 'unknown'
-  console.log(`[DC ${runId}] renderScorecardV2 ENTER`)
+  const DEBUG = CONFIG.dev.enableDesignCritiqueDebugLogging
   
-  const DEBUG = true
+  if (DEBUG) {
+    console.log(`[DC ${runId}] renderScorecardV2 ENTER`)
+  }
+  
   let root: FrameNode | null = null
   
   try {

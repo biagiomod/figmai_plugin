@@ -10,8 +10,6 @@
 import type { WorkAdapter } from './adapter'
 import { createDefaultWorkAdapter } from './defaultAdapter'
 
-const DEBUG = false
-
 /**
  * Loads the Work adapter, attempting to import an override file first.
  * 
@@ -35,31 +33,19 @@ export async function loadWorkAdapter(): Promise<WorkAdapter> {
     
     // Check for default export (WorkAdapter)
     if (overrideModule.default && typeof overrideModule.default === 'object') {
-      if (DEBUG) {
-        console.log('[WorkAdapter] Loaded override via default export')
-      }
       return overrideModule.default as WorkAdapter
     }
     
     // Check for named export function (createWorkAdapter)
     if ('createWorkAdapter' in overrideModule && typeof overrideModule.createWorkAdapter === 'function') {
-      if (DEBUG) {
-        console.log('[WorkAdapter] Loaded override via createWorkAdapter()')
-      }
       return overrideModule.createWorkAdapter()
     }
     
-    // If module loaded but no valid export found, log warning and fall back
-    if (DEBUG) {
-      console.warn('[WorkAdapter] Override module loaded but no valid export found, using default')
-    }
+    // If module loaded but no valid export found, fall back to default
     return createDefaultWorkAdapter()
   } catch (error) {
     // Override file doesn't exist or failed to load - this is expected in Public Plugin
     // In Figma plugins, dynamic imports that fail are caught here
-    if (DEBUG) {
-      console.log('[WorkAdapter] No override file found, using default adapter:', error instanceof Error ? error.message : String(error))
-    }
     return createDefaultWorkAdapter()
   }
 }

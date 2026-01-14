@@ -5,7 +5,7 @@
  */
 
 import type { Provider, ChatRequest, ProviderCapabilities } from './provider'
-import { ProviderError, ProviderErrorType } from './provider'
+import { ProviderError, ProviderErrorType, errorToString } from './provider'
 import { getSettings } from '../settings'
 import { CONFIG } from '../config'
 
@@ -43,28 +43,6 @@ async function fetchWithTimeout(
 /**
  * Convert error to human-readable string
  */
-function errorToString(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message
-    }
-
-    if (error && typeof error === 'object' && 'status' in error && 'statusText' in error) {
-        const response = error as { status: number; statusText: string }
-        return `HTTP ${response.status}: ${response.statusText}`
-    }
-
-    if (error && typeof error === 'object') {
-        try {
-            const stringified = JSON.stringify(error, null, 2)
-            return stringified.length > 500 ? stringified.substring(0, 500) + '...' : stringified
-        } catch {
-            return String(error)
-        }
-    }
-
-    return String(error)
-}
-
 /**
  * Internal API Provider
  * Handles requests to organization's Internal API with session-based auth

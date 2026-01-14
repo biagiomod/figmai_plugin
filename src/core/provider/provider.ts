@@ -142,6 +142,56 @@ export class ProviderError extends Error {
 }
 
 /**
+ * Convert an error to a user-friendly string message
+ * Handles ProviderError, Error, HTTP responses, and unknown types
+ */
+export function errorToString(error: unknown): string {
+  // Handle ProviderError (includes ProxyError which extends it)
+  if (error instanceof ProviderError) {
+    // Provide actionable error messages based on error type
+    switch (error.type) {
+      case ProviderErrorType.AUTHENTICATION:
+        return 'Authentication failed. Please check your token in Settings.'
+      case ProviderErrorType.RATE_LIMIT:
+        return 'Rate limit exceeded. Please try again in a moment.'
+      case ProviderErrorType.NETWORK:
+        return `Network error: ${error.message}`
+      case ProviderErrorType.TIMEOUT:
+        return 'Request timeout. The server took too long to respond. Please try again.'
+      case ProviderErrorType.INVALID_REQUEST:
+        return `Invalid request: ${error.message}`
+      case ProviderErrorType.PROVIDER_ERROR:
+        if (error.statusCode && error.statusCode >= 500) {
+          return `Server error (${error.statusCode}): The server encountered an error. Please try again later.`
+        }
+        return `Provider error: ${error.message}`
+      default:
+        return error.message
+    }
+  }
+  
+  if (error instanceof Error) {
+    return error.message
+  }
+  
+  if (error && typeof error === 'object' && 'status' in error && 'statusText' in error) {
+    const response = error as { status: number; statusText: string }
+    return `HTTP ${response.status}: ${response.statusText}`
+  }
+  
+  if (error && typeof error === 'object') {
+    try {
+      const stringified = JSON.stringify(error, null, 2)
+      return stringified.length > 500 ? stringified.substring(0, 500) + '...' : stringified
+    } catch {
+      return String(error)
+    }
+  }
+  
+  return String(error)
+}
+
+/**
  * Provider interface for LLM integration
  * All providers must implement this interface
  */

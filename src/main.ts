@@ -78,7 +78,7 @@ import { summarizeSelection } from './core/context/selection'
 import { buildSelectionContext } from './core/context/selectionContext'
 import { saveSettings, getSettings } from './core/settings'
 import { ProxyError } from './core/proxy/client'
-import { ProviderError, ProviderErrorType } from './core/provider/provider'
+import { ProviderError, ProviderErrorType, errorToString } from './core/provider/provider'
 import type {
   ResetHandler,
   RequestSelectionStateHandler,
@@ -123,52 +123,6 @@ import { BUILD_VERSION } from './core/build'
  * Convert an error to a human-readable string with actionable feedback
  * Uses ProviderError for consistent error handling across all providers
  */
-function errorToString(error: unknown): string {
-  // Handle ProviderError (includes ProxyError which extends it)
-  if (error instanceof ProviderError) {
-    // Provide actionable error messages based on error type
-    switch (error.type) {
-      case ProviderErrorType.AUTHENTICATION:
-        return 'Authentication failed. Please check your token in Settings.'
-      case ProviderErrorType.RATE_LIMIT:
-        return 'Rate limit exceeded. Please try again in a moment.'
-      case ProviderErrorType.NETWORK:
-        return `Network error: ${error.message}`
-      case ProviderErrorType.TIMEOUT:
-        return 'Request timeout. The server took too long to respond. Please try again.'
-      case ProviderErrorType.INVALID_REQUEST:
-        return `Invalid request: ${error.message}`
-      case ProviderErrorType.PROVIDER_ERROR:
-        if (error.statusCode && error.statusCode >= 500) {
-          return `Server error (${error.statusCode}): The server encountered an error. Please try again later.`
-        }
-        return `Provider error: ${error.message}`
-      default:
-        return error.message
-    }
-  }
-  
-  if (error instanceof Error) {
-    return error.message
-  }
-  
-  if (error && typeof error === 'object' && 'status' in error && 'statusText' in error) {
-    const response = error as { status: number; statusText: string }
-    return `HTTP ${response.status}: ${response.statusText}`
-  }
-  
-  if (error && typeof error === 'object') {
-    try {
-      const stringified = JSON.stringify(error, null, 2)
-      return stringified.length > 500 ? stringified.substring(0, 500) + '...' : stringified
-    } catch {
-      return String(error)
-    }
-  }
-  
-  return String(error)
-}
-
 // State
 let currentAssistant: Assistant = getDefaultAssistant()
 let currentMode: 'simple' | 'advanced' | 'content-mvp' = CONFIG.defaultMode
@@ -351,9 +305,6 @@ function isContentTableIntroMessage(content: string): boolean {
 // Handle set assistant
 on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
   console.log('[Main] onmessage SET_ASSISTANT', { assistantId })
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:318',message:'SET_ASSISTANT received',data:{assistantId,messageHistoryLength:messageHistory.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   const assistant = getAssistant(assistantId)
   if (assistant) {
     currentAssistant = assistant
@@ -372,9 +323,6 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
       // For other assistants, check if content matches intro
       return m.content.includes(assistant.intro.substring(0, 30))
     })
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:338',message:'hasExistingIntro check result',data:{assistantId,hasExistingIntro,messageHistoryPreview:messageHistory.map(m => ({role:m.role,contentPreview:m.content.substring(0,50)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     
     if (!hasExistingIntro) {
       // Send assistant intro message
@@ -389,17 +337,11 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
       console.log('[Main] Intro content (lines):', introMessage.content.split('\n'))
       console.log('[Main] Intro content length:', introMessage.content.length)
       messageHistory.push(introMessage)
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:352',message:'About to postMessage ASSISTANT_MESSAGE',data:{assistantId,messageId:introMessage.id,contentLength:introMessage.content.length,contentPreview:introMessage.content.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       console.log('[Main] postMessage ASSISTANT_MESSAGE (assistant intro)')
       figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: introMessage } })
     } else {
       console.log('[Main] Skipping duplicate intro message for assistant:', assistantId)
       console.log('[Main] Existing intro check - messageHistory:', messageHistory.map(m => ({ role: m.role, contentPreview: m.content.substring(0, 50) })))
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:356',message:'Skipping duplicate intro',data:{assistantId,messageHistoryLength:messageHistory.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
     }
   }
 })

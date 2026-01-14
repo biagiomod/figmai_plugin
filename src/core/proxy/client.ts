@@ -4,16 +4,8 @@
  */
 
 import { getSettings } from '../settings'
-import { ProviderError, ProviderErrorType } from '../provider/provider'
+import { ProviderError, ProviderErrorType, errorToString } from '../provider/provider'
 import { extractResponseText } from '../provider/normalize'
-
-const DEBUG = false
-
-function log(...args: unknown[]): void {
-  if (DEBUG) {
-    console.log('[ProxyClient]', ...args)
-  }
-}
 
 /**
  * Fetch with optional timeout support
@@ -48,28 +40,6 @@ async function fetchWithTimeout(
 /**
  * Convert error to human-readable string
  */
-function errorToString(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
-  
-  if (error && typeof error === 'object' && 'status' in error && 'statusText' in error) {
-    const response = error as { status: number; statusText: string }
-    return `HTTP ${response.status}: ${response.statusText}`
-  }
-  
-  if (error && typeof error === 'object') {
-    try {
-      const stringified = JSON.stringify(error, null, 2)
-      return stringified.length > 500 ? stringified.substring(0, 500) + '...' : stringified
-    } catch {
-      return String(error)
-    }
-  }
-  
-  return String(error)
-}
-
 /**
  * Proxy API Error
  * Extends ProviderError for consistent error handling
@@ -187,8 +157,6 @@ export class ProxyClient {
     const baseUrl = this.normalizeProxyBaseUrl(settings.proxyBaseUrl)
     const url = `${baseUrl}/health`
     
-    log('Health check:', url)
-    
     try {
       const startTime = Date.now()
       
@@ -207,8 +175,7 @@ export class ProxyClient {
       
       if (response.ok) {
         try {
-          const data = await response.json()
-          log('Health check response:', data)
+          await response.json()
         } catch {
           // Response is not JSON, that's okay
         }
@@ -232,8 +199,6 @@ export class ProxyClient {
         }
       }
     } catch (error) {
-      log('Health check error:', error)
-      
       if (error instanceof Error && error.name === 'AbortError') {
         return {
           success: false,
@@ -296,11 +261,6 @@ export class ProxyClient {
     const isDesignCritique = options.assistantId === 'design_critique' || options.quickActionId === 'give-critique'
     if (isDesignCritique) {
       payload.response_format = { type: 'json_object' }
-      log('Enforcing JSON output for Design Critique (json_object mode)')
-      console.log('[DC] assistantId=', options.assistantId, 'quickActionId=', options.quickActionId, 'response_format=json_object')
-      console.log('[DC] DC_JSON_MODE_ENABLED=true')
-    } else {
-      console.log('[DC] DC_JSON_MODE_ENABLED=false (not a Design Critique request)')
     }
     
     // Log final request payload for DC (redact large content)
@@ -319,9 +279,6 @@ export class ProxyClient {
     
     if (options.selectionSummary) {
       payload.selectionSummary = options.selectionSummary
-      log('Selection summary included:', options.selectionSummary.substring(0, 200) + '...')
-    } else {
-      log('No selection summary provided')
     }
     
     if (options.images && options.images.length > 0) {
@@ -331,22 +288,7 @@ export class ProxyClient {
         width: img.width,
         height: img.height
       }))
-      log(`Images included: ${options.images.length} image(s)`)
-      options.images.forEach((img, i) => {
-        const preview = img.dataUrl.substring(0, 80) + '...'
-        log(`  Image ${i + 1}: ${img.name || 'Unnamed'}, ${img.width}x${img.height}, base64 preview: ${preview}`)
-      })
-    } else {
-      log('No images provided')
     }
-    
-    log('Chat request:', { 
-      url, 
-      model: payload.model, 
-      messageCount: messages.length, 
-      hasSelectionSummary: !!options.selectionSummary,
-      imageCount: options.images?.length || 0
-    })
     
     try {
       const response = await fetchWithTimeout(
@@ -418,13 +360,11 @@ export class ProxyClient {
         
         try {
           JSON.parse(jsonString)
-          log('Design Critique response validated as JSON')
           console.log('[DC] JSON_VALIDATION', { status: 'PASS' })
         } catch (parseError) {
           // Log warning but don't throw - let plugin handle fallback gracefully
           const errorPreview = responseText.substring(0, 500)
           console.warn('[ProxyClient] Design Critique response is not valid JSON. First 500 chars:', errorPreview)
-          log('Design Critique response failed JSON validation - plugin will handle fallback')
           console.log('[DC] JSON_VALIDATION', { status: 'FAIL', error: parseError instanceof Error ? parseError.message : String(parseError) })
           // Note: Proxy server should ideally return 502 for invalid JSON, but client allows fallback
         }
