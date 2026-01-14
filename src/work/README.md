@@ -214,7 +214,7 @@ const workAdapter: WorkAdapter = {
 }
 ```
 
-See `docs/extension-points.md` for detailed documentation.
+See `docs/work-plugin/extension-points.md` for detailed documentation.
 
 ## What Goes Here
 

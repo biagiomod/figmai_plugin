@@ -1,3 +1,7 @@
+> **STRATEGIC/FUTURE:** This document describes future vision and strategic direction, not current implementation. This is archived for reference only.
+
+---
+
 SSOT Strategy
 
 Single Source of Truth for Content, Design, and Code

@@ -169,7 +169,7 @@ When tests fail:
 
 ## Related Documentation
 
-- [Proxy Setup Guide](../docs/proxy-and-plugin-setup.md)
+- [Proxy Setup Guide](../setup/proxy-setup.md)
 - [Main README](../README.md)
 - [Refactor Audit](../REFACTOR_AUDIT.md)
 

@@ -1,3 +1,7 @@
+> **STRATEGIC/FUTURE:** This document describes a planned feature (Discovery Copilot MVP), not current implementation. This is archived for reference only.
+
+---
+
 # Discovery Copilot MVP - Implementation Plan
 
 ## Goals

@@ -15,14 +15,14 @@ If you're an AI assistant trying to understand this codebase:
 2. **Understand flow**: Read `main.ts` header comment for message routing
 3. **Understand UI**: Read `ui.tsx` header comment for UI architecture
 4. **Understand handlers**: Read `core/assistants/handlers/base.ts` for handler contract
-5. **Understand Work boundary**: Read `docs/work-adapter.md` for Work plugin pattern
+5. **Understand Work boundary**: Read `docs/work-plugin/adapter-pattern.md` for Work plugin pattern
 
 ### For Human Developers
 
 1. **Project overview**: Read `README.md` for high-level architecture
 2. **Contribution guide**: Read `CONTRIBUTING.md` for development guidelines
-3. **Work migration**: Read `docs/work-migration.md` for Work Plugin setup
-4. **Extension points**: Read `docs/extension-points.md` for available hooks
+3. **Work migration**: Read `docs/work-plugin/migration-guide.md` for Work Plugin setup
+4. **Extension points**: Read `docs/work-plugin/extension-points.md` for available hooks
 
 ---
 
@@ -374,8 +374,8 @@ await placeArtifactFrame(frame, { selectedNode })
 
 ### Work Features
 1. `core/work/adapter.ts` - Adapter interface
-2. `docs/work-adapter.md` - Work adapter documentation
-3. `docs/extension-points.md` - Extension points
+2. `docs/work-plugin/adapter-pattern.md` - Work adapter documentation
+3. `docs/work-plugin/extension-points.md` - Extension points
 
 ---
 
@@ -445,7 +445,7 @@ When in doubt:
 
 ## Next Steps
 
-- **For AI Assistants**: See `docs/work-migration.md` for migration tasks
+- **For AI Assistants**: See `docs/work-plugin/migration-guide.md` for migration tasks
 - **For Human Developers**: See `CONTRIBUTING.md` for contribution guidelines
-- **For Work Migration**: See `docs/work-migration.md` for step-by-step guide
-- **For Extension Points**: See `docs/extension-points.md` for available hooks
+- **For Work Migration**: See `docs/work-plugin/migration-guide.md` for step-by-step guide
+- **For Extension Points**: See `docs/work-plugin/extension-points.md` for available hooks

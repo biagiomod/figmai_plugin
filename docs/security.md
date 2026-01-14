@@ -191,7 +191,7 @@ Access-Control-Allow-Headers: Content-Type, X-FigmAI-Token, Authorization
 - Review proxy server compliance policies
 - Ensure proxy server meets work security requirements
 
-**See:** `docs/migration/extension-points.md` for compliance hook implementation.
+**See:** `docs/work-plugin/extension-points.md` for compliance hook implementation.
 
 ---
 
@@ -301,7 +301,7 @@ Implement compliance hooks for:
 - Interaction logging
 - Data redaction
 
-**See:** `docs/migration/extension-points.md` for implementation guide.
+**See:** `docs/work-plugin/extension-points.md` for implementation guide.
 
 ---
 

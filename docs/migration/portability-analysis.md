@@ -385,14 +385,14 @@ export function registerCustomProvider(config: CustomProviderConfig): void {
    - Network security
    - Compliance considerations
 
-4. **`docs/migration/extension-points.md`** ⭐ NEW
+4. **`docs/work-plugin/extension-points.md`** ⭐ NEW
    - Component scanner implementation guide
    - Knowledge base loader guide
    - Compliance hook guide
    - Custom provider guide
 
 5. **`README.md`** - Update with migration section
-6. **`docs/proxy-and-plugin-setup.md`** - Add work environment section
+6. **`docs/setup/proxy-setup.md`** - Add work environment section
 
 ---
 

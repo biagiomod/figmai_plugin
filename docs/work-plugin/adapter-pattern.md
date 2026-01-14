@@ -262,7 +262,7 @@ The Public Plugin calls the Work adapter at these points:
 4. **Enterprise Auth** (where needed)
    - Calls `workAdapter.auth?.getEnterpriseToken()` to get auth tokens
 
-See `docs/extension-points.md` for detailed documentation of each extension point.
+See `docs/work-plugin/extension-points.md` for detailed documentation of each extension point.
 
 ## Best Practices
 

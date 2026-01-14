@@ -310,7 +310,7 @@ The Public Plugin exposes extension points for Work-only features:
 - **Design system detection**: `workAdapter.designSystem?.detectSystem(node)` (called where needed)
 - **Confluence integration**: `workAdapter.confluenceApi?.sendTable(table, format)` (called in UI)
 
-See `docs/extension-points.md` for detailed documentation.
+See `docs/work-plugin/extension-points.md` for detailed documentation.
 
 ---
 
@@ -353,7 +353,7 @@ See `docs/extension-points.md` for detailed documentation.
 - ❌ Don't maintain state in UI thread (main thread is source of truth)
 - ❌ Don't duplicate placement logic (use artifact/stage systems)
 
-See `docs/getting-started.md` for detailed guide for AI assistants and human developers.
+See `docs/01-getting-started.md` for detailed guide for AI assistants and human developers.
 
 ---
 
@@ -414,30 +414,18 @@ Use `console.log` statements. Open developer console via `Show/Hide Console` in 
 
 ## Documentation
 
-For complete documentation, see [`docs/README.md`](docs/README.md) - navigation index for all documentation.
+**📚 [Documentation Index](docs/README.md)** - Start here for all documentation
 
-### Getting Started
-- [`docs/getting-started.md`](docs/getting-started.md) - Guide for AI assistants and human developers
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) - Contribution guidelines and architecture
+The documentation is organized by topic with clear labels ([AUTHORITATIVE], [REFERENCE], etc.) to help you find what you need quickly.
 
-### Work Migration
-- [`docs/work-migration.md`](docs/work-migration.md) - Complete Work Plugin migration guide
-- [`docs/work-adapter.md`](docs/work-adapter.md) - Work adapter pattern documentation
-- [`docs/extension-points.md`](docs/extension-points.md) - Extension points for Work Plugin
+### Quick Links
 
-### Reference
-- [`docs/message-contract.md`](docs/message-contract.md) - UI ↔ Main message contract
-- [`docs/configuration.md`](docs/configuration.md) - Configuration reference
-- [`docs/security.md`](docs/security.md) - Security considerations
-- [`docs/proxy-and-plugin-setup.md`](docs/proxy-and-plugin-setup.md) - Setup guide
+- **[Getting Started](docs/01-getting-started.md)** - Architecture guide
+- **[Work Plugin Guide](docs/work-plugin/README.md)** - Work Plugin migration
+- **[Connection Modes](docs/connection-modes.md)** - Proxy vs Internal API (coming soon)
+- **[Extension Points](docs/work-plugin/extension-points.md)** - Work Plugin hooks reference
 
-### For AI Coding Assistants
-
-**Quick Start:**
-1. Read `docs/getting-started.md` first for architecture overview
-2. Read `docs/work-migration.md` for migration tasks
-3. Reference `docs/extension-points.md` for available hooks
-4. Quick reference: `docs/ai-task-brief.md`
+For complete documentation navigation, see **[docs/README.md](docs/README.md)**.
 
 **Key Files:**
 - `src/main.ts` - Main thread orchestrator (read header comment)

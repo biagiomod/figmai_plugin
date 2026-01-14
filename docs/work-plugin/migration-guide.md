@@ -92,7 +92,7 @@ const workAdapter: WorkAdapter = {
   ...createDefaultWorkAdapter(),
   
   // Implement Work-only features here
-  // See docs/extension-points.md for all available hooks
+  // See docs/work-plugin/extension-points.md for all available hooks
 }
 
 export default workAdapter
@@ -115,19 +115,19 @@ async createConfluence(args: {
   confluenceTitle: string
   confluenceTemplateXhtml: string
 }): Promise<{ url?: string }> {
-  // See docs/extension-points.md for implementation details
+  // See docs/work-plugin/extension-points.md for implementation details
   // See src/work/README.md for credentials setup
 }
 ```
 
-**Reference:** `docs/extension-points.md` → "Confluence Integration Hook"
+**Reference:** `docs/work-plugin/extension-points.md` → "Confluence Integration Hook"
 
 #### 4b. Design System Detection (if needed)
 
 ```typescript
 designSystem: {
   detectDesignSystemComponent(node: SceneNode): DesignSystemInfo | null {
-    // See docs/extension-points.md for implementation
+    // See docs/work-plugin/extension-points.md for implementation
   },
   shouldIgnore?(node: SceneNode): boolean {
     // Optional: filter nodes during scanning
@@ -135,7 +135,7 @@ designSystem: {
 }
 ```
 
-**Reference:** `docs/extension-points.md` → "Design System Component Detection"
+**Reference:** `docs/work-plugin/extension-points.md` → "Design System Component Detection"
 
 #### 4c. Content Table Post-Processing (if needed)
 
@@ -144,22 +144,22 @@ async postProcessContentTable(args: {
   table: UniversalContentTableV1
   selectionContext?: { pageId?: string; pageName?: string; rootNodeId?: string }
 }): Promise<UniversalContentTableV1> {
-  // See docs/extension-points.md for implementation
+  // See docs/work-plugin/extension-points.md for implementation
   // Deep clone table before modifying
 }
 ```
 
-**Reference:** `docs/extension-points.md` → "Post-Process Content Table"
+**Reference:** `docs/work-plugin/extension-points.md` → "Post-Process Content Table"
 
 #### 4d. Ignore Rules (if needed)
 
 ```typescript
 getContentTableIgnoreRules(): ContentTableIgnoreRules {
-  // See docs/extension-points.md for rules structure
+  // See docs/work-plugin/extension-points.md for rules structure
 }
 ```
 
-**Reference:** `docs/extension-points.md` → "Ignore / Filter Rules"
+**Reference:** `docs/work-plugin/extension-points.md` → "Ignore / Filter Rules"
 
 **Verify:** All required extension points implemented
 
@@ -300,7 +300,7 @@ For each implemented extension point:
 
 ## Extension Points Implementation Details
 
-For detailed implementation examples, see `docs/extension-points.md`. The following sections provide quick reference:
+For detailed implementation examples, see `docs/work-plugin/extension-points.md`. The following sections provide quick reference:
 
 ### Component Scanner
 
@@ -308,7 +308,7 @@ Detect and extract metadata from internal design system components.
 
 **Interface:** `ComponentScanner` in `core/extensions/componentScanner.ts`
 
-**Implementation Example:** See `docs/extension-points.md` → "Component Scanner"
+**Implementation Example:** See `docs/work-plugin/extension-points.md` → "Component Scanner"
 
 **Registration:** Register in `main.ts`:
 ```typescript
@@ -324,7 +324,7 @@ Load assistant knowledge bases from custom sources (e.g., internal server).
 
 **Interface:** `KnowledgeBaseLoader` in `core/extensions/knowledgeBaseLoader.ts`
 
-**Implementation Example:** See `docs/extension-points.md` → "Knowledge Base Loader"
+**Implementation Example:** See `docs/work-plugin/extension-points.md` → "Knowledge Base Loader"
 
 ### Compliance Hook
 
@@ -332,7 +332,7 @@ Implement compliance logging, request validation, and response sanitization.
 
 **Interface:** `ComplianceHook` in `core/extensions/complianceHook.ts`
 
-**Implementation Example:** See `docs/extension-points.md` → "Compliance Hook"
+**Implementation Example:** See `docs/work-plugin/extension-points.md` → "Compliance Hook"
 
 ### Custom Provider
 
@@ -340,7 +340,7 @@ Implement custom LLM provider for work-specific LLM endpoints.
 
 **Interface:** `Provider` in `core/provider/provider.ts`
 
-**Implementation Example:** See `docs/extension-points.md` → "Custom Provider"
+**Implementation Example:** See `docs/work-plugin/extension-points.md` → "Custom Provider"
 
 ---
 
@@ -522,7 +522,7 @@ For issues specific to work environment:
 
 For plugin-specific issues:
 1. Check main README.md
-2. Review `docs/proxy-and-plugin-setup.md`
+2. Review `docs/setup/proxy-setup.md`
 3. Check GitHub issues (if public repo)
 
 ---
@@ -541,9 +541,9 @@ After successful migration:
 ## Reference
 
 - **Architecture:** `README.md`
-- **Getting Started:** `docs/getting-started.md`
-- **Extension Points:** `docs/extension-points.md`
-- **Work Adapter Pattern:** `docs/work-adapter.md`
+- **Getting Started:** `docs/01-getting-started.md`
+- **Extension Points:** `docs/work-plugin/extension-points.md`
+- **Work Adapter Pattern:** `docs/work-plugin/adapter-pattern.md`
 - **Work Override Files:** `src/work/README.md`
 - **Configuration:** `docs/configuration.md`
 - **Security:** `docs/security.md`

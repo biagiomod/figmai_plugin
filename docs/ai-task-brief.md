@@ -9,9 +9,9 @@
 ## Quick Start
 
 1. **Read:** `README.md` (architecture overview)
-2. **Read:** `docs/getting-started.md` (comprehensive guide)
-3. **Read:** `docs/work-migration.md` (step-by-step migration guide)
-4. **Reference:** `docs/extension-points.md` (available hooks)
+2. **Read:** `docs/01-getting-started.md` (comprehensive guide)
+3. **Read:** `docs/work-plugin/migration-guide.md` (step-by-step migration guide)
+4. **Reference:** `docs/work-plugin/extension-points.md` (available hooks)
 
 ---
 
@@ -20,7 +20,7 @@
 ### Task: Add Work-Only Feature
 
 **Steps:**
-1. Check `docs/extension-points.md` for existing extension point
+1. Check `docs/work-plugin/extension-points.md` for existing extension point
 2. If exists: Implement in `src/work/workAdapter.override.ts`
 3. If not exists: Add to `core/work/adapter.ts` interface first
 4. Test: Build and verify feature works
@@ -63,7 +63,7 @@ const workAdapter: WorkAdapter = {
 3. Use `buildConfluenceXhtmlFromTable` for XHTML (canonical pipeline)
 4. Test: Generate table → Send to Confluence → Verify API call
 
-**Reference:** `docs/extension-points.md` → "Confluence Integration Hook"
+**Reference:** `docs/work-plugin/extension-points.md` → "Confluence Integration Hook"
 
 ---
 
@@ -75,7 +75,7 @@ const workAdapter: WorkAdapter = {
 3. Optionally implement `shouldIgnore` to filter nodes
 4. Test: Select DS component → Verify detection
 
-**Reference:** `docs/extension-points.md` → "Design System Component Detection"
+**Reference:** `docs/work-plugin/extension-points.md` → "Design System Component Detection"
 
 ---
 
@@ -88,7 +88,7 @@ const workAdapter: WorkAdapter = {
 4. Return modified table
 5. Test: Generate table → Verify processing applied
 
-**Reference:** `docs/extension-points.md` → "Content Table Post-Processing"
+**Reference:** `docs/work-plugin/extension-points.md` → "Content Table Post-Processing"
 
 ---
 
@@ -165,9 +165,9 @@ Before completing task:
 ## Reference Files
 
 - **Architecture:** `README.md`
-- **Getting Started:** `docs/getting-started.md`
-- **Migration Steps:** `docs/work-migration.md`
-- **Extension Points:** `docs/extension-points.md`
-- **Work Pattern:** `docs/work-adapter.md`
+- **Getting Started:** `docs/01-getting-started.md`
+- **Migration Steps:** `docs/work-plugin/migration-guide.md`
+- **Extension Points:** `docs/work-plugin/extension-points.md`
+- **Work Pattern:** `docs/work-plugin/adapter-pattern.md`
 - **Message Contract:** `docs/message-contract.md`
 
