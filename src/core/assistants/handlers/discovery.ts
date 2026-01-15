@@ -47,7 +47,7 @@ export class DiscoveryCopilotHandler implements AssistantHandler {
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
-    const { response, sendAssistantMessage } = context
+    const { response, sendAssistantMessage, replaceStatusMessage } = context
     const runId = `dc_${Date.now()}`
     console.log(`[DC ${runId}] START`, { assistantId: context.assistantId, actionId: context.actionId })
     
@@ -115,7 +115,7 @@ export class DiscoveryCopilotHandler implements AssistantHandler {
         ? error.message 
         : 'Unknown error processing discovery document'
       
-      sendAssistantMessage(`Error: ${errorMessage}`)
+      replaceStatusMessage(`Error: ${errorMessage}`, true)
       figma.notify(`Error updating discovery document: ${errorMessage}`)
       
       return { handled: false } // Still let conversation continue

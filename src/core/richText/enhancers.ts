@@ -15,24 +15,35 @@ function detectScores(text: string): Array<{ value: number; max: number; label?:
   const scores: Array<{ value: number; max: number; label?: string; start: number; end: number }> = []
 
   // Pattern: "Score: 82/100" or "82/100"
+  // Exclude progress indicators like "generate: 1/100"
   const scorePattern = /(?:Score|score|Rating|rating)?\s*:?\s*(\d+)\s*\/\s*(\d+)/g
   let match
   while ((match = scorePattern.exec(text)) !== null) {
+    const label = match[0].includes(':') ? match[0].split(':')[0].trim().toLowerCase() : undefined
+    // Skip progress-related labels (generate, progress, etc.)
+    if (label && (label === 'generate' || label === 'progress' || label === 'processing')) {
+      continue
+    }
     const value = parseInt(match[1], 10)
     const max = parseInt(match[2], 10)
-    const label = match[0].includes(':') ? match[0].split(':')[0].trim() : undefined
     scores.push({
       value,
       max,
-      label,
+      label: match[0].includes(':') ? match[0].split(':')[0].trim() : undefined,
       start: match.index,
       end: match.index + match[0].length
     })
   }
 
   // Pattern: "Accessibility: 70" (assumes max 100)
+  // Exclude progress indicators like "generate: 1" or "generate: 1/100"
   const percentagePattern = /([A-Za-z]+)\s*:?\s*(\d+)(?:\s*%)?/g
   while ((match = percentagePattern.exec(text)) !== null) {
+    const label = match[1].toLowerCase()
+    // Skip progress-related labels (generate, progress, etc.)
+    if (label === 'generate' || label === 'progress' || label === 'processing') {
+      continue
+    }
     const value = parseInt(match[2], 10)
     if (value >= 0 && value <= 100) {
       scores.push({

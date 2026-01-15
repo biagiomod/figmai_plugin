@@ -260,7 +260,7 @@ CRITICAL:
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
-    const { response, provider, sendAssistantMessage } = context
+    const { response, provider, sendAssistantMessage, replaceStatusMessage } = context
     const runId = `dw_${Date.now()}`
     console.log(`[DW ${runId}] START`, { assistantId: context.assistantId, actionId: context.actionId })
 
@@ -363,7 +363,7 @@ CRITICAL:
       await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
 
       // Send completion message
-      sendAssistantMessage('Screens placed on stage')
+      replaceStatusMessage('Screens placed on stage')
 
       // If truncation notice exists, send additional message
       if (normalized.meta.truncationNotice) {
@@ -379,7 +379,7 @@ CRITICAL:
         ? error.message
         : 'Unknown error processing design spec'
 
-      sendAssistantMessage(`Error: ${errorMessage}`)
+      replaceStatusMessage(`Error: ${errorMessage}`, true)
       figma.notify(`Error generating screens: ${errorMessage}`)
 
       return { handled: true, message: `Error: ${errorMessage}` }
@@ -471,7 +471,7 @@ ${originalResponse.substring(0, 2000)}`
         repaired = JSON.parse(repairJsonString)
       } catch (parseError) {
         console.log(`[DW ${runId}] Repair parse error:`, parseError)
-        context.sendAssistantMessage('Error: Could not parse design spec. Please try again.')
+        context.replaceStatusMessage('Error: Could not parse design spec. Please try again.', true)
         figma.notify('Error: Invalid JSON format')
         return { handled: true, message: 'Error: Could not parse design spec' }
       }
@@ -481,7 +481,7 @@ ${originalResponse.substring(0, 2000)}`
 
       if (!repairValidation.ok) {
         console.log(`[DW ${runId}] Repair validation failed:`, repairValidation.errors)
-        context.sendAssistantMessage('Error: Design spec validation failed. Please try again.')
+        context.replaceStatusMessage('Error: Design spec validation failed. Please try again.', true)
         figma.notify('Error: Invalid design spec format')
         return { handled: true, message: 'Error: Design spec validation failed' }
       }
@@ -515,7 +515,7 @@ ${originalResponse.substring(0, 2000)}`
       // Create observability artifacts
       await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
 
-      context.sendAssistantMessage('Screens placed on stage')
+      context.replaceStatusMessage('Screens placed on stage')
       if (normalized.meta.truncationNotice) {
         context.sendAssistantMessage(normalized.meta.truncationNotice)
       }
@@ -524,7 +524,7 @@ ${originalResponse.substring(0, 2000)}`
       return { handled: true }
     } catch (repairError) {
       console.error(`[DW ${runId}] Repair error:`, repairError)
-      context.sendAssistantMessage('Error: Could not repair design spec. Please try again.')
+      context.replaceStatusMessage('Error: Could not repair design spec. Please try again.', true)
       figma.notify('Error: Failed to repair design spec')
       return { handled: true, message: 'Error: Could not repair design spec' }
     }

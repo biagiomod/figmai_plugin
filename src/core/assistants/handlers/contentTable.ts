@@ -14,19 +14,19 @@ export class ContentTableHandler implements AssistantHandler {
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
-    const { selectionOrder, sendAssistantMessage } = context
+    const { selectionOrder, sendAssistantMessage, replaceStatusMessage } = context
 
     // Validate selection: must be exactly one container
     if (selectionOrder.length === 0) {
       const errorMsg = 'Select a single container to scan.'
-      sendAssistantMessage(errorMsg)
+      replaceStatusMessage(errorMsg, true)
       figma.notify(errorMsg)
       return { handled: true }
     }
 
     if (selectionOrder.length > 1) {
       const errorMsg = 'Only one selection allowed. Select a single container.'
-      sendAssistantMessage(errorMsg)
+      replaceStatusMessage(errorMsg, true)
       figma.notify(errorMsg)
       return { handled: true }
     }
@@ -35,7 +35,7 @@ export class ContentTableHandler implements AssistantHandler {
     const selectedNode = await figma.getNodeByIdAsync(selectionOrder[0])
     if (!selectedNode) {
       const errorMsg = 'Selected node not found.'
-      sendAssistantMessage(errorMsg)
+      replaceStatusMessage(errorMsg, true)
       figma.notify(errorMsg)
       return { handled: true }
     }
@@ -43,14 +43,13 @@ export class ContentTableHandler implements AssistantHandler {
     // Validate it's a valid container (not DOCUMENT or PAGE)
     if (selectedNode.type === 'DOCUMENT' || selectedNode.type === 'PAGE') {
       const errorMsg = 'Please select a container (frame, component, etc.), not a page or document.'
-      sendAssistantMessage(errorMsg)
+      replaceStatusMessage(errorMsg, true)
       figma.notify(errorMsg)
       return { handled: true }
     }
 
     try {
-      // Send "Scanning..." message
-      sendAssistantMessage('Scanning...')
+      // Status message already created in main thread, no need to send "Scanning..."
 
       // Load Work adapter and get ignore rules and design system detector (Work-only features)
       // If no override file exists, adapter will be no-op and rules/detector will be null/undefined
@@ -105,13 +104,12 @@ export class ContentTableHandler implements AssistantHandler {
         console.warn('[ContentTableHandler] Content table validation warnings:', validation.warnings)
       }
 
-      // Send success message
+      // Replace status message with completion message
       const itemCount = contentTable.items.length
       if (itemCount === 0) {
-        sendAssistantMessage('No text items found in the selected container.')
+        replaceStatusMessage('No text items found in the selected container.')
       } else {
-        sendAssistantMessage(`Found ${itemCount} text item${itemCount === 1 ? '' : 's'}`)
-        sendAssistantMessage('Table generated')
+        replaceStatusMessage(`Found ${itemCount} text item${itemCount === 1 ? '' : 's'}. Table generated.`)
       }
 
       // Send table to UI (normalized and validated)
@@ -126,7 +124,7 @@ export class ContentTableHandler implements AssistantHandler {
       return { handled: true }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      sendAssistantMessage(`Error: ${errorMessage}`)
+      replaceStatusMessage(`Error: ${errorMessage}`, true)
       figma.notify(`Error generating table: ${errorMessage}`)
 
       figma.ui.postMessage({

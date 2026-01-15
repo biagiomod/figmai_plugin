@@ -296,11 +296,8 @@ function Plugin() {
   const [showEmptyInputWarning, setShowEmptyInputWarning] = useState(false)
   const [showCredits, setShowCredits] = useState(true)
   const [creditsAutoCollapseTimer, setCreditsAutoCollapseTimer] = useState<number | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
   const [isCopyingTable, setIsCopyingTable] = useState(false)
   const hasAutoCollapsedRef = useRef(false)
-  // Store latest status message ID for Design Critique quick actions
-  const latestStatusMessageIdRef = useRef<string | null>(null)
   // Scorecard state for Design Critique
   const [scorecard, setScorecard] = useState<ScorecardResult | null>(null)
   const [scorecardError, setScorecardError] = useState<{ error: string; raw?: string } | null>(null)
@@ -416,6 +413,22 @@ function Plugin() {
 
               // Assistant messages: clean + dedupe
               const cleanedContent = cleanChatContent(incoming.content)
+              
+              // Deduplicate instructions messages (only one per assistant)
+              if (incoming.isInstructions) {
+                const hasDuplicateInstructions = prev.some(m => {
+                  if (m.role !== 'assistant' || !m.isInstructions) return false
+                  // Check if same assistant or same content
+                  return (m.assistantId === incoming.assistantId && m.assistantId) ||
+                         cleanChatContent(m.content) === cleanedContent
+                })
+
+                if (hasDuplicateInstructions) {
+                  console.log('[UI] Skipping duplicate instructions message', { assistantId: incoming.assistantId })
+                  return prev
+                }
+              }
+              
               const looksLikeWorkshopIntro = isDesignWorkshopIntro(cleanedContent)
 
               if (looksLikeWorkshopIntro) {
@@ -433,10 +446,20 @@ function Plugin() {
               }
 
               const cleanedMessage: Message = { ...incoming, content: cleanedContent }
+              
+              // Check if message with same ID already exists (for in-place replacement, e.g., status messages)
+              const existingIndex = prev.findIndex(m => m.id === cleanedMessage.id)
+              if (existingIndex !== -1) {
+                // Replace existing message in-place (status message replacement)
+                const newMessages = [...prev]
+                newMessages[existingIndex] = cleanedMessage
+                return newMessages
+              }
+              
+              // Otherwise, append new message
               const newMessages = [...prev, cleanedMessage]
               return newMessages
             })
-            setIsLoading(false) // Stop loading when message arrives
           } else {
             console.log('[UI] Ignoring ASSISTANT_MESSAGE - resetToken mismatch or missing message', { 
               messageToken: message.resetToken, 
@@ -456,7 +479,6 @@ function Plugin() {
             console.log('[UI] setThinking false - SCORECARD_RESULT')
             setScorecard(message.payload)
             setScorecardError(null)
-            setIsLoading(false)
           } else {
             console.log('[UI] Ignoring SCORECARD_RESULT - resetToken mismatch or missing payload', { 
               messageToken: message.resetToken, 
@@ -476,7 +498,6 @@ function Plugin() {
             console.log('[UI] setThinking false - SCORECARD_ERROR')
             setScorecardError({ error: message.error || 'Unknown error', raw: message.raw })
             setScorecard(null)
-            setIsLoading(false)
           } else {
             console.log('[UI] Ignoring SCORECARD_ERROR - resetToken mismatch', { 
               messageToken: message.resetToken, 
@@ -495,7 +516,6 @@ function Plugin() {
             console.log('[UI] Received CONTENT_TABLE_GENERATED:', message.table)
             console.log('[UI] setThinking false - CONTENT_TABLE_GENERATED')
             setContentTable(message.table)
-            setIsLoading(false)
           } else {
             console.log('[UI] Ignoring CONTENT_TABLE_GENERATED - resetToken mismatch or missing table', { 
               messageToken: message.resetToken, 
@@ -514,7 +534,6 @@ function Plugin() {
             console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
             console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
             setContentTable(null)
-            setIsLoading(false)
           } else {
             console.log('[UI] Ignoring CONTENT_TABLE_ERROR - resetToken mismatch', { 
               messageToken: message.resetToken, 
@@ -534,74 +553,20 @@ function Plugin() {
           break
         case 'PLACEHOLDER_SCORECARD_PLACED':
           console.log('[UI] Received PLACEHOLDER_SCORECARD_PLACED')
-          setIsLoading(false)
           break
         case 'PLACEHOLDER_SCORECARD_ERROR':
           console.error('[UI] Received PLACEHOLDER_SCORECARD_ERROR:', message.message)
-          setIsLoading(false)
           // Show error toast (figma.notify is handled in main thread)
           break
         case 'SCORECARD_PLACED':
-          // Update status message when scorecard placement completes
-          // Check resetToken to ignore late-arriving messages after reset
-          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
-          const shouldProcessScorecardPlaced = message.message !== undefined && 
-            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
-          
-          if (shouldProcessScorecardPlaced) {
-            const success = message.success !== false // Default to success if not specified
-            const statusStyle: 'success' | 'error' = success ? 'success' : 'error'
-            
-            setMessages(prev => {
-              // Try to match by stored ID first
-              const statusId = latestStatusMessageIdRef.current
-              if (statusId) {
-                const updated = prev.map(m => {
-                  if (m.id === statusId && m.isStatus) {
-                    console.log('[UI] Updating status message by ID:', m.id, 'to:', message.message, 'style:', statusStyle)
-                    // Update content and change to static success/error (remove loading animation)
-                    return { 
-                      ...m, 
-                      content: message.message, 
-                      isStatus: false, // Remove status flag so it becomes a regular message
-                      statusStyle: statusStyle // Set final status style
-                    }
-                  }
-                  return m
-                })
-                // Clear ref after update
-                latestStatusMessageIdRef.current = null
-                return updated
-              }
-              
-              // Fallback: find latest status message if ID not stored
-              const statusMessages = prev.filter(m => m.isStatus)
-              if (statusMessages.length > 0) {
-                const latestStatus = statusMessages[statusMessages.length - 1]
-                console.log('[UI] Updating latest status message (fallback):', latestStatus.id, 'to:', message.message, 'style:', statusStyle)
-                return prev.map(m => 
-                  m.id === latestStatus.id
-                    ? { ...m, content: message.message, isStatus: false, statusStyle: statusStyle }
-                    : m
-                )
-              }
-              
-              return prev
-            })
-            console.log('[UI] setThinking false - SCORECARD_PLACED')
-            setIsLoading(false)
-          } else {
-            console.log('[UI] Ignoring SCORECARD_PLACED - resetToken mismatch', { 
-              messageToken: message.resetToken, 
-              currentToken: resetToken 
-            })
-          }
+          // Legacy handler - status messages are now managed in main thread via replaceStatusMessage
+          // This case can be removed in future cleanup, but keeping for backward compatibility
+          console.log('[UI] Received SCORECARD_PLACED (legacy, status now managed in main thread)')
           break
         case 'TOOL_RESULT':
           if (message.message) {
-            console.log('[UI] setThinking false - TOOL_RESULT')
+            console.log('[UI] Received TOOL_RESULT')
             setMessages(prev => [...prev, message.message])
-            setIsLoading(false) // Stop loading when tool result arrives
           }
           // Handle JSON export data
           if (message.data?.exportedJson) {
@@ -702,7 +667,6 @@ function Plugin() {
   const resetUIState = useCallback((currentMode: Mode) => {
     // Clear all chat content
     setMessages([])
-    setIsLoading(false)
     
     // Clear all error/success banners
     setScorecardError(null)
@@ -747,7 +711,6 @@ function Plugin() {
     setShowCopySuccess(false)
     
     // Reset status message refs
-    latestStatusMessageIdRef.current = null
     
     // Reset credits (show on fresh start)
     setShowCredits(true)
@@ -771,7 +734,6 @@ function Plugin() {
 
   const handleClearChat = useCallback(() => {
     setMessages([])
-    setIsLoading(false)
     setShowClearChatModal(false)
   }, [])
   
@@ -900,8 +862,6 @@ function Plugin() {
     // Check selection requirement
     if (selectionRequired && !selectionState.hasSelection) return
     
-    console.log('[UI] setThinking true - handleSend')
-    setIsLoading(true) // Start loading indicator
     console.log('[UI] postMessage SEND_MESSAGE', { input: input.substring(0, 50) + '...', includeSelection: includeSelection || selectionRequired })
     emit<SendMessageHandler>('SEND_MESSAGE', input, includeSelection || selectionRequired)
     setInput('')
@@ -1009,31 +969,12 @@ function Plugin() {
       setScorecardError(null)
     }
     
-    // Step 1: Create persistent animated status message for vision actions (Design Critique)
-    // Use stable ID based on action so we can update it later
-    const statusMessageId = `status_${assistant.id}_${actionId}_${Date.now()}`
-    if (action.requiresVision) {
-      const statusMessage: Message = {
-        id: statusMessageId,
-        role: 'assistant',
-        content: 'Analyzing your design...',
-        timestamp: Date.now(),
-        isStatus: true, // Mark as status message so it can be updated in place
-        statusStyle: 'loading' // Show animated loading indicator
-      }
-      setMessages(prev => [...prev, statusMessage])
-      // Store status message ID for later update
-      latestStatusMessageIdRef.current = statusMessageId
-      console.log('[UI] Created animated status message:', statusMessageId)
-    }
-    
-    // Step 2: Send quick action to main thread
+    // Send quick action to main thread
     // Main thread will:
     // - Create user message and send it back (single source of truth)
+    // - Create status message and send it back
     // - Process the action
-    // - Send SCORECARD_PLACED event when scorecard placement completes
-    console.log('[UI] setThinking true - handleQuickAction', { actionId, assistantId: assistant.id })
-    setIsLoading(true) // Start loading indicator
+    // - Replace status message with final result
     console.log('[UI] postMessage RUN_QUICK_ACTION', { actionId, assistantId: assistant.id })
     emit<RunQuickActionHandler>('RUN_QUICK_ACTION', actionId, assistant.id)
     setSelectionRequired(false)
@@ -2246,7 +2187,15 @@ ${htmlTable}
                     color: 'var(--muted)',
                     maxWidth: '100%'
                   }}>
-                    <div className="spinner" />
+                    <div className="spinner" style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2.5px solid var(--muted)',
+                      borderTopColor: 'var(--accent)',
+                      borderRadius: '50%',
+                      boxSizing: 'border-box',
+                      flexShrink: 0
+                    }} />
                     <span>{message.content}</span>
                   </div>
                 ) : (
@@ -2564,39 +2513,6 @@ ${htmlTable}
           </div>
         )}
         
-        {/* Loading Indicator */}
-        {isLoading && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-sm)',
-            padding: 'var(--spacing-sm) var(--spacing-md)',
-            alignSelf: 'flex-start',
-            maxWidth: '80%'
-          }}>
-            <div style={{
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-sm)',
-              fontSize: 'var(--font-size-sm)',
-              color: 'var(--muted)'
-            }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                border: '2px solid var(--muted)',
-                borderTopColor: 'var(--accent)',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite'
-              }} />
-              <span>Thinking...</span>
-            </div>
-          </div>
-        )}
         
         <div ref={messagesEndRef} />
         </div>

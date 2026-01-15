@@ -33,7 +33,7 @@ export class DesignCritiqueHandler implements AssistantHandler {
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
-    const { response, selectionOrder, selection, provider, sendAssistantMessage } = context
+    const { response, selectionOrder, selection, provider, sendAssistantMessage, replaceStatusMessage, requestId } = context
     const runId = `dc_${Date.now()}`
     const dcDebug = debug.scope('assistant:design_critique')
     
@@ -102,14 +102,8 @@ export class DesignCritiqueHandler implements AssistantHandler {
           dcDebug.log('AFTER renderScorecardV2', { runId, status: 'SUCCESS' })
           figma.notify('Scorecard placed (v2)')
           
-          // Notify UI that scorecard placement completed
-          figma.ui.postMessage({
-            pluginMessage: {
-              type: 'SCORECARD_PLACED',
-              success: true,
-              message: 'Scorecard placed on stage'
-            }
-          })
+          // Replace status message with completion message
+          replaceStatusMessage('Scorecard placed on stage')
           return { handled: true }
         } catch (renderError) {
           dcDebug.error('CATCH renderScorecardV2', { 
@@ -172,14 +166,8 @@ ${response.substring(0, 2000)}`
             dcDebug.log('AFTER renderScorecardV2 (from repair)', { runId, status: 'SUCCESS' })
             figma.notify('Scorecard placed (v2, repaired)')
             
-            // Notify UI that scorecard placement completed
-            figma.ui.postMessage({
-              pluginMessage: {
-                type: 'SCORECARD_PLACED',
-                success: true,
-                message: 'Scorecard placed on stage'
-              }
-            })
+            // Replace status message with completion message
+            replaceStatusMessage('Scorecard placed on stage')
             return { handled: true }
           } else {
             dcDebug.log('repair RESULT', { runId, status: 'FAIL', error: repairResult.error })
@@ -197,14 +185,8 @@ ${response.substring(0, 2000)}`
         dcDebug.log('AFTER placeCritiqueOnCanvas fallback', { runId, status: 'SUCCESS' })
         figma.notify('Scorecard parse failed — placed critique fallback')
         
-        // Notify UI that critique placement completed (fallback)
-        figma.ui.postMessage({
-          pluginMessage: {
-            type: 'SCORECARD_PLACED',
-            success: true,
-            message: 'Scorecard placed on stage'
-          }
-        })
+        // Replace status message with completion message
+        replaceStatusMessage('Scorecard placed on stage')
         return { handled: true }
       }
     } catch (error) {
@@ -240,14 +222,8 @@ ${response.substring(0, 2000)}`
         dcDebug.log('AFTER placeCritiqueOnCanvas error fallback', { runId })
         figma.notify('Error processing critique — placed critique fallback')
         
-        // Notify UI that critique placement completed (error fallback)
-        figma.ui.postMessage({
-          pluginMessage: {
-            type: 'SCORECARD_PLACED',
-            success: true,
-            message: 'Scorecard placed on stage'
-          }
-        })
+        // Replace status message with completion message
+        replaceStatusMessage('Scorecard placed on stage')
         return { handled: true }
       } catch (fallbackError) {
         console.error(`[DC ${runId}] Fallback placement also failed:`, fallbackError)

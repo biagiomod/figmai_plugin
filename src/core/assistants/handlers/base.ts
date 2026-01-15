@@ -17,6 +17,8 @@ export interface HandlerContext {
   selection: SelectionState
   provider: Provider
   sendAssistantMessage: (message: string) => void
+  replaceStatusMessage: (finalContent: string, isError?: boolean) => void
+  requestId: string
 }
 
 /**

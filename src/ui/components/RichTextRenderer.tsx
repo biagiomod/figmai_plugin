@@ -221,6 +221,13 @@ function renderNode(node: RichTextNode, index: number): h.JSX.Element {
     }
 
     case 'score': {
+      // Skip rendering progress indicators (generate, progress, processing)
+      const labelLower = node.label?.toLowerCase() || ''
+      if (labelLower === 'generate' || labelLower === 'progress' || labelLower === 'processing') {
+        // Don't render progress indicators - return empty div
+        return <div key={index} style={{ display: 'none' }} />
+      }
+      
       const percentage = ((node.value / (node.max || 100)) * 100).toFixed(0)
       const color = getScoreColor(node.value, node.max)
       const displayText = node.label

@@ -68,6 +68,8 @@ export interface Message {
   isBoundary?: boolean
   isGreeting?: boolean
   isInstructions?: boolean
+  // Request lifecycle tracking
+  requestId?: string
 }
 
 // ============================================================================
