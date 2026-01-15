@@ -549,7 +549,6 @@ export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'
   return ASSISTANTS[0]
 }
 
-
 /**
  * Get short instructions for assistant (for UI display)
  * Extracts first paragraph or first 200 characters of promptMarkdown
