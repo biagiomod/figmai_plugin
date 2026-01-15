@@ -39,6 +39,13 @@ export interface ProviderCapabilities {
    * undefined means no limit
    */
   readonly maxImages?: number
+  
+  /**
+   * Whether this provider supports preamble injection
+   * If true, assistant context preamble can be prepended to first message string
+   * Default: false (Proxy mode disabled, Internal API enabled)
+   */
+  readonly supportsPreambleInjection?: boolean
 }
 
 /**

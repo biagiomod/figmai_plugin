@@ -68,7 +68,7 @@ import { on, once, showUI } from '@create-figma-plugin/utilities'
 
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
-import { getDefaultAssistant, getAssistant, listAssistants } from './assistants'
+import { getDefaultAssistant, getAssistant, listAssistants, getShortInstructions } from './assistants'
 import type { Assistant } from './assistants'
 import { createProvider } from './core/provider/providerFactory'
 import type { Provider, ChatRequest } from './core/provider/provider'
@@ -130,6 +130,8 @@ let currentProviderId: LlmProviderId = CONFIG.provider
 let currentProvider: Provider | null = null
 let messageHistory: Message[] = []
 let selectionOrder: string[] = []
+let lastAssistantId: string | null = null
+let preambleSentForSegment: string | null = null // Track if preamble sent for current segment (segmentId = assistantId)
 
 // Initialize provider
 async function initializeProvider() {
@@ -182,6 +184,33 @@ if (CONFIG.dev.enableSyncApiErrorDetection) {
 // Generate unique message ID
 function generateMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
+/**
+ * Get current assistant segment from message history
+ * Returns only messages from the current assistant segment, excluding UI-only messages
+ */
+function getCurrentAssistantSegment(messages: Message[], currentAssistantId: string): Message[] {
+  // Find the last boundary message for the current assistant
+  let segmentStartIndex = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].isBoundary && messages[i].assistantId === currentAssistantId) {
+      segmentStartIndex = i + 1
+      break
+    }
+  }
+  
+  // Get messages from segment start to end, excluding UI-only messages
+  const segment = messages.slice(segmentStartIndex).filter(m => {
+    // Exclude UI-only messages
+    if (m.isBoundary || m.isGreeting || m.isInstructions) {
+      return false
+    }
+    // Only include user and assistant messages (exclude tool messages for now)
+    return m.role === 'user' || m.role === 'assistant'
+  })
+  
+  return segment
 }
 
 // Send selection state to UI
@@ -304,45 +333,59 @@ function isContentTableIntroMessage(content: string): boolean {
 
 // Handle set assistant
 on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
-  console.log('[Main] onmessage SET_ASSISTANT', { assistantId })
+  console.log('[Main] onmessage SET_ASSISTANT', { assistantId, lastAssistantId })
   const assistant = getAssistant(assistantId)
   if (assistant) {
+    const assistantChanged = lastAssistantId !== assistantId
     currentAssistant = assistant
     
-    // Check if we already have an intro message for this assistant to prevent duplicates
-    // For Design Workshop and Content Table, check using specific helpers; for others, check by content match
-    const hasExistingIntro = messageHistory.some(m => {
-      if (m.role !== 'assistant') return false
-      if (assistantId === 'design_workshop') {
-        return isDesignWorkshopIntroMessage(m.content)
+    // If assistant changed, insert boundary + greeting + instructions
+    if (assistantChanged) {
+      // Reset preamble tracking for new segment
+      preambleSentForSegment = null
+      
+      // Insert boundary marker
+      const boundaryMessage: Message = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: '', // Empty content, UI will render divider
+        timestamp: Date.now(),
+        assistantId: assistantId,
+        isBoundary: true
       }
-      if (assistantId === 'content_table') {
-        // Check for the specific welcome line to ensure full intro is present
-        return isContentTableIntroMessage(m.content)
+      messageHistory.push(boundaryMessage)
+      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: boundaryMessage } })
+      
+      // Insert greeting message (assistant name/label)
+      const greetingMessage: Message = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: `Hi! I'm your ${assistant.label} Assistant!`,
+        timestamp: Date.now(),
+        assistantId: assistantId,
+        isGreeting: true
       }
-      // For other assistants, check if content matches intro
-      return m.content.includes(assistant.intro.substring(0, 30))
-    })
-    
-    if (!hasExistingIntro) {
-      // Send assistant intro message
-      const introMessage: Message = {
+      messageHistory.push(greetingMessage)
+      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: greetingMessage } })
+      
+      // Insert instructions message (assistant intro/usage instructions)
+      const instructionsMessage: Message = {
         id: generateMessageId(),
         role: 'assistant',
         content: assistant.intro,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        assistantId: assistantId,
+        isInstructions: true
       }
-      console.log('[Main] Sending intro message for', assistantId)
-      console.log('[Main] Intro content (raw):', JSON.stringify(introMessage.content))
-      console.log('[Main] Intro content (lines):', introMessage.content.split('\n'))
-      console.log('[Main] Intro content length:', introMessage.content.length)
-      messageHistory.push(introMessage)
-      console.log('[Main] postMessage ASSISTANT_MESSAGE (assistant intro)')
-      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: introMessage } })
+      messageHistory.push(instructionsMessage)
+      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: instructionsMessage } })
+      
+      console.log('[Main] Inserted boundary + greeting + instructions for assistant:', assistantId)
     } else {
-      console.log('[Main] Skipping duplicate intro message for assistant:', assistantId)
-      console.log('[Main] Existing intro check - messageHistory:', messageHistory.map(m => ({ role: m.role, contentPreview: m.content.substring(0, 50) })))
+      console.log('[Main] Assistant unchanged, skipping boundary insertion:', assistantId)
     }
+    
+    lastAssistantId = assistantId
   }
 })
 
@@ -389,22 +432,40 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
     return
   }
   
-  // Build chat messages (role/content only, no system messages)
-  // Filter and normalize messages for provider
+  // Build chat messages from current assistant segment only
+  // This ensures old assistant instructions don't bleed into new assistant context
+  const segmentMessages = getCurrentAssistantSegment(messageHistory, currentAssistant.id)
   const chatMessages = normalizeMessages(
-    messageHistory
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => ({
-        role: m.role,
-        content: m.content
-      }))
+    segmentMessages.map(m => ({
+      role: m.role,
+      content: m.content
+    }))
   )
+  
+  // Apply preamble injection for providers that support it (Internal API only)
+  let finalChatMessages = chatMessages
+  if (currentProvider && currentProvider.capabilities.supportsPreambleInjection) {
+    // Check if this is the first user message in the segment
+    const isFirstUserMessage = segmentMessages.length > 0 && 
+      segmentMessages[0].role === 'user' &&
+      preambleSentForSegment !== currentAssistant.id
+    
+    if (isFirstUserMessage && finalChatMessages.length > 0 && finalChatMessages[0].role === 'user') {
+      // Prepend assistant preamble to first user message (invisible to user)
+      const preamble = `${currentAssistant.label} context: ${getShortInstructions(currentAssistant)}. Ignore previous assistant instructions.\n\n`
+      finalChatMessages[0] = {
+        ...finalChatMessages[0],
+        content: preamble + finalChatMessages[0].content
+      }
+      preambleSentForSegment = currentAssistant.id
+      console.log('[Main] Injected preamble for Internal API (first message in segment)')
+    }
+  }
   
   // Check if handler exists for chat messages (actionId: undefined)
   const handler = getHandler(currentAssistant.id, undefined)
-  let finalChatMessages = chatMessages
   if (handler && handler.prepareMessages) {
-    const prepared = handler.prepareMessages(chatMessages)
+    const prepared = handler.prepareMessages(finalChatMessages)
     if (prepared) {
       finalChatMessages = prepared
     }
@@ -589,16 +650,34 @@ Use SEND JSON to import or GET JSON to export your designs.`
     return
   }
   
-  // Build chat messages
-  // Filter and normalize messages for provider
+  // Build chat messages from current assistant segment only
+  // This ensures old assistant instructions don't bleed into new assistant context
+  const segmentMessages = getCurrentAssistantSegment(messageHistory, assistant.id)
   let chatMessages = normalizeMessages(
-    messageHistory
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => ({
-        role: m.role,
-        content: m.content
-      }))
+    segmentMessages.map(m => ({
+      role: m.role,
+      content: m.content
+    }))
   )
+  
+  // Apply preamble injection for providers that support it (Internal API only)
+  if (currentProvider && currentProvider.capabilities.supportsPreambleInjection) {
+    // Check if this is the first user message in the segment
+    const isFirstUserMessage = segmentMessages.length > 0 && 
+      segmentMessages[0].role === 'user' &&
+      preambleSentForSegment !== assistant.id
+    
+    if (isFirstUserMessage && chatMessages.length > 0 && chatMessages[0].role === 'user') {
+      // Prepend assistant preamble to first user message (invisible to user)
+      const preamble = `${assistant.label} context: ${getShortInstructions(assistant)}. Ignore previous assistant instructions.\n\n`
+      chatMessages[0] = {
+        ...chatMessages[0],
+        content: preamble + chatMessages[0].content
+      }
+      preambleSentForSegment = assistant.id
+      console.log('[Main] Injected preamble for Internal API (first message in segment, quick action)')
+    }
+  }
   
   // Allow handler to modify messages (e.g., Design Critique JSON enforcement)
   if (handler && handler.prepareMessages) {

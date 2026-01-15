@@ -549,3 +549,26 @@ export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'
   return ASSISTANTS[0]
 }
 
+
+/**
+ * Get short instructions for assistant (for UI display)
+ * Extracts first paragraph or first 200 characters of promptMarkdown
+ */
+export function getShortInstructions(assistant: Assistant): string {
+  const prompt = assistant.promptMarkdown || ''
+  
+  // Try to extract first paragraph (text before double newline)
+  const firstParagraph = prompt.split('\n\n')[0]?.trim()
+  if (firstParagraph && firstParagraph.length > 0 && firstParagraph.length <= 300) {
+    return firstParagraph
+  }
+  
+  // Fallback: first 200 characters, truncated at word boundary
+  const truncated = prompt.substring(0, 200)
+  const lastSpace = truncated.lastIndexOf(' ')
+  if (lastSpace > 150) {
+    return truncated.substring(0, lastSpace) + '...'
+  }
+  
+  return truncated + (prompt.length > 200 ? '...' : '')
+}

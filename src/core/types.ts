@@ -63,6 +63,11 @@ export interface Message {
   toolCallId?: string
   isStatus?: boolean
   statusStyle?: 'loading' | 'success' | 'error'
+  // Assistant switching context boundary fields
+  assistantId?: string
+  isBoundary?: boolean
+  isGreeting?: boolean
+  isInstructions?: boolean
 }
 
 // ============================================================================

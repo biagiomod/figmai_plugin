@@ -2106,7 +2106,119 @@ ${htmlTable}
           </div>
         )}
         
-        {messages.map(message => {
+        {messages.map((message, index) => {
+          // Render boundary divider before boundary message
+          if (message.isBoundary) {
+            return (
+              <div key={message.id} style={{ width: '100%', margin: 'var(--spacing-md) 0' }}>
+                <div style={{
+                  height: '1px',
+                  backgroundColor: 'var(--border)',
+                  width: '100%',
+                  margin: 'var(--spacing-md) 0'
+                }} />
+              </div>
+            )
+          }
+          
+          // Render greeting message with special styling
+          if (message.isGreeting) {
+            return (
+              <div
+                key={message.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-xs)',
+                  alignSelf: 'flex-start',
+                  maxWidth: '80%'
+                }}
+              >
+                <div style={{
+                  padding: 'var(--spacing-md)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg)',
+                  border: '2px solid var(--accent)',
+                  color: 'var(--fg)',
+                  maxWidth: '100%',
+                  fontSize: 'var(--font-size-md)',
+                  fontWeight: 'var(--font-weight-semibold)',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text',
+                  MozUserSelect: 'text',
+                  msUserSelect: 'text',
+                  cursor: 'text'
+                }}>
+                  {(() => {
+                    try {
+                      const contentToRender = cleanChatContent(message.content)
+                      const ast = parseRichText(contentToRender)
+                      const enhanced = enhanceRichText(ast)
+                      return <RichTextRenderer nodes={enhanced} />
+                    } catch (error) {
+                      console.error('[UI] RichText parsing error:', error)
+                      return (
+                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {cleanChatContent(message.content)}
+                        </div>
+                      )
+                    }
+                  })()}
+                </div>
+              </div>
+            )
+          }
+          
+          // Render instructions message with compact styling
+          if (message.isInstructions) {
+            return (
+              <div
+                key={message.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-xs)',
+                  alignSelf: 'flex-start',
+                  maxWidth: '80%'
+                }}
+              >
+                <div style={{
+                  paddingTop: 'var(--spacing-sm)',
+                  paddingRight: 'var(--spacing-md)',
+                  paddingBottom: '4px',
+                  paddingLeft: 'var(--spacing-md)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--muted)',
+                  maxWidth: '100%',
+                  fontSize: 'var(--font-size-xs)',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text',
+                  MozUserSelect: 'text',
+                  msUserSelect: 'text',
+                  cursor: 'text'
+                }}>
+                  {(() => {
+                    try {
+                      const contentToRender = cleanChatContent(message.content)
+                      const ast = parseRichText(contentToRender)
+                      const enhanced = enhanceRichText(ast)
+                      return <RichTextRenderer nodes={enhanced} />
+                    } catch (error) {
+                      console.error('[UI] RichText parsing error:', error)
+                      return (
+                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {cleanChatContent(message.content)}
+                        </div>
+                      )
+                    }
+                  })()}
+                </div>
+              </div>
+            )
+          }
+          
           return (
             <div
               key={message.id}

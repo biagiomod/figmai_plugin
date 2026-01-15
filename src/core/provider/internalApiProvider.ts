@@ -56,12 +56,14 @@ export class InternalApiProvider implements Provider {
     /**
      * Internal API provider capabilities
      * Supports markdown (capabilities determined by backend)
+     * Supports preamble injection for assistant context boundaries
      */
     readonly capabilities: ProviderCapabilities = {
         supportsImages: false, // Internal API MVP doesn't support images
         supportsMarkdown: true,
         requiresStrictSchema: false,
-        maxImages: 0
+        maxImages: 0,
+        supportsPreambleInjection: true // Enable preamble injection for assistant context boundaries
     }
 
     /**
