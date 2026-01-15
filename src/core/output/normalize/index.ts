@@ -4,6 +4,7 @@
 
 import type { Document, ScorecardBlock } from '../ir'
 import type { ScorecardData } from '../../figma/renderScorecard'
+import { debug } from '../../debug/logger'
 
 /**
  * Extract JSON from response (handles multiple formats)
@@ -142,27 +143,31 @@ export function fromDesignCritiqueJson(response: string): ScorecardBlock | null 
  */
 export function parseScorecardJson(
   response: string,
-  debug: boolean = false
+  debugFlag: boolean = false
 ): { data: ScorecardData } | { error: string } {
+  const parseDebug = debug.scope('subsystem:parsing')
   const raw = response.trim()
   
-  if (debug) {
-    console.log('[parseScorecardJson] Raw response (first 500 chars):', raw.substring(0, 500))
+  // Support both old debug flag and new logger scope
+  const shouldDebug = debugFlag || debug.isEnabled('subsystem:parsing')
+  
+  if (shouldDebug) {
+    parseDebug.log('Raw response', { head: raw.substring(0, 500) })
   }
   
   // Extract JSON
   const jsonString = extractJsonFromResponse(raw)
   if (!jsonString) {
     const extractionMethod = raw.match(/```(?:json)?\s*([\s\S]*?)```/) ? 'code fence' : 'balanced JSON'
-    if (debug) {
-      console.log('[parseScorecardJson] ❌ Failed to extract JSON, method attempted:', extractionMethod)
+    if (shouldDebug) {
+      parseDebug.log('Failed to extract JSON', { method: extractionMethod })
     }
     return { error: 'No valid JSON object found in response' }
   }
   
-  if (debug) {
+  if (shouldDebug) {
     const extractionMethod = raw.startsWith('{') ? 'direct' : raw.match(/```(?:json)?\s*([\s\S]*?)```/) ? 'code fence' : 'balanced'
-    console.log('[parseScorecardJson] ✅ JSON extracted, method:', extractionMethod)
+    parseDebug.log('JSON extracted', { method: extractionMethod })
   }
   
   // Parse JSON
@@ -170,49 +175,49 @@ export function parseScorecardJson(
   try {
     parsed = JSON.parse(jsonString)
   } catch (e) {
-    if (debug) {
-      console.log('[parseScorecardJson] ❌ JSON parse error:', e)
+    if (shouldDebug) {
+      parseDebug.error('JSON parse error', { error: e instanceof Error ? e.message : String(e) })
     }
     return { error: 'JSON parse error: ' + (e instanceof Error ? e.message : String(e)) }
   }
   
-  if (debug) {
-    console.log('[parseScorecardJson] Parsed top-level keys:', Object.keys(parsed))
+  if (shouldDebug) {
+    parseDebug.log('Parsed top-level keys', { keys: Object.keys(parsed) })
   }
   
   // Validate required fields
   const score = parsed.score ?? parsed.overallScore
   if (score === undefined || score === null) {
-    if (debug) {
-      console.log('[parseScorecardJson] ❌ Validation failure: Missing score field')
+    if (shouldDebug) {
+      parseDebug.log('Validation failure: Missing score field')
     }
     return { error: 'Missing required field: score' }
   }
   
   if (typeof score !== 'number') {
-    if (debug) {
-      console.log('[parseScorecardJson] ❌ Validation failure: score is not a number:', typeof score, score)
+    if (shouldDebug) {
+      parseDebug.log('Validation failure: score is not a number', { type: typeof score, score })
     }
     return { error: 'Invalid score: must be a number' }
   }
   
   if (score < 0 || score > 100) {
-    if (debug) {
-      console.log('[parseScorecardJson] ❌ Validation failure: score out of range:', score)
+    if (shouldDebug) {
+      parseDebug.log('Validation failure: score out of range', { score })
     }
     return { error: `Invalid score: must be between 0 and 100, got ${score}` }
   }
   
   if (!Array.isArray(parsed.wins)) {
-    if (debug) {
-      console.log('[parseScorecardJson] ❌ Validation failure: wins is not an array:', typeof parsed.wins)
+    if (shouldDebug) {
+      parseDebug.log('Validation failure: wins is not an array', { type: typeof parsed.wins })
     }
     return { error: 'Missing or invalid wins: must be an array' }
   }
   
   if (!Array.isArray(parsed.fixes)) {
-    if (debug) {
-      console.log('[parseScorecardJson] ❌ Validation failure: fixes is not an array:', typeof parsed.fixes)
+    if (shouldDebug) {
+      parseDebug.log('Validation failure: fixes is not an array', { type: typeof parsed.fixes })
     }
     return { error: 'Missing or invalid fixes: must be an array' }
   }
@@ -227,13 +232,14 @@ export function parseScorecardJson(
     notes: Array.isArray(parsed.notes) ? parsed.notes.map((n: any) => String(n)) : undefined
   }
   
-  if (debug) {
-    console.log('[parseScorecardJson] ✅ Validation passed')
-    console.log('[parseScorecardJson] Score:', data.score)
-    console.log('[parseScorecardJson] Wins:', data.wins.length)
-    console.log('[parseScorecardJson] Fixes:', data.fixes.length)
-    console.log('[parseScorecardJson] Checklist:', data.checklist.length)
-    console.log('[parseScorecardJson] Notes:', data.notes?.length ?? 0)
+  if (shouldDebug) {
+    parseDebug.log('Validation passed', {
+      score: data.score,
+      wins: data.wins.length,
+      fixes: data.fixes.length,
+      checklist: data.checklist.length,
+      notes: data.notes?.length ?? 0
+    })
   }
   
   return { data }

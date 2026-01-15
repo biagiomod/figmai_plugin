@@ -10,7 +10,7 @@ import { renderScorecardV2 } from '../../figma/renderScorecard'
 import { removeExistingArtifacts } from '../../figma/artifacts/placeArtifact'
 import { placeCritiqueOnCanvas } from '../../figma/placeCritiqueFallback'
 import { getTopLevelContainerNode } from '../../stage/anchor'
-import { CONFIG } from '../../config'
+import { debug } from '../../debug/logger'
 
 export class DesignCritiqueHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
@@ -35,11 +35,9 @@ export class DesignCritiqueHandler implements AssistantHandler {
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
     const { response, selectionOrder, selection, provider, sendAssistantMessage } = context
     const runId = `dc_${Date.now()}`
-    const debug = CONFIG.dev.enableDesignCritiqueDebugLogging
+    const dcDebug = debug.scope('assistant:design_critique')
     
-    if (debug) {
-      console.log(`[DC ${runId}] START`, { assistantId: context.assistantId, quickActionId: context.actionId })
-    }
+    dcDebug.log('START', { runId, assistantId: context.assistantId, quickActionId: context.actionId })
     
     try {
       // Get selected node if available
@@ -48,18 +46,20 @@ export class DesignCritiqueHandler implements AssistantHandler {
         const node = await figma.getNodeByIdAsync(selectionOrder[0])
         if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
           selectedNode = node as SceneNode
-          if (debug) {
+          if (debug.isEnabled('assistant:design_critique')) {
             // DEBUG: Log selected node and computed anchor for verification
             const anchor = getTopLevelContainerNode(selectedNode)
             const isDirectChild = selectedNode.parent?.type === 'PAGE'
-            console.log(`[DC ${runId}] selectedNode`, {
+            dcDebug.log('selectedNode', {
+              runId,
               name: selectedNode.name,
               id: selectedNode.id,
               type: selectedNode.type,
               parentType: selectedNode.parent?.type,
               isDirectChild
             })
-            console.log(`[DC ${runId}] computed anchor`, {
+            dcDebug.log('computed anchor', {
+              runId,
               name: anchor.name,
               id: anchor.id,
               type: anchor.type,
@@ -67,45 +67,39 @@ export class DesignCritiqueHandler implements AssistantHandler {
               isTopLevel: anchor.parent?.type === 'PAGE'
             })
           }
-        } else if (debug) {
-          console.log(`[DC ${runId}] selectedNode`, { status: 'invalid_or_missing', nodeType: node?.type })
+        } else if (debug.isEnabled('assistant:design_critique')) {
+          dcDebug.log('selectedNode', { runId, status: 'invalid_or_missing', nodeType: node?.type })
         }
-      } else if (debug) {
-        console.log(`[DC ${runId}] selectedNode`, { status: 'no_selection' })
+      } else if (debug.isEnabled('assistant:design_critique')) {
+        dcDebug.log('selectedNode', { runId, status: 'no_selection' })
       }
       
-      if (debug) {
-        console.log(`[DC ${runId}] RAW_RESPONSE_HEAD`, response.slice(0, 120))
-        console.log(`[DC ${runId}] RAW_RESPONSE_LENGTH`, response.length)
-      }
+      dcDebug.log('RAW_RESPONSE_HEAD', { runId, head: response.slice(0, 120) })
+      dcDebug.log('RAW_RESPONSE_LENGTH', { runId, length: response.length })
       
       // Remove existing v2 scorecard artifacts FIRST (version-scoped replacement)
-      if (debug) {
-        console.log(`[DC ${runId}] BEFORE removeExistingArtifacts`)
-      }
+      dcDebug.log('BEFORE removeExistingArtifacts', { runId })
       removeExistingArtifacts('scorecard', 'v2')
       removeExistingArtifacts('critique')
-      if (debug) {
-        console.log(`[DC ${runId}] AFTER removeExistingArtifacts`)
-      }
+      dcDebug.log('AFTER removeExistingArtifacts', { runId })
       
       // Attempt to parse as JSON scorecard using improved parser
-      if (debug) {
-        console.log(`[DC ${runId}] BEFORE parseScorecardJson`)
-      }
-      const result = parseScorecardJson(response, debug)
+      dcDebug.log('BEFORE parseScorecardJson', { runId })
+      const result = parseScorecardJson(response, debug.isEnabled('assistant:design_critique'))
       
       if ('data' in result) {
         // Valid JSON scorecard - render using v2 Auto-Layout renderer
-        if (debug) {
-          console.log(`[DC ${runId}] parseScorecardJson RESULT`, { status: 'SUCCESS', score: result.data.score, wins: result.data.wins.length, fixes: result.data.fixes.length })
-          console.log(`[DC ${runId}] BEFORE renderScorecardV2`)
-        }
+        dcDebug.log('parseScorecardJson RESULT', { 
+          runId, 
+          status: 'SUCCESS', 
+          score: result.data.score, 
+          wins: result.data.wins.length, 
+          fixes: result.data.fixes.length 
+        })
+        dcDebug.log('BEFORE renderScorecardV2', { runId })
         try {
           await renderScorecardV2(result.data, selectedNode, { runId })
-          if (debug) {
-            console.log(`[DC ${runId}] AFTER renderScorecardV2`, { status: 'SUCCESS' })
-          }
+          dcDebug.log('AFTER renderScorecardV2', { runId, status: 'SUCCESS' })
           figma.notify('Scorecard placed (v2)')
           
           // Notify UI that scorecard placement completed
@@ -118,17 +112,17 @@ export class DesignCritiqueHandler implements AssistantHandler {
           })
           return { handled: true }
         } catch (renderError) {
-          if (debug) {
-            console.log(`[DC ${runId}] CATCH renderScorecardV2`, { error: renderError instanceof Error ? renderError.message : String(renderError), stack: renderError instanceof Error ? renderError.stack : undefined })
-          }
+          dcDebug.error('CATCH renderScorecardV2', { 
+            runId,
+            error: renderError instanceof Error ? renderError.message : String(renderError), 
+            stack: renderError instanceof Error ? renderError.stack : undefined 
+          })
           throw renderError
         }
       } else {
         // Invalid JSON - try repair step before fallback
-        if (debug) {
-          console.log(`[DC ${runId}] parseScorecardJson RESULT`, { status: 'FAIL', error: result.error })
-          console.log(`[DC ${runId}] BEFORE repair attempt`)
-        }
+        dcDebug.log('parseScorecardJson RESULT', { runId, status: 'FAIL', error: result.error })
+        dcDebug.log('BEFORE repair attempt', { runId })
         
         try {
           // Repair: ask model to convert to JSON
@@ -165,24 +159,17 @@ ${response.substring(0, 2000)}`
             quickActionId: context.actionId
           })
           
-          if (debug) {
-            console.log(`[DC ${runId}] repair response length:`, repairResponse.length)
-            console.log(`[DC ${runId}] repair response head:`, repairResponse.substring(0, 120))
-          }
+          dcDebug.log('repair response', { runId, length: repairResponse.length, head: repairResponse.substring(0, 120) })
           
           // Try parsing repaired response
-          const repairResult = parseScorecardJson(repairResponse, debug)
+          const repairResult = parseScorecardJson(repairResponse, debug.isEnabled('assistant:design_critique'))
           
           if ('data' in repairResult) {
-            if (debug) {
-              console.log(`[DC ${runId}] repair RESULT`, { status: 'SUCCESS', score: repairResult.data.score })
-              console.log(`[DC ${runId}] BEFORE renderScorecardV2 (from repair)`)
-            }
+            dcDebug.log('repair RESULT', { runId, status: 'SUCCESS', score: repairResult.data.score })
+            dcDebug.log('BEFORE renderScorecardV2 (from repair)', { runId })
             
             await renderScorecardV2(repairResult.data, selectedNode, { runId })
-            if (debug) {
-              console.log(`[DC ${runId}] AFTER renderScorecardV2 (from repair)`, { status: 'SUCCESS' })
-            }
+            dcDebug.log('AFTER renderScorecardV2 (from repair)', { runId, status: 'SUCCESS' })
             figma.notify('Scorecard placed (v2, repaired)')
             
             // Notify UI that scorecard placement completed
@@ -194,23 +181,20 @@ ${response.substring(0, 2000)}`
               }
             })
             return { handled: true }
-          } else if (debug) {
-            console.log(`[DC ${runId}] repair RESULT`, { status: 'FAIL', error: repairResult.error })
+          } else {
+            dcDebug.log('repair RESULT', { runId, status: 'FAIL', error: repairResult.error })
           }
         } catch (repairError) {
-          if (debug) {
-            console.log(`[DC ${runId}] repair CATCH`, { error: repairError instanceof Error ? repairError.message : String(repairError) })
-          }
+          dcDebug.error('repair CATCH', { 
+            runId,
+            error: repairError instanceof Error ? repairError.message : String(repairError) 
+          })
         }
         
         // Fallback to rich-text critique if repair also fails
-        if (debug) {
-          console.log(`[DC ${runId}] BEFORE placeCritiqueOnCanvas fallback`)
-        }
+        dcDebug.log('BEFORE placeCritiqueOnCanvas fallback', { runId })
         await placeCritiqueOnCanvas(response, selectedNode, runId)
-        if (debug) {
-          console.log(`[DC ${runId}] AFTER placeCritiqueOnCanvas fallback`, { status: 'SUCCESS' })
-        }
+        dcDebug.log('AFTER placeCritiqueOnCanvas fallback', { runId, status: 'SUCCESS' })
         figma.notify('Scorecard parse failed — placed critique fallback')
         
         // Notify UI that critique placement completed (fallback)
@@ -228,16 +212,18 @@ ${response.substring(0, 2000)}`
         ? error.message 
         : 'Unknown error processing critique'
       
-      if (debug) {
-        console.log(`[DC ${runId}] CATCH handler`, { error: errorMessage, stack: error instanceof Error ? error.stack : undefined })
-      }
+      dcDebug.error('CATCH handler', { 
+        runId,
+        error: errorMessage, 
+        stack: error instanceof Error ? error.stack : undefined 
+      })
       
       // Ensure cleanup on error
       try {
         removeExistingArtifacts('scorecard', 'v2')
         removeExistingArtifacts('critique')
       } catch (e) {
-        console.error(`[DC ${runId}] Failed to cleanup artifacts:`, e)
+        dcDebug.error('Failed to cleanup artifacts', { runId, error: e })
       }
       
       // Try to place rich text as fallback
@@ -249,13 +235,9 @@ ${response.substring(0, 2000)}`
             selectedNode = node as SceneNode
           }
         }
-        if (debug) {
-          console.log(`[DC ${runId}] BEFORE placeCritiqueOnCanvas error fallback`)
-        }
+        dcDebug.log('BEFORE placeCritiqueOnCanvas error fallback', { runId })
         await placeCritiqueOnCanvas(response, selectedNode, runId)
-        if (debug) {
-          console.log(`[DC ${runId}] AFTER placeCritiqueOnCanvas error fallback`)
-        }
+        dcDebug.log('AFTER placeCritiqueOnCanvas error fallback', { runId })
         figma.notify('Error processing critique — placed critique fallback')
         
         // Notify UI that critique placement completed (error fallback)

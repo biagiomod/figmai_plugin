@@ -49,6 +49,7 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 - **[Message Contract](reference/message-contract.md)** [REFERENCE] - Message types and payloads
 - **[Configuration](configuration.md)** [REFERENCE] - Configuration schema and environment variables
 - **[Content Models](content-models.md)** [REFERENCE] - Table format presets for Content Table Assistant
+- **[Debugging](reference/debugging.md)** [REFERENCE] - Scoped debugging system and configuration
 - **[Response Parsing](reference/response-parsing.md)** [AUTHORITATIVE] - Unified response parsing guide (coming soon)
 
 #### Setup & Troubleshooting
@@ -134,6 +135,7 @@ docs/
 │
 ├── reference/                   # Reference documentation
 │   ├── message-contract.md     # [REFERENCE] Message types
+│   ├── debugging.md            # [REFERENCE] Debugging system
 │   ├── response-parsing.md     # [AUTHORITATIVE] Response parsing (coming soon)
 │   └── (other reference docs)
 │

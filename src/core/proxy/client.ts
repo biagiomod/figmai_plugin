@@ -6,6 +6,7 @@
 import { getSettings } from '../settings'
 import { ProviderError, ProviderErrorType, errorToString } from '../provider/provider'
 import { extractResponseText } from '../provider/normalize'
+import { debug } from '../debug/logger'
 
 /**
  * Fetch with optional timeout support
@@ -264,7 +265,8 @@ export class ProxyClient {
     }
     
     // Log final request payload for DC (redact large content)
-    if (isDesignCritique) {
+    const providerDebug = debug.scope('subsystem:provider')
+    if (isDesignCritique && debug.isEnabled('subsystem:provider')) {
       const payloadForLog = {
         assistantId: options.assistantId,
         quickActionId: options.quickActionId,
@@ -274,7 +276,7 @@ export class ProxyClient {
         hasSelectionSummary: !!options.selectionSummary,
         imageCount: options.images?.length || 0
       }
-      console.log('[DC] REQUEST_PAYLOAD', payloadForLog)
+      providerDebug.log('REQUEST_PAYLOAD', { provider: 'proxy', ...payloadForLog })
     }
     
     if (options.selectionSummary) {
@@ -349,10 +351,10 @@ export class ProxyClient {
       
       // Validate JSON for Design Critique actions (non-blocking - plugin will handle fallback)
       const isDesignCritiqueResponse = options.assistantId === 'design_critique' || options.quickActionId === 'give-critique'
-      if (isDesignCritiqueResponse) {
+      if (isDesignCritiqueResponse && debug.isEnabled('subsystem:provider')) {
         // Log first 120 chars of response for DC requests
-        console.log('[DC] RAW_RESPONSE_HEAD', responseText.slice(0, 120))
-        console.log('[DC] RAW_RESPONSE_LENGTH', responseText.length)
+        providerDebug.log('RAW_RESPONSE_HEAD', { provider: 'proxy', head: responseText.slice(0, 120) })
+        providerDebug.log('RAW_RESPONSE_LENGTH', { provider: 'proxy', length: responseText.length })
         
         // Try to parse JSON after stripping code fences
         let jsonString = responseText.trim()
@@ -360,12 +362,12 @@ export class ProxyClient {
         
         try {
           JSON.parse(jsonString)
-          console.log('[DC] JSON_VALIDATION', { status: 'PASS' })
+          providerDebug.log('JSON_VALIDATION', { provider: 'proxy', status: 'PASS' })
         } catch (parseError) {
           // Log warning but don't throw - let plugin handle fallback gracefully
           const errorPreview = responseText.substring(0, 500)
-          console.warn('[ProxyClient] Design Critique response is not valid JSON. First 500 chars:', errorPreview)
-          console.log('[DC] JSON_VALIDATION', { status: 'FAIL', error: parseError instanceof Error ? parseError.message : String(parseError) })
+          providerDebug.warn('Design Critique response is not valid JSON', { provider: 'proxy', preview: errorPreview })
+          providerDebug.log('JSON_VALIDATION', { provider: 'proxy', status: 'FAIL', error: parseError instanceof Error ? parseError.message : String(parseError) })
           // Note: Proxy server should ideally return 502 for invalid JSON, but client allows fallback
         }
       }

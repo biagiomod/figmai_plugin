@@ -8,6 +8,7 @@ import type { Provider, ChatRequest, ProviderCapabilities } from './provider'
 import { ProviderError, ProviderErrorType, errorToString } from './provider'
 import { getSettings } from '../settings'
 import { CONFIG } from '../config'
+import { debug } from '../debug/logger'
 
 /**
  * Fetch with optional timeout support
@@ -229,14 +230,14 @@ export class InternalApiProvider implements Provider {
         }
 
         const url = baseUrl
+        const providerDebug = debug.scope('subsystem:provider')
 
-        if (CONFIG.dev.enableSyncApiErrorDetection) {
-            console.log('[InternalApiProvider] Sending request:', {
-                url,
-                messageLength: userMessages.length,
-                hasSelectionSummary: !!request.selectionSummary
-            })
-        }
+        providerDebug.log('Sending request', {
+            provider: 'internal-api',
+            url,
+            messageLength: userMessages.length,
+            hasSelectionSummary: !!request.selectionSummary
+        })
 
         try {
             const response = await fetchWithTimeout(
@@ -349,9 +350,8 @@ export class InternalApiProvider implements Provider {
                     }
                 }
 
-                if (CONFIG.dev.enableSyncApiErrorDetection) {
-                    console.error('[InternalApiProvider] Invalid response format:', data)
-                }
+                const providerDebug = debug.scope('subsystem:provider')
+                providerDebug.error('Invalid response format', { provider: 'internal-api', data })
                 throw new ProviderError(
                     'Invalid response format from Internal API: expected Prompts array or result field',
                     ProviderErrorType.INVALID_REQUEST,
