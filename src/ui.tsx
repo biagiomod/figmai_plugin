@@ -1661,13 +1661,7 @@ ${htmlTable}
   
   // Content Table: Add dynamic quick actions when table is generated
   const contentTableQuickActions: QuickAction[] = contentTable && assistant.id === 'content_table' ? [
-    // Hide "Send to Confluence" in Content-MVP mode
-    ...(mode !== 'content-mvp' ? [{
-      id: 'send-to-confluence',
-      label: 'Send to Confluence',
-      templateMessage: 'Send table to Confluence',
-      requiresSelection: false
-    }] : []),
+    // "Send to Confluence" quick action disabled for all modes
     {
       id: 'copy-table',
       label: 'Copy Table',

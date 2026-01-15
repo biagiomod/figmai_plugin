@@ -228,6 +228,27 @@ function renderNode(node: RichTextNode, index: number): h.JSX.Element {
         return <div key={index} style={{ display: 'none' }} />
       }
       
+      // Special handling for "Found:" label (Content Table Assistant)
+      if (labelLower === 'found') {
+        const displayText = `Found: ${node.value}`
+        const color = '#22C55E' // Green color for "Found" tags
+        
+        return (
+          <span
+            key={index}
+            style={{
+              ...richTextTheme.score,
+              backgroundColor: color,
+              color: '#ffffff',
+              display: 'inline-block',
+              marginBottom: richTextTheme.score.marginBottom
+            }}
+          >
+            {displayText}
+          </span>
+        )
+      }
+      
       const percentage = ((node.value / (node.max || 100)) * 100).toFixed(0)
       const color = getScoreColor(node.value, node.max)
       const displayText = node.label
