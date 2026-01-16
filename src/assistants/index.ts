@@ -177,6 +177,15 @@ You specialize in evaluating and improving text content for clarity, tone, user 
         requiresVision: true,
         maxImages: 1,
         imageScale: 2
+      },
+      {
+        id: 'deceptive-review',
+        label: 'Deceptive Review',
+        templateMessage: 'Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users.',
+        requiresSelection: true,
+        requiresVision: true,
+        maxImages: 1,
+        imageScale: 2
       }
     ]
   },

@@ -120,6 +120,13 @@ export function initializeArtifactComponents(): void {
   }).catch((error) => {
     console.error('[Artifacts] Failed to register scorecard component:', error)
   })
+  
+  // Register deceptive report component
+  import('./components/deceptiveReport').then(({ deceptiveReportComponent }) => {
+    registerArtifactComponent('deceptive-report', deceptiveReportComponent)
+  }).catch((error) => {
+    console.error('[Artifacts] Failed to register deceptive report component:', error)
+  })
 }
 
 // Auto-initialize on module load
