@@ -3,7 +3,9 @@
  * Shared utilities for placing and managing FigmAI artifacts on the Figma stage
  */
 
-import { getTopLevelContainerNode, getAnchorBounds, computePlacement, type Rect } from '../../stage/anchor'
+import { getPlacementTarget, computeRootPlacement, placeNodeOnPage } from '../placement'
+import { getTopLevelContainerNode, getAnchorBounds } from '../../stage/anchor'
+import { debug } from '../../debug/logger'
 
 export interface PlaceArtifactOptions {
   type: string
@@ -16,9 +18,12 @@ export interface PlaceArtifactOptions {
 }
 
 /**
- * Get topmost container node (re-export from anchor.ts for convenience)
+ * Get topmost container node (re-export from anchor.ts for backward compatibility)
+ * @deprecated Use getPlacementTarget() from placement.ts directly for new code
  */
-export const getTopLevelContainerNodeForArtifact = getTopLevelContainerNode
+export function getTopLevelContainerNodeForArtifact(selectedNode: SceneNode): SceneNode {
+  return getTopLevelContainerNode(selectedNode)
+}
 
 /**
  * Compute anchor bounds (re-export from anchor.ts for convenience)
@@ -154,153 +159,43 @@ export async function placeArtifactFrame(options: PlaceArtifactOptions): Promise
     root.setPluginData('figmai.artifactVersion', version)
   }
   
-  // Determine anchor and compute placement
-  let anchor: SceneNode | undefined
-  let anchorBounds: Rect | null = null
-  let boundsUsedMethod: 'bbox' | 'renderBounds' | 'transform' | 'relative' | 'none' = 'none'
-  
-  if (selectedNode) {
-    // Get topmost page-level container (direct child of PAGE)
-    anchor = getTopLevelContainerNodeForArtifact(selectedNode)
-    
-    // Compute bounds using robust helper
-    anchorBounds = computeAnchorBoundsForArtifact(anchor)
-    
-    // Determine which method was used (for debugging) - check in same priority order as getAbsoluteBounds
-    if (anchorBounds) {
-      if ('absoluteBoundingBox' in anchor && anchor.absoluteBoundingBox) {
-        boundsUsedMethod = 'bbox'
-      } else if ('absoluteRenderBounds' in anchor && anchor.absoluteRenderBounds) {
-        boundsUsedMethod = 'renderBounds'
-      } else if ('absoluteTransform' in anchor && 'width' in anchor && 'height' in anchor) {
-        boundsUsedMethod = 'transform'
-      } else if ('x' in anchor && 'y' in anchor && 'width' in anchor && 'height' in anchor) {
-        boundsUsedMethod = 'relative'
-      } else {
-        boundsUsedMethod = 'none' // Shouldn't happen if getAbsoluteBounds worked
-      }
-    }
-    
-    // Enhanced DEBUG: Log raw bounds values and method details
-    if (anchorBounds) {
-      console.log(`[ArtifactPlacement] raw bounds values`, {
-        x: anchorBounds.x,
-        y: anchorBounds.y,
-        width: anchorBounds.width,
-        height: anchorBounds.height,
-        method: boundsUsedMethod,
-        anchorHasTransform: 'absoluteTransform' in anchor,
-        anchorTransform: 'absoluteTransform' in anchor ? anchor.absoluteTransform : null,
-        anchorHasBbox: 'absoluteBoundingBox' in anchor,
-        anchorBbox: 'absoluteBoundingBox' in anchor ? anchor.absoluteBoundingBox : null,
-        anchorHasRenderBounds: 'absoluteRenderBounds' in anchor,
-        anchorRenderBounds: 'absoluteRenderBounds' in anchor ? anchor.absoluteRenderBounds : null,
-        anchorRelativePos: ('x' in anchor && 'y' in anchor) ? { x: anchor.x, y: anchor.y } : null
-      })
-    }
-    
-    // Validate bounds before using: reject (0,0) or bounds too close to left edge
-    // For left placement, we need: anchorBounds.x >= (outputWidth + offset)
-    // Since we don't know outputWidth yet, reject if x < 600 (reasonable threshold)
-    const MIN_X_FOR_LEFT_PLACEMENT = 600
-    if (anchorBounds && (anchorBounds.x === 0 || anchorBounds.x < MIN_X_FOR_LEFT_PLACEMENT)) {
-      console.warn(`[ArtifactPlacement] Invalid bounds: x=${anchorBounds.x} too small for left placement, using viewport center`)
-      anchorBounds = null // Will trigger viewport center placement
-    }
-    
-    // DEBUG: Log anchor calculation details
-    const isDirectChild = selectedNode.parent?.type === 'PAGE'
-    console.log(`[ArtifactPlacement] selectedNode -> anchor -> bounds`, {
-      selectedNode: {
-        name: selectedNode.name,
-        id: selectedNode.id,
-        type: selectedNode.type,
-        parentType: selectedNode.parent?.type
-      },
-      isDirectChild,
-      anchor: {
-        name: anchor.name,
-        id: anchor.id,
-        type: anchor.type,
-        parentType: anchor.parent?.type
-      },
-      boundsUsedMethod,
-      bounds: anchorBounds ? {
-        x: anchorBounds.x,
-        y: anchorBounds.y,
-        width: anchorBounds.width,
-        height: anchorBounds.height
-      } : null
-    })
-  } else {
-    console.log(`[ArtifactPlacement] selectedNode -> anchor -> bounds`, {
-      selectedNode: null,
-      anchor: null,
-      boundsUsedMethod: 'none',
-      bounds: null,
-      reason: 'no_selection'
-    })
-  }
-  
   // Append to page first (required for auto-layout to calculate size)
   figma.currentPage.appendChild(root)
   
-  // Check if bounds are valid for left placement (Better approach: check before computing)
-  const canPlaceLeft = anchorBounds && anchorBounds.x >= (root.width + spacing)
-  let placementMethod: 'anchor' | 'viewport' = 'anchor'
-  let placementBeforeClamp: { x: number; y: number } | null = null
+  // Get placement target and bounds using new utility
+  const placementTarget = getPlacementTarget(selectedNode)
+  const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
   
-  if (!canPlaceLeft) {
-    placementMethod = 'viewport'
-    console.warn(`[ArtifactPlacement] Anchor at x=${anchorBounds?.x} too close to left edge (need ${root.width + spacing}), using viewport center`)
-    const viewport = figma.viewport.center
-    const centeredX = Math.max(viewport.x - root.width / 2, 0)
-    const centeredY = Math.max(viewport.y - root.height / 2, 40)
-    root.x = centeredX
-    root.y = centeredY
-  } else {
-    // Normal placement: compute coordinates relative to anchor
-    placementBeforeClamp = computePlacement(anchorBounds, root.width, root.height, {
-      mode: 'left',
-      offset: spacing,
-      minX: 0
+  // Compute placement using new utility with fallback logic
+  const placement = computeRootPlacement(
+    targetBounds,
+    { width: root.width, height: root.height },
+    {
+      spacing,
+      side: 'left',
+      minX: 0,
+      minY: 40
+    }
+  )
+  
+  // Log placement method if fallback was used (using debug scope)
+  const artifactDebug = debug.scope('subsystem:placement')
+  if (placement.method !== 'anchor-left') {
+    artifactDebug.log('Placement fallback used', {
+      method: placement.method,
+      reason: placement.reason,
+      position: { x: placement.x, y: placement.y },
+      targetBounds: targetBounds ? {
+        x: targetBounds.x,
+        y: targetBounds.y,
+        width: targetBounds.width,
+        height: targetBounds.height
+      } : null
     })
-    
-    // Apply clamps
-    const minX = 0
-    const minY = 40
-    const computedX = Math.max(placementBeforeClamp.x, minX)
-    const computedY = Math.max(placementBeforeClamp.y, minY)
-    
-    root.x = computedX
-    root.y = computedY
   }
   
-  // DEBUG: Log final placement coordinates
-  console.log(`[ArtifactPlacement] placement`, {
-    method: placementMethod,
-    computedXBeforeClamp: placementBeforeClamp?.x ?? null,
-    computedYBeforeClamp: placementBeforeClamp?.y ?? null,
-    computedXAfterClamp: root.x,
-    computedYAfterClamp: root.y,
-    rootWidth: root.width,
-    rootHeight: root.height,
-    anchorBounds: anchorBounds ? {
-      x: anchorBounds.x,
-      y: anchorBounds.y,
-      width: anchorBounds.width,
-      height: anchorBounds.height
-    } : null,
-    offset: spacing,
-    mode: 'left',
-    clampedX: placementBeforeClamp ? root.x !== placementBeforeClamp.x : false,
-    clampedY: placementBeforeClamp ? root.y !== placementBeforeClamp.y : false,
-    reason: !canPlaceLeft ? `Anchor x=${anchorBounds?.x} < required ${root.width + spacing}` : null
-  })
-  
-  // Select and scroll into view
-  figma.currentPage.selection = [root]
-  figma.viewport.scrollAndZoomIntoView([root])
+  // Apply placement using new utility
+  placeNodeOnPage(root, { x: placement.x, y: placement.y })
   
   return root
 }
