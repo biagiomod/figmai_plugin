@@ -6,7 +6,7 @@
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import type { NormalizedMessage } from '../../provider/provider'
 import { parseScorecardJson } from '../../output/normalize'
-import { renderScorecardV2 } from '../../figma/renderScorecard'
+import { createArtifact } from '../../figma/artifacts'
 import { removeExistingArtifacts } from '../../figma/artifacts/placeArtifact'
 import { placeCritiqueOnCanvas } from '../../figma/placeCritiqueFallback'
 import { getTopLevelContainerNode } from '../../stage/anchor'
@@ -96,17 +96,23 @@ export class DesignCritiqueHandler implements AssistantHandler {
           wins: result.data.wins.length, 
           fixes: result.data.fixes.length 
         })
-        dcDebug.log('BEFORE renderScorecardV2', { runId })
+        dcDebug.log('BEFORE createArtifact (scorecard)', { runId })
         try {
-          await renderScorecardV2(result.data, selectedNode, { runId })
-          dcDebug.log('AFTER renderScorecardV2', { runId, status: 'SUCCESS' })
+          await createArtifact({
+            type: 'scorecard',
+            assistant: 'design_critique',
+            selectedNode,
+            version: 'v2',
+            replace: true
+          }, result.data)
+          dcDebug.log('AFTER createArtifact (scorecard)', { runId, status: 'SUCCESS' })
           figma.notify('Scorecard placed (v2)')
           
           // Replace status message with completion message
           replaceStatusMessage('Scorecard placed on stage')
           return { handled: true }
         } catch (renderError) {
-          dcDebug.error('CATCH renderScorecardV2', { 
+          dcDebug.error('CATCH createArtifact (scorecard)', { 
             runId,
             error: renderError instanceof Error ? renderError.message : String(renderError), 
             stack: renderError instanceof Error ? renderError.stack : undefined 
@@ -160,10 +166,16 @@ ${response.substring(0, 2000)}`
           
           if ('data' in repairResult) {
             dcDebug.log('repair RESULT', { runId, status: 'SUCCESS', score: repairResult.data.score })
-            dcDebug.log('BEFORE renderScorecardV2 (from repair)', { runId })
+            dcDebug.log('BEFORE createArtifact (scorecard, from repair)', { runId })
             
-            await renderScorecardV2(repairResult.data, selectedNode, { runId })
-            dcDebug.log('AFTER renderScorecardV2 (from repair)', { runId, status: 'SUCCESS' })
+            await createArtifact({
+              type: 'scorecard',
+              assistant: 'design_critique',
+              selectedNode,
+              version: 'v2',
+              replace: true
+            }, repairResult.data)
+            dcDebug.log('AFTER createArtifact (scorecard, from repair)', { runId, status: 'SUCCESS' })
             figma.notify('Scorecard placed (v2, repaired)')
             
             // Replace status message with completion message

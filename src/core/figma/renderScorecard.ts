@@ -701,9 +701,105 @@ async function buildColumnSectionV2(
 }
 
 /**
+ * Build scorecard content into a pre-created root frame
+ * This function handles content rendering only (no frame creation/placement)
+ * 
+ * @param root - Pre-created and placed root frame (must be configured with layoutMode, padding, etc.)
+ * @param data - Scorecard data to render
+ * @param debug - Optional debug info
+ */
+export async function buildScorecardContent(
+  root: FrameNode,
+  data: ScorecardData,
+  debug?: { runId?: string }
+): Promise<void> {
+  const runId = debug?.runId || 'unknown'
+  const DEBUG = CONFIG.dev.enableDesignCritiqueDebugLogging
+  
+  // Load fonts
+  const fonts = await loadFonts()
+  await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' })
+  
+  // Configure root frame as the card itself (no separate cardFrame wrapper)
+  // CRITICAL: Set layoutMode FIRST before appending any children
+  root.layoutMode = 'VERTICAL'
+  root.paddingTop = 20
+  root.paddingRight = 20
+  root.paddingBottom = 20
+  root.paddingLeft = 20
+  root.itemSpacing = 16
+  root.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+  root.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 } }] // #E6E6E6
+  root.strokeWeight = 1
+  root.cornerRadius = 16
+  
+  // Build header
+  if (DEBUG) console.log('[buildScorecardContent] Building header...')
+  await buildHeaderV2(root, data, fonts)
+  if (DEBUG) console.log('[buildScorecardContent] Header built, root.children:', root.children.map(c => c.name))
+  
+  // Build summary
+  if (data.summary) {
+    if (DEBUG) console.log('[buildScorecardContent] Building summary...')
+    await buildSummaryV2(root, data, fonts)
+    if (DEBUG) console.log('[buildScorecardContent] Summary built, root.children:', root.children.map(c => c.name))
+  }
+  
+  // Build two-column body
+  if (data.wins.length > 0 || data.fixes.length > 0) {
+    if (DEBUG) console.log('[buildScorecardContent] Building two-column body...')
+    await buildTwoColumnBodyV2(root, data, fonts)
+    if (DEBUG) console.log('[buildScorecardContent] Two-column body built, root.children:', root.children.map(c => c.name))
+  }
+  
+  // Build checklist
+  if (data.checklist.length > 0) {
+    if (DEBUG) console.log('[buildScorecardContent] Building checklist...')
+    await buildChecklistV2(root, data, fonts)
+    if (DEBUG) console.log('[buildScorecardContent] Checklist built, root.children:', root.children.map(c => c.name))
+  }
+  
+  // Build notes
+  if (data.notes && data.notes.length > 0) {
+    if (DEBUG) console.log('[buildScorecardContent] Building notes...')
+    await buildNotesV2(root, data, fonts)
+    if (DEBUG) console.log('[buildScorecardContent] Notes built, root.children:', root.children.map(c => c.name))
+  }
+  
+  // Verify root has content
+  if (root.children.length === 0) {
+    throw new Error('v2 scorecard rendered empty - no children appended to root')
+  }
+  
+  if (DEBUG) {
+    console.log('[buildScorecardContent] ✅ Build complete, root.children:', root.children.map(c => c.name))
+    console.log('[buildScorecardContent] Root has', root.children.length, 'direct children')
+  }
+  
+  // Remove any stray nodes that ended up at page root
+  removeStrayV2Nodes(root)
+  
+  // Verify no stray "Header" nodes exist at page root
+  const page = figma.currentPage
+  for (const child of page.children) {
+    if (child === root) continue
+    if (child.name === 'Header' && child.type === 'FRAME') {
+      const artifactType = child.getPluginData('figmai.artifactType')
+      if (!artifactType || artifactType === '') {
+        console.error(`[buildScorecardContent] ❌ Found stray Header node at page root: ${child.id}`)
+        child.remove()
+      }
+    }
+  }
+}
+
+/**
  * Render scorecard v2 to stage using Auto-Layout frames
  * Builds the card UI directly into the artifact root (no wrapper frame)
  * ENFORCES: Only root is appended to page; all other nodes append to root or descendants
+ * 
+ * @deprecated For new code, use createArtifact() from artifacts/index.ts
+ * This function is kept for backward compatibility
  */
 export async function renderScorecardV2(
   data: ScorecardData,
@@ -731,81 +827,8 @@ export async function renderScorecardV2(
       replace: true
     })
     
-    // Load fonts
-    const fonts = await loadFonts()
-    await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' })
-    
-    // Configure root frame as the card itself (no separate cardFrame wrapper)
-    // CRITICAL: Set layoutMode FIRST before appending any children
-    root.layoutMode = 'VERTICAL'
-    root.paddingTop = 20
-    root.paddingRight = 20
-    root.paddingBottom = 20
-    root.paddingLeft = 20
-    root.itemSpacing = 16
-    root.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
-    root.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 } }] // #E6E6E6
-    root.strokeWeight = 1
-    root.cornerRadius = 16
-    
-    // Build header
-    if (DEBUG) console.log('[renderScorecardV2] Building header...')
-    await buildHeaderV2(root, data, fonts)
-    if (DEBUG) console.log('[renderScorecardV2] Header built, root.children:', root.children.map(c => c.name))
-    
-    // Build summary
-    if (data.summary) {
-      if (DEBUG) console.log('[renderScorecardV2] Building summary...')
-      await buildSummaryV2(root, data, fonts)
-      if (DEBUG) console.log('[renderScorecardV2] Summary built, root.children:', root.children.map(c => c.name))
-    }
-    
-    // Build two-column body
-    if (data.wins.length > 0 || data.fixes.length > 0) {
-      if (DEBUG) console.log('[renderScorecardV2] Building two-column body...')
-      await buildTwoColumnBodyV2(root, data, fonts)
-      if (DEBUG) console.log('[renderScorecardV2] Two-column body built, root.children:', root.children.map(c => c.name))
-    }
-    
-    // Build checklist
-    if (data.checklist.length > 0) {
-      if (DEBUG) console.log('[renderScorecardV2] Building checklist...')
-      await buildChecklistV2(root, data, fonts)
-      if (DEBUG) console.log('[renderScorecardV2] Checklist built, root.children:', root.children.map(c => c.name))
-    }
-    
-    // Build notes
-    if (data.notes && data.notes.length > 0) {
-      if (DEBUG) console.log('[renderScorecardV2] Building notes...')
-      await buildNotesV2(root, data, fonts)
-      if (DEBUG) console.log('[renderScorecardV2] Notes built, root.children:', root.children.map(c => c.name))
-    }
-    
-    // Verify root has content
-    if (root.children.length === 0) {
-      throw new Error('v2 scorecard rendered empty - no children appended to root')
-    }
-    
-    if (DEBUG) {
-      console.log('[renderScorecardV2] ✅ Build complete, root.children:', root.children.map(c => c.name))
-      console.log('[renderScorecardV2] Root has', root.children.length, 'direct children')
-    }
-    
-    // Remove any stray nodes that ended up at page root
-    removeStrayV2Nodes(root)
-    
-    // Verify no stray "Header" nodes exist at page root
-    const page = figma.currentPage
-    for (const child of page.children) {
-      if (child === root) continue
-      if (child.name === 'Header' && child.type === 'FRAME') {
-        const artifactType = child.getPluginData('figmai.artifactType')
-        if (!artifactType || artifactType === '') {
-          console.error(`[renderScorecardV2] ❌ Found stray Header node at page root: ${child.id}`)
-          child.remove()
-        }
-      }
-    }
+    // Build content into the root frame
+    await buildScorecardContent(root, data, debug)
     
     // Re-select and scroll into view (placeArtifactFrame already did this, but ensure it's still selected)
     figma.currentPage.selection = [root]
