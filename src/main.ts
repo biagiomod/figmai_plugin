@@ -1,4 +1,9 @@
 /**
+ * @license MIT
+ * Copyright (c) 2026 Biagio Goetzke
+ */
+
+/**
  * FigmAI Plugin - Main Thread
  * 
  * ARCHITECTURE OVERVIEW
