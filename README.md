@@ -2,8 +2,6 @@
 
 AI-powered design assistance for Figma. Provides multiple specialized assistants for design critique, content extraction, accessibility review, and more.
 
-*Built with -> [Create Figma Plugin](https://yuanqing.github.io/create-figma-plugin/).*
-
 ---
 
 ## Project Overview
@@ -440,3 +438,8 @@ For complete documentation navigation, see **[docs/README.md](docs/README.md)**.
 - [Create Figma Plugin docs](https://yuanqing.github.io/create-figma-plugin/)
 - [Figma Plugin API docs](https://figma.com/plugin-docs/)
 - [`yuanqing/figma-plugins`](https://github.com/yuanqing/figma-plugins#readme)
+
+## License
+
+This project is licensed under the MIT License.  
+See the [LICENSE](./LICENSE) file for details.
