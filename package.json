@@ -1,7 +1,9 @@
 {
+  "name": "figmai_plugin",
   "private": true,
   "license": "MIT",
-  "author": "Biagio Goetz",
+  "author": "Biagio Goetzke",
+  "version": "1.0.1",
   "dependencies": {
     "@create-figma-plugin/ui": "4.0.3",
     "@create-figma-plugin/utilities": "4.0.3",
