@@ -9,6 +9,7 @@ import type {
 } from '../../core/types'
 import type { Settings } from '../../core/settings'
 import type { Mode } from '../../core/types'
+import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings } from '../../custom/config'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -17,6 +18,11 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsModalProps) {
+  // Check custom config
+  const hideContentMvpMode = shouldHideContentMvpMode()
+  const customEndpoint = getCustomLlmEndpoint()
+  const hideModelSettings = shouldHideLlmModelSettings()
+  
   // Initialize mode from currentMode prop (reflects actual current mode)
   // If currentMode is not provided, fall back to localStorage, then default to 'content-mvp'
   const [mode, setMode] = useState<Mode>(() => {
@@ -226,16 +232,21 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     setTestStatus(null)
     setTestDiagnostics(null) // Clear previous diagnostics
     
+    // Use custom endpoint if provided, otherwise use UI values
+    const testConnectionType = hideModelSettings && customEndpoint ? 'internal-api' : connectionType
+    const testInternalApiUrl = hideModelSettings && customEndpoint ? customEndpoint : (connectionType === 'internal-api' ? internalApiUrl.trim() : undefined)
+    const testProxyBaseUrl = connectionType === 'proxy' ? proxyBaseUrl.trim() : undefined
+    
     // Prepare settings for saving (for persistence)
     const settings: Partial<Settings> = {
       mode,
-      connectionType,
-      proxyBaseUrl: connectionType === 'proxy' ? proxyBaseUrl.trim() : undefined,
-      internalApiUrl: connectionType === 'internal-api' ? internalApiUrl.trim() : undefined,
-      authMode: connectionType === 'proxy' ? authMode : undefined,
-      sharedToken: connectionType === 'proxy' && authMode === 'shared_token' ? sharedToken.trim() : undefined,
-      sessionToken: connectionType === 'proxy' && authMode === 'session_token' ? sessionToken.trim() : undefined,
-      defaultModel: connectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined
+      connectionType: testConnectionType,
+      proxyBaseUrl: testConnectionType === 'proxy' ? testProxyBaseUrl : undefined,
+      internalApiUrl: testConnectionType === 'internal-api' ? testInternalApiUrl : undefined,
+      authMode: testConnectionType === 'proxy' ? authMode : undefined,
+      sharedToken: testConnectionType === 'proxy' && authMode === 'shared_token' ? sharedToken.trim() : undefined,
+      sessionToken: testConnectionType === 'proxy' && authMode === 'session_token' ? sessionToken.trim() : undefined,
+      defaultModel: testConnectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined
     }
     
     // Save settings for persistence (async, but we don't wait for it)
@@ -243,11 +254,11 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     
     // Test immediately with current UI values (no race condition)
     emit<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', {
-      connectionType,
-      internalApiUrl: connectionType === 'internal-api' ? internalApiUrl.trim() : undefined,
-      proxyBaseUrl: connectionType === 'proxy' ? proxyBaseUrl.trim() : undefined
+      connectionType: testConnectionType,
+      internalApiUrl: testInternalApiUrl,
+      proxyBaseUrl: testProxyBaseUrl
     })
-  }, [mode, connectionType, proxyBaseUrl, internalApiUrl, authMode, sharedToken, sessionToken, defaultModel])
+  }, [mode, connectionType, proxyBaseUrl, internalApiUrl, authMode, sharedToken, sessionToken, defaultModel, hideModelSettings, customEndpoint])
   
   return (
     <div style={{
@@ -305,51 +316,53 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             width: '100%',
             backgroundColor: 'var(--surface-modal)'
           }}>
-            <button
-              onClick={() => handleModeChange('content-mvp')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  handleModeChange('content-mvp')
-                }
-              }}
-              style={{
-                flex: 1,
-                padding: 'var(--spacing-sm) var(--spacing-md)',
-                border: 'none',
-                borderRight: '1px solid var(--border-subtle)',
-                borderRadius: 0,
-                backgroundColor: mode === 'content-mvp' ? '#ffffff' : 'var(--surface-modal)',
-                color: mode === 'content-mvp' ? '#000000' : 'var(--fg-secondary)',
-                cursor: 'pointer',
-                textAlign: 'center',
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: mode === 'content-mvp' ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
-                transition: 'background-color 0.15s ease, color 0.15s ease',
-                outline: 'none'
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.outline = '2px solid var(--accent)'
-                e.currentTarget.style.outlineOffset = '-2px'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.outline = 'none'
-              }}
-              onMouseEnter={(e) => {
-                if (mode !== 'content-mvp') {
-                  e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (mode !== 'content-mvp') {
-                  e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
-                  e.currentTarget.style.color = 'var(--fg-secondary)'
-                }
-              }}
-            >
-              Content-MVP
-            </button>
+            {!hideContentMvpMode && (
+              <button
+                onClick={() => handleModeChange('content-mvp')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleModeChange('content-mvp')
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: 'none',
+                  borderRight: '1px solid var(--border-subtle)',
+                  borderRadius: 0,
+                  backgroundColor: mode === 'content-mvp' ? '#ffffff' : 'var(--surface-modal)',
+                  color: mode === 'content-mvp' ? '#000000' : 'var(--fg-secondary)',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: mode === 'content-mvp' ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                  transition: 'background-color 0.15s ease, color 0.15s ease',
+                  outline: 'none'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.outline = '2px solid var(--accent)'
+                  e.currentTarget.style.outlineOffset = '-2px'
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.outline = 'none'
+                }}
+                onMouseEnter={(e) => {
+                  if (mode !== 'content-mvp') {
+                    e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (mode !== 'content-mvp') {
+                    e.currentTarget.style.backgroundColor = 'var(--surface-modal)'
+                    e.currentTarget.style.color = 'var(--fg-secondary)'
+                  }
+                }}
+              >
+                Content-MVP
+              </button>
+            )}
             <button
               onClick={() => handleModeChange('simple')}
               onKeyDown={(e) => {
@@ -450,18 +463,66 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           width: '100%'
         }} />
         
-        {/* LLM Model Settings Section */}
-        <div style={{
-          fontSize: 'var(--font-size-md)',
-          fontWeight: 'var(--font-weight-semibold)',
-          marginBottom: 'var(--spacing-xs)',
-          color: 'var(--fg)'
-        }}>
-          LLM Model Settings
-        </div>
-        
-        {/* Connection Type Toggle */}
-        <div>
+        {/* LLM Connection / Model Settings Section */}
+        {hideModelSettings ? (
+          /* LLM Connection Section (when custom endpoint provided) */
+          <div>
+            <div style={{
+              fontSize: 'var(--font-size-md)',
+              fontWeight: 'var(--font-weight-semibold)',
+              marginBottom: 'var(--spacing-xs)',
+              color: 'var(--fg)'
+            }}>
+              LLM Connection
+            </div>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-medium)',
+                marginBottom: 'var(--spacing-xs)',
+                color: 'var(--fg)'
+              }}>
+                Endpoint
+              </label>
+              <Textbox
+                value={customEndpoint || ''}
+                disabled
+                style={{
+                  width: '100%',
+                  opacity: 0.7
+                }}
+              />
+            </div>
+            
+            {/* Test Connection Button */}
+            <div style={{ marginTop: 'var(--spacing-md)' }}>
+              <Button
+                onClick={handleTest}
+                disabled={!customEndpoint || isTesting}
+                style={{
+                  width: '100%'
+                }}
+              >
+                {isTesting ? 'Testing...' : 'Test Connection'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* LLM Model Settings Section (default) */
+          <div>
+            <div style={{
+              fontSize: 'var(--font-size-md)',
+              fontWeight: 'var(--font-weight-semibold)',
+              marginBottom: 'var(--spacing-xs)',
+              color: 'var(--fg)'
+            }}>
+              LLM Model Settings
+            </div>
+            
+            {/* Connection Type Toggle */}
+            <div>
           <div style={{
             display: 'flex',
             border: '1px solid var(--border-subtle)',
@@ -765,6 +826,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             {isTesting ? 'Testing...' : 'Test Connection'}
           </Button>
         </div>
+          </div>
+        )}
         
         {/* Test Status */}
         {testStatus && (

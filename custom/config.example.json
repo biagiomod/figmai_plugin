@@ -1,0 +1,19 @@
+{
+  "ui": {
+    "hideContentMvpMode": false
+  },
+  "llm": {
+    "endpoint": "https://internal-llm.example.com/api",
+    "hideModelSettings": true
+  },
+  "knowledgeBases": {
+    "general": {
+      "policy": "append",
+      "file": "knowledge/general.md"
+    },
+    "design_critique": {
+      "policy": "override",
+      "file": "knowledge/designCritique.md"
+    }
+  }
+}

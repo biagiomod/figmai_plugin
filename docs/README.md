@@ -45,6 +45,9 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 - **[Extension Points](work-plugin/extension-points.md)** [REFERENCE] - All extension hooks and implementation guide
 - **[Work Constraints](work-plugin/constraints.md)** [AUTHORITATIVE] - Work environment constraints (coming soon)
 
+#### Custom Overlay System
+- **[Custom Overlay Guide](../custom/README.md)** [AUTHORITATIVE] - Corporate overlay system for custom config and knowledge bases
+
 #### Reference
 - **[Message Contract](reference/message-contract.md)** [REFERENCE] - Message types and payloads
 - **[Configuration](configuration.md)** [REFERENCE] - Configuration schema and environment variables

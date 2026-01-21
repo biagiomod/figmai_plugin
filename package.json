@@ -19,10 +19,11 @@
   },
   "scripts": {
     "generate-presets": "tsx scripts/generate-presets.ts",
-    "prebuild": "npm run generate-presets",
+    "generate-custom-overlay": "tsx scripts/generate-custom-overlay.ts",
+    "prebuild": "npm run generate-presets && npm run generate-custom-overlay",
     "build": "build-figma-plugin --typecheck --minify",
     "postbuild": "node scripts/check-sync-api.js",
-    "watch": "npm run generate-presets && build-figma-plugin --typecheck --watch"
+    "watch": "npm run generate-presets && npm run generate-custom-overlay && build-figma-plugin --typecheck --watch"
   },
   "figma-plugin": {
     "editorType": [

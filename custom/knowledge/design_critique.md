@@ -1,0 +1,19 @@
+# Custom Knowledge Base: Design Critique Assistant
+
+Add your custom knowledge base content here. This content will be merged with the public knowledge base according to the policy configured in `config.json`.
+
+## Usage
+
+1. Edit this file with your organization-specific design critique guidelines
+2. Configure the merge policy in `../config.json`:
+   - `"append"`: Adds this content to the public knowledge base
+   - `"override"`: Replaces the public knowledge base entirely
+3. Rebuild the plugin: `npm run build`
+
+## Example Content
+
+You might include:
+- Company-specific design principles
+- Internal accessibility standards
+- Brand-specific visual guidelines
+- Design system component usage rules

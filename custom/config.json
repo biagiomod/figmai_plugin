@@ -1,0 +1,10 @@
+{
+  "ui": {
+    "hideContentMvpMode": false
+  },
+  "llm": {
+    "endpoint": "",
+    "hideModelSettings": false
+  },
+  "knowledgeBases": {}
+}
