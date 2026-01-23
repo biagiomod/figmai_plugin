@@ -81,9 +81,9 @@ export function getInitialMode(options: {
     console.warn('[Mode] Failed to read from localStorage:', error)
   }
   
-  // Priority 2: Check customConfig.ui.defaultMode (Phase 2 - will be available after config expansion)
-  if (customConfig?.ui && 'defaultMode' in customConfig.ui && customConfig.ui.defaultMode) {
-    const customDefault = customConfig.ui.defaultMode as Mode
+  // Priority 2: Check customConfig.ui.defaultMode (Phase 2)
+  if (customConfig?.ui?.defaultMode) {
+    const customDefault = customConfig.ui.defaultMode
     debugLog('mode', 'getInitialMode: checking customConfig.ui.defaultMode', { customDefault })
     if (isValidMode(customDefault, { hideContentMvpMode })) {
       debugLog('mode', 'getInitialMode: using customConfig.ui.defaultMode', { mode: customDefault, source: 'customConfig' })

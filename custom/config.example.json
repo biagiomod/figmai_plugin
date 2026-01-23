@@ -1,10 +1,12 @@
 {
   "ui": {
+    "defaultMode": "advanced",
     "hideContentMvpMode": false
   },
   "llm": {
     "endpoint": "https://internal-llm.example.com/api",
-    "hideModelSettings": true
+    "hideModelSettings": true,
+    "uiMode": "connection-only"
   },
   "knowledgeBases": {
     "general": {
@@ -14,6 +16,52 @@
     "design_critique": {
       "policy": "override",
       "file": "knowledge/designCritique.md"
+    }
+  },
+  "networkAccess": {
+    "baseAllowedDomains": [
+      "https://api.openai.com"
+    ],
+    "extraAllowedDomains": []
+  },
+  "resources": {
+    "links": {
+      "about": {
+        "label": "About",
+        "url": "https://example.com/about"
+      },
+      "feedback": {
+        "label": "Feedback",
+        "url": "https://example.com/feedback"
+      },
+      "meetup": {
+        "label": "Join Meetup",
+        "url": "https://example.com/meetup"
+      }
+    },
+    "credits": {
+      "createdBy": [
+        {
+          "label": "Biagio G",
+          "url": "https://example.com/biagio"
+        }
+      ],
+      "apiTeam": [
+        {
+          "label": "API Team Member 1",
+          "url": "https://example.com/api1"
+        },
+        {
+          "label": "API Team Member 2",
+          "url": "https://example.com/api2"
+        }
+      ],
+      "llmInstruct": [
+        {
+          "label": "LLM Instructor 1",
+          "url": "https://example.com/llm1"
+        }
+      ]
     }
   }
 }

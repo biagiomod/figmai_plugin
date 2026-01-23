@@ -37,3 +37,36 @@ export function getCustomLlmEndpoint(): string | null {
 export function shouldHideLlmModelSettings(): boolean {
   return customConfig?.llm?.hideModelSettings === true && !!customConfig?.llm?.endpoint
 }
+
+/**
+ * Get LLM UI mode (defaults to 'full' if not specified)
+ */
+export function getLlmUiMode(): 'full' | 'connection-only' {
+  return customConfig?.llm?.uiMode || 'full'
+}
+
+/**
+ * Get resources links (defensive: returns empty objects if not configured)
+ */
+export function getResourcesLinks(): {
+  about?: { label: string; url: string }
+  feedback?: { label: string; url: string }
+  meetup?: { label: string; url: string }
+} {
+  return customConfig?.resources?.links || {}
+}
+
+/**
+ * Get resources credits (defensive: returns empty arrays if not configured)
+ */
+export function getResourcesCredits(): {
+  createdBy: Array<{ label: string; url: string }>
+  apiTeam: Array<{ label: string; url: string }>
+  llmInstruct: Array<{ label: string; url: string }>
+} {
+  return {
+    createdBy: customConfig?.resources?.credits?.createdBy || [],
+    apiTeam: customConfig?.resources?.credits?.apiTeam || [],
+    llmInstruct: customConfig?.resources?.credits?.llmInstruct || []
+  }
+}

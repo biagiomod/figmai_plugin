@@ -100,11 +100,13 @@ function generateConfigModule(config: CustomConfig | null): string {
 
 export interface CustomConfig {
   ui?: {
+    defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
   }
   llm?: {
     endpoint?: string
     hideModelSettings?: boolean
+    uiMode?: 'full' | 'connection-only'
   }
   knowledgeBases?: Record<string, {
     policy: 'append' | 'override'
@@ -113,6 +115,18 @@ export interface CustomConfig {
   networkAccess?: {
     baseAllowedDomains?: string[]
     extraAllowedDomains?: string[]
+  }
+  resources?: {
+    links?: {
+      about?: { label: string; url: string }
+      feedback?: { label: string; url: string }
+      meetup?: { label: string; url: string }
+    }
+    credits?: {
+      createdBy?: Array<{ label: string; url: string }>
+      apiTeam?: Array<{ label: string; url: string }>
+      llmInstruct?: Array<{ label: string; url: string }>
+    }
   }
 }
 

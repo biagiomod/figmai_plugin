@@ -28,9 +28,12 @@ All custom content is bundled at build time via the prebuild script (`scripts/ge
 **Important:** The public repo ships placeholder files (`config.json` and `knowledge/*.md`) with safe defaults. Corporate users should edit these files directly and commit them to their corporate repo.
 
 1. **Edit `custom/config.json` directly:**
+   - Set `ui.defaultMode` to your preferred default mode (`'simple'`, `'advanced'`, or `'content-mvp'`)
    - Set `ui.hideContentMvpMode` to `true` to hide Content-MVP mode
    - Set `llm.endpoint` to your internal LLM endpoint URL (⚠️ **Do not put secrets here** - use environment variables or secure storage)
-   - Set `llm.hideModelSettings` to `true` to hide model settings UI
+   - Set `llm.hideModelSettings` to `true` to hide model settings UI (takes precedence)
+   - Set `llm.uiMode` to `'connection-only'` to show only connection + test button (requires `llm.endpoint`)
+   - Configure `resources.links.*` and `resources.credits.*` arrays for dynamic UI rendering
    - Configure knowledge base policies per assistant
 
 2. **Edit knowledge base files:**
@@ -51,12 +54,45 @@ All custom content is bundled at build time via the prebuild script (`scripts/ge
 
 See `config.example.json` for the full schema. Key fields:
 
+### UI Settings
+
+- `ui.defaultMode` (`'content-mvp' | 'simple' | 'advanced'`): Default mode when no localStorage preference exists. Falls back to `CONFIG.defaultMode` if not specified.
 - `ui.hideContentMvpMode` (boolean): Hide Content-MVP mode button in Settings
-- `llm.endpoint` (string): Internal LLM endpoint URL
-- `llm.hideModelSettings` (boolean): Hide LLM Model Settings section when endpoint is provided
+
+### LLM Settings
+
+- `llm.endpoint` (string): Internal LLM endpoint URL (⚠️ **Do not put secrets here**)
+- `llm.hideModelSettings` (boolean): Hide LLM Model Settings section when endpoint is provided (takes precedence over `uiMode`)
+- `llm.uiMode` (`'full' | 'connection-only'`): Controls LLM settings visibility:
+  - `'full'` (default): Show full LLM Model Settings section
+  - `'connection-only'`: Show only "LLM Connection" header + "Test Connection" button (requires `llm.endpoint` to be set)
+
+### Knowledge Bases
+
 - `knowledgeBases.{assistantId}` (object): Per-assistant knowledge base policy
   - `policy`: `"append"` (adds to public) or `"override"` (replaces public)
   - `file`: Relative path from `/custom/` (e.g., `"knowledge/general.md"`)
+
+### Resources & Credits
+
+- `resources.links.about` (object, optional): About link
+  - `label` (string): Button label
+  - `url` (string): Link URL (button only renders if URL is non-empty)
+- `resources.links.feedback` (object, optional): Feedback link
+  - `label` (string): Button label
+  - `url` (string): Link URL (button only renders if URL is non-empty)
+- `resources.links.meetup` (object, optional): Meetup link
+  - `label` (string): Button label
+  - `url` (string): Link URL (button only renders if URL is non-empty)
+- `resources.credits.createdBy` (array, optional): Array of credit entries for "Created by" section
+  - Each entry: `{ label: string, url?: string }`
+  - If `url` is provided, renders as clickable link; otherwise plain text
+- `resources.credits.apiTeam` (array, optional): Array of credit entries for "API Team" section
+  - Each entry: `{ label: string, url?: string }`
+- `resources.credits.llmInstruct` (array, optional): Array of credit entries for "LLM Instruct" section
+  - Each entry: `{ label: string, url?: string }`
+
+**Note:** Empty arrays or missing fields result in empty sections (no crashes). Links/buttons only render if URLs are provided and non-empty.
 
 ### Network Access (Figma allowedDomains)
 

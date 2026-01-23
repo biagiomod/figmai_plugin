@@ -121,7 +121,7 @@ import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { PRESET_INFO } from './core/contentTable/presets.generated'
 import { getInitialMode } from './ui/utils/mode'
-import { getCustomConfig, shouldHideContentMvpMode } from './custom/config'
+import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits } from './custom/config'
 import { BUILD_VERSION } from './core/build'
 import { debugLog } from './ui/utils/debug'
 
@@ -1640,20 +1640,36 @@ ${htmlTable}
     }
   }, [creditsAutoCollapseTimer])
   
+  // Get resources from config
+  const resourcesLinks = getResourcesLinks()
+  const resourcesCredits = getResourcesCredits()
+  
   const handleAboutClick = useCallback(() => {
-    console.log('[TODO] About button clicked - implement About modal')
-    // TODO: Open About modal
-  }, [])
+    const url = resourcesLinks.about?.url
+    if (url && url.trim()) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } else {
+      console.log('[TODO] About button clicked - URL not configured')
+    }
+  }, [resourcesLinks])
   
   const handleFeedbackClick = useCallback(() => {
-    console.log('[TODO] Feedback button clicked - implement Feedback modal')
-    // TODO: Open Feedback modal
-  }, [])
+    const url = resourcesLinks.feedback?.url
+    if (url && url.trim()) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } else {
+      console.log('[TODO] Feedback button clicked - URL not configured')
+    }
+  }, [resourcesLinks])
   
   const handleJoinMeetupClick = useCallback(() => {
-    console.log('[TODO] Join Meetup button clicked - implement Join Meetup modal')
-    // TODO: Open Join Meetup modal
-  }, [])
+    const url = resourcesLinks.meetup?.url
+    if (url && url.trim()) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } else {
+      console.log('[TODO] Join Meetup button clicked - URL not configured')
+    }
+  }, [resourcesLinks])
   
   // Get selection indicator icon
   const getSelectionIcon = () => {
@@ -4042,141 +4058,229 @@ ${htmlTable}
               </button>
             </div>
             
-            {/* Action Buttons Row */}
-            <div style={{
-              display: 'flex',
-              gap: 'var(--spacing-sm)',
-              flexWrap: 'wrap'
-            }}>
-              <button
-                onClick={handleAboutClick}
-                style={{
-                  padding: 'var(--spacing-xs) var(--spacing-sm)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--bg)',
-                  color: 'var(--fg)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
-                  fontFamily: 'var(--font-family)',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                About
-              </button>
-              <button
-                onClick={handleFeedbackClick}
-                style={{
-                  padding: 'var(--spacing-xs) var(--spacing-sm)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--bg)',
-                  color: 'var(--fg)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
-                  fontFamily: 'var(--font-family)',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Feedback
-              </button>
-              <button
-                onClick={handleJoinMeetupClick}
-                style={{
-                  padding: 'var(--spacing-xs) var(--spacing-sm)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--bg)',
-                  color: 'var(--fg)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
-                  fontFamily: 'var(--font-family)',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Join Meetup
-              </button>
-            </div>
+            {/* Action Buttons Row - Render only if URL is provided */}
+            {(resourcesLinks.about?.url?.trim() || resourcesLinks.feedback?.url?.trim() || resourcesLinks.meetup?.url?.trim()) && (
+              <div style={{
+                display: 'flex',
+                gap: 'var(--spacing-sm)',
+                flexWrap: 'wrap'
+              }}>
+                {resourcesLinks.about?.url?.trim() && (
+                  <button
+                    onClick={handleAboutClick}
+                    style={{
+                      padding: 'var(--spacing-xs) var(--spacing-sm)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--bg)',
+                      color: 'var(--fg)',
+                      cursor: 'pointer',
+                      fontSize: 'var(--font-size-xs)',
+                      fontFamily: 'var(--font-family)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {resourcesLinks.about.label || 'About'}
+                  </button>
+                )}
+                {resourcesLinks.feedback?.url?.trim() && (
+                  <button
+                    onClick={handleFeedbackClick}
+                    style={{
+                      padding: 'var(--spacing-xs) var(--spacing-sm)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--bg)',
+                      color: 'var(--fg)',
+                      cursor: 'pointer',
+                      fontSize: 'var(--font-size-xs)',
+                      fontFamily: 'var(--font-family)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {resourcesLinks.feedback.label || 'Feedback'}
+                  </button>
+                )}
+                {resourcesLinks.meetup?.url?.trim() && (
+                  <button
+                    onClick={handleJoinMeetupClick}
+                    style={{
+                      padding: 'var(--spacing-xs) var(--spacing-sm)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--bg)',
+                      color: 'var(--fg)',
+                      cursor: 'pointer',
+                      fontSize: 'var(--font-size-xs)',
+                      fontFamily: 'var(--font-family)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {resourcesLinks.meetup.label || 'Join Meetup'}
+                  </button>
+                )}
+              </div>
+            )}
             
-            {/* 3-Column Credits Layout */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: 'var(--spacing-md)',
-              fontSize: 'var(--font-size-xs)'
-            }}>
-              {/* Column 1: Created by */}
+            {/* 3-Column Credits Layout - Render only if at least one credit array has entries */}
+            {(resourcesCredits.createdBy.length > 0 || resourcesCredits.apiTeam.length > 0 || resourcesCredits.llmInstruct.length > 0) && (
               <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-xs)'
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr',
+                gap: 'var(--spacing-md)',
+                fontSize: 'var(--font-size-xs)'
               }}>
-                <div style={{
-                  fontWeight: 'var(--font-weight-semibold)',
-                  color: 'var(--fg)',
-                  marginBottom: 'var(--spacing-xs)'
-                }}>
-                  Created by:
-                </div>
-                <div style={{
-                  color: 'var(--fg-secondary)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--spacing-xs)'
-                }}>
-                  <div>Biagio G</div>
-                  <div>TBD0</div>
-                </div>
+                {/* Column 1: Created by */}
+                {resourcesCredits.createdBy.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-xs)'
+                  }}>
+                    <div style={{
+                      fontWeight: 'var(--font-weight-semibold)',
+                      color: 'var(--fg)',
+                      marginBottom: 'var(--spacing-xs)'
+                    }}>
+                      Created by:
+                    </div>
+                    <div style={{
+                      color: 'var(--fg-secondary)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-xs)'
+                    }}>
+                      {resourcesCredits.createdBy.map((credit, idx) => (
+                        credit.url?.trim() ? (
+                          <a
+                            key={idx}
+                            href={credit.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              color: 'var(--fg-secondary)',
+                              textDecoration: 'none'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.textDecoration = 'underline'
+                              e.currentTarget.style.color = 'var(--accent)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.textDecoration = 'none'
+                              e.currentTarget.style.color = 'var(--fg-secondary)'
+                            }}
+                          >
+                            {credit.label}
+                          </a>
+                        ) : (
+                          <div key={idx}>{credit.label}</div>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Column 2: API Team */}
+                {resourcesCredits.apiTeam.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-xs)'
+                  }}>
+                    <div style={{
+                      fontWeight: 'var(--font-weight-semibold)',
+                      color: 'var(--fg)',
+                      marginBottom: 'var(--spacing-xs)'
+                    }}>
+                      API Team:
+                    </div>
+                    <div style={{
+                      color: 'var(--fg-secondary)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-xs)'
+                    }}>
+                      {resourcesCredits.apiTeam.map((credit, idx) => (
+                        credit.url?.trim() ? (
+                          <a
+                            key={idx}
+                            href={credit.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              color: 'var(--fg-secondary)',
+                              textDecoration: 'none'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.textDecoration = 'underline'
+                              e.currentTarget.style.color = 'var(--accent)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.textDecoration = 'none'
+                              e.currentTarget.style.color = 'var(--fg-secondary)'
+                            }}
+                          >
+                            {credit.label}
+                          </a>
+                        ) : (
+                          <div key={idx}>{credit.label}</div>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Column 3: LLM Instruct */}
+                {resourcesCredits.llmInstruct.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-xs)'
+                  }}>
+                    <div style={{
+                      fontWeight: 'var(--font-weight-semibold)',
+                      color: 'var(--fg)',
+                      marginBottom: 'var(--spacing-xs)'
+                    }}>
+                      LLM Instruct:
+                    </div>
+                    <div style={{
+                      color: 'var(--fg-secondary)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-xs)'
+                    }}>
+                      {resourcesCredits.llmInstruct.map((credit, idx) => (
+                        credit.url?.trim() ? (
+                          <a
+                            key={idx}
+                            href={credit.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              color: 'var(--fg-secondary)',
+                              textDecoration: 'none'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.textDecoration = 'underline'
+                              e.currentTarget.style.color = 'var(--accent)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.textDecoration = 'none'
+                              e.currentTarget.style.color = 'var(--fg-secondary)'
+                            }}
+                          >
+                            {credit.label}
+                          </a>
+                        ) : (
+                          <div key={idx}>{credit.label}</div>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              {/* Column 2: API Team */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-xs)'
-              }}>
-                <div style={{
-                  fontWeight: 'var(--font-weight-semibold)',
-                  color: 'var(--fg)',
-                  marginBottom: 'var(--spacing-xs)'
-                }}>
-                  API Team:
-                </div>
-                <div style={{
-                  color: 'var(--fg-secondary)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--spacing-xs)'
-                }}>
-                  <div>TBD1</div>
-                  <div>TBD2</div>
-                </div>
-              </div>
-              
-              {/* Column 3: LLM Instruct */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-xs)'
-              }}>
-                <div style={{
-                  fontWeight: 'var(--font-weight-semibold)',
-                  color: 'var(--fg)',
-                  marginBottom: 'var(--spacing-xs)'
-                }}>
-                  LLM Instruct:
-                </div>
-                <div style={{
-                  color: 'var(--fg-secondary)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--spacing-xs)'
-                }}>
-                  <div>TBD3</div>
-                  <div>TBD4</div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         ) : (
           <button

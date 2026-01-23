@@ -9,11 +9,13 @@
 
 export interface CustomConfig {
   ui?: {
+    defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
   }
   llm?: {
     endpoint?: string
     hideModelSettings?: boolean
+    uiMode?: 'full' | 'connection-only'
   }
   knowledgeBases?: Record<string, {
     policy: 'append' | 'override'
@@ -23,15 +25,29 @@ export interface CustomConfig {
     baseAllowedDomains?: string[]
     extraAllowedDomains?: string[]
   }
+  resources?: {
+    links?: {
+      about?: { label: string; url: string }
+      feedback?: { label: string; url: string }
+      meetup?: { label: string; url: string }
+    }
+    credits?: {
+      createdBy?: Array<{ label: string; url: string }>
+      apiTeam?: Array<{ label: string; url: string }>
+      llmInstruct?: Array<{ label: string; url: string }>
+    }
+  }
 }
 
 export const customConfig: CustomConfig | null = {
   "ui": {
+    "defaultMode": "advanced",
     "hideContentMvpMode": false
   },
   "llm": {
     "endpoint": "",
-    "hideModelSettings": false
+    "hideModelSettings": false,
+    "uiMode": "full"
   },
   "knowledgeBases": {},
   "networkAccess": {
@@ -42,5 +58,26 @@ export const customConfig: CustomConfig | null = {
       "http://localhost:8787",
       "https://overobedient-buddy-leathern.ngrok-free.dev"
     ]
+  },
+  "resources": {
+    "links": {
+      "about": {
+        "label": "About",
+        "url": ""
+      },
+      "feedback": {
+        "label": "Feedback",
+        "url": ""
+      },
+      "meetup": {
+        "label": "Join Meetup",
+        "url": ""
+      }
+    },
+    "credits": {
+      "createdBy": [],
+      "apiTeam": [],
+      "llmInstruct": []
+    }
   }
 }

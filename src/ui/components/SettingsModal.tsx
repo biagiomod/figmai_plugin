@@ -9,7 +9,7 @@ import type {
 } from '../../core/types'
 import type { Settings } from '../../core/settings'
 import type { Mode } from '../../core/types'
-import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings, getCustomConfig } from '../../custom/config'
+import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings, getCustomConfig, getLlmUiMode } from '../../custom/config'
 import { debugLog } from '../utils/debug'
 import { getInitialMode } from '../utils/mode'
 
@@ -24,6 +24,14 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   const hideContentMvpMode = shouldHideContentMvpMode()
   const customEndpoint = getCustomLlmEndpoint()
   const hideModelSettings = shouldHideLlmModelSettings()
+  const llmUiMode = getLlmUiMode()
+  
+  // Determine LLM settings visibility:
+  // - hideModelSettings=true takes precedence (existing behavior)
+  // - If endpoint set AND uiMode='connection-only': show only connection + test
+  // - Otherwise: show full settings
+  const showConnectionOnly = !!customEndpoint && llmUiMode === 'connection-only' && !hideModelSettings
+  const showFullLlmSettings = !hideModelSettings && !showConnectionOnly
   
   // Initialize mode from currentMode prop (reflects actual current mode)
   // If currentMode is not provided, use getInitialMode() for consistent fallback logic
@@ -532,8 +540,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         }} />
         
         {/* LLM Connection / Model Settings Section */}
-        {hideModelSettings ? (
-          /* LLM Connection Section (when custom endpoint provided) */
+        {(hideModelSettings || showConnectionOnly) ? (
+          /* LLM Connection Section (when custom endpoint provided OR uiMode='connection-only') */
           <div>
             <div style={{
               fontSize: 'var(--font-size-md)',
@@ -577,7 +585,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
               </Button>
             </div>
           </div>
-        ) : (
+        ) : showFullLlmSettings ? (
           /* LLM Model Settings Section (default) */
           <div>
             <div style={{
@@ -878,24 +886,24 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           </div>
         )}
         
-        {/* Test Connection Button */}
-        <div>
-          <Button
-            onClick={handleTest}
-            disabled={
-              (connectionType === 'proxy' && !proxyBaseUrl.trim()) ||
-              (connectionType === 'internal-api' && !internalApiUrl.trim()) ||
-              isTesting
-            }
-            style={{
-              width: '100%'
-            }}
-          >
-            {isTesting ? 'Testing...' : 'Test Connection'}
-          </Button>
-        </div>
+            {/* Test Connection Button */}
+            <div style={{ marginTop: 'var(--spacing-md)' }}>
+              <Button
+                onClick={handleTest}
+                disabled={
+                  (connectionType === 'proxy' && !proxyBaseUrl.trim()) ||
+                  (connectionType === 'internal-api' && !internalApiUrl.trim()) ||
+                  isTesting
+                }
+                style={{
+                  width: '100%'
+                }}
+              >
+                {isTesting ? 'Testing...' : 'Test Connection'}
+              </Button>
+            </div>
           </div>
-        )}
+        ) : null}
         
         {/* Test Status */}
         {testStatus && (

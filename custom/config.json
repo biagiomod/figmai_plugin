@@ -1,10 +1,12 @@
 {
   "ui": {
+    "defaultMode": "advanced",
     "hideContentMvpMode": false
   },
   "llm": {
     "endpoint": "",
-    "hideModelSettings": false
+    "hideModelSettings": false,
+    "uiMode": "full"
   },
   "knowledgeBases": {},
   "networkAccess": {
@@ -15,5 +17,26 @@
       "http://localhost:8787",
       "https://overobedient-buddy-leathern.ngrok-free.dev"
     ]
+  },
+  "resources": {
+    "links": {
+      "about": {
+        "label": "About",
+        "url": ""
+      },
+      "feedback": {
+        "label": "Feedback",
+        "url": ""
+      },
+      "meetup": {
+        "label": "Join Meetup",
+        "url": ""
+      }
+    },
+    "credits": {
+      "createdBy": [],
+      "apiTeam": [],
+      "llmInstruct": []
+    }
   }
 }
