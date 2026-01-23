@@ -4150,32 +4150,34 @@ ${htmlTable}
                       flexDirection: 'column',
                       gap: 'var(--spacing-xs)'
                     }}>
-                      {resourcesCredits.createdBy.map((credit, idx) => (
-                        credit.url?.trim() ? (
-                          <a
-                            key={idx}
-                            href={credit.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              color: 'var(--fg-secondary)',
-                              textDecoration: 'none'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.textDecoration = 'underline'
-                              e.currentTarget.style.color = 'var(--accent)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.textDecoration = 'none'
-                              e.currentTarget.style.color = 'var(--fg-secondary)'
-                            }}
-                          >
-                            {credit.label}
-                          </a>
-                        ) : (
-                          <div key={idx}>{credit.label}</div>
-                        )
-                      ))}
+                      {resourcesCredits.createdBy
+                        .filter((credit) => credit?.label) // Skip malformed entries
+                        .map((credit, idx) => (
+                          credit.url?.trim() ? (
+                            <a
+                              key={idx}
+                              href={credit.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: 'var(--fg-secondary)',
+                                textDecoration: 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.textDecoration = 'underline'
+                                e.currentTarget.style.color = 'var(--accent)'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.textDecoration = 'none'
+                                e.currentTarget.style.color = 'var(--fg-secondary)'
+                              }}
+                            >
+                              {credit.label}
+                            </a>
+                          ) : (
+                            <div key={idx}>{credit.label}</div>
+                          )
+                        ))}
                     </div>
                   </div>
                 )}
@@ -4200,32 +4202,34 @@ ${htmlTable}
                       flexDirection: 'column',
                       gap: 'var(--spacing-xs)'
                     }}>
-                      {resourcesCredits.apiTeam.map((credit, idx) => (
-                        credit.url?.trim() ? (
-                          <a
-                            key={idx}
-                            href={credit.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              color: 'var(--fg-secondary)',
-                              textDecoration: 'none'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.textDecoration = 'underline'
-                              e.currentTarget.style.color = 'var(--accent)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.textDecoration = 'none'
-                              e.currentTarget.style.color = 'var(--fg-secondary)'
-                            }}
-                          >
-                            {credit.label}
-                          </a>
-                        ) : (
-                          <div key={idx}>{credit.label}</div>
-                        )
-                      ))}
+                      {resourcesCredits.apiTeam
+                        .filter((credit) => credit?.label) // Skip malformed entries
+                        .map((credit, idx) => (
+                          credit.url?.trim() ? (
+                            <a
+                              key={idx}
+                              href={credit.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: 'var(--fg-secondary)',
+                                textDecoration: 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.textDecoration = 'underline'
+                                e.currentTarget.style.color = 'var(--accent)'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.textDecoration = 'none'
+                                e.currentTarget.style.color = 'var(--fg-secondary)'
+                              }}
+                            >
+                              {credit.label}
+                            </a>
+                          ) : (
+                            <div key={idx}>{credit.label}</div>
+                          )
+                        ))}
                     </div>
                   </div>
                 )}
@@ -4250,32 +4254,34 @@ ${htmlTable}
                       flexDirection: 'column',
                       gap: 'var(--spacing-xs)'
                     }}>
-                      {resourcesCredits.llmInstruct.map((credit, idx) => (
-                        credit.url?.trim() ? (
-                          <a
-                            key={idx}
-                            href={credit.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              color: 'var(--fg-secondary)',
-                              textDecoration: 'none'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.textDecoration = 'underline'
-                              e.currentTarget.style.color = 'var(--accent)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.textDecoration = 'none'
-                              e.currentTarget.style.color = 'var(--fg-secondary)'
-                            }}
-                          >
-                            {credit.label}
-                          </a>
-                        ) : (
-                          <div key={idx}>{credit.label}</div>
-                        )
-                      ))}
+                      {resourcesCredits.llmInstruct
+                        .filter((credit) => credit?.label) // Skip malformed entries
+                        .map((credit, idx) => (
+                          credit.url?.trim() ? (
+                            <a
+                              key={idx}
+                              href={credit.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: 'var(--fg-secondary)',
+                                textDecoration: 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.textDecoration = 'underline'
+                                e.currentTarget.style.color = 'var(--accent)'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.textDecoration = 'none'
+                                e.currentTarget.style.color = 'var(--fg-secondary)'
+                              }}
+                            >
+                              {credit.label}
+                            </a>
+                          ) : (
+                            <div key={idx}>{credit.label}</div>
+                          )
+                        ))}
                     </div>
                   </div>
                 )}
