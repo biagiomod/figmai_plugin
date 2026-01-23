@@ -1,6 +1,6 @@
 {
   "ui": {
-    "defaultMode": "advanced",
+    "defaultMode": "simple",
     "hideContentMvpMode": false
   },
   "llm": {
@@ -22,7 +22,7 @@
     "links": {
       "about": {
         "label": "About",
-        "url": ""
+        "url": "https://www.figma.com/community/plugin/1592005586211314002/FigmAI"
       },
       "feedback": {
         "label": "Feedback",
@@ -34,7 +34,12 @@
       }
     },
     "credits": {
-      "createdBy": [],
+      "createdBy": [
+        {
+          "label": "Biagio G",
+          "url": ""
+        }
+      ],
       "apiTeam": [],
       "llmInstruct": []
     }

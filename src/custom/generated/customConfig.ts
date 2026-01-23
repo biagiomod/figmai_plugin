@@ -41,7 +41,7 @@ export interface CustomConfig {
 
 export const customConfig: CustomConfig | null = {
   "ui": {
-    "defaultMode": "advanced",
+    "defaultMode": "simple",
     "hideContentMvpMode": false
   },
   "llm": {
@@ -63,7 +63,7 @@ export const customConfig: CustomConfig | null = {
     "links": {
       "about": {
         "label": "About",
-        "url": ""
+        "url": "https://www.figma.com/community/plugin/1592005586211314002/FigmAI"
       },
       "feedback": {
         "label": "Feedback",
@@ -75,7 +75,12 @@ export const customConfig: CustomConfig | null = {
       }
     },
     "credits": {
-      "createdBy": [],
+      "createdBy": [
+        {
+          "label": "Biagio G",
+          "url": ""
+        }
+      ],
       "apiTeam": [],
       "llmInstruct": []
     }

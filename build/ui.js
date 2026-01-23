@@ -124,7 +124,7 @@ Add your custom knowledge base content here. This content will be merged with th
    - \`"append"\`: Adds this content to the public knowledge base
    - \`"override"\`: Replaces the public knowledge base entirely
 3. Rebuild the plugin: \`npm run build\`
-`}});var xe,Bt=T(()=>{"use strict";xe={ui:{defaultMode:"advanced",hideContentMvpMode:!1},llm:{endpoint:"",hideModelSettings:!1,uiMode:"full"},knowledgeBases:{},networkAccess:{baseAllowedDomains:["https://api.openai.com"],extraAllowedDomains:["http://localhost:8787","https://overobedient-buddy-leathern.ngrok-free.dev"]},resources:{links:{about:{label:"About",url:""},feedback:{label:"Feedback",url:""},meetup:{label:"Join Meetup",url:""}},credits:{createdBy:[],apiTeam:[],llmInstruct:[]}}}});function Se(e,o){var i,s;let r=(s=(i=xe)==null?void 0:i.knowledgeBases)==null?void 0:s[e];if(!r)return o;let n=_n[e];return n?(r.policy||"append")==="override"?n:`${o}
+`}});var xe,Bt=T(()=>{"use strict";xe={ui:{defaultMode:"simple",hideContentMvpMode:!1},llm:{endpoint:"",hideModelSettings:!1,uiMode:"full"},knowledgeBases:{},networkAccess:{baseAllowedDomains:["https://api.openai.com"],extraAllowedDomains:["http://localhost:8787","https://overobedient-buddy-leathern.ngrok-free.dev"]},resources:{links:{about:{label:"About",url:"https://www.figma.com/community/plugin/1592005586211314002/FigmAI"},feedback:{label:"Feedback",url:""},meetup:{label:"Join Meetup",url:""}},credits:{createdBy:[{label:"Biagio G",url:""}],apiTeam:[],llmInstruct:[]}}}});function Se(e,o){var i,s;let r=(s=(i=xe)==null?void 0:i.knowledgeBases)==null?void 0:s[e];if(!r)return o;let n=_n[e];return n?(r.policy||"append")==="override"?n:`${o}
 
 ---
 
