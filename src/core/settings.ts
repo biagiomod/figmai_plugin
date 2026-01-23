@@ -4,6 +4,11 @@
  */
 
 export interface Settings {
+  /**
+   * @deprecated Mode is NOT stored in settings - it lives in localStorage ('figmai-mode')
+   * This field exists for backward compatibility but should NOT be read or written by UI code.
+   * Mode source of truth: localStorage + explicit user action only.
+   */
   mode?: 'simple' | 'advanced' | 'content-mvp'
   connectionType?: 'proxy' | 'internal-api'
   proxyBaseUrl: string

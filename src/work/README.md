@@ -1,10 +1,10 @@
-# Work-Only Overrides
+# Custom-Only Overrides
 
-This folder is for Work-only override files that are **NOT committed to the Public repo**.
+This folder is for custom-only override files that are **NOT committed to the Public repo**.
 
 ## Purpose
 
-The Work Plugin can drop in override files that provide proprietary implementations for Work-only features (e.g., Confluence integration, design system detection, DS content handling).
+The Custom Plugin can drop in override files that provide proprietary implementations for custom-only features (e.g., Confluence integration, design system detection, DS content handling).
 
 ## Files
 
@@ -18,7 +18,7 @@ import type { WorkAdapter } from '../core/work/adapter'
 
 const workAdapter: WorkAdapter = {
   createConfluence: async (args) => {
-    // Work-only implementation
+    // Custom-only implementation
   },
   // ... other implementations
 }
@@ -33,7 +33,7 @@ import type { WorkAdapter } from '../core/work/adapter'
 export function createWorkAdapter(): WorkAdapter {
   return {
     createConfluence: async (args) => {
-      // Work-only implementation
+      // Custom-only implementation
     },
     // ... other implementations
   }
@@ -52,7 +52,7 @@ export const confluenceEndpoint: string = 'https://your-domain.atlassian.net/wik
 **Important:**
 - This file is git-ignored and must NOT be committed
 - Replace placeholder values with actual endpoints
-- Only import this file from `workAdapter.override.ts` (Work-only code)
+- Only import this file from `workAdapter.override.ts` (custom-only code)
 
 ### `dsRules.override.ts` (DO NOT COMMIT)
 
@@ -82,7 +82,7 @@ export const DS_RULES: Record<string, {
 
 ## Enabling Confluence Integration
 
-To enable the Work-only Confluence integration:
+To enable the custom-only Confluence integration:
 
 1. **Update `credentials.override.ts`:**
    - Replace the placeholder `confluenceEndpoint` with your actual Confluence API endpoint
@@ -221,7 +221,7 @@ See `docs/work-plugin/extension-points.md` for detailed documentation.
 - ✅ Proprietary API endpoints (Confluence, internal services)
 - ✅ Enterprise authentication logic
 - ✅ Internal design system detection
-- ✅ Work-specific ignore rules
+- ✅ Custom-specific ignore rules
 - ✅ Content Table post-processing (DS content handling rules)
 - ✅ Design System content handling rules (dsRules.override.ts)
 - ✅ Credentials and configuration (use secure storage)

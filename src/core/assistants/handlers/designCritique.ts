@@ -10,13 +10,15 @@ import { parseDeceptiveReportJson } from '../../output/normalize/deceptiveReport
 import { createArtifact } from '../../figma/artifacts'
 import { removeExistingArtifacts } from '../../figma/artifacts/placeArtifact'
 import { placeCritiqueOnCanvas } from '../../figma/placeCritiqueFallback'
-import { getTopLevelContainerNode } from '../../stage/anchor'
+import { getTopLevelContainerNode, getAnchorBounds } from '../../stage/anchor'
+import { getPlacementTarget, computeRootPlacement, placeNodeOnPage } from '../../figma/placement'
 import { debug } from '../../debug/logger'
+import { demoScreenBuilders } from '../../../assistants/dca/demoAssets/screens'
 
 export class DesignCritiqueHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
     return assistantId === 'design_critique' && 
-           (actionId === 'give-critique' || actionId === 'deceptive-review')
+           (actionId === 'give-critique' || actionId === 'deceptive-review' || actionId === 'deceptive-demo-screens')
   }
 
   prepareMessages(messages: NormalizedMessage[]): NormalizedMessage[] {
@@ -66,6 +68,66 @@ export class DesignCritiqueHandler implements AssistantHandler {
           content: 'IMPORTANT: Output must be a single JSON object with keys: score (0-100), summary (string), wins (string[]), fixes (string[]), checklist (string[] optional), notes (string[] optional). Do not include any other keys. Return JSON only, no other text.'
         }
       ]
+    }
+  }
+
+  // --- Deceptive Demo Screens (non-LLM) ---
+
+  /**
+   * Handle Deceptive Demo Screens quick action (no LLM)
+   */
+  private async handleDeceptiveDemoScreens(
+    context: HandlerContext,
+    dcDebug: ReturnType<typeof debug.scope>,
+    runId: string
+  ): Promise<HandlerResult> {
+    try {
+      let selectedNode: SceneNode | undefined
+      if (context.selection.hasSelection && context.selectionOrder.length > 0) {
+        const node = await figma.getNodeByIdAsync(context.selectionOrder[0])
+        if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
+          selectedNode = node as SceneNode
+        }
+      }
+
+      const placementTarget = selectedNode ? getPlacementTarget(selectedNode) : null
+      const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
+
+      const demoRoot = figma.createFrame()
+      demoRoot.name = 'Deceptive Demo Screens'
+      demoRoot.layoutMode = 'VERTICAL'
+      demoRoot.primaryAxisSizingMode = 'AUTO'
+      demoRoot.counterAxisSizingMode = 'FIXED'
+      demoRoot.paddingTop = 40
+      demoRoot.paddingRight = 40
+      demoRoot.paddingBottom = 40
+      demoRoot.paddingLeft = 40
+      demoRoot.itemSpacing = 40
+      demoRoot.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+      demoRoot.resizeWithoutConstraints(440, 10) // width fixed; height via auto-layout
+
+      // Build all demo screens using the reusable builders
+      for (const builder of demoScreenBuilders) {
+        const screen = await builder()
+        demoRoot.appendChild(screen)
+      }
+
+      const placement = computeRootPlacement(
+        targetBounds,
+        { width: demoRoot.width, height: demoRoot.height },
+        { side: 'right', spacing: 40 }
+      )
+
+      placeNodeOnPage(demoRoot, { x: placement.x, y: placement.y })
+
+      figma.notify('Deceptive demo screens placed')
+      context.replaceStatusMessage('Deceptive demo screens placed on stage')
+      return { handled: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      dcDebug.error('handleDeceptiveDemoScreens ERROR', { runId, error: errorMessage })
+      context.replaceStatusMessage(`Error: ${errorMessage}`, true)
+      return { handled: true, message: `Error: ${errorMessage}` }
     }
   }
 
@@ -273,12 +335,19 @@ Evaluation Principles:
 Return ONLY the JSON object, no markdown fences, no other text.`
   }
 
+
+
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
     const { response, selectionOrder, selection, provider, sendAssistantMessage, replaceStatusMessage, requestId, actionId } = context
     const runId = `dc_${Date.now()}`
     const dcDebug = debug.scope('assistant:design_critique')
     
     dcDebug.log('START', { runId, assistantId: context.assistantId, quickActionId: context.actionId })
+    
+    // Handle deceptive demo screens (local, no provider)
+    if (actionId === 'deceptive-demo-screens') {
+      return await this.handleDeceptiveDemoScreens(context, dcDebug, runId)
+    }
     
     // Handle deceptive-review action separately
     if (actionId === 'deceptive-review') {

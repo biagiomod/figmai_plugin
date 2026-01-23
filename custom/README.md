@@ -58,6 +58,43 @@ See `config.example.json` for the full schema. Key fields:
   - `policy`: `"append"` (adds to public) or `"override"` (replaces public)
   - `file`: Relative path from `/custom/` (e.g., `"knowledge/general.md"`)
 
+### Network Access (Figma allowedDomains)
+
+Network allowlists are also configured via `custom/config.json`:
+
+```jsonc
+{
+  "networkAccess": {
+    "baseAllowedDomains": [
+      "https://api.openai.com"
+    ],
+    "extraAllowedDomains": [
+      "http://localhost:8787",
+      "https://overobedient-buddy-leathern.ngrok-free.dev"
+    ]
+  }
+}
+```
+
+- `baseAllowedDomains` (string[]): Baseline domains that are acceptable in all builds (public-safe). In the public repo, this defaults to `["https://api.openai.com"]` so the plugin works out of the box.
+- `extraAllowedDomains` (string[]): Additional domains used only in corporate or development builds (for example, ngrok tunnels or localhost proxies). In the public repo, this defaults to `["http://localhost:8787", "https://overobedient-buddy-leathern.ngrok-free.dev"]` for local and tunnel-based development.
+
+At build time, the script `scripts/update-manifest-network-access.ts` merges these arrays and updates `manifest.json.networkAccess.allowedDomains`. Figma then enforces this allowlist at runtime.
+
+#### Build vs Watch
+- `npm run build`: Generates the overlay, builds the plugin, then patches `manifest.json` with the merged, validated domains.
+- `npm run watch`: Runs the manifest patcher in `--watch` mode (alongside `build-figma-plugin --watch`) so if `manifest.json` is regenerated during watch, the allowlist is re-applied automatically.
+
+#### Which manifest is patched?
+- The patcher targets the root `manifest.json` (and `build/manifest.json` if it exists). Figma loads `manifest.json` from the plugin root; keeping it patched ensures the allowlist matches `custom/config.json`.
+
+**Important:**
+- Each entry must be a pure origin (`scheme://host[:port]`) with no path, query, or fragment, e.g.:
+  - `"https://api.example.com"`
+  - `"http://localhost:8787"`
+- Do not include secrets here (no API keys or tokens) – only domains/endpoints.
+- Corporate repos are expected to **replace** the public defaults in `networkAccess` with their own internal endpoints and dev domains as needed.
+
 ## Knowledge Base Policies
 
 ### Append Policy

@@ -22,8 +22,8 @@
     "generate-custom-overlay": "tsx scripts/generate-custom-overlay.ts",
     "prebuild": "npm run generate-presets && npm run generate-custom-overlay",
     "build": "build-figma-plugin --typecheck --minify",
-    "postbuild": "node scripts/check-sync-api.js",
-    "watch": "npm run generate-presets && npm run generate-custom-overlay && build-figma-plugin --typecheck --watch"
+    "postbuild": "node scripts/check-sync-api.js && tsx scripts/update-manifest-network-access.ts",
+    "watch": "npm run generate-presets && npm run generate-custom-overlay && tsx scripts/update-manifest-network-access.ts --watch && build-figma-plugin --typecheck --watch"
   },
   "figma-plugin": {
     "editorType": [
@@ -33,14 +33,6 @@
     "name": "FigmAI",
     "main": "src/main.ts",
     "ui": "src/ui.tsx",
-    "documentAccess": "dynamic-page",
-    "networkAccess": {
-      "allowedDomains": [
-        "https://api.openai.com",
-        "https://overobedient-buddy-leathern.ngrok-free.dev",
-        "http://localhost:8787"
-      ],
-      "reasoning": "This plugin makes outbound requests to an LLM provider (OpenAI) and to a user-operated proxy/tunnel endpoint (ngrok) used to route requests in environments where direct access may be restricted. Localhost access is required for development and for enterprise workflows that run a local proxy service on the user's machine."
-    }
+    "documentAccess": "dynamic-page"
   }
 }

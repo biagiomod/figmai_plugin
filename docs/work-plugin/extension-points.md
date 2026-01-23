@@ -1,16 +1,16 @@
 # Extension Points
 
-**For:** Developers implementing Work Plugin features  
+**For:** Developers implementing Custom Plugin features  
 **Purpose:** Complete reference for all extension points and implementation guides  
-**When to read:** When implementing Work-only features or extending plugin functionality
+**When to read:** When implementing custom-only features or extending plugin functionality
 
 ---
 
-This document describes all extension points where the Work Plugin can inject proprietary behavior into the Public Plugin.
+This document describes all extension points where the Custom Plugin can inject proprietary behavior into the Public Plugin.
 
 ## Overview
 
-The Public Plugin exposes extension points via the Work Adapter (`core/work/adapter.ts`). The Work Plugin implements these extension points in `src/work/workAdapter.override.ts` to add Work-only features without modifying Public Plugin code.
+The Public Plugin exposes extension points via the Custom Adapter (`core/work/adapter.ts`). The Custom Plugin implements these extension points in `src/work/workAdapter.override.ts` to add custom-only features without modifying Public Plugin code.
 
 The adapter is loaded via `loadWorkAdapter()` which attempts to import the override file, falling back to a no-op adapter if not present.
 
@@ -44,7 +44,7 @@ interface ContentTableIgnoreRules {
 
 **Implementation Example:**
 ```typescript
-// src/work/workAdapter.override.ts (Work Plugin)
+// src/work/workAdapter.override.ts (Custom Plugin)
 import type { WorkAdapter, ContentTableIgnoreRules } from '../core/work/adapter'
 
 const workAdapter: WorkAdapter = {
@@ -80,13 +80,11 @@ export default workAdapter
 ```
 
 **How It Works:**
-1. Handler loads Work adapter via `loadWorkAdapter()`
-2. Calls `getContentTableIgnoreRules()` if available
-3. Passes rules to `scanContentTable()` which applies them during node collection
-4. Invalid regex patterns are safely ignored (logged as warnings, don't crash)
-5. Rules are applied with OR logic (if any rule matches, node is ignored)
-
-**Current Status:** ✅ **Implemented** - Extension point is called in Content Table handler and applied during scanning.
+- Handler loads custom adapter via `loadWorkAdapter()`
+- Calls `getContentTableIgnoreRules()` if available
+- Passes rules to `scanContentTable()` which applies them during node collection
+- Invalid regex patterns are safely ignored (logged as warnings)
+- Rules are applied with OR logic (if any rule matches, node is ignored)
 
 **Notes:**
 - Regex patterns are compiled safely with try/catch
@@ -125,20 +123,18 @@ interface DesignSystemDetectionResult {
 
 **Implementation Example:**
 ```typescript
-// src/work/workAdapter.override.ts (Work Plugin)
+// src/work/workAdapter.override.ts (Custom Plugin)
 import type { WorkAdapter, DesignSystemDetectionResult } from '../core/work/adapter'
 
 const workAdapter: WorkAdapter = {
   detectDesignSystemComponent(node: SceneNode): DesignSystemDetectionResult | null {
-    // Example: Check if node is an instance with a known DS component key
+    // Check if node is an instance with a known DS component key
     if (node.type === 'INSTANCE') {
       const instance = node as InstanceNode
       const mainComponent = instance.mainComponent
       if (mainComponent) {
         const componentKey = mainComponent.key
-        
-        // Example: Check against known DS component key patterns (Work-specific logic)
-        // This is where proprietary detection rules would go
+        // Check against known DS component key patterns (custom-specific logic)
         if (componentKey && componentKey.startsWith('I:abc123')) {
           return {
             isDesignSystem: true,
@@ -150,8 +146,7 @@ const workAdapter: WorkAdapter = {
         }
       }
     }
-    
-    // Example: Check node name for DS indicators
+    // Check node name for DS indicators
     if (node.name.startsWith('DS/') || node.name.startsWith('DesignSystem/')) {
       return {
         isDesignSystem: true,
@@ -160,30 +155,17 @@ const workAdapter: WorkAdapter = {
         reason: 'Node name indicates design system component'
       }
     }
-    
-    // Not a design system component
     return null
   }
 }
-
-export default workAdapter
 ```
 
 **How It Works:**
-1. Handler loads Work adapter via `loadWorkAdapter()`
-2. Gets `detectDesignSystemComponent` callback if available
-3. Passes callback to `scanContentTable()` which calls it during node traversal
-4. Results are cached by node.id to avoid redundant calls
-5. Detection results are stored in two places:
-   - Per-item: `item.designSystem` field (only if `isDesignSystem: true`)
-   - Table-level: `table.designSystemByNodeId` map (all detected nodes)
-
-**Where to Find Detection Results:**
-- **Per-item**: Each `ContentItemV1` in `table.items[]` has an optional `designSystem?: DesignSystemDetectionResult` field
-- **Table-level map**: `table.designSystemByNodeId?: Record<string, DesignSystemDetectionResult>` contains all detected nodes keyed by node ID
-- Both fields are only present if detection found DS components (Work Plugin only)
-
-**Current Status:** ✅ **Implemented** - Extension point is called in Content Table handler and applied during scanning.
+- Handler loads custom adapter via `loadWorkAdapter()`
+- Gets `detectDesignSystemComponent` callback if available
+- Passes callback to `scanContentTable()` which calls it during node traversal
+- Results are cached by node.id to avoid redundant calls
+- Detection results stored in `item.designSystem` (per-item) and `table.designSystemByNodeId` (table-level map)
 
 **Notes:**
 - Detector is only called for relevant node types (FRAME, INSTANCE, COMPONENT, COMPONENT_SET, TEXT)
@@ -199,7 +181,7 @@ export default workAdapter
 
 **Location:** `core/assistants/handlers/contentTable.ts`
 
-**Purpose:** Modify the scanned Content Table after scanning but before it's used/exported. This allows Work to apply proprietary rules for handling content from design system components (redaction, normalization, replacement, grouping, etc.) without embedding proprietary logic in the Public plugin.
+**Purpose:** Modify the scanned Content Table after scanning but before it's used/exported. This allows custom implementations to apply proprietary rules for handling content from design system components (redaction, normalization, replacement, grouping, etc.) without embedding proprietary logic in the Public plugin.
 
 **Extension Point:**
 ```typescript
@@ -237,88 +219,46 @@ The `selectionContext` is automatically extracted from the table:
 
 **Implementation Example:**
 ```typescript
-// src/work/workAdapter.override.ts (Work Plugin)
+// src/work/workAdapter.override.ts (Custom Plugin)
 import type { WorkAdapter, UniversalContentTableV1 } from '../core/work/adapter'
 
 const workAdapter: WorkAdapter = {
   async postProcessContentTable(args: {
     table: UniversalContentTableV1
-    selectionContext?: {
-      pageId?: string
-      pageName?: string
-      rootNodeId?: string
-    }
+    selectionContext?: { pageId?: string; pageName?: string; rootNodeId?: string }
   }): Promise<UniversalContentTableV1> {
-    const { table, selectionContext } = args
+    const { table } = args
+    // Deep clone before modifying
+    const processed = JSON.parse(JSON.stringify(table)) as UniversalContentTableV1
     
     // Example: Redact sensitive content from DS components
-    const processedItems = table.items.map(item => {
-      // If item is from a design system component, redact sensitive content
+    processed.items = processed.items.map(item => {
       if (item.designSystem?.isDesignSystem) {
-        // Example: Redact email addresses, phone numbers, etc.
-        const redactedValue = item.content.value
-          .replace(/[\w.-]+@[\w.-]+\.\w+/g, '[REDACTED]')
-          .replace(/\d{3}-\d{3}-\d{4}/g, '[REDACTED]')
-        
         return {
           ...item,
           content: {
             ...item.content,
-            value: redactedValue
+            value: item.content.value
+              .replace(/[\w.-]+@[\w.-]+\.\w+/g, '[REDACTED]')
+              .replace(/\d{3}-\d{3}-\d{4}/g, '[REDACTED]')
           }
         }
       }
-      
       return item
     })
     
-    // Example: Normalize content values
-    const normalizedItems = processedItems.map(item => {
-      // Example: Normalize currency formatting
-      const normalizedValue = item.content.value
-        .replace(/\$(\d+)/g, '$$$1.00') // $100 -> $100.00
-      
-      return {
-        ...item,
-        content: {
-          ...item.content,
-          value: normalizedValue
-        }
-      }
-    })
-    
-    // Example: Filter out items based on DS rules
-    const filteredItems = normalizedItems.filter(item => {
-      // Example: Keep only items from specific DS components
-      if (item.designSystem?.isDesignSystem) {
-        return item.designSystem.systemName === 'Internal Design System v2'
-      }
-      return true // Keep non-DS items
-    })
-    
-    // Return modified table
-    return {
-      ...table,
-      items: filteredItems
-    }
+    return processed
   }
 }
-
-export default workAdapter
 ```
 
 **Error Handling:**
-- If the hook throws an error, it's caught and logged
-- The original (unmodified) table is used instead
+- If hook throws, error is caught and logged; original table is used
 - Content Table generation flow is never broken by post-processing errors
-- Error is logged to console: `[ContentTableHandler] Error in postProcessContentTable hook: <error>`
 
 **Return Value:**
-- Must return a `UniversalContentTableV1` (can be the original table or a modified copy)
-- Can be synchronous or async (Promise)
-- If hook is `undefined` or returns the original table unchanged, no processing occurs
-
-**Current Status:** ✅ **Implemented** - Extension point is called in Content Table handler after scanning completes.
+- Must return `UniversalContentTableV1` (original or modified copy)
+- Can be synchronous or async
 
 **Notes:**
 - Hook is optional - if not implemented, table is used as-is (Public Plugin behavior)
@@ -334,7 +274,7 @@ export default workAdapter
 
 **Location:** `core/contentTable/validate.ts` and `core/assistants/handlers/contentTable.ts`
 
-**Purpose:** Define and enforce schema invariants for `UniversalContentTableV1` to ensure stable Public↔Work contract.
+**Purpose:** Define and enforce schema invariants for `UniversalContentTableV1` to ensure stable Public↔Custom contract.
 
 #### Schema Invariants
 
@@ -373,7 +313,7 @@ These fields are guaranteed to exist and maintain their shape without a version 
 - `items` array structure (always an array)
 - Required nested object shapes (component, field, content, meta)
 
-#### Work Extension Permissions
+#### Custom Extension Permissions
 
 **What `postProcessContentTable` CAN modify:**
 - ✅ `items[]` array (add, remove, reorder, modify items)
@@ -422,55 +362,10 @@ These fields are guaranteed to exist and maintain their shape without a version 
 - Normalization always succeeds (fills defaults if needed)
 - If validation fails, table is still used (with warnings logged)
 
-#### Example: Safe postProcessContentTable Implementation
-
-```typescript
-// src/work/workAdapter.override.ts (Work Plugin)
-import type { WorkAdapter, UniversalContentTableV1 } from '../core/work/adapter'
-
-const workAdapter: WorkAdapter = {
-  async postProcessContentTable(args: {
-    table: UniversalContentTableV1
-    selectionContext?: { pageId?: string; pageName?: string; rootNodeId?: string }
-  }): Promise<UniversalContentTableV1> {
-    const { table } = args
-    
-    // ✅ GOOD: Deep clone before modifying
-    const processed = JSON.parse(JSON.stringify(table)) as UniversalContentTableV1
-    
-    // ✅ GOOD: Modify content values (allowed)
-    processed.items = processed.items.map(item => ({
-      ...item,
-      content: {
-        ...item.content,
-        value: item.designSystem?.isDesignSystem 
-          ? '[REDACTED]' 
-          : item.content.value
-      }
-    }))
-    
-    // ✅ GOOD: Add metadata (allowed)
-    processed.items = processed.items.map(item => ({
-      ...item,
-      notes: item.designSystem?.isDesignSystem 
-        ? `${item.notes || ''} [FPO-DS Component]`.trim()
-        : item.notes
-    }))
-    
-    // ❌ BAD: Don't modify immutable fields
-    // processed.type = 'something-else' // WRONG
-    // processed.version = 2 // WRONG (bump version in schema, not here)
-    
-    // ❌ BAD: Don't remove required fields
-    // delete processed.source // WRONG
-    // delete processed.items[0].content // WRONG
-    
-    return processed
-  }
-}
-```
-
-**Current Status:** ✅ **Implemented** - Validation and normalization utilities exist, wired into Content Table handler and Confluence export pipeline.
+**Example: Safe Implementation**
+- Always deep clone before modifying
+- Modify content values, metadata (allowed)
+- Never modify `type`, `version`, or remove required fields
 
 ---
 
@@ -609,9 +504,7 @@ Design System Reference Packs would be JSON document packs that describe design 
 4. If pack has mapping for block intent, use component instance
 5. Otherwise, fall back to primitive rendering (current behavior)
 
-**Current Status:** ⚠️ **Not Implemented** - This is a future enhancement placeholder. Current implementation uses primitive rendering only.
-
-**Current Status:** ✅ **Implemented** - Design Workshop assistant is fully functional with JSON enforcement, validation, normalization, repair flow, and deterministic rendering.
+**Note:** Design System Reference Packs are a future enhancement placeholder. Current implementation uses primitive rendering only.
 
 ---
 
@@ -661,9 +554,7 @@ workAdapter.designSystem = {
 export default workAdapter
 ```
 
-**Current Status:** ⚠️ **Not yet implemented** - Extension point exists in adapter interface, but no call sites yet.
-
-**Recommendation:** Add call sites where design system detection is needed (e.g., Content Table scanner, selection context).
+**Note:** Extension point exists in adapter interface, but no call sites yet. Add call sites where design system detection is needed.
 
 ---
 
@@ -709,13 +600,11 @@ This ensures Work can apply DS content handling rules once, and everything downs
 - Work implementation includes a safety check to re-encode if content appears unencoded (double-guard)
 
 **Public Plugin Behavior:**
-- If `workAdapter.createConfluence` is undefined (no Work override), Public plugin simulates success after 600-900ms delay
-- Modal still shows full 3-stage flow (Input → Processing → Success)
-- Success message appears, but no "Go to Confluence" button (no URL returned)
-- Chat bubble "Table sent to Confluence" appears on successful close
+- If `workAdapter.createConfluence` is undefined (no custom override), Public plugin simulates success after 600-900ms delay
+- Modal shows full 3-stage flow; success message appears without "Go to Confluence" button
 
 **Payload Shape:**
-The Work implementation sends exactly this payload structure:
+The custom implementation sends exactly this payload structure:
 ```json
 {
   "type": "createConfluence",
@@ -741,7 +630,7 @@ The Work implementation sends exactly this payload structure:
 
 **Implementation Example:**
 ```typescript
-// src/work/workAdapter.override.ts (Work Plugin)
+// src/work/workAdapter.override.ts (Custom Plugin)
 import type { WorkAdapter } from '../core/work/adapter'
 import { confluenceEndpoint } from './credentials.override'
 import { encodeXhtmlDocument } from '../core/encoding/xhtml'
@@ -798,7 +687,6 @@ export default workAdapter
 - Error: Modal shows error state with error message, user can go back or close
 - Fallback (no Work adapter): Public plugin simulates success, chat bubble still appears
 
-**Current Status:** ✅ **Implemented** - Extension point exists, modal UI implemented, Public plugin works with or without Work override.
 
 ---
 
@@ -806,7 +694,7 @@ export default workAdapter
 
 **Location:** Where enterprise auth is needed (e.g., Confluence integration, internal APIs)
 
-**Purpose:** Get enterprise authentication tokens for Work-only API calls.
+**Purpose:** Get enterprise authentication tokens for custom-only API calls.
 
 **Extension Point:**
 ```typescript
@@ -814,116 +702,49 @@ workAdapter.auth?.getEnterpriseToken(): Promise<string>
 ```
 
 **When Called:**
-- Before making Work-only API calls (e.g., Confluence)
-- Called from Work adapter implementations
+- Before making custom-only API calls (e.g., Confluence)
+- Called from custom adapter implementations
 
 **Implementation Example:**
 ```typescript
-// src/work/workAdapter.override.ts (Work Plugin)
+// src/work/workAdapter.override.ts (Custom Plugin)
 import type { WorkAdapter } from '../core/work/adapter'
 
 const workAdapter: WorkAdapter = {
   auth: {
-  async getEnterpriseToken(): Promise<string> {
-    // Get token from secure storage
-    const storedToken = await getTokenFromSecureStorage()
-    if (storedToken && !isTokenExpired(storedToken)) {
-      return storedToken
+    async getEnterpriseToken(): Promise<string> {
+      // Get token from secure storage or refresh via SSO
+      const storedToken = await getTokenFromSecureStorage()
+      if (storedToken && !isTokenExpired(storedToken)) {
+        return storedToken
+      }
+      const newToken = await refreshTokenViaSSO()
+      await saveTokenToSecureStorage(newToken)
+      return newToken
     }
-    
-    // Refresh token via SSO
-    const newToken = await refreshTokenViaSSO()
-    await saveTokenToSecureStorage(newToken)
-    return newToken
   }
 }
-
-export default workAdapter
 ```
 
-**Current Status:** ⚠️ **Not yet implemented** - Extension point exists in adapter interface, but no call sites yet.
-
-**Recommendation:** Use in Confluence integration and other Work-only API calls.
+**Note:** Extension point exists in adapter interface, but no call sites yet. Use in Confluence integration and other custom-only API calls.
 
 ---
 
 ## How Public Exposes Hooks
 
 The Public Plugin exposes hooks by:
+1. **Defining interface** in `core/work/adapter.ts` (interface only, no implementation)
+2. **Loading adapter** via `loadWorkAdapter()` (uses override if present, otherwise no-op)
+3. **Calling hooks with optional chaining** (`workAdapter.hook?.method()`)
+4. **Providing fallbacks** when hooks are undefined
 
-1. **Defining interface** in `core/work/adapter.ts` (interface only, no implementation):
-   ```typescript
-   export interface WorkAdapter {
-     designSystem?: {
-       shouldIgnore(node: SceneNode): boolean
-       detectSystem(node: SceneNode): Promise<DesignSystemInfo | null>
-     }
-     confluenceApi?: {
-       sendTable(table: UniversalContentTableV1, format: string): Promise<void>
-     }
-     auth?: {
-       getEnterpriseToken(): Promise<string>
-     }
-   }
-   ```
+## How Custom Implements Hooks Safely
 
-2. **Loading adapter** via `loadWorkAdapter()`:
-   ```typescript
-   import { loadWorkAdapter } from './core/work/loadAdapter'
-   const workAdapter = await loadWorkAdapter()
-   ```
-   This will use the override file if present, otherwise a no-op adapter.
-
-3. **Calling hooks with optional chaining**:
-   ```typescript
-   if (workAdapter.designSystem?.shouldIgnore(node)) {
-     return // Skip this node
-   }
-   ```
-
-4. **Providing fallbacks** when hooks are undefined:
-   ```typescript
-   if (workAdapter.confluenceApi) {
-     await workAdapter.confluenceApi.sendTable(table, format)
-   } else {
-     // Fallback: copy to clipboard
-     await handleCopyTable(format, 'html')
-   }
-   ```
-
-## How Work Implements Hooks Safely
-
-The Work Plugin implements hooks by:
-
+The Custom Plugin implements hooks by:
 1. **Creating override file**: `src/work/workAdapter.override.ts`
-
-2. **Exporting WorkAdapter**:
-   ```typescript
-   import type { WorkAdapter } from '../core/work/adapter'
-   
-   const workAdapter: WorkAdapter = {
-     designSystem: {
-       shouldIgnore(node: SceneNode): boolean {
-         // Implementation
-       },
-       async detectSystem(node: SceneNode): Promise<DesignSystemInfo | null> {
-         // Implementation
-       }
-     }
-   }
-   
-   export default workAdapter
-   ```
-
-3. **Following interface contracts**:
-   - Return types must match interface
-   - Parameters must match interface
-   - Errors should be thrown (not returned)
-
-4. **Testing implementations**:
-   - Test each hook independently
-   - Test error cases
-   - Test with real Figma nodes
+2. **Exporting WorkAdapter** matching the interface contract
+3. **Following interface contracts**: Return types and parameters must match
+4. **Testing implementations**: Test each hook independently with real Figma nodes
 
 ## Adding New Extension Points
 
@@ -1003,32 +824,19 @@ The Public Plugin provides utility functions that Work can use for common tasks 
 
 **Usage Example:**
 ```typescript
-import { encodeXhtmlDocument, encodeXhtmlCellValue, encodeFigmaUrl } from '../core/encoding/xhtml'
+import { encodeXhtmlDocument } from '../core/encoding/xhtml'
 
-// In Work Plugin's Confluence export implementation
+// In custom plugin's Confluence export implementation
 const htmlTable = generateTableHtml(contentTable)
 const xhtmlTable = encodeXhtmlDocument(htmlTable)
-
-const cellValue = 'Price: $100 (USD) & café'
-const encodedCell = encodeXhtmlCellValue(cellValue) // 'Price: $100 USD &amp; caf '
-
-const url = 'https://www.figma.com/file/abc?node-id=123'
-const encodedUrl = encodeFigmaUrl(url) // Safe for href attribute
 ```
 
-**Testing:**
-Run the test harness to verify encoding functions:
-```bash
-tsx scripts/test-xhtml-encoding.ts
-```
-
-**Current Status:** ✅ **Implemented** - Utilities are available for use in Work Plugin's Confluence integration.
 
 ---
 
 ## Implementation Guide
 
-This section provides detailed implementation examples for Work-specific extensions that use the registry pattern (Component Scanner, Knowledge Base Loader, Compliance Hook, Custom Provider). These are separate from the Work Adapter extension points documented above.
+This section provides implementation examples for custom-specific extensions that use the registry pattern (Component Scanner, Knowledge Base Loader, Compliance Hook, Custom Provider). These are separate from the Custom Adapter extension points documented above.
 
 ### Component Scanner
 
@@ -1039,112 +847,26 @@ Detect and extract metadata from internal design system components.
 **Implementation Example:**
 
 ```typescript
-// src/extensions/workComponentScanner.ts
-import type { ComponentScanner, DesignSystemComponent, DesignSystemMetadata } from '../core/extensions/componentScanner'
-import type { SceneNode, ComponentNode, InstanceNode } from '@figma/plugin-typings'
+// src/extensions/customComponentScanner.ts
+import type { ComponentScanner } from '../core/extensions/componentScanner'
 
-export class WorkComponentScanner implements ComponentScanner {
-  private readonly systemPrefix = 'DS/'
-  private readonly systemName = 'CompanyDesignSystem'
-  
+export class CustomComponentScanner implements ComponentScanner {
   detectDesignSystemComponent(node: SceneNode): DesignSystemComponent | null {
-    // Example: Detect components with naming pattern "DS/ComponentName/Variant"
-    if (node.type === 'INSTANCE') {
-      const instanceNode = node as InstanceNode
-      
-      // Check naming pattern
-      if (node.name.startsWith(this.systemPrefix)) {
-        const parts = node.name.substring(this.systemPrefix.length).split('/')
-        const componentName = parts[0] || 'Unknown'
-        const variant = parts[1]
-        
-        // Extract properties
-        const properties = this.extractProperties(instanceNode)
-        
-        return {
-          systemName: this.systemName,
-          componentName,
-          variant,
-          properties
-        }
-      }
-      
-      // Alternative: Check main component name
-      if (instanceNode.mainComponent) {
-        const mainName = instanceNode.mainComponent.name
-        if (mainName.startsWith(this.systemPrefix)) {
-          return {
-            systemName: this.systemName,
-            componentName: mainName.substring(this.systemPrefix.length),
-            properties: this.extractProperties(instanceNode)
-          }
-        }
-      }
-    }
-    
-    // Check if node is a component itself
-    if (node.type === 'COMPONENT') {
-      const componentNode = node as ComponentNode
-      if (componentNode.name.startsWith(this.systemPrefix)) {
-        return {
-          systemName: this.systemName,
-          componentName: componentNode.name.substring(this.systemPrefix.length)
-        }
-      }
-    }
-    
-    return null
-  }
-  
-  extractMetadata(component: ComponentNode): DesignSystemMetadata | null {
-    // Extract from component description or properties
-    const description = component.description || ''
-    
-    // Example: Parse "DS v2.1.0" from description
-    const versionMatch = description.match(/v(\d+\.\d+\.\d+)/)
-    if (versionMatch) {
+    // Detect components with naming pattern "DS/ComponentName/Variant"
+    if (node.type === 'INSTANCE' && node.name.startsWith('DS/')) {
+      const parts = node.name.substring(3).split('/')
       return {
-        systemName: this.systemName,
-        version: versionMatch[1],
-        componentLibrary: 'Company Design System'
+        systemName: 'CompanyDesignSystem',
+        componentName: parts[0] || 'Unknown',
+        variant: parts[1]
       }
     }
-    
     return null
-  }
-  
-  private extractProperties(instanceNode: InstanceNode): Record<string, unknown> {
-    const props: Record<string, unknown> = {}
-    
-    if (instanceNode.componentProperties) {
-      for (const [key, value] of Object.entries(instanceNode.componentProperties)) {
-        if (value.type === 'VARIANT') {
-          props[key] = value.value
-        } else if (value.type === 'TEXT') {
-          props[key] = value.value
-        } else if (value.type === 'BOOLEAN') {
-          props[key] = value.value
-        } else if (value.type === 'INSTANCE_SWAP') {
-          props[key] = value.value?.name || null
-        }
-      }
-    }
-    
-    return props
   }
 }
 ```
 
-**Registration:**
-
-```typescript
-// src/main.ts
-import { componentScannerRegistry } from './core/extensions/componentScanner'
-import { WorkComponentScanner } from './extensions/workComponentScanner'
-
-// Register on plugin startup
-componentScannerRegistry.set('work', new WorkComponentScanner())
-```
+**Registration:** Register in `main.ts` on plugin startup.
 
 ---
 
@@ -1157,87 +879,27 @@ Load assistant knowledge bases from custom sources (e.g., internal server).
 **Implementation Example:**
 
 ```typescript
-// src/extensions/workKnowledgeBaseLoader.ts
-import type { KnowledgeBaseLoader, Assistant } from '../core/extensions/knowledgeBaseLoader'
+// src/extensions/customKnowledgeBaseLoader.ts
+import type { KnowledgeBaseLoader } from '../core/extensions/knowledgeBaseLoader'
 
-export class WorkKnowledgeBaseLoader implements KnowledgeBaseLoader {
-  private baseUrl: string
-  
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl
-  }
+export class CustomKnowledgeBaseLoader implements KnowledgeBaseLoader {
+  constructor(private baseUrl: string) {}
   
   async loadKnowledgeBase(assistantId: string): Promise<string> {
-    try {
-      const url = `${this.baseUrl}/${assistantId}.md`
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/markdown'
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load KB: ${response.status} ${response.statusText}`)
-      }
-      
-      return await response.text()
-    } catch (error) {
-      console.error(`[WorkKBLoader] Failed to load KB for ${assistantId}:`, error)
-      // Fallback to default
-      return this.getDefaultKnowledgeBase(assistantId)
-    }
+    const response = await fetch(`${this.baseUrl}/${assistantId}.md`)
+    if (!response.ok) throw new Error(`Failed to load KB: ${response.status}`)
+    return await response.text()
   }
   
   async listAssistants(): Promise<Assistant[]> {
-    try {
-      const url = `${this.baseUrl}/assistants.json`
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load assistants: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      return data.assistants || []
-    } catch (error) {
-      console.error('[WorkKBLoader] Failed to load assistants:', error)
-      // Fallback to default
-      return this.getDefaultAssistants()
-    }
-  }
-  
-  private getDefaultKnowledgeBase(assistantId: string): string {
-    // Fallback to bundled knowledge bases
-    return `# ${assistantId} Assistant\n\nDefault knowledge base.`
-  }
-  
-  private getDefaultAssistants(): Assistant[] {
-    // Fallback to default assistants
-    return []
+    const response = await fetch(`${this.baseUrl}/assistants.json`)
+    const data = await response.json()
+    return data.assistants || []
   }
 }
 ```
 
-**Registration:**
-
-```typescript
-// src/main.ts
-import { knowledgeBaseLoaderRegistry } from './core/extensions/knowledgeBaseLoader'
-import { WorkKnowledgeBaseLoader } from './extensions/workKnowledgeBaseLoader'
-import { getSettings } from './core/settings'
-
-// Register on plugin startup
-async function initializeKnowledgeBaseLoader() {
-  const settings = await getSettings()
-  if (settings.customKnowledgeBaseUrl) {
-    const loader = new WorkKnowledgeBaseLoader(settings.customKnowledgeBaseUrl)
-    knowledgeBaseLoaderRegistry.set('work', loader)
-  }
-}
-
-initializeKnowledgeBaseLoader()
-```
+**Registration:** Register in `main.ts` on plugin startup with custom knowledge base URL.
 
 ---
 
@@ -1250,126 +912,43 @@ Implement compliance logging, request validation, and response sanitization.
 **Implementation Example:**
 
 ```typescript
-// src/extensions/workComplianceHook.ts
-import type { ComplianceHook, ComplianceResult, InteractionLog } from '../core/extensions/complianceHook'
-import type { ChatRequest } from '../core/provider/provider'
+// src/extensions/customComplianceHook.ts
+import type { ComplianceHook } from '../core/extensions/complianceHook'
 
-export class WorkComplianceHook implements ComplianceHook {
-  private readonly logEndpoint: string
-  private readonly restrictedAssistants: string[]
-  private readonly sensitivePatterns: RegExp[]
-  
-  constructor(config: {
+export class CustomComplianceHook implements ComplianceHook {
+  constructor(private config: {
     logEndpoint: string
     restrictedAssistants?: string[]
     sensitivePatterns?: RegExp[]
-  }) {
-    this.logEndpoint = config.logEndpoint
-    this.restrictedAssistants = config.restrictedAssistants || []
-    this.sensitivePatterns = config.sensitivePatterns || []
-  }
+  }) {}
   
   async validateRequest(request: ChatRequest): Promise<ComplianceResult> {
-    // Block restricted assistants
-    if (request.assistantId && this.restrictedAssistants.includes(request.assistantId)) {
-      return {
-        allowed: false,
-        reason: `Assistant '${request.assistantId}' is not allowed in work environment`
-      }
+    // Block restricted assistants, sanitize sensitive data
+    if (this.config.restrictedAssistants?.includes(request.assistantId || '')) {
+      return { allowed: false, reason: 'Assistant not allowed' }
     }
-    
-    // Sanitize request (remove sensitive data)
-    const sanitized = this.sanitizeRequest(request)
-    
-    return {
-      allowed: true,
-      sanitizedRequest: sanitized
-    }
+    return { allowed: true, sanitizedRequest: this.sanitizeRequest(request) }
   }
   
   async sanitizeResponse(response: string): Promise<string> {
-    let sanitized = response
-    
     // Remove sensitive patterns
-    for (const pattern of this.sensitivePatterns) {
-      sanitized = sanitized.replace(pattern, '[REDACTED]')
-    }
-    
-    return sanitized
+    return this.config.sensitivePatterns?.reduce(
+      (text, pattern) => text.replace(pattern, '[REDACTED]'),
+      response
+    ) || response
   }
   
   async logInteraction(interaction: InteractionLog): Promise<void> {
-    try {
-      await fetch(this.logEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(interaction)
-      })
-    } catch (error) {
-      console.error('[ComplianceHook] Failed to log interaction:', error)
-      // Don't throw - logging failure shouldn't block user
-    }
-  }
-  
-  private sanitizeRequest(request: ChatRequest): ChatRequest {
-    // Create sanitized copy
-    const sanitized: ChatRequest = {
-      ...request,
-      messages: request.messages.map(msg => {
-        let content = msg.content
-        
-        // Remove sensitive patterns from messages
-        for (const pattern of this.sensitivePatterns) {
-          content = content.replace(pattern, '[REDACTED]')
-        }
-        
-        return {
-          ...msg,
-          content
-        }
-      })
-    }
-    
-    // Sanitize selection summary if present
-    if (sanitized.selectionSummary) {
-      for (const pattern of this.sensitivePatterns) {
-        sanitized.selectionSummary = sanitized.selectionSummary.replace(pattern, '[REDACTED]')
-      }
-    }
-    
-    return sanitized
+    await fetch(this.config.logEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(interaction)
+    }).catch(() => {}) // Don't block user on logging failure
   }
 }
 ```
 
-**Registration:**
-
-```typescript
-// src/main.ts
-import { complianceHookRegistry } from './core/extensions/complianceHook'
-import { WorkComplianceHook } from './extensions/workComplianceHook'
-import { getSettings } from './core/settings'
-
-// Register on plugin startup
-async function initializeComplianceHook() {
-  const settings = await getSettings()
-  if (settings.complianceMode) {
-    const hook = new WorkComplianceHook({
-      logEndpoint: 'https://internal-logging.company.com/api/logs',
-      restrictedAssistants: ['restricted-assistant'],
-      sensitivePatterns: [
-        /internal-company-name/gi,
-        /confidential-pattern/gi
-      ]
-    })
-    complianceHookRegistry.set('work', hook)
-  }
-}
-
-initializeComplianceHook()
-```
+**Registration:** Register in `main.ts` on plugin startup when compliance mode is enabled.
 
 ---
 
@@ -1382,168 +961,64 @@ Implement custom LLM provider for work-specific LLM endpoints.
 **Implementation Example:**
 
 ```typescript
-// src/extensions/workProvider.ts
-import type { Provider, ChatRequest, ProviderCapabilities } from '../core/provider/provider'
-import { getSettings } from '../core/settings'
+// src/extensions/customProvider.ts
+import type { Provider, ChatRequest } from '../core/provider/provider'
 
-export class WorkProvider implements Provider {
-  readonly id = 'work-llm'
-  readonly label = 'Work LLM'
+export class CustomProvider implements Provider {
+  readonly id = 'custom-llm'
+  readonly label = 'Custom LLM'
   readonly isEnabled = true
-  
-  readonly capabilities: ProviderCapabilities = {
-    supportsImages: true,
-    supportsMarkdown: true,
-    requiresStrictSchema: false,
-    maxImages: 5
-  }
   
   async sendChat(request: ChatRequest): Promise<string> {
     const settings = await getSettings()
-    const baseUrl = settings.proxyBaseUrl || 'https://internal-llm.company.com'
-    
-    const response = await fetch(`${baseUrl}/v1/chat`, {
+    const response = await fetch(`${settings.proxyBaseUrl}/v1/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${settings.sessionToken}`
       },
-      body: JSON.stringify({
-        model: settings.defaultModel,
-        messages: request.messages,
-        assistantId: request.assistantId
-      })
+      body: JSON.stringify({ model: settings.defaultModel, messages: request.messages })
     })
-    
-    if (!response.ok) {
-      throw new Error(`Work LLM request failed: ${response.status}`)
-    }
-    
+    if (!response.ok) throw new Error(`Custom LLM request failed: ${response.status}`)
     const data = await response.json()
     return data.content || data.text || ''
   }
   
   async testConnection(): Promise<{ success: boolean; message: string }> {
-    const settings = await getSettings()
-    const baseUrl = settings.proxyBaseUrl || 'https://internal-llm.company.com'
-    
-    try {
-      const response = await fetch(`${baseUrl}/health`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${settings.sessionToken}`
-        }
-      })
-      
-      if (response.ok) {
-        return { success: true, message: 'Connection successful' }
-      } else {
-        return { success: false, message: `Connection failed: ${response.status}` }
-      }
-    } catch (error) {
-      return { success: false, message: `Connection error: ${error}` }
-    }
+    // Test connection to custom LLM endpoint
+    return { success: true, message: 'Connection successful' }
   }
 }
 ```
 
-**Registration:**
-
-```typescript
-// src/core/provider/providerFactory.ts
-import { WorkProvider } from '../extensions/workProvider'
-
-export async function createProvider(providerId?: LlmProviderId): Promise<Provider> {
-  const id = providerId || CONFIG.provider
-  
-  // Check for custom provider
-  if (id === 'work-llm') {
-    return new WorkProvider()
-  }
-  
-  // ... existing provider logic
-}
-```
-
----
-
-### Testing Extensions
-
-**Test Component Scanner:**
-
-```typescript
-import { WorkComponentScanner } from './extensions/workComponentScanner'
-
-const scanner = new WorkComponentScanner()
-const result = scanner.detectDesignSystemComponent(node)
-console.log('Detected:', result)
-```
-
-**Test Compliance Hook:**
-
-```typescript
-import { WorkComplianceHook } from './extensions/workComplianceHook'
-
-const hook = new WorkComplianceHook({
-  logEndpoint: 'http://localhost:3000/logs'
-})
-
-const validation = await hook.validateRequest(request)
-console.log('Validation:', validation)
-```
-
-**Test Knowledge Base Loader:**
-
-```typescript
-import { WorkKnowledgeBaseLoader } from './extensions/workKnowledgeBaseLoader'
-
-const loader = new WorkKnowledgeBaseLoader('https://internal-kb.company.com')
-const kb = await loader.loadKnowledgeBase('general')
-console.log('KB loaded:', kb.substring(0, 100))
-```
+**Registration:** Register in provider factory when custom provider ID is requested.
 
 ---
 
 ### Best Practices
 
-1. **Error Handling:** Always handle errors gracefully, fallback to defaults
-2. **Logging:** Log extension activity for debugging
-3. **Performance:** Cache results when possible (e.g., KB loading)
-4. **Validation:** Validate inputs and outputs
-5. **Documentation:** Document extension behavior and configuration
-
----
+- **Error Handling:** Always handle errors gracefully, fallback to defaults
+- **Logging:** Log extension activity for debugging
+- **Performance:** Cache results when possible (e.g., KB loading)
+- **Validation:** Validate inputs and outputs
 
 ### Troubleshooting Extensions
 
-**Extension Not Loading:**
-- Verify module path in config is correct
-- Check extension file exists and exports correctly
-- Verify extension is registered in `main.ts`
-- Check browser console for import errors
-
-**Extension Not Executing:**
-- Verify extension is registered before use
-- Check registry key matches config
-- Verify extension interface is implemented correctly
-- Check for errors in extension code
-
-**Performance Issues:**
-- Cache expensive operations (e.g., KB loading)
-- Use async operations for network calls
-- Limit data processing (e.g., selection summaries)
+- **Extension Not Loading:** Verify module path, file exists, exports correctly, registered in `main.ts`
+- **Extension Not Executing:** Verify registration before use, registry key matches, interface implemented correctly
+- **Performance Issues:** Cache expensive operations, use async for network calls
 
 ---
 
 ## Summary
 
-Extension points allow the Work Plugin to inject proprietary behavior without modifying Public Plugin code. All extension points are:
+Extension points allow the Custom Plugin to inject proprietary behavior without modifying Public Plugin code. All extension points are:
 
 - ✅ Defined in `core/work/adapter.ts` (interface)
 - ✅ Loaded via `loadWorkAdapter()` (uses override if present, no-op otherwise)
 - ✅ Called with optional chaining
-- ✅ Implemented in Work Plugin's `src/work/workAdapter.override.ts`
+- ✅ Implemented in Custom Plugin's `src/work/workAdapter.override.ts`
 - ✅ Documented in this file
 
-This ensures clean separation between Public and Work plugins while maintaining extensibility. The Public Plugin compiles and runs without any Work-specific code.
+This ensures clean separation between Public and Custom plugins while maintaining extensibility. The Public Plugin compiles and runs without any custom-specific code.
 

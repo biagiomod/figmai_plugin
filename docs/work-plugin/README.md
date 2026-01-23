@@ -1,15 +1,15 @@
-# Work Plugin Documentation
+# Custom Plugin Documentation
 
-This directory contains all documentation related to the Work Plugin variant of FigmAI.
+This directory contains all documentation related to the Custom Plugin variant of FigmAI.
 
 ---
 
 ## Quick Start
 
-**New to Work Plugin?**
+**New to Custom Plugin?**
 1. Start with **[Migration Guide](migration-guide.md)** [AUTHORITATIVE] - Step-by-step migration instructions
 2. Review **[Extension Points](extension-points.md)** [REFERENCE] - Available hooks and implementation guide
-3. Understand **[Adapter Pattern](adapter-pattern.md)** [CONTEXTUAL] - How the Work adapter works
+3. Understand **[Adapter Pattern](adapter-pattern.md)** [CONTEXTUAL] - How the custom adapter works
 
 ---
 
@@ -30,22 +30,22 @@ This directory contains all documentation related to the Work Plugin variant of 
   - Custom Provider
   - And more...
 
-- **[Adapter Pattern](adapter-pattern.md)** [CONTEXTUAL] - Work adapter architecture deep dive
+- **[Adapter Pattern](adapter-pattern.md)** [CONTEXTUAL] - Custom adapter architecture deep dive
   - Override mechanism
   - Migration path
   - Best practices
 
 ---
 
-## What is Work Plugin?
+## What is Custom Plugin?
 
-The Work Plugin is a variant of the FigmAI plugin designed for restricted enterprise environments. It uses an adapter pattern to inject Work-only features without modifying the Public Plugin codebase.
+The Custom Plugin is a variant of the FigmAI plugin designed for restricted enterprise environments. It uses an adapter pattern to inject custom-only features without modifying the Public Plugin codebase.
 
 **Key Features:**
 - Session-based authentication (no API keys)
 - Internal API integration
-- Work-specific extensions (component scanning, compliance, etc.)
-- Maintains Public↔Work boundary
+- Custom-specific extensions (component scanning, compliance, etc.)
+- Maintains Public↔Custom boundary
 
 ---
 
@@ -60,16 +60,16 @@ The Work Plugin is a variant of the FigmAI plugin designed for restricted enterp
 
 ## Finding What You Need
 
-**I want to migrate to Work Plugin:**
+**I want to migrate to Custom Plugin:**
 → Start with [Migration Guide](migration-guide.md) [AUTHORITATIVE]
 
-**I need to implement a Work extension:**
+**I need to implement a custom extension:**
 → Check [Extension Points](extension-points.md) [REFERENCE] for available hooks
 
 **I want to understand how the adapter works:**
 → Read [Adapter Pattern](adapter-pattern.md) [CONTEXTUAL]
 
-**I'm troubleshooting a Work Plugin issue:**
+**I'm troubleshooting a Custom Plugin issue:**
 → Check [Troubleshooting](../troubleshooting/) directory
 
 ---

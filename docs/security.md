@@ -185,7 +185,7 @@ Access-Control-Allow-Headers: Content-Type, X-FigmAI-Token, Authorization
 
 ### Compliance Considerations
 
-**For Work Environments:**
+**For Custom Environments:**
 - Implement compliance hooks for request/response logging
 - Sanitize sensitive data before sending
 - Review proxy server compliance policies
@@ -215,7 +215,7 @@ Access-Control-Allow-Headers: Content-Type, X-FigmAI-Token, Authorization
    - Review selection before sending
    - Use compliance mode in work environments
 
-### For Administrators (Work Environments)
+### For Administrators (Custom Environments)
 
 1. **Proxy Server:**
    - Use HTTPS with valid certificates
@@ -345,7 +345,7 @@ Implement compliance hooks for:
 
 ## Security Checklist
 
-### For Work Environment Migration
+### For Custom Environment Migration
 
 - [ ] Verify proxy server uses HTTPS
 - [ ] Verify proxy server certificate is valid

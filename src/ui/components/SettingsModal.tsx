@@ -9,7 +9,9 @@ import type {
 } from '../../core/types'
 import type { Settings } from '../../core/settings'
 import type { Mode } from '../../core/types'
-import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings } from '../../custom/config'
+import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings, getCustomConfig } from '../../custom/config'
+import { debugLog } from '../utils/debug'
+import { getInitialMode } from '../utils/mode'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -24,17 +26,15 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   const hideModelSettings = shouldHideLlmModelSettings()
   
   // Initialize mode from currentMode prop (reflects actual current mode)
-  // If currentMode is not provided, fall back to localStorage, then default to 'content-mvp'
+  // If currentMode is not provided, use getInitialMode() for consistent fallback logic
   const [mode, setMode] = useState<Mode>(() => {
     if (currentMode) {
       return currentMode
     }
-    try {
-      const saved = localStorage.getItem('figmai-mode')
-      return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
-    } catch {
-      return 'content-mvp'
-    }
+    return getInitialMode({
+      customConfig: getCustomConfig(),
+      hideContentMvpMode
+    })
   })
   
   // Track initial mode for Cancel functionality - capture the mode at mount time
@@ -43,12 +43,10 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     if (currentMode) {
       return currentMode
     }
-    try {
-      const saved = localStorage.getItem('figmai-mode')
-      return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
-    } catch {
-      return 'content-mvp'
-    }
+    return getInitialMode({
+      customConfig: getCustomConfig(),
+      hideContentMvpMode
+    })
   })
   const [connectionType, setConnectionType] = useState<'proxy' | 'internal-api'>('proxy')
   const [proxyBaseUrl, setProxyBaseUrl] = useState('')
@@ -70,6 +68,38 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   } | null>(null)
   const [isTesting, setIsTesting] = useState(false)
   
+  // Refs for stable message handler (avoid re-registration on state changes)
+  const modeRef = useRef<Mode>(mode)
+  const hideContentMvpModeRef = useRef<boolean>(hideContentMvpMode)
+  const isSettingsOpenRef = useRef<boolean>(true) // Modal is open when mounted
+  const latestRequestIdRef = useRef<string | null>(null)
+  
+  // Instrumentation refs (dev-only)
+  const listenerAddCountRef = useRef<number>(0)
+  const listenerRemoveCountRef = useRef<number>(0)
+  
+  // Update refs when state/props change (small effects, no listener re-registration)
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
+  
+  useEffect(() => {
+    hideContentMvpModeRef.current = hideContentMvpMode
+  }, [hideContentMvpMode])
+  
+  // Track modal open/close state
+  useEffect(() => {
+    isSettingsOpenRef.current = true
+    return () => {
+      isSettingsOpenRef.current = false
+    }
+  }, [])
+  
+  // Generate requestId helper (simple counter-based, sufficient for correlation)
+  const generateRequestId = useCallback(() => {
+    return `settings_req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  }, [])
+  
   // Extract origin from URL for manifest validation
   const getOriginFromUrl = (url: string): string | null => {
     try {
@@ -90,13 +120,24 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     }
   }
   
-  // Load settings on mount
+  // Load settings on mount with requestId for correlation
   useEffect(() => {
-    emit<RequestSettingsHandler>('REQUEST_SETTINGS')
-  }, [])
+    const requestId = generateRequestId()
+    latestRequestIdRef.current = requestId
+    debugLog('settings', 'REQUEST_SETTINGS emitted', { requestId })
+    emit<RequestSettingsHandler>('REQUEST_SETTINGS', requestId)
+  }, [generateRequestId])
   
   // Listen for test results and settings response
+  // STABLE LISTENER: Empty deps [] ensures listener is registered exactly once
+  // Use refs to access current state values without causing re-registration
   useEffect(() => {
+    listenerAddCountRef.current += 1
+    debugLog('settings', 'Message listener registered', { 
+      addCount: listenerAddCountRef.current,
+      removeCount: listenerRemoveCountRef.current
+    })
+    
     function handleMessage(message: any) {
       if (message.type === 'TEST_RESULT') {
         setIsTesting(false)
@@ -112,34 +153,38 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         }
       } else if (message.type === 'SETTINGS_RESPONSE' && message.settings) {
         const settings = message.settings as Settings
-        // Load from localStorage first (takes priority), then settings, then currentMode, then default to 'simple'
-        // Only update mode if it's different from current to avoid unnecessary re-renders/flips
-        try {
-          const saved = localStorage.getItem('figmai-mode')
-          const savedMode = (saved === 'simple' || saved === 'advanced') ? saved : null
-          // localStorage takes priority over settings.mode
-          const newMode = savedMode || settings.mode || currentMode || 'simple'
-          // Only update if mode actually changed to prevent flip
-          setMode(prevMode => {
-            // If prevMode is already correct (matches localStorage or default), don't change
-            if (prevMode === newMode) {
-              return prevMode
-            }
-            // If localStorage exists and matches prevMode, keep it (don't override with settings.mode)
-            if (savedMode && prevMode === savedMode) {
-              return prevMode
-            }
-            return newMode
+        const responseRequestId = message.requestId as string | undefined
+        
+        // Guard 1: Ignore if modal is not open
+        if (!isSettingsOpenRef.current) {
+          debugLog('settings', 'SETTINGS_RESPONSE ignored: modal not open', { 
+            responseRequestId,
+            latestRequestId: latestRequestIdRef.current
           })
-        } catch {
-          const newMode = settings.mode || currentMode || 'simple'
-          setMode(prevMode => {
-            if (prevMode !== newMode) {
-              return newMode
-            }
-            return prevMode
-          })
+          return
         }
+        
+        // Guard 2: Ignore if requestId doesn't match (out-of-order or duplicate)
+        if (responseRequestId && latestRequestIdRef.current && responseRequestId !== latestRequestIdRef.current) {
+          debugLog('settings', 'SETTINGS_RESPONSE ignored: requestId mismatch', { 
+            responseRequestId,
+            latestRequestId: latestRequestIdRef.current,
+            reason: 'out-of-order or duplicate message'
+          })
+          return
+        }
+        
+        // Guard 3: Mode is NOT hydrated from settings - it lives in localStorage only
+        // Mode should only change via explicit user action (handleModeChange)
+        // Settings.mode is legacy/deprecated and should be ignored
+        debugLog('settings', 'SETTINGS_RESPONSE accepted', { 
+          responseRequestId,
+          latestRequestId: latestRequestIdRef.current,
+          hasMode: settings.mode != null,
+          note: 'Mode from settings is ignored - mode lives in localStorage only'
+        })
+        
+        // Hydrate all settings EXCEPT mode (mode is managed separately)
         setConnectionType(settings.connectionType || 'proxy')
         setProxyBaseUrl(settings.proxyBaseUrl || '')
         setInternalApiUrl(settings.internalApiUrl || '')
@@ -163,24 +208,47 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     window.addEventListener('message', onMessage)
     
     return () => {
+      listenerRemoveCountRef.current += 1
+      debugLog('settings', 'Message listener removed', { 
+        addCount: listenerAddCountRef.current,
+        removeCount: listenerRemoveCountRef.current
+      })
       window.removeEventListener('message', onMessage)
     }
-  }, [currentMode])
+  }, []) // Empty deps - listener registered once, uses refs for current values
   
-  // Update mode when currentMode prop changes (when modal reopens)
-  // Only update if currentMode is provided AND different from current mode to prevent flip
+  // Sync currentMode prop on mount only (not on every prop change)
+  // This ensures modal opens with correct mode without causing flips
+  // Note: We intentionally don't include currentMode in deps - we only want mount-time sync
   useEffect(() => {
-    if (currentMode !== undefined && currentMode !== mode) {
+    if (currentMode !== undefined && currentMode !== modeRef.current) {
+      debugLog('mode', 'SettingsModal: currentMode prop synced on mount', { 
+        previous: modeRef.current, 
+        next: currentMode,
+        context: 'mount-time prop sync'
+      })
       setMode(currentMode)
+      modeRef.current = currentMode
     }
-  }, [currentMode, mode])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount - intentionally ignore currentMode prop changes after mount
   
   // Handler for mode change that persists immediately
   const handleModeChange = useCallback((newMode: Mode) => {
+    debugLog('mode', 'SettingsModal handleModeChange: mode change requested', { 
+      previous: mode, 
+      next: newMode,
+      context: 'user changed in SettingsModal'
+    })
     setMode(newMode)
     // Persist to localStorage immediately
     try {
       localStorage.setItem('figmai-mode', newMode)
+      debugLog('mode', 'localStorage write', { 
+        key: 'figmai-mode', 
+        value: newMode,
+        callsite: 'SettingsModal.handleModeChange'
+      })
     } catch (e) {
       console.warn('[Settings] Failed to save mode to localStorage:', e)
     }

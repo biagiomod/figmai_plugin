@@ -621,6 +621,27 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
     // Check if handler can handle the action without LLM call (e.g., Content Table scanning)
     // For now, we'll let handler.handleResponse decide, but we need to check if it needs selection context
     // Content Table handler needs to run before LLM call, so we check it here
+    if (assistantId === 'design_critique' && actionId === 'deceptive-demo-screens') {
+      const handlerContext = {
+        assistantId,
+        actionId,
+        response: '',
+        selectionOrder,
+        selection: summarizeSelection(selectionOrder),
+        provider: currentProvider || await createProvider(currentProviderId),
+        sendAssistantMessage,
+        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+        requestId
+      }
+      const result = await handler.handleResponse(handlerContext)
+      if (result.handled) {
+        const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
+        if (statusIndex !== -1) {
+          replaceStatusMessage(requestId, result.message || 'Deceptive demo screens created')
+        }
+        return
+      }
+    }
     if (assistantId === 'content_table' && actionId === 'generate-table') {
       const handlerContext = {
         assistantId,
@@ -921,20 +942,22 @@ on<SaveSettingsHandler>('SAVE_SETTINGS', async function (settings: Record<string
 })
 
 // Handle request settings
-on<RequestSettingsHandler>('REQUEST_SETTINGS', async function () {
+on<RequestSettingsHandler>('REQUEST_SETTINGS', async function (requestId?: string) {
   try {
     const settings = await getSettings()
     figma.ui.postMessage({ 
       pluginMessage: { 
         type: 'SETTINGS_RESPONSE', 
-        settings 
+        settings,
+        requestId // Include requestId in response for correlation
       } 
     })
   } catch (error) {
     figma.ui.postMessage({ 
       pluginMessage: { 
         type: 'SETTINGS_RESPONSE', 
-        settings: await getSettings() // Return defaults on error
+        settings: await getSettings(), // Return defaults on error
+        requestId // Include requestId even on error
       } 
     })
   }

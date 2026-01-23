@@ -10,8 +10,8 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 1. Start with **[Getting Started](01-getting-started.md)** [AUTHORITATIVE] for architecture overview
 2. Read **[README.md](../README.md)** for project overview
 
-### Migrating to Work Plugin?
-1. Read **[Work Plugin Guide](work-plugin/README.md)** [AUTHORITATIVE] - entry point
+### Migrating to Custom Plugin?
+1. Read **[Custom Plugin Guide](work-plugin/README.md)** [AUTHORITATIVE] - entry point
 2. Follow **[Migration Guide](work-plugin/migration-guide.md)** [AUTHORITATIVE] for step-by-step instructions
 
 ### Setting up connection?
@@ -31,6 +31,7 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 #### Architecture
 - **[Getting Started](01-getting-started.md)** [AUTHORITATIVE] - Architecture guide for AI assistants and human developers
 - **[Message Contract](reference/message-contract.md)** [REFERENCE] - UI ↔ Main thread message types and payloads
+- **[Open Source Architecture](open-source-architecture.md)** [REFERENCE] - Overview for corporate security/legal reviewers
 
 #### Connection Modes
 - **[Connection Modes Overview](connection-modes.md)** [AUTHORITATIVE] - Proxy vs Internal API comparison (coming soon)
@@ -38,12 +39,12 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 - **[Internal API Setup](setup/internal-api-setup.md)** [AUTHORITATIVE] - Internal API configuration (coming soon)
 - **[Response Parsing](reference/response-parsing.md)** [AUTHORITATIVE] - Unified response parsing guide (coming soon)
 
-#### Work Plugin
-- **[Work Plugin Guide](work-plugin/README.md)** [AUTHORITATIVE] - Entry point for Work Plugin documentation
+#### Custom Plugin
+- **[Custom Plugin Guide](work-plugin/README.md)** [AUTHORITATIVE] - Entry point for Custom Plugin documentation
 - **[Migration Guide](work-plugin/migration-guide.md)** [AUTHORITATIVE] - Step-by-step migration instructions
-- **[Adapter Pattern](work-plugin/adapter-pattern.md)** [CONTEXTUAL] - Work adapter pattern deep dive
+- **[Adapter Pattern](work-plugin/adapter-pattern.md)** [CONTEXTUAL] - Custom adapter pattern deep dive
 - **[Extension Points](work-plugin/extension-points.md)** [REFERENCE] - All extension hooks and implementation guide
-- **[Work Constraints](work-plugin/constraints.md)** [AUTHORITATIVE] - Work environment constraints (coming soon)
+- **[Custom Constraints](work-plugin/constraints.md)** [AUTHORITATIVE] - Custom environment constraints (coming soon)
 
 #### Custom Overlay System
 - **[Custom Overlay Guide](../custom/README.md)** [AUTHORITATIVE] - Corporate overlay system for custom config and knowledge bases
@@ -91,10 +92,10 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 **I want to understand the architecture:**
 → Start with [Getting Started](01-getting-started.md) [AUTHORITATIVE]
 
-**I want to migrate to Work Plugin:**
-→ Read [Work Plugin Guide](work-plugin/README.md) [AUTHORITATIVE], then [Migration Guide](work-plugin/migration-guide.md) [AUTHORITATIVE]
+**I want to migrate to Custom Plugin:**
+→ Read [Custom Plugin Guide](work-plugin/README.md) [AUTHORITATIVE], then [Migration Guide](work-plugin/migration-guide.md) [AUTHORITATIVE]
 
-**I need to implement a Work feature:**
+**I need to implement a custom feature:**
 → Check [Extension Points](work-plugin/extension-points.md) [REFERENCE] for available hooks
 
 **I need to understand connection modes:**
@@ -124,12 +125,12 @@ docs/
 │
 ├── connection-modes.md          # [AUTHORITATIVE] Proxy vs Internal API (coming soon)
 │
-├── work-plugin/                 # Work Plugin documentation
+├── work-plugin/                 # Custom Plugin documentation
 │   ├── README.md               # [AUTHORITATIVE] Entry point
 │   ├── migration-guide.md      # [AUTHORITATIVE] Step-by-step migration
 │   ├── adapter-pattern.md      # [CONTEXTUAL] Adapter pattern deep dive
 │   ├── extension-points.md     # [REFERENCE] Extension hooks reference
-│   └── constraints.md          # [AUTHORITATIVE] Work constraints (coming soon)
+│   └── constraints.md          # [AUTHORITATIVE] Custom constraints (coming soon)
 │
 ├── setup/                       # Setup guides
 │   ├── proxy-setup.md          # [AUTHORITATIVE] Proxy configuration

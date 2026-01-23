@@ -19,6 +19,10 @@ export interface CustomConfig {
     policy: 'append' | 'override'
     file: string
   }>
+  networkAccess?: {
+    baseAllowedDomains?: string[]
+    extraAllowedDomains?: string[]
+  }
 }
 
 export const customConfig: CustomConfig | null = {
@@ -29,5 +33,14 @@ export const customConfig: CustomConfig | null = {
     "endpoint": "",
     "hideModelSettings": false
   },
-  "knowledgeBases": {}
+  "knowledgeBases": {},
+  "networkAccess": {
+    "baseAllowedDomains": [
+      "https://api.openai.com"
+    ],
+    "extraAllowedDomains": [
+      "http://localhost:8787",
+      "https://overobedient-buddy-leathern.ngrok-free.dev"
+    ]
+  }
 }

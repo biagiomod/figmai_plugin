@@ -187,6 +187,13 @@ You specialize in evaluating and improving text content for clarity, tone, user 
         requiresVision: true,
         maxImages: 1,
         imageScale: 2
+      },
+      {
+        id: 'deceptive-demo-screens',
+        label: 'Deceptive Demo Screens',
+        templateMessage: 'Create deterministic deceptive demo screens for testing.',
+        requiresSelection: false,
+        requiresVision: false
       }
     ]
   },

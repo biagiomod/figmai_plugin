@@ -17,10 +17,27 @@ async function fetchWithTimeout(
   options: RequestInit,
   timeoutMs: number
 ): Promise<Response> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:15',message:'fetchWithTimeout entry',data:{url,method:options.method,timeoutMs},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+  // #endregion
   const hasAbort = typeof AbortController !== 'undefined'
   
   if (!hasAbort || !timeoutMs || timeoutMs <= 0) {
-    return fetch(url, options)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:23',message:'fetch without timeout',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
+    try {
+      const response = await fetch(url, options)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:25',message:'fetch response',data:{url,status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+      // #endregion
+      return response
+    } catch (fetchError) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:28',message:'fetch error',data:{url,errorName:fetchError instanceof Error?fetchError.name:'unknown',errorMessage:fetchError instanceof Error?fetchError.message:String(fetchError)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+      // #endregion
+      throw fetchError
+    }
   }
 
   const controller = new AbortController()
@@ -32,7 +49,19 @@ async function fetchWithTimeout(
       body: options.body,
       signal: controller.signal
     }
-    return await fetch(url, sanitizedOptions)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:35',message:'fetch with timeout',data:{url,timeoutMs},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
+    const response = await fetch(url, sanitizedOptions)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:37',message:'fetch response with timeout',data:{url,status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
+    return response
+  } catch (fetchError) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:40',message:'fetch error with timeout',data:{url,errorName:fetchError instanceof Error?fetchError.name:'unknown',errorMessage:fetchError instanceof Error?fetchError.message:String(fetchError)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
+    throw fetchError
   } finally {
     clearTimeout(id)
   }
@@ -146,7 +175,13 @@ export class ProxyClient {
    * Health check (no auth required)
    */
   async healthCheck(): Promise<{ success: boolean; message: string; latency?: number }> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:148',message:'healthCheck entry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
+    // #endregion
     const settings = await getSettings()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:150',message:'settings loaded',data:{proxyBaseUrl:settings.proxyBaseUrl,connectionType:settings.connectionType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
     
     if (!settings.proxyBaseUrl) {
       return {
@@ -157,6 +192,9 @@ export class ProxyClient {
     
     const baseUrl = this.normalizeProxyBaseUrl(settings.proxyBaseUrl)
     const url = `${baseUrl}/health`
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:159',message:'URL constructed',data:{rawProxyBaseUrl:settings.proxyBaseUrl,normalizedBaseUrl:baseUrl,finalUrl:url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,E'})}).catch(()=>{});
+    // #endregion
     
     try {
       const startTime = Date.now()
@@ -200,6 +238,9 @@ export class ProxyClient {
         }
       }
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:202',message:'fetch error caught',data:{errorName:error instanceof Error?error.name:'unknown',errorMessage:error instanceof Error?error.message:String(error),errorType:typeof error,errorString:errorToString(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
+      // #endregion
       if (error instanceof Error && error.name === 'AbortError') {
         return {
           success: false,

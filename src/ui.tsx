@@ -120,7 +120,10 @@ import type {
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { PRESET_INFO } from './core/contentTable/presets.generated'
+import { getInitialMode } from './ui/utils/mode'
+import { getCustomConfig, shouldHideContentMvpMode } from './custom/config'
 import { BUILD_VERSION } from './core/build'
+import { debugLog } from './ui/utils/debug'
 
 // Import CSS
 import './ui/styles/theme.css'
@@ -252,29 +255,42 @@ function Plugin() {
   // State
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   
-  // Load mode from localStorage, default to 'content-mvp' for first-time users
+  // Load mode using centralized getInitialMode() function
+  // Priority: localStorage → customConfig.ui.defaultMode → CONFIG.defaultMode
   const [mode, setMode] = useState<Mode>(() => {
-    try {
-      const saved = localStorage.getItem('figmai-mode')
-      return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
-    } catch {
-      return 'content-mvp'
-    }
+    const initialMode = getInitialMode({
+      customConfig: getCustomConfig(),
+      hideContentMvpMode: shouldHideContentMvpMode()
+    })
+    debugLog('mode', 'Plugin mount: mode initialized', { mode: initialMode, context: 'initialization' })
+    return initialMode
   })
+  
+  // Stable ref for mode (used in message handlers to avoid stale closures)
+  const modeRef = useRef<Mode>(mode)
+  const prevModeRef = useRef<Mode>(mode)
+  
+  // Update refs when mode changes (for stable access in handlers)
+  useEffect(() => {
+    modeRef.current = mode // Update ref for stable access in handlers
+    if (prevModeRef.current !== mode) {
+      debugLog('mode', 'Mode state changed', { 
+        previous: prevModeRef.current, 
+        next: mode,
+        context: 'state update'
+      })
+      prevModeRef.current = mode
+    }
+  }, [mode])
   
   const [provider, setProvider] = useState<LlmProviderId>('openai')
   
   // Default assistant: Content Table in content-mvp mode, General in simple mode, General in advanced mode
   const [assistant, setAssistant] = useState<AssistantType>(() => {
-    const currentMode = (() => {
-      try {
-        const saved = localStorage.getItem('figmai-mode')
-        return (saved === 'simple' || saved === 'advanced' || saved === 'content-mvp') ? saved : 'content-mvp'
-      } catch {
-        return 'content-mvp'
-      }
-    })()
-    
+    const currentMode = getInitialMode({
+      customConfig: getCustomConfig(),
+      hideContentMvpMode: shouldHideContentMvpMode()
+    })
     return getDefaultAssistant(currentMode)
   })
   const [messages, setMessages] = useState<Message[]>([])
@@ -323,7 +339,7 @@ function Plugin() {
   const [copyStatus, setCopyStatus] = useState<{ success: boolean; message: string } | null>(null)
   
   // Debug logging function (gated behind CONFIG.dev.enableClipboardDebugLogging)
-  const debugLog = useCallback((message: string, data?: Record<string, unknown>) => {
+  const uiDebugLog = useCallback((message: string, data?: Record<string, unknown>) => {
     if (CONFIG.dev.enableClipboardDebugLogging) {
       console.log(`[Clipboard] ${message}`, data || '')
     }
@@ -384,7 +400,8 @@ function Plugin() {
         case 'RESET_DONE':
           // RESET_DONE from main thread - ensure UI is fully reset
           // Use current mode (not 'advanced') to preserve user's mode preference
-          resetUIState(mode)
+          // Use modeRef to avoid stale closure issue
+          resetUIState(modeRef.current)
           break
         case 'SELECTION_STATE':
           if (message.state) {
@@ -731,11 +748,12 @@ function Plugin() {
   // Handlers
   const handleReset = useCallback(() => {
     // Perform local UI reset immediately
-    resetUIState(mode)
+    // Use modeRef.current for consistency with RESET_DONE handler (avoids stale closure)
+    resetUIState(modeRef.current)
     
     // Also emit RESET to main thread (for main thread state cleanup)
     emit<ResetHandler>('RESET')
-  }, [mode, resetUIState])
+  }, [resetUIState])
 
   const handleClearChat = useCallback(() => {
     setMessages([])
@@ -751,10 +769,20 @@ function Plugin() {
   }, [])
   
   const handleModeSelect = useCallback((selectedMode: Mode) => {
+    debugLog('mode', 'handleModeSelect: mode change requested', { 
+      previous: mode, 
+      next: selectedMode,
+      context: 'user changed in handleModeSelect'
+    })
     setMode(selectedMode)
     // Persist to localStorage
     try {
       localStorage.setItem('figmai-mode', selectedMode)
+      debugLog('mode', 'localStorage write', { 
+        key: 'figmai-mode', 
+        value: selectedMode,
+        callsite: 'handleModeSelect'
+      })
     } catch (e) {
       console.warn('[UI] Failed to save mode to localStorage:', e)
     }
@@ -1205,7 +1233,7 @@ function Plugin() {
       console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length, 'JSON length:', json.length)
       
       // Instrumentation: Log lengths
-      debugLog('Copy attempt started', { format, copyFormatType, htmlLength: htmlTable.length, tsvLength: tsv.length, jsonLength: json.length })
+      uiDebugLog('Copy attempt started', { format, copyFormatType, htmlLength: htmlTable.length, tsvLength: tsv.length, jsonLength: json.length })
       // Store for debug panel
       setDebugHtml(htmlTable)
       setDebugTsv(tsv)
@@ -1238,7 +1266,7 @@ function Plugin() {
           console.log('[Clipboard] Strategy A succeeded!')
           
           // Success: Show notification
-          debugLog('Strategy A (ClipboardItem) succeeded', { strategy: 'A', format: 'html' })
+          uiDebugLog('Strategy A (ClipboardItem) succeeded', { strategy: 'A', format: 'html' })
           setIsCopyingTable(false)
           setCopyStatus({ success: true, message: 'Table copied to clipboard (HTML)' })
           setShowCopySuccess(true)
@@ -1254,7 +1282,7 @@ function Plugin() {
           const error = clipboardError as Error
           console.error('[Clipboard] Strategy A failed:', error.name, error.message)
           console.error('[Clipboard] Error stack:', error.stack)
-          debugLog('Strategy A failed', {
+          uiDebugLog('Strategy A failed', {
             strategy: 'A',
             format: 'html',
             errorName: error.name,
@@ -1268,7 +1296,7 @@ function Plugin() {
         console.log('[Clipboard] Attempting TSV copy (writeText)')
         try {
           await navigator.clipboard.writeText(tsv)
-          debugLog('TSV copy succeeded', { format: 'tsv' })
+          uiDebugLog('TSV copy succeeded', { format: 'tsv' })
           setIsCopyingTable(false)
           setCopyStatus({ success: true, message: 'Table copied to clipboard (TSV)' })
           setShowCopySuccess(true)
@@ -1282,14 +1310,14 @@ function Plugin() {
         } catch (error: unknown) {
           const err = error as Error
           console.error('[Clipboard] TSV copy failed:', err.message)
-          debugLog('TSV copy failed', { format: 'tsv', error: err.message })
+          uiDebugLog('TSV copy failed', { format: 'tsv', error: err.message })
         }
       } else if (copyFormatType === 'json' && navigator.clipboard && navigator.clipboard.writeText) {
         // JSON format: Use writeText directly
         console.log('[Clipboard] Attempting JSON copy (writeText)')
         try {
           await navigator.clipboard.writeText(json)
-          debugLog('JSON copy succeeded', { format: 'json' })
+          uiDebugLog('JSON copy succeeded', { format: 'json' })
           setIsCopyingTable(false)
           setCopyStatus({ success: true, message: 'Table copied to clipboard (JSON)' })
           setShowCopySuccess(true)
@@ -1303,7 +1331,7 @@ function Plugin() {
         } catch (error: unknown) {
           const err = error as Error
           console.error('[Clipboard] JSON copy failed:', err.message)
-          debugLog('JSON copy failed', { format: 'json', error: err.message })
+          uiDebugLog('JSON copy failed', { format: 'json', error: err.message })
         }
       } else {
         console.log('[Clipboard] Strategy A not available - ClipboardItem:', typeof ClipboardItem, 'clipboard.write:', !!(navigator.clipboard && navigator.clipboard.write), 'copyFormatType:', copyFormatType)
@@ -1367,7 +1395,7 @@ function Plugin() {
         
         if (successful) {
           console.log('[Clipboard] Strategy B succeeded!')
-          debugLog('Strategy B (execCommand with contentEditable) succeeded', { strategy: 'B' })
+          uiDebugLog('Strategy B (execCommand with contentEditable) succeeded', { strategy: 'B' })
           setIsCopyingTable(false)
           setCopyStatus({ success: true, message: 'Table copied to clipboard' })
           setShowCopySuccess(true)
@@ -1385,7 +1413,7 @@ function Plugin() {
         const error = execError as Error
         console.error('[Clipboard] Strategy B failed:', error.name, error.message)
         console.error('[Clipboard] Error stack:', error.stack)
-        debugLog('Strategy B failed', {
+        uiDebugLog('Strategy B failed', {
           strategy: 'B',
           errorName: error.name,
           errorMessage: error.message,
@@ -1402,7 +1430,7 @@ function Plugin() {
         console.log(`[CopyTable] attempting ${formatLabel} fallback`)
         try {
           await navigator.clipboard.writeText(textToCopy)
-          debugLog(`Strategy C (writeText ${formatLabel}) succeeded`, { strategy: 'C', format: copyFormatType })
+          uiDebugLog(`Strategy C (writeText ${formatLabel}) succeeded`, { strategy: 'C', format: copyFormatType })
           setIsCopyingTable(false)
           setCopyStatus({ success: true, message: `Table copied (${formatLabel} format)` })
           setShowCopySuccess(true)
@@ -1415,7 +1443,7 @@ function Plugin() {
           return
         } catch (writeTextError: unknown) {
           const error = writeTextError as Error
-          debugLog('Strategy C failed', {
+          uiDebugLog('Strategy C failed', {
             strategy: 'C',
             format: copyFormatType,
             errorName: error.name,
@@ -1456,7 +1484,7 @@ function Plugin() {
         document.body.removeChild(textArea)
         
         if (successful) {
-          debugLog(`Strategy D (execCommand textarea ${formatLabel}) succeeded`, { strategy: 'D', format: copyFormatType })
+          uiDebugLog(`Strategy D (execCommand textarea ${formatLabel}) succeeded`, { strategy: 'D', format: copyFormatType })
           setIsCopyingTable(false)
           setCopyStatus({ success: true, message: `Table copied (${formatLabel} format)` })
           setShowCopySuccess(true)
@@ -1472,7 +1500,7 @@ function Plugin() {
         }
       } catch (execError: unknown) {
         const error = execError as Error
-        debugLog('Strategy D failed', {
+        uiDebugLog('Strategy D failed', {
           strategy: 'D',
           format: copyFormatType,
           errorName: error.name,
@@ -1482,7 +1510,7 @@ function Plugin() {
       }
       
       // All strategies failed - show error toast
-      debugLog('All clipboard strategies failed', { allStrategiesFailed: true })
+      uiDebugLog('All clipboard strategies failed', { allStrategiesFailed: true })
       setIsCopyingTable(false)
       const errorMsg = 'Copy failed: All methods failed. Try Download HTML or Copy TSV buttons.'
       setCopyStatus({ 
@@ -1493,7 +1521,7 @@ function Plugin() {
       emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'Failed to copy table. See console for details.')
     } catch (error: unknown) {
       const err = error as Error
-      debugLog('Final error catch', {
+      uiDebugLog('Final error catch', {
         errorName: err.name,
         errorMessage: err.message,
         errorStack: err.stack

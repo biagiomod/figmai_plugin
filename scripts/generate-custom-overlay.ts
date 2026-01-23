@@ -23,6 +23,10 @@ interface CustomConfig {
     policy: 'append' | 'override'
     file: string
   }>
+  networkAccess?: {
+    baseAllowedDomains?: string[]
+    extraAllowedDomains?: string[]
+  }
 }
 
 /**
@@ -106,6 +110,10 @@ export interface CustomConfig {
     policy: 'append' | 'override'
     file: string
   }>
+  networkAccess?: {
+    baseAllowedDomains?: string[]
+    extraAllowedDomains?: string[]
+  }
 }
 
 export const customConfig: CustomConfig | null = ${configValue}

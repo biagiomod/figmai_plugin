@@ -1,6 +1,6 @@
 # AI Task Brief
 
-**For:** AI coding assistants (DevGPT Cline, GPT-4.1, etc.) executing Work Plugin migration tasks  
+**For:** AI coding assistants (DevGPT Cline, GPT-4.1, etc.) executing Custom Plugin migration tasks  
 **Purpose:** Quick reference for common migration tasks and error patterns  
 **When to read:** During active migration work for quick lookups
 
@@ -17,7 +17,7 @@
 
 ## Common Tasks
 
-### Task: Add Work-Only Feature
+### Task: Add Custom-Only Feature
 
 **Steps:**
 1. Check `docs/work-plugin/extension-points.md` for existing extension point
@@ -31,16 +31,16 @@
 const workAdapter: WorkAdapter = {
   ...createDefaultWorkAdapter(),
   async createConfluence(args) {
-    // Work implementation
+    // Custom implementation
   }
 }
 ```
 
 ---
 
-### Task: Fix Work Adapter Not Loading
+### Task: Fix Custom Adapter Not Loading
 
-**Symptoms:** Default adapter used, Work features not working
+**Symptoms:** Default adapter used, custom features not working
 
 **Check:**
 1. File exists: `src/work/workAdapter.override.ts`
@@ -111,7 +111,7 @@ const workAdapter: WorkAdapter = {
 
 **Important:** Main thread is source of truth for message history.
 
-### Work Adapter Loading
+### Custom Adapter Loading
 
 **Location:** `core/work/loadAdapter.ts`  
 **Override:** `src/work/workAdapter.override.ts`  
@@ -125,7 +125,7 @@ const workAdapter: WorkAdapter = {
 
 | Purpose | Location |
 |---------|----------|
-| Work adapter override | `src/work/workAdapter.override.ts` |
+| Custom adapter override | `src/work/workAdapter.override.ts` |
 | Credentials | `src/work/credentials.override.ts` |
 | DS rules | `src/work/dsRules.override.ts` |
 | Adapter interface | `core/work/adapter.ts` |
@@ -140,7 +140,7 @@ Before completing task:
 - [ ] `npm run build` passes
 - [ ] No TypeScript errors
 - [ ] Plugin loads in Figma
-- [ ] Work adapter loads (check console)
+- [ ] Custom adapter loads (check console)
 - [ ] Feature works as expected
 - [ ] No Public Plugin functionality broken
 
@@ -148,7 +148,7 @@ Before completing task:
 
 ## Error Patterns
 
-### "Work adapter not found"
+### "Custom adapter not found"
 → Check `src/work/workAdapter.override.ts` exists and exports correctly
 
 ### "Extension point not called"
@@ -168,6 +168,6 @@ Before completing task:
 - **Getting Started:** `docs/01-getting-started.md`
 - **Migration Steps:** `docs/work-plugin/migration-guide.md`
 - **Extension Points:** `docs/work-plugin/extension-points.md`
-- **Work Pattern:** `docs/work-plugin/adapter-pattern.md`
+- **Custom Pattern:** `docs/work-plugin/adapter-pattern.md`
 - **Message Contract:** `docs/message-contract.md`
 

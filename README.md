@@ -15,7 +15,7 @@ FigmAI is a Figma plugin that integrates Large Language Models (LLMs) to provide
 - **Dev Handoff**: Generates developer-friendly specifications
 - **General Assistant**: Answers design questions and provides guidance
 
-The plugin architecture is designed to be **Public Plugin** (open source) with a clean extension point for **Work Plugin** (proprietary/internal version) via a single adapter file.
+The plugin architecture is designed to be **Public Plugin** (open source) with a clean extension point for **Custom Plugin** (proprietary/internal version) via a single adapter file.
 
 ---
 
@@ -69,8 +69,8 @@ The plugin follows a **two-thread architecture**:
    - Builds selection state, summary, and images
    - Respects provider capabilities and quick action requirements
 
-6. **Work Adapter** (`core/work/adapter.ts`)
-   - Stub interface for Work-only features
+6. **Custom Adapter** (`core/work/adapter.ts`)
+   - Stub interface for custom-only features
    - Confluence API, design system detection, enterprise auth
 
 ---
@@ -245,7 +245,7 @@ The plugin has two rendering systems for different purposes:
 
 ---
 
-## Public ↔ Work Plugin Model
+## Public ↔ Custom Plugin Model
 
 ### What Stays Public
 
@@ -258,13 +258,13 @@ The Public Plugin contains all core logic:
 - ✅ Tool system
 - ✅ Configuration (`core/config.ts`)
 
-**The Public Plugin is the source of truth.** Work Plugin should import and extend, never fork.
+**The Public Plugin is the source of truth.** Custom Plugin should import and extend, never fork.
 
 ### What Gets Overridden
 
-The Work Plugin overrides via a **single adapter file**:
+The Custom Plugin overrides via a **single adapter file**:
 
-- 🔄 `work/adapter.ts` (Work-only file)
+- 🔄 `src/work/workAdapter.override.ts` (custom-only file)
   - Real Confluence API implementation
   - Real design system detection
   - Real enterprise auth
@@ -273,42 +273,29 @@ The Public Plugin defines stubs in `core/work/adapter.ts`:
 
 ```typescript
 export const workAdapter: WorkAdapter = {
-  confluenceApi: undefined, // Work will override
-  designSystem: undefined, // Work will override
-  auth: undefined // Work will override
+  confluenceApi: undefined, // Custom will override
+  designSystem: undefined, // Custom will override
+  auth: undefined // Custom will override
 }
 ```
 
 ### How Migration Works Safely
 
-1. **Copy Public codebase** to Work repository
-2. **Create `work/adapter.ts`** with real implementations:
-   ```typescript
-   import { workAdapter } from '../core/work/adapter'
-   
-   workAdapter.confluenceApi = {
-     async sendTable(table, format) {
-       // Real Confluence API call
-     }
-   }
-   ```
+1. **Copy Public codebase** to Custom repository
+2. **Create `src/work/workAdapter.override.ts`** with real implementations
 3. **Override adapter** via module replacement or direct import
-4. **Add Work-specific assistants** to `assistants/index.ts` (if needed)
-5. **Add Work-specific handlers** to `core/assistants/handlers/` (if needed)
+4. **Add custom-specific assistants** to `assistants/index.ts` (if needed)
+5. **Add custom-specific handlers** to `core/assistants/handlers/` (if needed)
 
-**Merge conflicts expected:** Only in `work/adapter.ts` (single file)
+**Merge conflicts expected:** Only in `src/work/workAdapter.override.ts` (single file)
 
 **Future updates:** Pull Public changes, merge conflicts only in adapter file
 
 ### Extension Points
 
-The Public Plugin exposes extension points for Work-only features:
+The Public Plugin exposes extension points for custom-only features. See **[Extension Points](docs/work-plugin/extension-points.md)** [REFERENCE] for complete documentation.
 
-- **Ignore rules**: `workAdapter.designSystem?.shouldIgnore(node)` (called in Content Table scanner)
-- **Design system detection**: `workAdapter.designSystem?.detectSystem(node)` (called where needed)
-- **Confluence integration**: `workAdapter.confluenceApi?.sendTable(table, format)` (called in UI)
-
-See `docs/work-plugin/extension-points.md` for detailed documentation.
+See **[Adapter Pattern](docs/work-plugin/adapter-pattern.md)** [CONTEXTUAL] for architecture details.
 
 ---
 

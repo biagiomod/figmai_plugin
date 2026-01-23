@@ -169,7 +169,7 @@ export interface TestProxyConnectionHandler extends EventHandler {
 
 export interface RequestSettingsHandler extends EventHandler {
   name: 'REQUEST_SETTINGS'
-  handler: () => void
+  handler: (requestId?: string) => void
 }
 
 export interface CopyTableStatusHandler extends EventHandler {
@@ -213,7 +213,7 @@ export interface TestResultHandler extends EventHandler {
 
 export interface SettingsResponseHandler extends EventHandler {
   name: 'SETTINGS_RESPONSE'
-  handler: (settings: Record<string, unknown>) => void
+  handler: (settings: Record<string, unknown>, requestId?: string) => void
 }
 
 export interface ScorecardPlacedHandler extends EventHandler {

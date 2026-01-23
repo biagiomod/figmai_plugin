@@ -15,13 +15,13 @@ If you're an AI assistant trying to understand this codebase:
 2. **Understand flow**: Read `main.ts` header comment for message routing
 3. **Understand UI**: Read `ui.tsx` header comment for UI architecture
 4. **Understand handlers**: Read `core/assistants/handlers/base.ts` for handler contract
-5. **Understand Work boundary**: Read `docs/work-plugin/adapter-pattern.md` for Work plugin pattern
+5. **Understand custom boundary**: Read `docs/work-plugin/adapter-pattern.md` for custom plugin pattern
 
 ### For Human Developers
 
 1. **Project overview**: Read `README.md` for high-level architecture
 2. **Contribution guide**: Read `CONTRIBUTING.md` for development guidelines
-3. **Work migration**: Read `docs/work-plugin/migration-guide.md` for Work Plugin setup
+3. **Custom migration**: Read `docs/work-plugin/migration-guide.md` for Custom Plugin setup
 4. **Extension points**: Read `docs/work-plugin/extension-points.md` for available hooks
 
 ---
@@ -37,7 +37,7 @@ FigmAI is a Figma plugin that integrates Large Language Models (LLMs) to provide
 - **Dev Handoff**: Generates developer-friendly specifications
 - **General Assistant**: Answers design questions and provides guidance
 
-The plugin architecture is designed to be **Public Plugin** (open source) with a clean extension point for **Work Plugin** (proprietary/internal version) via a single adapter file.
+The plugin architecture is designed to be **Public Plugin** (open source) with a clean extension point for **Custom Plugin** (proprietary/internal version) via a single adapter file.
 
 For detailed architecture, see `README.md`.
 
@@ -184,16 +184,18 @@ The codebase has some large files that might be intimidating:
 - v2 artifacts don't replace v1 artifacts
 - Check pluginData for version information
 
-### Work Adapter Override
+### Custom Adapter Override
 
-**Assumption:** Work plugin overrides adapter via module replacement or direct import
+**Assumption:** Custom plugin overrides adapter via module replacement or direct import
 
-**Why:** Allows Work plugin to inject proprietary logic
+**Why:** Allows custom plugin to inject proprietary logic
 
 **What this means:**
 - Public Plugin defines stubs
-- Work Plugin overrides stubs
+- Custom Plugin overrides stubs
 - Use optional chaining when calling adapter methods
+
+See **[Adapter Pattern](work-plugin/adapter-pattern.md)** [CONTEXTUAL] for details.
 
 ---
 
@@ -372,9 +374,9 @@ await placeArtifactFrame(frame, { selectedNode })
 2. `core/stage/renderDocument.ts` - Stage system
 3. `core/assistants/handlers/designCritique.ts` - Example handler
 
-### Work Features
+### Custom Features
 1. `core/work/adapter.ts` - Adapter interface
-2. `docs/work-plugin/adapter-pattern.md` - Work adapter documentation
+2. `docs/work-plugin/adapter-pattern.md` - Custom adapter documentation
 3. `docs/work-plugin/extension-points.md` - Extension points
 
 ---
@@ -386,7 +388,7 @@ await placeArtifactFrame(frame, { selectedNode })
 - `assistants/index.ts` - Assistant registry
 - `core/assistants/handlers/base.ts` - Handler contract
 - `core/provider/provider.ts` - Provider contract
-- `core/work/adapter.ts` - Work boundary
+- `core/work/adapter.ts` - Custom boundary
 
 ### Should Understand
 - `ui.tsx` - UI architecture
@@ -418,10 +420,11 @@ await placeArtifactFrame(frame, { selectedNode })
 - Check placement logic (anchor, bounds calculation)
 - Check version scoping (if using artifact system)
 
-### Work adapter not working
-- Check Work Plugin is overriding adapter in `work/adapter.ts`
+### Custom adapter not working
+- Check Custom Plugin is overriding adapter in `src/work/workAdapter.override.ts`
 - Check adapter methods are called with optional chaining (`?.`)
 - Check fallbacks are provided when adapter is undefined
+- See **[Adapter Pattern](work-plugin/adapter-pattern.md)** [CONTEXTUAL] for troubleshooting
 
 ---
 
@@ -433,19 +436,19 @@ This codebase follows clear patterns:
 - **Provider abstraction**: All LLM calls go through provider interface
 - **Selection context**: Build once, use everywhere
 - **Artifact versioning**: Use version scoping for artifact replacement
-- **Work adapter**: Single-file boundary for Work-only features
+- **Custom adapter**: Single-file boundary for custom-only features
 
 When in doubt:
 1. Check handler pattern first
 2. Check provider abstraction
-3. Check Work adapter documentation
+3. Check custom adapter documentation
 4. Read file header comments
 
 ---
 
 ## Next Steps
 
-- **For AI Assistants**: See `docs/work-plugin/migration-guide.md` for migration tasks
+- **For AI Assistants**: See [Migration Guide](work-plugin/migration-guide.md) for migration tasks
 - **For Human Developers**: See `CONTRIBUTING.md` for contribution guidelines
-- **For Work Migration**: See `docs/work-plugin/migration-guide.md` for step-by-step guide
-- **For Extension Points**: See `docs/work-plugin/extension-points.md` for available hooks
+- **For Custom Migration**: See [Migration Guide](work-plugin/migration-guide.md) for step-by-step guide
+- **For Extension Points**: See [Extension Points](work-plugin/extension-points.md) for available hooks

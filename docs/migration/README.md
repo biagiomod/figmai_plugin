@@ -6,7 +6,7 @@ Complete guide for migrating the FigmAI plugin to restricted work environments.
 
 ## Documentation Files
 
-1. **[Work Migration Guide](../work-plugin/migration-guide.md)** ⭐ START HERE
+1. **[Custom Migration Guide](../work-plugin/migration-guide.md)** ⭐ START HERE
    - Complete step-by-step migration guide
    - Prerequisites and checklists
    - Extension points implementation
@@ -20,12 +20,12 @@ Complete guide for migrating the FigmAI plugin to restricted work environments.
    - Implementation priorities
 
 3. **[Extension Points Reference](../work-plugin/extension-points.md)**
-   - All extension points (Work Adapter hooks)
+   - All extension points (Custom Adapter hooks)
    - Implementation guide (Component Scanner, KB Loader, Compliance Hook, Custom Provider)
    - Examples and best practices
 
-4. **[Work Adapter Pattern](../work-plugin/adapter-pattern.md)**
-   - Work adapter architecture
+4. **[Custom Adapter Pattern](../work-plugin/adapter-pattern.md)**
+   - Custom adapter architecture
    - Override mechanism
    - Migration path
 
@@ -45,7 +45,7 @@ Complete guide for migrating the FigmAI plugin to restricted work environments.
 
 ## Quick Start
 
-1. **Read:** [Work Migration Guide](../work-plugin/migration-guide.md) for complete migration steps
+1. **Read:** [Custom Migration Guide](../work-plugin/migration-guide.md) for complete migration steps
 2. **Review:** [Portability Analysis](./portability-analysis.md) for risk assessment
 3. **Implement:** Extensions as needed (see [Extension Points](../work-plugin/extension-points.md))
 4. **Configure:** Use [Configuration Guide](../configuration.md)

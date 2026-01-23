@@ -7,17 +7,17 @@ import type { LlmProviderId } from './types'
 export const CONFIG = {
   // Provider selection
   provider: 'openai' as LlmProviderId,
-  
+
   // Feature flags
   features: {
     enableToolCalls: true,
     enableVision: false,
     enableSelectionExportPng: false
   },
-  
+
   // Default mode
   defaultMode: 'advanced' as const,
-  
+
   // Dev-only flags
   dev: {
     // Enable Content Table validation logging (warnings/errors in console)
@@ -29,12 +29,12 @@ export const CONFIG = {
     // Enable Design Critique verbose debug logging
     // DEPRECATED: Use CONFIG.dev.debug.scopes['assistant:design_critique'] instead
     enableDesignCritiqueDebugLogging: false,
-    
+
     // Scoped debug configuration
     debug: {
       // Global enable/disable for all debugging
-      enabled: false,
-      
+      enabled: true,
+
       // Scoped enable (supports wildcards: 'assistant:*', 'subsystem:*')
       scopes: {
         // Assistant scopes (use assistant:<assistantId>)
@@ -43,18 +43,22 @@ export const CONFIG = {
         'assistant:design_workshop': false,
         'assistant:discovery_copilot': false,
         'assistant:general': false,
-        
+
         // Subsystem scopes (use subsystem:<name>)
         'subsystem:provider': false,
         'subsystem:parsing': false,
         'subsystem:canvas': false,
         'subsystem:selection': false,
         'subsystem:clipboard': false,
-        
+
+        // ADD THIS LINE
+        'subsystem:ui': true,
+
+
         // Global scope (always checked first)
         'global': false
       },
-      
+
       // Log levels (when enabled, what to show)
       levels: {
         debug: true,
