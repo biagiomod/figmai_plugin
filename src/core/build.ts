@@ -7,4 +7,4 @@
  * To force a fresh build, increment BUILD_VERSION below.
  */
 
-export const BUILD_VERSION = '1.0.0'
+export const BUILD_VERSION = '1.0.2'
