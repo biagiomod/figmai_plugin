@@ -17,6 +17,9 @@ This document describes the open-source FigmAI plugin architecture, its network 
 - **Architecture principle:**  
   Core plugin logic is open source and stable. Custom-specific behavior (endpoints, knowledge, policies) is isolated to a clearly defined overlay system that remains separate from the public source tree.
 
+- **Release tags:**  
+  The public repository may include git tags (e.g., `v1.0.2`) that point to specific commits. Tags are metadata-only markers for release traceability and do not modify code or runtime behavior. Custom deployments are not required to create or use tags; they can download, modify, and deploy the plugin from any commit or branch.
+
 ---
 
 ## 2. Outbound Network Calls
