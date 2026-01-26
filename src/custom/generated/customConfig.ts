@@ -44,6 +44,16 @@ export interface CustomConfig {
     denylist?: string[]
     strictMode?: boolean
   }
+  analytics?: {
+    enabled?: boolean
+    endpointUrl?: string
+    flushIntervalMs?: number
+    maxBatchSize?: number
+    maxBuffer?: number
+    retryMaxAttempts?: number
+    retryBaseDelayMs?: number
+    debug?: boolean
+  }
 }
 
 export const customConfig: CustomConfig | null = {

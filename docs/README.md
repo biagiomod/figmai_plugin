@@ -49,6 +49,11 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 #### Custom Overlay System
 - **[Custom Overlay Guide](../custom/README.md)** [AUTHORITATIVE] - Corporate overlay system for custom config and knowledge bases
 
+#### Analytics
+- **[Setup Guide](analytics/setup.md)** [AUTHORITATIVE] - How to enable and configure analytics
+- **[Endpoint Specification](analytics/endpoint-spec.md)** [REFERENCE] - API specification for analytics ingestion
+- **[Metrics Guide](analytics/metrics-guide.md)** [REFERENCE] - Event types and metrics guide
+
 #### Reference
 - **[Message Contract](reference/message-contract.md)** [REFERENCE] - Message types and payloads
 - **[Configuration](configuration.md)** [REFERENCE] - Configuration schema and environment variables

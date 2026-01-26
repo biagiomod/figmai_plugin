@@ -21,6 +21,10 @@ interface NetworkAccessConfig {
 
 interface CustomConfigFile {
   networkAccess?: NetworkAccessConfig
+  analytics?: {
+    enabled?: boolean
+    endpointUrl?: string
+  }
 }
 
 // Public default domains for the open-source build.
@@ -135,7 +139,20 @@ function computeAllowedDomains(configPath: string): string[] | null {
     ? networkAccess.extraAllowedDomains
     : []
 
-  const combined = [...base, ...extra]
+  // Add analytics endpoint if enabled and configured
+  const analyticsDomains: string[] = []
+  if (config.analytics?.enabled && config.analytics?.endpointUrl) {
+    try {
+      const analyticsOrigin = validateAndNormalizeOrigin(config.analytics.endpointUrl)
+      analyticsDomains.push(analyticsOrigin)
+    } catch (error) {
+      console.warn(
+        `[update-manifest-network-access] Invalid analytics.endpointUrl: ${(error as Error).message}`
+      )
+    }
+  }
+
+  const combined = [...base, ...extra, ...analyticsDomains]
 
   const finalAllowedDomains: string[] = []
   const seen = new Set<string>()

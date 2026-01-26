@@ -70,6 +70,8 @@
  */
 
 import { on, once, showUI } from '@create-figma-plugin/utilities'
+import { getAnalytics } from './core/analytics'
+import { categorizeError } from './core/analytics/errorCodes'
 
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
@@ -584,9 +586,27 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
     
     // Only send to chat if handler didn't handle it
     replaceStatusMessage(requestId, response)
+    
+    // Track assistant complete (success) for chat messages
+    getAnalytics().track('assistant_complete', {
+      assistantId: currentAssistant.id,
+      success: true
+    })
   } catch (error) {
     const errorMessage = errorToString(error)
     replaceStatusMessage(requestId, `Error: ${errorMessage}`, true)
+    
+    // Track error
+    getAnalytics().track('error', {
+      category: categorizeError(error),
+      assistantId: currentAssistant.id
+    })
+    
+    // Track assistant complete (failure)
+    getAnalytics().track('assistant_complete', {
+      assistantId: currentAssistant.id,
+      success: false
+    })
   }
 })
 
@@ -614,6 +634,12 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
       sendAssistantMessage(`Error: Action "${actionId}" not found`)
     return
     }
+  
+  // Track assistant run (after validation)
+  getAnalytics().track('assistant_run', {
+    assistantId: assistant.id,
+    actionId: action.id
+  })
   
   // Check if handler exists for this assistant/action (handles actions that don't need LLM)
   const handler = getHandler(assistantId, actionId)
@@ -879,15 +905,41 @@ Use SEND JSON to import or GET JSON to export your designs.`
     if (!responseHandled) {
       replaceStatusMessage(requestId, response)
     }
+
+    // Track assistant complete (success)
+    getAnalytics().track('assistant_complete', {
+      assistantId: assistant.id,
+      actionId: action.id,
+      success: true
+    })
   } catch (error) {
     const errorMessage = errorToString(error)
     replaceStatusMessage(requestId, `Error: ${errorMessage}`, true)
+    
+    // Track error
+    getAnalytics().track('error', {
+      category: categorizeError(error),
+      assistantId: assistant.id,
+      actionId: action.id
+    })
+    
+    // Track assistant complete (failure)
+    getAnalytics().track('assistant_complete', {
+      assistantId: assistant.id,
+      actionId: action.id,
+      success: false
+    })
   }
   } catch (error) {
     // Catch any unhandled errors in the quick action handler
     console.error('[Main] Unhandled error in RUN_QUICK_ACTION:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     replaceStatusMessage(requestId, `Error: ${errorMessage}`, true)
+    
+    // Track error
+    getAnalytics().track('error', {
+      category: categorizeError(error)
+    })
   }
 })
 
@@ -1033,6 +1085,9 @@ on<CopyTableStatusHandler>('COPY_TABLE_STATUS', function (status: 'success' | 'e
 
 // Initialize plugin
 export default function () {
+  // Track plugin open
+  getAnalytics().track('plugin_open')
+
   showUI({
     height: 600,
     width: 400,

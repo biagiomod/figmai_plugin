@@ -68,5 +68,15 @@
     "enabled": false,
     "activeRegistries": [],
     "strictMode": false
+  },
+  "analytics": {
+    "enabled": false,
+    "endpointUrl": "",
+    "flushIntervalMs": 30000,
+    "maxBatchSize": 25,
+    "maxBuffer": 100,
+    "retryMaxAttempts": 5,
+    "retryBaseDelayMs": 1000,
+    "debug": false
   }
 }
