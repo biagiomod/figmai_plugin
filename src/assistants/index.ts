@@ -4,7 +4,7 @@
  */
 
 import type { Assistant, QuickAction } from '../core/types'
-import { mergeKnowledgeBase } from '../custom/knowledge'
+import { mergeKnowledgeBase, appendDesignSystemKnowledge } from '../custom/knowledge'
 
 // Load markdown files as strings
 // Note: Using inline strings for now as bundler may not support ?raw imports
@@ -48,6 +48,41 @@ Your purpose is to evaluate the user's selected frame or element on the Figma ca
 
 [Full knowledge base available in: src/assistants/designCritique.md]
 
+## Design System Component Queries (CRITICAL)
+
+When users ask about:
+- "What design system components are available?"
+- "What components exist?"
+- "List design system components"
+- "What registries are available?"
+- "Use DESIGN_SYSTEM_QUERY tool"
+- "Return raw tool result"
+- "Call DESIGN_SYSTEM_QUERY"
+
+**YOU MUST:**
+1. Call the DESIGN_SYSTEM_QUERY tool with action "list" first
+2. Base your answer ONLY on the tool result
+3. If tool returns "No components available...", explain that design systems must be enabled in custom/config.json (designSystems.enabled=true and activeRegistries configured)
+4. NEVER invent or hallucinate generic components like "Buttons", "Forms", "Cards" unless they appear in the actual tool result
+5. If user explicitly requests "raw tool result" or "use DESIGN_SYSTEM_QUERY", you MUST call the tool and return its exact output
+
+**Tool Usage:**
+- Tool ID: DESIGN_SYSTEM_QUERY
+- Action: "list" (to list all components)
+- Parameters: { "action": "list" } (optional: { "action": "list", "registryId": "example" } for specific registry)
+
+**Example Tool Call:**
+When user asks "What design system components are available?", you should call DESIGN_SYSTEM_QUERY with action="list" and present the tool result exactly as returned, formatted for readability.
+
+**If No Components Available:**
+If the tool returns "No components available in active registries.", respond with:
+"No design system components are currently available. To enable design systems:
+1. Set designSystems.enabled: true in custom/config.json
+2. Configure activeRegistries: [\"registry-id\"] with your registry IDs
+3. Ensure registries are properly loaded in custom/generated/customRegistries.ts"
+
+**Only ask clarifying questions** if multiple registries are active AND the user's request is about choosing/recommending/placing components. For simple availability queries, always call the tool first.
+
 ## Output Format (STRICT)
 
 You MUST respond with valid JSON in this exact format (NO markdown fences, NO other text):
@@ -90,7 +125,7 @@ export const ASSISTANTS: Assistant[] = [
     id: 'general',
     label: 'General',
     intro: 'I\'m your general design assistant. Ask me anything about design, Figma, or your current work.',
-    promptMarkdown: mergeKnowledgeBase('general', generalPrompt),
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('general', generalPrompt)),
     iconId: 'AskIcon',
     kind: 'ai',
     quickActions: [
@@ -112,12 +147,12 @@ export const ASSISTANTS: Assistant[] = [
     id: 'content_table',
     label: 'Content Table',
     intro: '**Welcome to your Content Table Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.',
-    promptMarkdown: mergeKnowledgeBase('content_table', `# Content Table Assistant
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('content_table', `# Content Table Assistant
 
 You are **FigmAI's Content Table Assistant**, a content strategist and information architect embedded inside a Figma plugin.
 You generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.
 
-[Full knowledge base available in: src/assistants/contentTable.md]`),
+[Full knowledge base available in: src/assistants/contentTable.md]`)),
     iconId: 'ContentTableIcon',
     kind: 'tool',
     quickActions: [
@@ -133,12 +168,12 @@ You generate structured content inventories and tables that help teams track, or
     id: 'ux_copy_review',
     label: 'Content Review',
     intro: 'I review and improve text content for clarity, tone, and UX effectiveness. Select text layers to analyze copy.',
-    promptMarkdown: mergeKnowledgeBase('ux_copy_review', `# Content Review Assistant
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('ux_copy_review', `# Content Review Assistant
 
 You are **FigmAI's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.
 You specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.
 
-[Full knowledge base available in: src/assistants/uxCopyReview.md]`),
+[Full knowledge base available in: src/assistants/uxCopyReview.md]`)),
     iconId: 'SpellCheckIcon',
     kind: 'ai',
     quickActions: [
@@ -166,7 +201,7 @@ You specialize in evaluating and improving text content for clarity, tone, user 
     id: 'design_critique',
     label: 'Design Critique',
     intro: 'I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.',
-    promptMarkdown: mergeKnowledgeBase('design_critique', designCritiquePrompt),
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('design_critique', designCritiquePrompt)),
     iconId: 'ArtIcon',
     kind: 'ai',
     quickActions: [
@@ -201,7 +236,7 @@ You specialize in evaluating and improving text content for clarity, tone, user 
     id: 'code2design',
     label: 'Code2Design',
     intro: 'Import/export JSON templates to create and manage Figma designs.',
-    promptMarkdown: mergeKnowledgeBase('code2design', generalPrompt), // Reuse general for now
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('code2design', generalPrompt)), // Reuse general for now
     iconId: 'CodeIcon',
     kind: 'hybrid',
     quickActions: [
@@ -229,12 +264,12 @@ You specialize in evaluating and improving text content for clarity, tone, user 
     id: 'dev_handoff',
     label: 'Dev Handoff',
     intro: 'I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.',
-    promptMarkdown: mergeKnowledgeBase('dev_handoff', `# Dev Handoff Assistant
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('dev_handoff', `# Dev Handoff Assistant
 
 You are **FigmAI's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.
 You generate developer-friendly specifications, measurements, and implementation guidance from Figma designs.
 
-[Full knowledge base available in: src/assistants/devHandoff.md]`),
+[Full knowledge base available in: src/assistants/devHandoff.md]`)),
     iconId: 'CodeIcon',
     kind: 'ai',
     quickActions: [
@@ -265,12 +300,12 @@ You generate developer-friendly specifications, measurements, and implementation
     id: 'accessibility',
     label: 'Accessibility',
     intro: 'I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.',
-    promptMarkdown: mergeKnowledgeBase('accessibility', `# Accessibility Assistant
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('accessibility', `# Accessibility Assistant
 
 You are **FigmAI's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.
 You specialize in identifying accessibility barriers and providing specific, actionable fixes to make designs usable by everyone.
 
-[Full knowledge base available in: src/assistants/accessibility.md]`),
+[Full knowledge base available in: src/assistants/accessibility.md]`)),
     iconId: 'ADAIcon',
     kind: 'ai',
     quickActions: [
@@ -307,12 +342,12 @@ You specialize in identifying accessibility barriers and providing specific, act
     id: 'errors',
     label: 'Errors',
     intro: 'I identify design errors, inconsistencies, and quality issues. Select elements to find problems before handoff.',
-    promptMarkdown: mergeKnowledgeBase('errors', `# Errors Assistant
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('errors', `# Errors Assistant
 
 You are **FigmAI's Errors Assistant**, a design quality assurance specialist embedded inside a Figma plugin.
 You identify design errors, inconsistencies, and quality issues that could cause problems in implementation or user experience.
 
-[Full knowledge base available in: src/assistants/errors.md]`),
+[Full knowledge base available in: src/assistants/errors.md]`)),
     iconId: 'CautionIcon',
     kind: 'ai',
     quickActions: [
@@ -340,7 +375,7 @@ You identify design errors, inconsistencies, and quality issues that could cause
     id: 'design_workshop',
     label: 'Design Workshop',
     intro: '**Welcome to your Design Workshop Assistant!**\n\nI generate 1-5 Figma screens from a JSON specification. Describe the screens you want, and I\'ll create them on the canvas.',
-    promptMarkdown: mergeKnowledgeBase('design_workshop', `# Design Workshop Assistant
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('design_workshop', `# Design Workshop Assistant
 
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.
 
@@ -395,7 +430,7 @@ You MUST respond with valid JSON in this exact format (NO markdown fences, NO ot
 - Generate 1-5 screens only (if more requested, generate exactly 5 and include meta.truncationNotice)
 - ONLY the raw JSON object
 
-**CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.`),
+**CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.`)),
     iconId: 'LightBulbRaysIcon',
     kind: 'ai',
     quickActions: [
@@ -411,7 +446,7 @@ You MUST respond with valid JSON in this exact format (NO markdown fences, NO ot
     id: 'discovery_copilot',
     label: 'Discovery Copilot',
     intro: '**Welcome to Discovery Copilot!**\n\nI\'ll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you\'re solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet\'s begin! What are you discovering today? (e.g., "redesigning checkout flow", "building a new feature")',
-    promptMarkdown: mergeKnowledgeBase('discovery_copilot', `# Discovery Copilot Assistant
+    promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('discovery_copilot', `# Discovery Copilot Assistant
 
 You are **FigmAI's Discovery Copilot Assistant**, a structured discovery thinking guide embedded inside a Figma plugin.
 You guide users through a 3-step discovery process to help them frame problems, identify risks, and form testable hypotheses.
@@ -492,7 +527,7 @@ When the user has provided all information, return ONLY valid JSON matching Disc
 - Show "Step X of 3" when starting each step
 - Confirm completion with "✓ Step X complete"
 - Generate 1-12 risks/assumptions, 1-12 hypotheses
-- When all information is collected, return JSON only (no markdown fences, no other text)`),
+- When all information is collected, return JSON only (no markdown fences, no other text)`)),
     iconId: 'PathIcon',
     kind: 'ai',
     quickActions: [

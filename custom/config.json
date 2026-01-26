@@ -43,5 +43,13 @@
       "apiTeam": [],
       "llmInstruct": []
     }
+  },
+  "designSystems": {
+    "enabled": true,
+    "activeRegistries": [
+      "example"
+    ],
+    "denylist": [],
+    "strictMode": true
   }
 }

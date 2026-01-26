@@ -70,3 +70,22 @@ export function getResourcesCredits(): {
     llmInstruct: customConfig?.resources?.credits?.llmInstruct || []
   }
 }
+
+/**
+ * Get design system configuration (defensive: returns safe defaults)
+ */
+export function getDesignSystemConfig(): {
+  enabled: boolean
+  activeRegistries: string[]
+  allowlist: string[] | undefined
+  denylist: string[] | undefined
+  strictMode: boolean
+} {
+  return {
+    enabled: customConfig?.designSystems?.enabled === true,
+    activeRegistries: customConfig?.designSystems?.activeRegistries || [],
+    allowlist: customConfig?.designSystems?.allowlist,
+    denylist: customConfig?.designSystems?.denylist,
+    strictMode: customConfig?.designSystems?.strictMode === true
+  }
+}

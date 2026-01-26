@@ -94,6 +94,29 @@ See `config.example.json` for the full schema. Key fields:
 
 **Note:** Empty arrays or missing fields result in empty sections (no crashes). Links/buttons only render if URLs are provided and non-empty.
 
+### Design System Registry
+
+- `designSystems.enabled` (boolean): Master enable/disable for design system registry (default: `false`)
+- `designSystems.activeRegistries` (array, optional): Array of registry IDs to activate (e.g., `["custom"]`)
+- `designSystems.allowlist` (array, optional): Only these registry IDs can load (most restrictive)
+- `designSystems.denylist` (array, optional): These registry IDs cannot load
+- `designSystems.strictMode` (boolean): If `true`, registry load failures disable entire system (default: `false`)
+
+**Work-Only Configuration:**
+To ensure only work registries load (prevent example DS activation):
+```json
+{
+  "designSystems": {
+    "enabled": true,
+    "activeRegistries": ["custom"],
+    "allowlist": ["custom"],
+    "strictMode": true
+  }
+}
+```
+
+**See:** `design-systems/README.md` for detailed documentation on creating and managing design system registries.
+
 ### Network Access (Figma allowedDomains)
 
 Network allowlists are also configured via `custom/config.json`:

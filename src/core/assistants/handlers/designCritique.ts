@@ -25,7 +25,48 @@ export class DesignCritiqueHandler implements AssistantHandler {
     // Determine which action is being handled by checking the last user message
     // (which contains the template message from the quick action)
     const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')
+    const userMessageContent = lastUserMessage?.content.toLowerCase() || ''
     const isDeceptiveReview = lastUserMessage?.content.includes('Dark & Deceptive UX practices') || false
+    
+    // Detect explicit tool requests or design system availability queries
+    const isToolRequest = 
+      userMessageContent.includes('raw tool result') ||
+      userMessageContent.includes('use design_system_query') ||
+      userMessageContent.includes('call design_system_query') ||
+      userMessageContent.includes('use the design_system_query tool')
+    
+    const isDsAvailabilityQuery =
+      userMessageContent.includes('what design system components') ||
+      userMessageContent.includes('what components are available') ||
+      userMessageContent.includes('list design system components') ||
+      userMessageContent.includes('what registries are available') ||
+      userMessageContent.includes('what components exist')
+    
+    // Handle design system tool requests (must come before deceptive review check)
+    if (isToolRequest || isDsAvailabilityQuery) {
+      const toolEnforcementMessage = isToolRequest
+        ? 'CRITICAL: User explicitly requested tool execution or raw tool result. You MUST call the DESIGN_SYSTEM_QUERY tool with action="list". Do NOT invent or hallucinate tool results. Return the exact tool output, not fabricated JSON or generic component lists. The tool must be executed and its output returned exactly as provided.'
+        : 'CRITICAL: User is asking about design system component availability. You MUST call the DESIGN_SYSTEM_QUERY tool with action="list" first before answering. Base your response ONLY on the actual tool result. Do NOT invent or hallucinate generic components like "Buttons", "Forms", "Cards" unless they appear in the tool output. If the tool returns "No components available...", explain how to enable design systems in custom/config.json.'
+      
+      // For Internal API compatibility: prepend instruction to user message
+      const modifiedMessages = messages.map((msg, index) => {
+        if (msg.role === 'user' && index === messages.length - 1) {
+          return {
+            ...msg,
+            content: toolEnforcementMessage + '\n\n' + msg.content
+          }
+        }
+        return msg
+      })
+      
+      return [
+        {
+          role: 'system',
+          content: toolEnforcementMessage
+        },
+        ...modifiedMessages
+      ]
+    }
     
     if (isDeceptiveReview) {
       // Deceptive Review: Use Dark UX evaluation prompt

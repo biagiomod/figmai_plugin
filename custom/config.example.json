@@ -63,5 +63,10 @@
         }
       ]
     }
+  },
+  "designSystems": {
+    "enabled": false,
+    "activeRegistries": [],
+    "strictMode": false
   }
 }

@@ -37,6 +37,13 @@ export interface CustomConfig {
       llmInstruct?: Array<{ label: string; url: string }>
     }
   }
+  designSystems?: {
+    enabled?: boolean
+    activeRegistries?: string[]
+    allowlist?: string[]
+    denylist?: string[]
+    strictMode?: boolean
+  }
 }
 
 export const customConfig: CustomConfig | null = {
@@ -84,5 +91,13 @@ export const customConfig: CustomConfig | null = {
       "apiTeam": [],
       "llmInstruct": []
     }
+  },
+  "designSystems": {
+    "enabled": true,
+    "activeRegistries": [
+      "example"
+    ],
+    "denylist": [],
+    "strictMode": true
   }
 }
