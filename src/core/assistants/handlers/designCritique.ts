@@ -13,15 +13,15 @@ import { placeCritiqueOnCanvas } from '../../figma/placeCritiqueFallback'
 import { getTopLevelContainerNode, getAnchorBounds } from '../../stage/anchor'
 import { getPlacementTarget, computeRootPlacement, placeNodeOnPage } from '../../figma/placement'
 import { debug } from '../../debug/logger'
-import { demoScreenBuilders } from '../../../assistants/dca/demoAssets/screens'
-import { createDeceptiveForcedActionCard } from '../../figma/artifacts/components/deceptiveForcedActionCard'
-import { createDeceptiveNaggingCard } from '../../figma/artifacts/components/deceptiveNaggingCard'
 import { createDemoCardContainer, enforceCardWidth } from '../../figma/artifacts/components/deceptiveDemoSection'
+import { DARK_DEMO_CARDS } from '../../figma/artifacts/components/darkDemoCards.generated'
+import { renderDarkDemoCard } from '../../figma/artifacts/components/darkDemoCardsRenderer'
+import type { DarkDemoNodeSpec } from '../../figma/artifacts/components/darkDemoCardTypes'
 
 export class DesignCritiqueHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
     return assistantId === 'design_critique' && 
-           (actionId === 'give-critique' || actionId === 'deceptive-review' || actionId === 'deceptive-demo-screens' || actionId === 'temp-place-forced-action-card')
+           (actionId === 'give-critique' || actionId === 'deceptive-review' || actionId === 'temp-place-forced-action-card')
   }
 
   prepareMessages(messages: NormalizedMessage[]): NormalizedMessage[] {
@@ -115,12 +115,8 @@ export class DesignCritiqueHandler implements AssistantHandler {
     }
   }
 
-  // --- TEMP: Place Forced Action Card (testing) ---
-
   /**
-   * Handle TEMP Quick Action to place Forced Action and Nagging cards side-by-side
-   * This is a temporary action for testing the centralized card components.
-   * TODO: Remove after Phase 3 validation
+   * Handle Add Deceptive Demos quick action: place all demo cards from dark_demo_cards.json on the stage.
    */
   private async handleTempPlaceForcedActionCard(
     context: HandlerContext,
@@ -141,19 +137,15 @@ export class DesignCritiqueHandler implements AssistantHandler {
       const placementTarget = selectedNode ? getPlacementTarget(selectedNode) : null
       const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
 
-      // Create both cards using centralized components
-      dcDebug.log('Creating Forced Action card via createDeceptiveForcedActionCard', { runId })
-      const forcedActionCard = await createDeceptiveForcedActionCard()
-      
-      dcDebug.log('Creating Nagging card via createDeceptiveNaggingCard', { runId })
-      const naggingCard = await createDeceptiveNaggingCard()
-
-      // Enforce 320px width on all cards (safety check)
-      enforceCardWidth(forcedActionCard)
-      enforceCardWidth(naggingCard)
-
-      // Create container using reusable helper (horizontal auto-layout)
-      const container = createDemoCardContainer([forcedActionCard, naggingCard])
+      // Build all 10 demo cards from refs_for_cursor/dark_demo_cards.json
+      dcDebug.log('Creating demo cards from DARK_DEMO_CARDS', { runId, count: DARK_DEMO_CARDS.length })
+      const cards: FrameNode[] = []
+      for (let i = 0; i < DARK_DEMO_CARDS.length; i++) {
+        const card = await renderDarkDemoCard(DARK_DEMO_CARDS[i] as unknown as DarkDemoNodeSpec)
+        cards.push(card)
+      }
+      for (const card of cards) enforceCardWidth(card)
+      const container = createDemoCardContainer(cards)
 
       // Compute placement for the container
       const placement = computeRootPlacement(
@@ -177,77 +169,12 @@ export class DesignCritiqueHandler implements AssistantHandler {
         containerPosition: { x: placement.x, y: placement.y },
         containerSize: { width: container.width, height: container.height }
       })
-      figma.notify('[TEMP] Deceptive demo cards placed')
-      context.replaceStatusMessage('[TEMP] Deceptive demo cards placed on stage')
+      figma.notify('Deceptive demo cards placed')
+      context.replaceStatusMessage('Deceptive demo cards placed on stage')
       return { handled: true }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       dcDebug.error('handleTempPlaceForcedActionCard ERROR', { runId, error: errorMessage })
-      context.replaceStatusMessage(`Error: ${errorMessage}`, true)
-      return { handled: true, message: `Error: ${errorMessage}` }
-    }
-  }
-
-  // --- Deceptive Demo Screens (non-LLM) ---
-
-  /**
-   * Handle Deceptive Demo Screens quick action (no LLM)
-   */
-  private async handleDeceptiveDemoScreens(
-    context: HandlerContext,
-    dcDebug: ReturnType<typeof debug.scope>,
-    runId: string
-  ): Promise<HandlerResult> {
-    try {
-      let selectedNode: SceneNode | undefined
-      if (context.selection.hasSelection && context.selectionOrder.length > 0) {
-        const node = await figma.getNodeByIdAsync(context.selectionOrder[0])
-        if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
-          selectedNode = node as SceneNode
-        }
-      }
-
-      const placementTarget = selectedNode ? getPlacementTarget(selectedNode) : null
-      const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
-
-      // Build centralized deceptive demo cards
-      // Only cards that use centralized builders go in the container
-      const centralizedCards = [
-        await createDeceptiveForcedActionCard(),
-        await createDeceptiveNaggingCard()
-      ]
-      
-      // Enforce 320px width on all cards (safety check)
-      for (const card of centralizedCards) {
-        enforceCardWidth(card)
-      }
-      
-      // Create container using reusable helper (horizontal auto-layout)
-      const container = createDemoCardContainer(centralizedCards)
-      
-      dcDebug.log('handleDeceptiveDemoScreens: Container created', {
-        runId,
-        containerName: container.name,
-        cardCount: centralizedCards.length,
-        cards: centralizedCards.map(c => ({ name: c.name, width: c.width, height: c.height }))
-      })
-
-      // Compute placement for the container
-      const placement = computeRootPlacement(
-        targetBounds,
-        { width: container.width, height: container.height },
-        { side: 'right', spacing: 40 }
-      )
-
-      // Place container on page
-      placeNodeOnPage(container, { x: placement.x, y: placement.y })
-
-      figma.notify('Deceptive demo cards placed in Section')
-      context.replaceStatusMessage('Deceptive demo cards placed in Section on stage')
-      return { handled: true }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      dcDebug.error('handleDeceptiveDemoScreens ERROR', { runId, error: errorMessage })
       context.replaceStatusMessage(`Error: ${errorMessage}`, true)
       return { handled: true, message: `Error: ${errorMessage}` }
     }
@@ -466,18 +393,12 @@ Return ONLY the JSON object, no markdown fences, no other text.`
     
     dcDebug.log('START', { runId, assistantId: context.assistantId, quickActionId: context.actionId, actionId })
     
-    // Handle TEMP: Place Forced Action Card (local, no provider)
+    // Handle Add Deceptive Demos (local, no provider)
     if (actionId === 'temp-place-forced-action-card') {
       dcDebug.log('ROUTING: temp-place-forced-action-card -> handleTempPlaceForcedActionCard', { runId, actionId })
       return await this.handleTempPlaceForcedActionCard(context, dcDebug, runId)
     }
-    
-    // Handle deceptive demo screens (local, no provider)
-    if (actionId === 'deceptive-demo-screens') {
-      dcDebug.log('ROUTING: deceptive-demo-screens -> handleDeceptiveDemoScreens', { runId, actionId })
-      return await this.handleDeceptiveDemoScreens(context, dcDebug, runId)
-    }
-    
+
     // Handle deceptive-review action separately
     if (actionId === 'deceptive-review') {
       dcDebug.log('ROUTING: deceptive-review -> handleDeceptiveReview', { runId, actionId })

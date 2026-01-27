@@ -139,7 +139,7 @@ All text nodes use:
 ## Usage
 
 This card component is centralized in `src/core/figma/artifacts/components/deceptiveNaggingCard.ts` and is used by:
-- TEMP Quick Action: `[TEMP] Place Forced Action Card` (places both Forced Action and Nagging cards side-by-side)
+- Quick Action: **Add Deceptive Demos** (places all 10 demo cards, including Nagging, from dark_demo_cards.json)
 
 ---
 

@@ -120,8 +120,7 @@ The component creates a **full container hierarchy** with the following structur
 
 ### Container Hierarchy
 The component builds the **complete container structure** (root + 4 children: badge, details, instructions, UI Demo). This ensures consistency across all uses:
-- TEMP Quick Action placement
-- Deceptive Demo Screens generator
+- Quick Action: Add Deceptive Demos
 
 ### Dash Pattern
 The JSON scrape does not include dash pattern fields. The component uses `setDashedStroke()` with a default pattern of `[4, 4]` (4px dash, 4px gap). This can be overridden via the `dashPattern` option in `ForcedActionCardOptions`.
@@ -145,8 +144,8 @@ The instructions body uses a line break character (`\n`) to separate the two lin
 ## Usage
 
 This card component is centralized in `src/core/figma/artifacts/components/deceptiveForcedActionCard.ts` and is used by:
-- TEMP Quick Action: `[TEMP] Place Forced Action Card`
-- Deceptive Demo Screens: `createForcedActionDemoScreen()`
+- Quick Action: **Add Deceptive Demos** (places all 10 demo cards from dark_demo_cards.json)
+- Demo screen builders in `screens.ts` (e.g. `createForcedActionDemoScreen()`) where applicable
 
 All implementations use this single source of truth to ensure consistency.
 

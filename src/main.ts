@@ -647,7 +647,18 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
     // Check if handler can handle the action without LLM call (e.g., Content Table scanning)
     // For now, we'll let handler.handleResponse decide, but we need to check if it needs selection context
     // Content Table handler needs to run before LLM call, so we check it here
-    if (assistantId === 'design_critique' && (actionId === 'deceptive-demo-screens' || actionId === 'temp-place-forced-action-card')) {
+    if (assistantId === 'design_critique' && actionId === 'temp-place-forced-action-card') {
+      // Add user message and status so Chat Dialog shows the action and a loading indicator while cards are placed
+      const userMessage: Message = {
+        id: generateMessageId(),
+        role: 'user',
+        content: action.templateMessage,
+        timestamp: Date.now()
+      }
+      messageHistory.push(userMessage)
+      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
+      sendStatusMessage(requestId, 'Placing demo cards on stage…')
+
       const handlerContext = {
         assistantId,
         actionId,
@@ -663,10 +674,7 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
       if (result.handled) {
         const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
         if (statusIndex !== -1) {
-          const defaultMessage = actionId === 'temp-place-forced-action-card' 
-            ? '[TEMP] Forced Action card created'
-            : 'Deceptive demo screens created'
-          replaceStatusMessage(requestId, result.message || defaultMessage)
+          replaceStatusMessage(requestId, result.message || 'Deceptive demo cards placed on stage')
         }
         return
       }

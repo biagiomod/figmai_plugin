@@ -224,16 +224,9 @@ You specialize in evaluating and improving text content for clarity, tone, user 
         imageScale: 2
       },
       {
-        id: 'deceptive-demo-screens',
-        label: 'Deceptive Demo Screens',
-        templateMessage: 'Create deterministic deceptive demo screens for testing.',
-        requiresSelection: false,
-        requiresVision: false
-      },
-      {
         id: 'temp-place-forced-action-card',
-        label: '[TEMP] Place Forced Action Card',
-        templateMessage: 'Temporary action for testing centralized card component placement.',
+        label: 'Add Deceptive Demos',
+        templateMessage: 'Place deceptive demo cards on the stage for testing dark pattern examples.',
         requiresSelection: false,
         requiresVision: false
       }

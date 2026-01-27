@@ -44,24 +44,24 @@ export async function createDeceptiveNaggingCard(
   await ensureFontsLoaded(fonts.inter, ['Bold', 'Regular'])
 
   // ============================================
-  // ROOT CONTAINER FRAME
+  // ROOT CONTAINER FRAME "Deceptive Demo — Nagging"
+  // Spec: flex, width 320px, padding 16px, column, align-items flex-start, gap 24px.
+  // Height omitted = hug (primaryAxisSizingMode AUTO only; no fixed height).
   // ============================================
   const root = figma.createFrame()
   root.name = options.name ?? 'Deceptive Demo — Nagging'
-  
-  // Configure auto-layout (matches Forced Action pattern: VERTICAL, padding 16, itemSpacing 24)
-  // Fixed width (320px) enforced for Section container consistency
+
   applyAutoLayout(root, {
     direction: 'VERTICAL',
-    padding: 16, // Same as Forced Action
-    itemSpacing: 24, // Same as Forced Action
-    primaryAxisSizingMode: 'AUTO', // Height: auto (driven by content)
-    counterAxisSizingMode: 'FIXED' // Width: fixed (320px enforced below)
+    padding: 16,
+    itemSpacing: 24,
+    primaryAxisSizingMode: 'AUTO', // height: hug (no fixed height)
+    counterAxisSizingMode: 'FIXED' // width: 320px (set after children)
   })
-  
-  // Apply styling (matches Forced Action: white fill, radius 12, clipsContent true)
-  root.fills = [rgbToPaint(colors.bgWhite)] // White fill
-  root.cornerRadius = 12 // Same as Forced Action
+  root.counterAxisAlignItems = 'MIN' // align-items: flex-start
+
+  root.fills = [rgbToPaint(colors.bgWhite)]
+  root.cornerRadius = 12
   root.clipsContent = true
 
   // ============================================
@@ -168,177 +168,107 @@ export async function createDeceptiveNaggingCard(
 
   // ============================================
   // 4. UI DEMO BLOCK (inner dashed card)
+  // Spec: flex, padding 16px, column, align-items flex-start, gap 16px, align-self stretch.
+  // Flex property omitted = no flex: 1 0 0; height must hug (layoutGrow 0).
   // ============================================
-  // UI Demo JSON scrape 2026-01-27: width 328, height 124, VERTICAL layout, FIXED counterAxis
+  const UI_DEMO_CONTENT_WIDTH = 256 // container width (288 when in root) minus padding (16*2)
+
   const uiDemo = figma.createFrame()
   uiDemo.name = 'UI Demo'
-  
-  // Configure auto-layout (matches JSON scrape exactly)
+
   applyAutoLayout(uiDemo, {
     direction: 'VERTICAL',
-    padding: 16, // JSON spec: padding 16 all around
-    itemSpacing: 16, // JSON spec: itemSpacing 16
-    primaryAxisSizingMode: 'AUTO', // JSON spec: primaryAxisSizingMode AUTO
-    counterAxisSizingMode: 'FIXED' // JSON spec: counterAxisSizingMode FIXED
+    padding: 16,
+    itemSpacing: 16,
+    primaryAxisSizingMode: 'AUTO', // height: hug
+    counterAxisSizingMode: 'AUTO'   // width from parent (align-self stretch)
   })
-  
-  // Set fixed size (JSON spec: width 328, height 124)
-  uiDemo.resize(328, 124)
+  uiDemo.counterAxisAlignItems = 'MIN' // align-items: flex-start
 
-  // Apply styling (JSON spec: fill rgb(0.96, 0.96, 1.0), cornerRadius 12, clipsContent true)
-  uiDemo.fills = [rgbToPaint({ r: 0.96, g: 0.96, b: 1.0 })] // Light blue tint (JSON spec)
-  uiDemo.cornerRadius = 12 // JSON spec: cornerRadius 12
-  uiDemo.clipsContent = true // JSON spec: clipsContent true
-
-  // Apply dashed stroke (JSON spec: stroke rgb(1.0, 0.56666666, 0.0), strokeWeight 2)
-  // Note: JSON shows SOLID but we use dashed for visual consistency
+  uiDemo.fills = [rgbToPaint({ r: 0.96, g: 0.96, b: 1.0 })]
+  uiDemo.cornerRadius = 12
+  uiDemo.clipsContent = true
+  uiDemo.strokeAlign = 'INSIDE'
   setDashedStroke(uiDemo, {
-    color: { r: 1.0, g: 0.56666666, b: 0.0 }, // Orange stroke (JSON spec)
-    weight: 2, // JSON spec: strokeWeight 2
+    color: { r: 1.0, g: 0.5666667, b: 0.0 },
+    weight: 2,
     dashPattern: dashPattern
   })
 
-  // ============================================
-  // PROMPT ROWS (inside UI Demo)
-  // JSON scrape 2026-01-27: Row width 296, height 38, HORIZONTAL, FIXED primaryAxis, itemSpacing 8
-  // ============================================
-  
-  // Prompt Row 1: "Enable Notifications"
-  const promptRow1 = figma.createFrame()
-  promptRow1.name = 'Row' // JSON spec: name "Row"
-  applyAutoLayout(promptRow1, {
-    direction: 'HORIZONTAL', // JSON spec: layoutMode HORIZONTAL
-    itemSpacing: 8, // JSON spec: itemSpacing 8
-    primaryAxisSizingMode: 'FIXED', // JSON spec: primaryAxisSizingMode FIXED
-    counterAxisSizingMode: 'AUTO' // JSON spec: counterAxisSizingMode AUTO
-  })
-  promptRow1.fills = [] // JSON spec: no fills
-  promptRow1.clipsContent = false // JSON spec: clipsContent false
-  // Set fixed size (JSON spec: width 296, height 38)
-  promptRow1.resize(296, 38)
-  uiDemo.appendChild(promptRow1)
-  // Set layoutAlign STRETCH (JSON spec: layoutAlign STRETCH)
-  promptRow1.layoutSizingHorizontal = 'FILL'
-  
-  // Checkbox (JSON spec: size 14x14, fill white, stroke gray, strokeWeight 1, cornerRadius 3)
-  const checkbox1 = figma.createRectangle()
-  checkbox1.resize(14, 14) // JSON spec: size 14x14
-  checkbox1.cornerRadius = 3 // JSON spec: cornerRadius 3
-  checkbox1.strokes = [rgbToPaint({ r: 0.5, g: 0.5, b: 0.5 })] // JSON spec: stroke gray rgb(0.5,0.5,0.5)
-  checkbox1.strokeWeight = 1 // JSON spec: strokeWeight 1
-  checkbox1.fills = [rgbToPaint(colors.bgWhite)] // JSON spec: fill white
-  promptRow1.appendChild(checkbox1)
-  
-  // Text Group (JSON spec: layoutMode VERTICAL, itemSpacing 4, layoutGrow 1, width 274, height 38, counterAxisSizingMode FIXED)
-  const textBlock1 = figma.createFrame()
-  textBlock1.name = 'Text Group' // JSON spec: name "Text Group"
-  applyAutoLayout(textBlock1, {
-    direction: 'VERTICAL', // JSON spec: layoutMode VERTICAL
-    itemSpacing: 4, // JSON spec: itemSpacing 4
-    primaryAxisSizingMode: 'AUTO',
-    counterAxisSizingMode: 'FIXED' // JSON spec: counterAxisSizingMode FIXED
-  })
-  textBlock1.fills = [] // JSON spec: no fills
-  // Set fixed size (JSON spec: width 274, height 38)
-  textBlock1.resize(274, 38)
-  promptRow1.appendChild(textBlock1)
-  // Set layoutGrow 1 (JSON spec: layoutGrow 1 - critical for stretching)
-  textBlock1.layoutGrow = 1
-  
-  // Heading: "Enable Notifications" (JSON spec: Bold, 16)
-  const heading1 = figma.createText()
-  heading1.fontName = { family: fonts.inter, style: 'Bold' }
-  heading1.fontSize = 16 // JSON spec: Bold, 16 (not 14)
-  heading1.fills = [rgbToPaint({ r: 0.1, g: 0.1, b: 0.1 })]
-  heading1.characters = 'Enable Notifications'
-  textBlock1.appendChild(heading1)
-  // Set stretch behavior: fill Text Group width (274px) - align-self: stretch equivalent
-  // Text Group has fixed width 274px, so text will wrap at that width
-  heading1.textAutoResize = 'HEIGHT' // Height adjusts based on wrapping, width constrained by parent
-  heading1.layoutSizingHorizontal = 'FILL' // Stretch to fill Text Group width (274px)
-  
-  // Subtext: "Stay updated with alerts." (JSON spec: Regular, 12)
-  const subtext1 = figma.createText()
-  subtext1.fontName = { family: fonts.inter, style: 'Regular' }
-  subtext1.fontSize = 12 // JSON spec: Regular, 12
-  subtext1.fills = [rgbToPaint({ r: 0.35, g: 0.35, b: 0.35 })] // Secondary text color
-  subtext1.characters = 'Stay updated with alerts.'
-  textBlock1.appendChild(subtext1)
-  // Set stretch behavior: fill Text Group width (274px) - align-self: stretch equivalent
-  subtext1.textAutoResize = 'HEIGHT' // Height adjusts based on wrapping, width constrained by parent
-  subtext1.layoutSizingHorizontal = 'FILL' // Stretch to fill Text Group width (274px)
+  // 1) Title: "Enable Notifications" — Inter Bold 16, fill rgb(0.1,0.1,0.1)
+  const titleText = figma.createText()
+  titleText.fontName = { family: fonts.inter, style: 'Bold' }
+  titleText.fontSize = 16
+  titleText.fills = [rgbToPaint({ r: 0.1, g: 0.1, b: 0.1 })]
+  titleText.characters = 'Enable Notifications'
+  titleText.textAlignHorizontal = 'LEFT'
+  titleText.textAlignVertical = 'TOP'
+  titleText.textAutoResize = 'HEIGHT'
+  titleText.resize(UI_DEMO_CONTENT_WIDTH, 19)
+  uiDemo.appendChild(titleText)
+  titleText.layoutSizingHorizontal = 'FILL'
 
-  // Prompt Row 2: "Enable Location?" (same structure as row 1)
-  const promptRow2 = figma.createFrame()
-  promptRow2.name = 'Row' // JSON spec: name "Row"
-  applyAutoLayout(promptRow2, {
-    direction: 'HORIZONTAL', // JSON spec: layoutMode HORIZONTAL
-    itemSpacing: 8, // JSON spec: itemSpacing 8
-    primaryAxisSizingMode: 'FIXED', // JSON spec: primaryAxisSizingMode FIXED
-    counterAxisSizingMode: 'AUTO' // JSON spec: counterAxisSizingMode AUTO
-  })
-  promptRow2.fills = [] // JSON spec: no fills
-  promptRow2.clipsContent = false // JSON spec: clipsContent false
-  // Set fixed size (JSON spec: width 296, height 38)
-  promptRow2.resize(296, 38)
-  uiDemo.appendChild(promptRow2)
-  // Set layoutAlign STRETCH (JSON spec: layoutAlign STRETCH)
-  promptRow2.layoutSizingHorizontal = 'FILL'
-  
-  // Checkbox (JSON spec: size 14x14, fill white, stroke gray, strokeWeight 1, cornerRadius 3)
-  const checkbox2 = figma.createRectangle()
-  checkbox2.resize(14, 14) // JSON spec: size 14x14
-  checkbox2.cornerRadius = 3 // JSON spec: cornerRadius 3
-  checkbox2.strokes = [rgbToPaint({ r: 0.5, g: 0.5, b: 0.5 })] // JSON spec: stroke gray rgb(0.5,0.5,0.5)
-  checkbox2.strokeWeight = 1 // JSON spec: strokeWeight 1
-  checkbox2.fills = [rgbToPaint(colors.bgWhite)] // JSON spec: fill white
-  promptRow2.appendChild(checkbox2)
-  
-  // Text Group (JSON spec: layoutMode VERTICAL, itemSpacing 4, layoutGrow 1, width 274, height 38, counterAxisSizingMode FIXED)
-  const textBlock2 = figma.createFrame()
-  textBlock2.name = 'Text Group' // JSON spec: name "Text Group"
-  applyAutoLayout(textBlock2, {
-    direction: 'VERTICAL', // JSON spec: layoutMode VERTICAL
-    itemSpacing: 4, // JSON spec: itemSpacing 4
+  // 2) Body line 1
+  const body1 = figma.createText()
+  body1.fontName = { family: fonts.inter, style: 'Regular' }
+  body1.fontSize = 12
+  body1.fills = [rgbToPaint({ r: 0.1, g: 0.1, b: 0.1 })]
+  body1.characters = "We noticed you didn't enable notifications when you installed the app."
+  body1.textAutoResize = 'HEIGHT'
+  body1.resize(UI_DEMO_CONTENT_WIDTH, 30)
+  uiDemo.appendChild(body1)
+  body1.layoutSizingHorizontal = 'FILL'
+
+  // 3) Body line 2
+  const body2 = figma.createText()
+  body2.fontName = { family: fonts.inter, style: 'Regular' }
+  body2.fontSize = 12
+  body2.fills = [rgbToPaint({ r: 0.1, g: 0.1, b: 0.1 })]
+  body2.characters = 'Notifications help you stay informed about important updates.'
+  body2.textAutoResize = 'HEIGHT'
+  body2.resize(UI_DEMO_CONTENT_WIDTH, 30)
+  uiDemo.appendChild(body2)
+  body2.layoutSizingHorizontal = 'FILL'
+
+  // 4) ButtonRow — HORIZONTAL, itemSpacing 8; single "Enable Notifications" button
+  const buttonRow = figma.createFrame()
+  buttonRow.name = 'ButtonRow'
+  applyAutoLayout(buttonRow, {
+    direction: 'HORIZONTAL',
+    itemSpacing: 8,
     primaryAxisSizingMode: 'AUTO',
-    counterAxisSizingMode: 'FIXED' // JSON spec: counterAxisSizingMode FIXED
+    counterAxisSizingMode: 'AUTO'
   })
-  textBlock2.fills = [] // JSON spec: no fills
-  // Set fixed size (JSON spec: width 274, height 38)
-  textBlock2.resize(274, 38)
-  promptRow2.appendChild(textBlock2)
-  // Set layoutGrow 1 (JSON spec: layoutGrow 1 - critical for stretching)
-  textBlock2.layoutGrow = 1
-  
-  // Heading: "Enable Location?" (JSON spec: Bold, 16)
-  const heading2 = figma.createText()
-  heading2.fontName = { family: fonts.inter, style: 'Bold' }
-  heading2.fontSize = 16 // JSON spec: Bold, 16 (not 14)
-  heading2.fills = [rgbToPaint({ r: 0.1, g: 0.1, b: 0.1 })]
-  heading2.characters = 'Enable Location?'
-  textBlock2.appendChild(heading2)
-  // Set stretch behavior: fill Text Group width (274px) - align-self: stretch equivalent
-  heading2.textAutoResize = 'HEIGHT' // Height adjusts based on wrapping, width constrained by parent
-  heading2.layoutSizingHorizontal = 'FILL' // Stretch to fill Text Group width (274px)
-  
-  // Subtext: "We need your location for better results." (JSON spec: Regular, 12)
-  const subtext2 = figma.createText()
-  subtext2.fontName = { family: fonts.inter, style: 'Regular' }
-  subtext2.fontSize = 12 // JSON spec: Regular, 12
-  subtext2.fills = [rgbToPaint({ r: 0.35, g: 0.35, b: 0.35 })] // Secondary text color
-  subtext2.characters = 'We need your location for better results.'
-  textBlock2.appendChild(subtext2)
-  // Set stretch behavior: fill Text Group width (274px) - align-self: stretch equivalent
-  subtext2.textAutoResize = 'HEIGHT' // Height adjusts based on wrapping, width constrained by parent
-  subtext2.layoutSizingHorizontal = 'FILL' // Stretch to fill Text Group width (274px)
-  
-  // Append UI Demo to root
+  buttonRow.fills = []
+
+  const button = figma.createFrame()
+  button.name = 'Button_Create Account'
+  applyAutoLayout(button, {
+    direction: 'HORIZONTAL',
+    padding: { top: 12, right: 16, bottom: 12, left: 16 },
+    itemSpacing: 0,
+    primaryAxisSizingMode: 'AUTO',
+    counterAxisSizingMode: 'AUTO'
+  })
+  button.fills = [rgbToPaint(colors.primary)]
+  button.cornerRadius = 6
+
+  const buttonLabel = figma.createText()
+  buttonLabel.fontName = { family: fonts.inter, style: 'Bold' }
+  buttonLabel.fontSize = 12
+  buttonLabel.fills = [rgbToPaint(colors.textOnPrimary)]
+  buttonLabel.characters = 'Enable Notifications'
+  buttonLabel.textAutoResize = 'WIDTH_AND_HEIGHT'
+  button.appendChild(buttonLabel)
+  buttonRow.appendChild(button)
+  uiDemo.appendChild(buttonRow)
+
   root.appendChild(uiDemo)
-  // Set stretch behavior: fill root width
-  uiDemo.layoutSizingHorizontal = 'FILL'
+  // Must set layoutGrow = 0 first so UI Demo does not fill vertical space (no flex: 1 0 0)
+  uiDemo.layoutGrow = 0
+  uiDemo.layoutSizingHorizontal = 'FILL' // align-self: stretch (width only)
 
-  // Enforce fixed 320px width for consistent card sizing in Section container
-  // Height remains auto (driven by content) - enforce width after all children are added
+  // Fix width 320px; height stays hug (primaryAxisSizingMode AUTO, no fixed height)
   root.resize(320, root.height)
 
   // Debug log: confirm structure created
