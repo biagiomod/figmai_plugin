@@ -15,6 +15,8 @@ import { getPlacementTarget, computeRootPlacement, placeNodeOnPage } from '../..
 import { debug } from '../../debug/logger'
 import { demoScreenBuilders } from '../../../assistants/dca/demoAssets/screens'
 import { createDeceptiveForcedActionCard } from '../../figma/artifacts/components/deceptiveForcedActionCard'
+import { createDeceptiveNaggingCard } from '../../figma/artifacts/components/deceptiveNaggingCard'
+import { createDemoCardContainer, enforceCardWidth } from '../../figma/artifacts/components/deceptiveDemoSection'
 
 export class DesignCritiqueHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
@@ -116,8 +118,8 @@ export class DesignCritiqueHandler implements AssistantHandler {
   // --- TEMP: Place Forced Action Card (testing) ---
 
   /**
-   * Handle TEMP Quick Action to place a single Forced Action card
-   * This is a temporary action for testing the centralized card component.
+   * Handle TEMP Quick Action to place Forced Action and Nagging cards side-by-side
+   * This is a temporary action for testing the centralized card components.
    * TODO: Remove after Phase 3 validation
    */
   private async handleTempPlaceForcedActionCard(
@@ -139,23 +141,44 @@ export class DesignCritiqueHandler implements AssistantHandler {
       const placementTarget = selectedNode ? getPlacementTarget(selectedNode) : null
       const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
 
-      // Create the card using centralized component
+      // Create both cards using centralized components
       dcDebug.log('Creating Forced Action card via createDeceptiveForcedActionCard', { runId })
-      const card = await createDeceptiveForcedActionCard()
+      const forcedActionCard = await createDeceptiveForcedActionCard()
+      
+      dcDebug.log('Creating Nagging card via createDeceptiveNaggingCard', { runId })
+      const naggingCard = await createDeceptiveNaggingCard()
 
-      // Compute placement
+      // Enforce 320px width on all cards (safety check)
+      enforceCardWidth(forcedActionCard)
+      enforceCardWidth(naggingCard)
+
+      // Create container using reusable helper (horizontal auto-layout)
+      const container = createDemoCardContainer([forcedActionCard, naggingCard])
+
+      // Compute placement for the container
       const placement = computeRootPlacement(
         targetBounds,
-        { width: card.width, height: card.height },
+        { width: container.width, height: container.height },
         { side: 'right', spacing: 40 }
       )
 
-      // Place on page
-      placeNodeOnPage(card, { x: placement.x, y: placement.y })
+      // Place container on page
+      placeNodeOnPage(container, { x: placement.x, y: placement.y })
 
-      dcDebug.log('handleTempPlaceForcedActionCard SUCCESS', { runId, cardName: card.name, position: { x: placement.x, y: placement.y } })
-      figma.notify('[TEMP] Forced Action card placed')
-      context.replaceStatusMessage('[TEMP] Forced Action card placed on stage')
+      dcDebug.log('handleTempPlaceForcedActionCard SUCCESS', {
+        runId,
+        containerName: container.name,
+        cardCount: container.children.length,
+        cards: container.children.map(c => ({ 
+          name: c.name, 
+          width: 'width' in c ? c.width : 0,
+          height: 'height' in c ? c.height : 0
+        })),
+        containerPosition: { x: placement.x, y: placement.y },
+        containerSize: { width: container.width, height: container.height }
+      })
+      figma.notify('[TEMP] Deceptive demo cards placed')
+      context.replaceStatusMessage('[TEMP] Deceptive demo cards placed on stage')
       return { handled: true }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -187,35 +210,40 @@ export class DesignCritiqueHandler implements AssistantHandler {
       const placementTarget = selectedNode ? getPlacementTarget(selectedNode) : null
       const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
 
-      const demoRoot = figma.createFrame()
-      demoRoot.name = 'Deceptive Demo Screens'
-      demoRoot.layoutMode = 'VERTICAL'
-      demoRoot.primaryAxisSizingMode = 'AUTO'
-      demoRoot.counterAxisSizingMode = 'FIXED'
-      demoRoot.paddingTop = 40
-      demoRoot.paddingRight = 40
-      demoRoot.paddingBottom = 40
-      demoRoot.paddingLeft = 40
-      demoRoot.itemSpacing = 40
-      demoRoot.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
-      demoRoot.resizeWithoutConstraints(440, 10) // width fixed; height via auto-layout
-
-      // Build all demo screens using the reusable builders
-      for (const builder of demoScreenBuilders) {
-        const screen = await builder()
-        demoRoot.appendChild(screen)
+      // Build centralized deceptive demo cards
+      // Only cards that use centralized builders go in the container
+      const centralizedCards = [
+        await createDeceptiveForcedActionCard(),
+        await createDeceptiveNaggingCard()
+      ]
+      
+      // Enforce 320px width on all cards (safety check)
+      for (const card of centralizedCards) {
+        enforceCardWidth(card)
       }
+      
+      // Create container using reusable helper (horizontal auto-layout)
+      const container = createDemoCardContainer(centralizedCards)
+      
+      dcDebug.log('handleDeceptiveDemoScreens: Container created', {
+        runId,
+        containerName: container.name,
+        cardCount: centralizedCards.length,
+        cards: centralizedCards.map(c => ({ name: c.name, width: c.width, height: c.height }))
+      })
 
+      // Compute placement for the container
       const placement = computeRootPlacement(
         targetBounds,
-        { width: demoRoot.width, height: demoRoot.height },
+        { width: container.width, height: container.height },
         { side: 'right', spacing: 40 }
       )
 
-      placeNodeOnPage(demoRoot, { x: placement.x, y: placement.y })
+      // Place container on page
+      placeNodeOnPage(container, { x: placement.x, y: placement.y })
 
-      figma.notify('Deceptive demo screens placed')
-      context.replaceStatusMessage('Deceptive demo screens placed on stage')
+      figma.notify('Deceptive demo cards placed in Section')
+      context.replaceStatusMessage('Deceptive demo cards placed in Section on stage')
       return { handled: true }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)

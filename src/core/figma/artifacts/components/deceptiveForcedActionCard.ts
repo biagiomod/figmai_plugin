@@ -69,13 +69,13 @@ export async function createDeceptiveForcedActionCard(
   root.name = 'Deceptive Demo — Forced Action'
   
   // Configure auto-layout (matches JSON spec: VERTICAL, padding 16, itemSpacing 24)
-  // counterAxisSizingMode: 'AUTO' allows children to determine width, enabling text wrapping
+  // Fixed width (320px) enforced for Section container consistency
   applyAutoLayout(root, {
     direction: 'VERTICAL',
     padding: 16, // JSON spec: padding 16 all sides
     itemSpacing: 24, // JSON spec: itemSpacing 24
-    primaryAxisSizingMode: 'AUTO',
-    counterAxisSizingMode: 'AUTO' // Allows children to stretch to fill width
+    primaryAxisSizingMode: 'AUTO', // Height: auto (driven by content)
+    counterAxisSizingMode: 'FIXED' // Width: fixed (320px enforced below)
   })
   
   // Apply styling (matches JSON spec: white fill, radius 12, clipsContent true)
@@ -125,12 +125,12 @@ export async function createDeceptiveForcedActionCard(
   // Set stretch behavior: fill root width
   details.layoutSizingHorizontal = 'FILL'
   
-  // Title: "Deceptive Demo — Forced Action"
+  // Title: "Forced Action"
   const detailsTitle = figma.createText()
   detailsTitle.fontName = { family: fonts.inter, style: 'Bold' }
   detailsTitle.fontSize = 16 // JSON spec: Inter Bold 16
   detailsTitle.fills = [rgbToPaint({ r: 0.1, g: 0.1, b: 0.1 })] // JSON spec: rgb(0.1, 0.1, 0.1)
-  detailsTitle.characters = 'Deceptive Demo — Forced Action'
+  detailsTitle.characters = 'Forced Action'
   details.appendChild(detailsTitle)
   // Set stretch behavior: fill width, wrap height
   detailsTitle.layoutSizingHorizontal = 'FILL'
@@ -335,11 +335,17 @@ export async function createDeceptiveForcedActionCard(
   // Set stretch behavior: fill root width
   uiDemo.layoutSizingHorizontal = 'FILL'
 
+  // Enforce fixed 320px width for consistent card sizing in Section container
+  // Height remains auto (driven by content) - enforce width after all children are added
+  root.resize(320, root.height)
+
   // Debug log: confirm structure created
   if (debug.isEnabled('subsystem:artifacts')) {
     componentDebug.log('createDeceptiveForcedActionCard: structure created', {
       rootName: root.name,
       childrenCount: root.children.length,
+      width: root.width,
+      height: root.height,
       children: root.children.map(c => ({ name: c.name, type: c.type }))
     })
   }

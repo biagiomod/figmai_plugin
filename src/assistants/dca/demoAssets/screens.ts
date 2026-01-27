@@ -11,6 +11,7 @@
 import { createBadge, createText, createSection, createButton, createButtonRow, createCheckbox, createBanner, createCardFrame } from './components'
 import { colors, spacing } from './tokens'
 import { createDeceptiveForcedActionCard } from '../../../core/figma/artifacts/components/deceptiveForcedActionCard'
+import { createDeceptiveNaggingCard } from '../../../core/figma/artifacts/components/deceptiveNaggingCard'
 
 /**
  * Create a demo screen frame (360x720, with badge, title, hint, and content area)
@@ -66,6 +67,9 @@ export async function createForcedActionDemoScreen(): Promise<FrameNode> {
 
 /**
  * 2. Nagging demo screen
+ * 
+ * Uses the centralized card component from artifacts/components/deceptiveNaggingCard.ts
+ * This ensures consistency across all uses of this card.
  */
 export async function createNaggingDemoScreen(): Promise<FrameNode> {
   const frame = await createDemoScreenFrame(
@@ -73,18 +77,11 @@ export async function createNaggingDemoScreen(): Promise<FrameNode> {
     'Repeated prompts that reappear after dismissal.'
   )
 
-  const stack = createSection('Nagging_PromptStack', {
-    padding: spacing.xl,
-    spacing: spacing.md,
-    fill: colors.bgBannerAlt
-  })
+  // Use centralized card component (single source of truth)
+  // Component creates full container hierarchy: root + badge + details + instructions + UI Demo
+  const card = await createDeceptiveNaggingCard()
 
-  const prompt1 = await createBanner('Enable Notifications', 'Stay updated with alerts.')
-  const prompt2 = await createBanner('Enable Location?', 'We need your location for better results.')
-
-  stack.appendChild(prompt1)
-  stack.appendChild(prompt2)
-  frame.appendChild(stack)
+  frame.appendChild(card)
 
   frame.locked = true
   return frame
