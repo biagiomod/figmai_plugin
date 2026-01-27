@@ -7,6 +7,7 @@
 
 import type { DesignSpecV1, BlockSpec, RenderReport } from './types'
 import { loadFonts, createTextNode, createAutoLayoutFrameSafe } from '../stage/primitives'
+import { placeBatchBelowPageContent } from '../figma/placement'
 
 /**
  * Render Design Spec to Section
@@ -173,18 +174,7 @@ export async function renderDesignSpecToSection(
     screens.push(screenFrame)
   }
 
-  // Calculate section placement
-  const placement = calculateSectionPlacement(section)
-  section.x = placement.x
-  section.y = placement.y
-
-  // Append to current page
-  figma.currentPage.appendChild(section)
-
-  // Scroll into view and select
-  figma.currentPage.selection = [section]
-  figma.viewport.scrollAndZoomIntoView([section])
-
+  placeBatchBelowPageContent(section, { marginTop: 24 })
   return { section, screens, report }
 }
 

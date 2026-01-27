@@ -93,7 +93,7 @@ export async function createArtifact(
     width,
     spacing: options.placement?.spacing ?? 40,
     version: options.version,
-    replace: options.replace ?? true
+    replace: options.replace ?? false
   })
   
   // Call component's render method

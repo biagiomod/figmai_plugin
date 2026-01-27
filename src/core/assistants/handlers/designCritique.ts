@@ -8,10 +8,9 @@ import type { NormalizedMessage } from '../../provider/provider'
 import { parseScorecardJson } from '../../output/normalize'
 import { parseDeceptiveReportJson } from '../../output/normalize/deceptiveReport'
 import { createArtifact } from '../../figma/artifacts'
-import { removeExistingArtifacts } from '../../figma/artifacts/placeArtifact'
 import { placeCritiqueOnCanvas } from '../../figma/placeCritiqueFallback'
-import { getTopLevelContainerNode, getAnchorBounds } from '../../stage/anchor'
-import { getPlacementTarget, computeRootPlacement, placeNodeOnPage } from '../../figma/placement'
+import { getTopLevelContainerNode } from '../../stage/anchor'
+import { placeBatchBelowPageContent } from '../../figma/placement'
 import { debug } from '../../debug/logger'
 import { createDemoCardContainer, enforceCardWidth } from '../../figma/artifacts/components/deceptiveDemoSection'
 import { DARK_DEMO_CARDS } from '../../figma/artifacts/components/darkDemoCards.generated'
@@ -134,9 +133,6 @@ export class DesignCritiqueHandler implements AssistantHandler {
         }
       }
 
-      const placementTarget = selectedNode ? getPlacementTarget(selectedNode) : null
-      const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
-
       // Build all 10 demo cards from refs_for_cursor/dark_demo_cards.json
       dcDebug.log('Creating demo cards from DARK_DEMO_CARDS', { runId, count: DARK_DEMO_CARDS.length })
       const cards: FrameNode[] = []
@@ -147,15 +143,7 @@ export class DesignCritiqueHandler implements AssistantHandler {
       for (const card of cards) enforceCardWidth(card)
       const container = createDemoCardContainer(cards)
 
-      // Compute placement for the container
-      const placement = computeRootPlacement(
-        targetBounds,
-        { width: container.width, height: container.height },
-        { side: 'right', spacing: 40 }
-      )
-
-      // Place container on page
-      placeNodeOnPage(container, { x: placement.x, y: placement.y })
+      placeBatchBelowPageContent(container, { marginTop: 24 })
 
       dcDebug.log('handleTempPlaceForcedActionCard SUCCESS', {
         runId,
@@ -166,7 +154,7 @@ export class DesignCritiqueHandler implements AssistantHandler {
           width: 'width' in c ? c.width : 0,
           height: 'height' in c ? c.height : 0
         })),
-        containerPosition: { x: placement.x, y: placement.y },
+        containerPosition: { x: container.x, y: container.y },
         containerSize: { width: container.width, height: container.height }
       })
       figma.notify('Deceptive demo cards placed')
@@ -232,11 +220,8 @@ export class DesignCritiqueHandler implements AssistantHandler {
       }
       
       dcDebug.log('RAW_RESPONSE_HEAD', { runId, head: response.slice(0, 120) })
-      
-      // Remove existing deceptive report artifacts
-      removeExistingArtifacts('deceptive-report', 'v1')
-      
-      // Parse deceptive report JSON
+
+      // Parse deceptive report JSON (no replace: new artifact each run)
       dcDebug.log('BEFORE parseDeceptiveReportJson', { runId })
       const result = parseDeceptiveReportJson(response, debug.isEnabled('assistant:design_critique'))
       
@@ -255,8 +240,7 @@ export class DesignCritiqueHandler implements AssistantHandler {
             type: 'deceptive-report',
             assistant: 'design_critique',
             selectedNode,
-            version: 'v1',
-            replace: true
+            version: 'v1'
           }, result.data)
           
           dcDebug.log('AFTER createArtifact (deceptive-report)', { runId, status: 'SUCCESS' })
@@ -287,10 +271,6 @@ export class DesignCritiqueHandler implements AssistantHandler {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       dcDebug.error('handleDeceptiveReview ERROR', { runId, error: errorMessage })
-      
-      // Cleanup: Remove any artifacts that might have been created
-      removeExistingArtifacts('deceptive-report', 'v1')
-      
       replaceStatusMessage(`Error: ${errorMessage}`, true)
       return { handled: true }
     }
@@ -444,14 +424,8 @@ Return ONLY the JSON object, no markdown fences, no other text.`
       
       dcDebug.log('RAW_RESPONSE_HEAD', { runId, head: response.slice(0, 120) })
       dcDebug.log('RAW_RESPONSE_LENGTH', { runId, length: response.length })
-      
-      // Remove existing v2 scorecard artifacts FIRST (version-scoped replacement)
-      dcDebug.log('BEFORE removeExistingArtifacts', { runId })
-      removeExistingArtifacts('scorecard', 'v2')
-      removeExistingArtifacts('critique')
-      dcDebug.log('AFTER removeExistingArtifacts', { runId })
-      
-      // Attempt to parse as JSON scorecard using improved parser
+
+      // Attempt to parse as JSON scorecard (no replace: new artifact each run)
       dcDebug.log('BEFORE parseScorecardJson', { runId })
       const result = parseScorecardJson(response, debug.isEnabled('assistant:design_critique'))
       
@@ -540,8 +514,7 @@ ${response.substring(0, 2000)}`
               type: 'scorecard',
               assistant: 'design_critique',
               selectedNode,
-              version: 'v2',
-              replace: true
+              version: 'v2'
             }, repairResult.data)
             dcDebug.log('AFTER createArtifact (scorecard, from repair)', { runId, status: 'SUCCESS' })
             figma.notify('Scorecard placed (v2, repaired)')
@@ -579,15 +552,7 @@ ${response.substring(0, 2000)}`
         error: errorMessage, 
         stack: error instanceof Error ? error.stack : undefined 
       })
-      
-      // Ensure cleanup on error
-      try {
-        removeExistingArtifacts('scorecard', 'v2')
-        removeExistingArtifacts('critique')
-      } catch (e) {
-        dcDebug.error('Failed to cleanup artifacts', { runId, error: e })
-      }
-      
+
       // Try to place rich text as fallback
       try {
         let selectedNode: SceneNode | undefined

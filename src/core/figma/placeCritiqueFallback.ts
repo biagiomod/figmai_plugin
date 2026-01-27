@@ -204,10 +204,9 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
   const logId = runId || 'unknown'
   console.log(`[DC ${logId}] placeCritiqueOnCanvas ENTER`, { selectedNode: selectedNode ? { name: selectedNode.name, id: selectedNode.id } : null })
   
-  // Use canonical placement utilities (not deprecated re-exports)
-  const { getPlacementTarget, computeRootPlacement, placeNodeOnPage } = await import('./placement')
-  const { getAnchorBounds } = await import('../stage/anchor')
-  
+  // Smart Placement v2: collision-aware single artifact near selection
+  const { placeSingleArtifactNearSelection } = await import('./placement')
+
   // Truncate very long text (cap at 20k chars)
   const MAX_CHARS = 20000
   let displayText = text
@@ -325,32 +324,13 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
     frame.resize(frame.width, contentHeight)
   }
 
-  // Calculate placement using canonical placement utilities (same as artifacts)
-  const placementTarget = getPlacementTarget(selectedNode)
-  const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
-  
-  if (selectedNode && placementTarget) {
-    console.log(`[DC ${logId}] placeCritiqueOnCanvas anchor`, {
-      selectedNode: { name: selectedNode.name, id: selectedNode.id },
-      placementTarget: { name: placementTarget.name, id: placementTarget.id },
-      targetBounds: targetBounds ? { x: targetBounds.x, y: targetBounds.y, width: targetBounds.width, height: targetBounds.height } : null
-    })
-  } else {
-    console.log(`[DC ${logId}] placeCritiqueOnCanvas anchor`, { selectedNode: null, placementTarget: null, targetBounds: null })
-  }
-  
-  // Use canonical placement utility (same as artifacts)
-  const placement = computeRootPlacement(
-    targetBounds,
-    { width: frame.width, height: frame.height },
-    { side: 'left', spacing: 40, minX: 0, minY: 40 }
-  )
-  
-  console.log(`[DC ${logId}] placeCritiqueOnCanvas placement`, { computedX: placement.x, computedY: placement.y, method: placement.method, frameWidth: frame.width, frameHeight: frame.height })
-  
-  // Place on page using canonical utility
-  placeNodeOnPage(frame, { x: placement.x, y: placement.y })
-  
+  placeSingleArtifactNearSelection(frame, {
+    selectedNode,
+    preferSide: 'right',
+    margin: 24,
+    step: 24
+  })
+
   console.log(`[DC ${logId}] placeCritiqueOnCanvas EXIT`, { frameName: frame.name, frameId: frame.id })
   return frame
 }

@@ -3,7 +3,7 @@
  * Shared utilities for placing and managing FigmAI artifacts on the Figma stage
  */
 
-import { getPlacementTarget, computeRootPlacement, placeNodeOnPage } from '../placement'
+import { placeSingleArtifactNearSelection } from '../placement'
 import { getTopLevelContainerNode, getAnchorBounds } from '../../stage/anchor'
 import { debug } from '../../debug/logger'
 
@@ -132,29 +132,47 @@ export function removeExistingArtifacts(type: string, version?: string): void {
  * Place artifact frame on the stage
  * Creates a top-level Auto-Layout frame container with proper naming and pluginData
  */
+/**
+ * Pick a unique name for the artifact: if base name already exists on page, append (2), (3), etc.
+ */
+function uniqueArtifactNameOnPage(baseName: string): string {
+  const page = figma.currentPage
+  const existing = new Set<number>()
+  for (const child of page.children) {
+    if (child.name === baseName) {
+      existing.add(1)
+    } else if (child.name.startsWith(baseName + ' (')) {
+      const suffix = child.name.slice(baseName.length)
+      const m = /^\s*\((\d+)\)\s*$/.exec(suffix)
+      if (m) existing.add(parseInt(m[1], 10))
+    }
+  }
+  if (existing.size === 0) return baseName
+  let n = 2
+  while (existing.has(n)) n++
+  return `${baseName} (${n})`
+}
+
 export async function placeArtifactFrame(options: PlaceArtifactOptions): Promise<FrameNode> {
-  const { type, assistant, selectedNode, width = 640, spacing = 40, version, replace = true } = options
-  
-  // Remove existing artifacts if replace is true
+  const { type, assistant, selectedNode, width = 640, version, replace = false } = options
+
+  // When replace is false (default), do not remove existing artifacts; re-run creates a new artifact.
   if (replace) {
     removeExistingArtifacts(type, version)
   }
-  
+
   // Create root frame with Auto-Layout
   const root = figma.createFrame()
-  
-  // Build frame name with version if provided
+
   const typeCapitalized = type.charAt(0).toUpperCase() + type.slice(1)
-  if (version) {
-    root.name = `FigmAI Artifact — ${typeCapitalized} (${version})`
-  } else {
-    root.name = `FigmAI Artifact — ${typeCapitalized}`
-  }
-  
+  const baseName = version
+    ? `FigmAI Artifact — ${typeCapitalized} (${version})`
+    : `FigmAI Artifact — ${typeCapitalized}`
+  root.name = replace ? baseName : uniqueArtifactNameOnPage(baseName)
+
   root.layoutMode = 'VERTICAL'
-  root.primaryAxisSizingMode = 'AUTO'  // HUG height: do not set height after this; Figma will compute from children.
+  root.primaryAxisSizingMode = 'AUTO'
   root.counterAxisSizingMode = 'FIXED'
-  // API requires resize(w, h); use minimal height. Never set height on this root after content is appended so it stays Auto-Layout HUG.
   root.resize(width, 1)
   root.clipsContent = false
   root.paddingTop = 0
@@ -162,51 +180,30 @@ export async function placeArtifactFrame(options: PlaceArtifactOptions): Promise
   root.paddingBottom = 0
   root.paddingLeft = 0
   root.itemSpacing = 0
-  
-  // Set pluginData for artifact identification
+
   root.setPluginData('figmai.artifactType', type)
   root.setPluginData('figmai.assistant', assistant)
   if (version) {
     root.setPluginData('figmai.artifactVersion', version)
   }
-  
-  // Append to page first (required for auto-layout to calculate size)
+
   figma.currentPage.appendChild(root)
-  
-  // Get placement target and bounds using new utility
-  const placementTarget = getPlacementTarget(selectedNode)
-  const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
-  
-  // Compute placement using new utility with fallback logic
-  const placement = computeRootPlacement(
-    targetBounds,
-    { width: root.width, height: root.height },
-    {
-      spacing,
-      side: 'left',
-      minX: 0,
-      minY: 40
-    }
-  )
-  
-  // Log placement method if fallback was used (using debug scope)
+
+  const placement = placeSingleArtifactNearSelection(root, {
+    selectedNode,
+    preferSide: 'right',
+    margin: 24,
+    step: 24
+  })
+
   const artifactDebug = debug.scope('subsystem:placement')
-  if (placement.method !== 'anchor-left') {
+  if (placement.method !== 'right' && placement.method !== 'anchor-right') {
     artifactDebug.log('Placement fallback used', {
       method: placement.method,
       reason: placement.reason,
-      position: { x: placement.x, y: placement.y },
-      targetBounds: targetBounds ? {
-        x: targetBounds.x,
-        y: targetBounds.y,
-        width: targetBounds.width,
-        height: targetBounds.height
-      } : null
+      position: { x: placement.x, y: placement.y }
     })
   }
-  
-  // Apply placement using new utility
-  placeNodeOnPage(root, { x: placement.x, y: placement.y })
-  
+
   return root
 }

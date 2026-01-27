@@ -8,6 +8,7 @@
 import type { DiscoverySpecV1, DocumentStatus } from './types'
 import type { ExtractedDiscoveryData } from './extract'
 import { loadFonts, createTextNode, createAutoLayoutFrameSafe } from '../stage/primitives'
+import { placeBatchBelowPageContent } from '../figma/placement'
 
 /**
  * Truncate text to max length, adding "..." if truncated
@@ -116,18 +117,7 @@ export async function createDiscoveryDocument(title: string, status: DocumentSta
     asyncTasks: []
   }, status, fonts)
 
-  // Calculate placement
-  const placement = calculateSectionPlacement(frame)
-  frame.x = placement.x
-  frame.y = placement.y
-
-  // Append to current page
-  figma.currentPage.appendChild(frame)
-
-  // Scroll into view and select
-  figma.currentPage.selection = [frame]
-  figma.viewport.scrollAndZoomIntoView([frame])
-
+  placeBatchBelowPageContent(frame, { marginTop: 24 })
   return frame
 }
 

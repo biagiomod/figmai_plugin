@@ -5,7 +5,7 @@
  * v2: New 2-column layout, tighter card, colored score pill
  */
 
-import { placeArtifactFrame, removeExistingArtifacts } from './artifacts/placeArtifact'
+import { placeArtifactFrame } from './artifacts/placeArtifact'
 import { loadFonts, createTextNode } from '../stage/primitives'
 import { CONFIG } from '../config'
 
@@ -130,17 +130,14 @@ export async function renderScorecard(
   data: ScorecardData,
   selectedNode?: SceneNode
 ): Promise<void> {
-  // Remove any existing scorecard artifacts first (legacy - removes all versions)
-  removeExistingArtifacts('scorecard')
-  
-  // Place artifact root frame (no version specified for v1)
+  // Place artifact root frame (v2 behavior: re-run creates new artifact, no replace)
   const root = await placeArtifactFrame({
     type: 'scorecard',
     assistant: 'design_critique',
     selectedNode,
     width: 640,
     spacing: 40,
-    replace: true
+    replace: false
   })
   
   // Load fonts
