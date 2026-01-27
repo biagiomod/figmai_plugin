@@ -55,9 +55,8 @@ export async function createForcedActionDemoScreen(): Promise<FrameNode> {
   )
 
   // Use centralized card component (single source of truth)
-  const card = await createDeceptiveForcedActionCard({
-    name: 'UI Demo'
-  })
+  // Component creates full container hierarchy: root + badge + details + instructions + UI Demo
+  const card = await createDeceptiveForcedActionCard()
 
   frame.appendChild(card)
 
