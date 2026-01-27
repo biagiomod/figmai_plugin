@@ -229,6 +229,13 @@ You specialize in evaluating and improving text content for clarity, tone, user 
         templateMessage: 'Create deterministic deceptive demo screens for testing.',
         requiresSelection: false,
         requiresVision: false
+      },
+      {
+        id: 'temp-place-forced-action-card',
+        label: '[TEMP] Place Forced Action Card',
+        templateMessage: 'Temporary action for testing centralized card component placement.',
+        requiresSelection: false,
+        requiresVision: false
       }
     ]
   },

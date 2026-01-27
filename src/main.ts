@@ -647,7 +647,7 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
     // Check if handler can handle the action without LLM call (e.g., Content Table scanning)
     // For now, we'll let handler.handleResponse decide, but we need to check if it needs selection context
     // Content Table handler needs to run before LLM call, so we check it here
-    if (assistantId === 'design_critique' && actionId === 'deceptive-demo-screens') {
+    if (assistantId === 'design_critique' && (actionId === 'deceptive-demo-screens' || actionId === 'temp-place-forced-action-card')) {
       const handlerContext = {
         assistantId,
         actionId,
@@ -663,7 +663,10 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
       if (result.handled) {
         const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
         if (statusIndex !== -1) {
-          replaceStatusMessage(requestId, result.message || 'Deceptive demo screens created')
+          const defaultMessage = actionId === 'temp-place-forced-action-card' 
+            ? '[TEMP] Forced Action card created'
+            : 'Deceptive demo screens created'
+          replaceStatusMessage(requestId, result.message || defaultMessage)
         }
         return
       }

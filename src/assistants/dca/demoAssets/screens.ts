@@ -3,10 +3,14 @@
  * 
  * Each function creates a complete demo screen for a specific deceptive UX dimension.
  * Screens are deterministic and use the component builders and text styles.
+ * 
+ * Note: Forced Action screen uses the centralized card component from
+ * src/core/figma/artifacts/components/deceptiveForcedActionCard.ts
  */
 
 import { createBadge, createText, createSection, createButton, createButtonRow, createCheckbox, createBanner, createCardFrame } from './components'
 import { colors, spacing } from './tokens'
+import { createDeceptiveForcedActionCard } from '../../../core/figma/artifacts/components/deceptiveForcedActionCard'
 
 /**
  * Create a demo screen frame (360x720, with badge, title, hint, and content area)
@@ -40,6 +44,9 @@ async function createDemoScreenFrame(
 
 /**
  * 1. Forced Action demo screen
+ * 
+ * Uses the centralized card component from artifacts/components/deceptiveForcedActionCard.ts
+ * This ensures consistency across all uses of this card.
  */
 export async function createForcedActionDemoScreen(): Promise<FrameNode> {
   const frame = await createDemoScreenFrame(
@@ -47,25 +54,12 @@ export async function createForcedActionDemoScreen(): Promise<FrameNode> {
     'Blocking content until unrelated account creation is completed.'
   )
 
-  const modal = createSection('ForcedAction_Modal', {
-    padding: spacing['3xl'],
-    spacing: spacing.xl,
-    fill: colors.bgBanner
+  // Use centralized card component (single source of truth)
+  const card = await createDeceptiveForcedActionCard({
+    name: 'UI Demo'
   })
 
-  const heading = await createText('Create an account to continue', 'title16Bold')
-  const body = await createText('Access to the article requires account creation.', 'body12Regular')
-  const checkbox = await createCheckbox('Email me updates')
-  const buttons = await createButtonRow([
-    { label: 'Create Account', variant: 'primary' },
-    { label: 'Not now', variant: 'secondary' }
-  ])
-
-  modal.appendChild(heading)
-  modal.appendChild(body)
-  modal.appendChild(checkbox)
-  modal.appendChild(buttons)
-  frame.appendChild(modal)
+  frame.appendChild(card)
 
   frame.locked = true
   return frame

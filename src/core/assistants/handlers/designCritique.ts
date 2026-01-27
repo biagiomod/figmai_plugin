@@ -14,11 +14,12 @@ import { getTopLevelContainerNode, getAnchorBounds } from '../../stage/anchor'
 import { getPlacementTarget, computeRootPlacement, placeNodeOnPage } from '../../figma/placement'
 import { debug } from '../../debug/logger'
 import { demoScreenBuilders } from '../../../assistants/dca/demoAssets/screens'
+import { createDeceptiveForcedActionCard } from '../../figma/artifacts/components/deceptiveForcedActionCard'
 
 export class DesignCritiqueHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
     return assistantId === 'design_critique' && 
-           (actionId === 'give-critique' || actionId === 'deceptive-review' || actionId === 'deceptive-demo-screens')
+           (actionId === 'give-critique' || actionId === 'deceptive-review' || actionId === 'deceptive-demo-screens' || actionId === 'temp-place-forced-action-card')
   }
 
   prepareMessages(messages: NormalizedMessage[]): NormalizedMessage[] {
@@ -109,6 +110,58 @@ export class DesignCritiqueHandler implements AssistantHandler {
           content: 'IMPORTANT: Output must be a single JSON object with keys: score (0-100), summary (string), wins (string[]), fixes (string[]), checklist (string[] optional), notes (string[] optional). Do not include any other keys. Return JSON only, no other text.'
         }
       ]
+    }
+  }
+
+  // --- TEMP: Place Forced Action Card (testing) ---
+
+  /**
+   * Handle TEMP Quick Action to place a single Forced Action card
+   * This is a temporary action for testing the centralized card component.
+   * TODO: Remove after Phase 3 validation
+   */
+  private async handleTempPlaceForcedActionCard(
+    context: HandlerContext,
+    dcDebug: ReturnType<typeof debug.scope>,
+    runId: string
+  ): Promise<HandlerResult> {
+    try {
+      dcDebug.log('handleTempPlaceForcedActionCard START', { runId, actionId: context.actionId })
+      
+      let selectedNode: SceneNode | undefined
+      if (context.selection.hasSelection && context.selectionOrder.length > 0) {
+        const node = await figma.getNodeByIdAsync(context.selectionOrder[0])
+        if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
+          selectedNode = node as SceneNode
+        }
+      }
+
+      const placementTarget = selectedNode ? getPlacementTarget(selectedNode) : null
+      const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
+
+      // Create the card using centralized component
+      dcDebug.log('Creating Forced Action card via createDeceptiveForcedActionCard', { runId })
+      const card = await createDeceptiveForcedActionCard()
+
+      // Compute placement
+      const placement = computeRootPlacement(
+        targetBounds,
+        { width: card.width, height: card.height },
+        { side: 'right', spacing: 40 }
+      )
+
+      // Place on page
+      placeNodeOnPage(card, { x: placement.x, y: placement.y })
+
+      dcDebug.log('handleTempPlaceForcedActionCard SUCCESS', { runId, cardName: card.name, position: { x: placement.x, y: placement.y } })
+      figma.notify('[TEMP] Forced Action card placed')
+      context.replaceStatusMessage('[TEMP] Forced Action card placed on stage')
+      return { handled: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      dcDebug.error('handleTempPlaceForcedActionCard ERROR', { runId, error: errorMessage })
+      context.replaceStatusMessage(`Error: ${errorMessage}`, true)
+      return { handled: true, message: `Error: ${errorMessage}` }
     }
   }
 
@@ -383,19 +436,28 @@ Return ONLY the JSON object, no markdown fences, no other text.`
     const runId = `dc_${Date.now()}`
     const dcDebug = debug.scope('assistant:design_critique')
     
-    dcDebug.log('START', { runId, assistantId: context.assistantId, quickActionId: context.actionId })
+    dcDebug.log('START', { runId, assistantId: context.assistantId, quickActionId: context.actionId, actionId })
+    
+    // Handle TEMP: Place Forced Action Card (local, no provider)
+    if (actionId === 'temp-place-forced-action-card') {
+      dcDebug.log('ROUTING: temp-place-forced-action-card -> handleTempPlaceForcedActionCard', { runId, actionId })
+      return await this.handleTempPlaceForcedActionCard(context, dcDebug, runId)
+    }
     
     // Handle deceptive demo screens (local, no provider)
     if (actionId === 'deceptive-demo-screens') {
+      dcDebug.log('ROUTING: deceptive-demo-screens -> handleDeceptiveDemoScreens', { runId, actionId })
       return await this.handleDeceptiveDemoScreens(context, dcDebug, runId)
     }
     
     // Handle deceptive-review action separately
     if (actionId === 'deceptive-review') {
+      dcDebug.log('ROUTING: deceptive-review -> handleDeceptiveReview', { runId, actionId })
       return await this.handleDeceptiveReview(context, runId, dcDebug)
     }
     
-    // Existing scorecard flow (unchanged)
+    // Existing scorecard flow (give-critique action)
+    dcDebug.log('ROUTING: give-critique -> scorecard flow', { runId, actionId })
     try {
       // Get selected node if available
       let selectedNode: SceneNode | undefined

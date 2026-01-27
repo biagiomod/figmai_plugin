@@ -19,7 +19,11 @@ export interface PlaceArtifactOptions {
 
 /**
  * Get topmost container node (re-export from anchor.ts for backward compatibility)
- * @deprecated Use getPlacementTarget() from placement.ts directly for new code
+ * 
+ * @deprecated Use getPlacementTarget() from placement.ts directly for new code.
+ * This re-export is kept for backward compatibility but should not be used in new code.
+ * 
+ * Migration: Replace `getTopLevelContainerNodeForArtifact(node)` with `getPlacementTarget(node)`
  */
 export function getTopLevelContainerNodeForArtifact(selectedNode: SceneNode): SceneNode {
   return getTopLevelContainerNode(selectedNode)
@@ -27,6 +31,11 @@ export function getTopLevelContainerNodeForArtifact(selectedNode: SceneNode): Sc
 
 /**
  * Compute anchor bounds (re-export from anchor.ts for convenience)
+ * 
+ * @deprecated Use getAnchorBounds() from stage/anchor.ts directly for new code.
+ * This re-export is kept for backward compatibility but should not be used in new code.
+ * 
+ * Migration: Replace `computeAnchorBoundsForArtifact(node)` with `getAnchorBounds(node)`
  */
 export const computeAnchorBoundsForArtifact = getAnchorBounds
 

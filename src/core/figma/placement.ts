@@ -2,6 +2,29 @@
  * Placement Utilities
  * Shared logic for resolving root container and calculating placement coordinates
  * Used by all canvas rendering functions to ensure consistent positioning
+ * 
+ * CANONICAL PLACEMENT PATH
+ * ========================
+ * For new code, use this pattern:
+ * 
+ * 1. Get placement target: `getPlacementTarget(selectedNode)` → returns SceneNode | null
+ * 2. Get target bounds: `getAnchorBounds(placementTarget)` → returns Rect | null
+ * 3. Compute placement: `computeRootPlacement(targetBounds, nodeSize, options)` → returns PlacementResult
+ * 4. Place on page: `placeNodeOnPage(node, { x, y })` → appends, positions, and scrolls into view
+ * 
+ * Example:
+ * ```typescript
+ * const placementTarget = getPlacementTarget(selectedNode)
+ * const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
+ * const placement = computeRootPlacement(targetBounds, { width, height }, { side: 'right', spacing: 40 })
+ * placeNodeOnPage(node, { x: placement.x, y: placement.y })
+ * ```
+ * 
+ * DEPRECATED FUNCTIONS
+ * ====================
+ * - findRootContainer() → use getPlacementTarget() instead
+ * - calculateLeftPlacement() → use computeRootPlacement() + placeNodeOnPage() instead
+ * - applyPlacement() → use placeNodeOnPage() instead
  */
 
 import { getTopLevelContainerNode, getAnchorBounds, type Rect } from '../stage/anchor'
@@ -10,7 +33,9 @@ import { debug } from '../debug/logger'
 /**
  * Find the top-level container by traversing upward from a selected node
  * Returns the root-level container (frame, group, component, or instance)
- * @deprecated Use getPlacementTarget() instead for page-level placement
+ * 
+ * @deprecated Use getPlacementTarget() from this module instead for page-level placement.
+ * This function is kept for backward compatibility but should not be used in new code.
  */
 export function findRootContainer(selectedNode: SceneNode): SceneNode {
   let topLevelContainer: SceneNode = selectedNode
@@ -242,6 +267,8 @@ function getAbsolutePosition(node: SceneNode): { x: number; y: number } {
 /**
  * Calculate placement coordinates for a frame to be positioned 40px to the left of the root container
  * 
+ * @deprecated Use computeRootPlacement() + placeNodeOnPage() instead. This function is kept for backward compatibility but should not be used in new code.
+ * 
  * @param frame - The frame to position (must be appended to page first for size calculation)
  * @param rootContainer - The root container to position relative to
  * @returns Placement coordinates { x, y } and container info for logging
@@ -299,6 +326,8 @@ export function calculateLeftPlacement(
 
 /**
  * Apply placement to a frame and make it visible
+ * 
+ * @deprecated Use placeNodeOnPage() instead. This function is kept for backward compatibility but should not be used in new code.
  */
 export function applyPlacement(frame: FrameNode, x: number, y: number): void {
   frame.x = x

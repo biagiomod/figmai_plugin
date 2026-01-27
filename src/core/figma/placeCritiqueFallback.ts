@@ -204,9 +204,9 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
   const logId = runId || 'unknown'
   console.log(`[DC ${logId}] placeCritiqueOnCanvas ENTER`, { selectedNode: selectedNode ? { name: selectedNode.name, id: selectedNode.id } : null })
   
-  // Import anchor helpers
-  const { getTopLevelContainerNodeForArtifact, computeAnchorBoundsForArtifact } = await import('./artifacts/placeArtifact')
-  const { computePlacement } = await import('../stage/anchor')
+  // Use canonical placement utilities (not deprecated re-exports)
+  const { getPlacementTarget, computeRootPlacement, placeNodeOnPage } = await import('./placement')
+  const { getAnchorBounds } = await import('../stage/anchor')
   
   // Truncate very long text (cap at 20k chars)
   const MAX_CHARS = 20000
@@ -315,40 +315,31 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
   // Resize frame to fit text
   frame.resize(textNode.width, textNode.height)
   
-  // Calculate placement using same anchor logic as artifacts
-  let anchor: SceneNode | undefined
-  let anchorBounds: { x: number; y: number; width: number; height: number } | null = null
+  // Calculate placement using canonical placement utilities (same as artifacts)
+  const placementTarget = getPlacementTarget(selectedNode)
+  const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null
   
-  if (selectedNode) {
-    anchor = getTopLevelContainerNodeForArtifact(selectedNode)
-    anchorBounds = computeAnchorBoundsForArtifact(anchor)
+  if (selectedNode && placementTarget) {
     console.log(`[DC ${logId}] placeCritiqueOnCanvas anchor`, {
       selectedNode: { name: selectedNode.name, id: selectedNode.id },
-      anchor: { name: anchor.name, id: anchor.id },
-      anchorBounds: anchorBounds ? { x: anchorBounds.x, y: anchorBounds.y, width: anchorBounds.width, height: anchorBounds.height } : null
+      placementTarget: { name: placementTarget.name, id: placementTarget.id },
+      targetBounds: targetBounds ? { x: targetBounds.x, y: targetBounds.y, width: targetBounds.width, height: targetBounds.height } : null
     })
   } else {
-    console.log(`[DC ${logId}] placeCritiqueOnCanvas anchor`, { selectedNode: null, anchor: null, anchorBounds: null })
+    console.log(`[DC ${logId}] placeCritiqueOnCanvas anchor`, { selectedNode: null, placementTarget: null, targetBounds: null })
   }
   
-  // Use same placement logic as artifacts (40px left, top-aligned)
-  const placement = computePlacement(anchorBounds, frame.width, frame.height, {
-    mode: 'left',
-    offset: 40,
-    minX: 0
-  })
+  // Use canonical placement utility (same as artifacts)
+  const placement = computeRootPlacement(
+    targetBounds,
+    { width: frame.width, height: frame.height },
+    { side: 'left', spacing: 40, minX: 0, minY: 40 }
+  )
   
-  frame.x = placement.x
-  frame.y = placement.y
+  console.log(`[DC ${logId}] placeCritiqueOnCanvas placement`, { computedX: placement.x, computedY: placement.y, method: placement.method, frameWidth: frame.width, frameHeight: frame.height })
   
-  console.log(`[DC ${logId}] placeCritiqueOnCanvas placement`, { computedX: placement.x, computedY: placement.y, frameWidth: frame.width, frameHeight: frame.height })
-  
-  // Append to page
-  figma.currentPage.appendChild(frame)
-  
-  // Scroll into view and select
-  figma.currentPage.selection = [frame]
-  figma.viewport.scrollAndZoomIntoView([frame])
+  // Place on page using canonical utility
+  placeNodeOnPage(frame, { x: placement.x, y: placement.y })
   
   console.log(`[DC ${logId}] placeCritiqueOnCanvas EXIT`, { frameName: frame.name, frameId: frame.id })
   return frame
