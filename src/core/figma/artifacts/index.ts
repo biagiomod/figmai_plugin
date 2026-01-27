@@ -65,29 +65,6 @@ export function registerArtifactComponent(type: string, component: ArtifactCompo
 }
 
 /**
- * Recursively compute content-driven height for a node (auto-layout-aware).
- * Does not rely on Figma having updated .height for auto-layout frames.
- */
-function computeContentHeight(node: SceneNode): number {
-  if (node.type === 'FRAME') {
-    const frame = node as FrameNode
-    if (frame.layoutMode === 'NONE') {
-      return 'height' in frame ? frame.height : 0
-    }
-    let h = frame.paddingTop + frame.paddingBottom
-    const n = frame.children.length
-    for (let i = 0; i < n; i++) {
-      h += computeContentHeight(frame.children[i])
-    }
-    if (n > 1) {
-      h += frame.itemSpacing * (n - 1)
-    }
-    return h
-  }
-  return 'height' in node ? (node as { height: number }).height : 0
-}
-
-/**
  * Create and place an artifact on the stage
  * This is the main entry point for assistants to create artifacts
  * 
@@ -127,20 +104,7 @@ export async function createArtifact(
     data
   })
 
-  // Canonical post-render finalize: set root height from recursive content height so root never stays 1px (deterministic, no reliance on Figma updating child heights).
-  if (root.layoutMode === 'VERTICAL' && root.primaryAxisSizingMode === 'AUTO' && root.children.length > 0) {
-    let contentHeight = root.paddingTop + root.paddingBottom
-    for (let i = 0; i < root.children.length; i++) {
-      contentHeight += computeContentHeight(root.children[i])
-      if (i < root.children.length - 1) {
-        contentHeight += root.itemSpacing
-      }
-    }
-    const safeHeight = Math.max(1, Math.ceil(contentHeight))
-    if (root.height !== safeHeight) {
-      root.resize(root.width, safeHeight)
-    }
-  }
+  // Do NOT set root.height or root.resize(width, height) here. The root is Auto-Layout with primaryAxisSizingMode = 'AUTO' (HUG height). Figma computes height from children; setting a numeric height would make it FIXED and break HUG behavior.
 
   return root
 }

@@ -152,9 +152,9 @@ export async function placeArtifactFrame(options: PlaceArtifactOptions): Promise
   }
   
   root.layoutMode = 'VERTICAL'
-  root.primaryAxisSizingMode = 'AUTO'
+  root.primaryAxisSizingMode = 'AUTO'  // HUG height: do not set height after this; Figma will compute from children.
   root.counterAxisSizingMode = 'FIXED'
-  // Width fixed; height is corrected after content is built in createArtifact (post-render) so root never stays 1px.
+  // API requires resize(w, h); use minimal height. Never set height on this root after content is appended so it stays Auto-Layout HUG.
   root.resize(width, 1)
   root.clipsContent = false
   root.paddingTop = 0
