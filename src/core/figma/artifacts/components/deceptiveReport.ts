@@ -4,8 +4,39 @@
  */
 
 import type { ArtifactComponent, ArtifactRenderContext } from '../index'
-import type { DeceptiveReportData } from '../../../output/normalize/deceptiveReport'
+import type { DeceptiveReportData, DeceptiveFinding } from '../../../output/normalize/deceptiveReport'
 import { loadFonts, createTextNode } from '../../../stage/primitives'
+import { createOverallSeverityBadge, createDimensionTag, createFindingSeverityTag } from './designCritiqueReportBadges'
+import type { FindingSeverity } from './designCritiqueReportBadges'
+
+/** Set text to fill container width and hug height (no explicit width/height). */
+function setTextFillAndHug(node: SceneNode): void {
+  if (node.type === 'TEXT') {
+    (node as TextNode).layoutSizingHorizontal = 'FILL'
+    ;(node as TextNode).textAutoResize = 'HEIGHT'
+  }
+}
+
+const SEVERITY_ORDER: Record<FindingSeverity, number> = { High: 0, Medium: 1, Low: 2 }
+
+/**
+ * Highest severity among findings that match this dimension (finding.category matches dimension name).
+ * If no matching finding, returns Medium (fallback for failed dimension with no finding).
+ */
+function highestSeverityForDimension(dimensionName: string, findings: DeceptiveFinding[]): FindingSeverity {
+  const dim = dimensionName.trim()
+  let highest: FindingSeverity = 'Medium' // Fallback: failed dimension but no matching finding (edge case)
+  let bestOrder = 2
+  for (const f of findings) {
+    if (f.category.trim() !== dim) continue
+    const order = SEVERITY_ORDER[f.severity]
+    if (order < bestOrder) {
+      bestOrder = order
+      highest = f.severity
+    }
+  }
+  return highest
+}
 
 /**
  * Deceptive Report artifact component
@@ -30,8 +61,10 @@ export class DeceptiveReportComponent implements ArtifactComponent {
     await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' })
     await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
     
-    // Configure root frame
+    // Configure root frame (content-driven height for post-render finalize)
     root.layoutMode = 'VERTICAL'
+    root.primaryAxisSizingMode = 'AUTO'
+    root.counterAxisSizingMode = 'FIXED'
     root.paddingTop = 24
     root.paddingRight = 24
     root.paddingBottom = 24
@@ -49,7 +82,8 @@ export class DeceptiveReportComponent implements ArtifactComponent {
       fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
     })
     root.appendChild(title)
-    
+    setTextFillAndHug(title)
+
     // Reviewed label
     const reviewedName = context.selectedNode?.name || '[No selection]'
     const reviewedLabel = await createTextNode(`Reviewed: ${reviewedName}`, {
@@ -58,66 +92,41 @@ export class DeceptiveReportComponent implements ArtifactComponent {
       fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }]
     })
     root.appendChild(reviewedLabel)
+    setTextFillAndHug(reviewedLabel)
     
-    // Overall Severity Badge
+    // Overall Severity Badge (HUG width; matches design_crit_report_styling.json)
     if (reportData.overallSeverity !== 'None') {
-      const severityFrame = figma.createFrame()
-      severityFrame.name = 'Severity Badge'
-      severityFrame.layoutMode = 'HORIZONTAL'
-      severityFrame.primaryAxisSizingMode = 'AUTO'
-      severityFrame.counterAxisSizingMode = 'AUTO'
-      severityFrame.paddingTop = 6
-      severityFrame.paddingRight = 12
-      severityFrame.paddingBottom = 6
-      severityFrame.paddingLeft = 12
-      severityFrame.cornerRadius = 12
-      severityFrame.itemSpacing = 6
-      
-      // Severity color
-      const severityColors: Record<string, { r: number; g: number; b: number }> = {
-        Low: { r: 0.96, g: 0.65, b: 0.14 },      // Orange
-        Medium: { r: 0.96, g: 0.52, b: 0.26 },   // Orange-red
-        High: { r: 0.92, g: 0.26, b: 0.21 }      // Red
-      }
-      const color = severityColors[reportData.overallSeverity] || severityColors.Medium
-      
-      severityFrame.fills = [{ type: 'SOLID', color: { r: color.r * 0.15, g: color.g * 0.15, b: color.b * 0.15 } }]
-      severityFrame.strokes = [{ type: 'SOLID', color: color, opacity: 0.3 }]
-      severityFrame.strokeWeight = 1
-      
-      const severityText = await createTextNode(`Severity: ${reportData.overallSeverity}`, {
-        fontSize: 12,
-        fontName: fonts.bold,
-        fills: [{ type: 'SOLID', color }]
-      })
-      severityFrame.appendChild(severityText)
-      root.appendChild(severityFrame)
+      const severityBadge = await createOverallSeverityBadge(reportData.overallSeverity as 'High' | 'Medium' | 'Low', fonts)
+      root.appendChild(severityBadge)
     }
     
-    // Summary
+    // Summary (no fixed height; content-driven. Text nodes get FILL horizontal.)
     if (reportData.summary) {
       const summaryFrame = figma.createFrame()
       summaryFrame.name = 'Summary'
       summaryFrame.layoutMode = 'VERTICAL'
       summaryFrame.primaryAxisSizingMode = 'AUTO'
-      summaryFrame.counterAxisSizingMode = 'FIXED'
-      summaryFrame.resize(root.width - 48, 100)
+      summaryFrame.counterAxisSizingMode = 'AUTO'
       summaryFrame.itemSpacing = 8
-      
+
       const summaryLabel = await createTextNode('Summary', {
         fontSize: 14,
         fontName: fonts.bold,
         fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
       })
       summaryFrame.appendChild(summaryLabel)
-      
+      setTextFillAndHug(summaryLabel)
+
       const summaryText = await createTextNode(reportData.summary, {
         fontSize: 13,
         fontName: fonts.regular,
         fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
       })
       summaryFrame.appendChild(summaryText)
+      setTextFillAndHug(summaryText)
+
       root.appendChild(summaryFrame)
+      summaryFrame.layoutSizingHorizontal = 'FILL'
     }
     
     // Dimensions Checklist
@@ -128,13 +137,13 @@ export class DeceptiveReportComponent implements ArtifactComponent {
         fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
       })
       root.appendChild(checklistLabel)
-      
+      setTextFillAndHug(checklistLabel)
+
       const checklistFrame = figma.createFrame()
       checklistFrame.name = 'Dimensions Checklist'
       checklistFrame.layoutMode = 'VERTICAL'
       checklistFrame.primaryAxisSizingMode = 'AUTO'
-      checklistFrame.counterAxisSizingMode = 'FIXED'
-      checklistFrame.resize(root.width - 48, 100)
+      checklistFrame.counterAxisSizingMode = 'AUTO'
       checklistFrame.itemSpacing = 8
       checklistFrame.paddingTop = 12
       checklistFrame.paddingRight = 12
@@ -146,41 +155,22 @@ export class DeceptiveReportComponent implements ArtifactComponent {
       checklistFrame.cornerRadius = 8
       
       for (const check of reportData.dimensionsChecklist) {
-        const itemFrame = figma.createFrame()
-        itemFrame.name = `Dimension: ${check.dimension}`
-        itemFrame.layoutMode = 'HORIZONTAL'
-        itemFrame.primaryAxisSizingMode = 'AUTO'
-        itemFrame.counterAxisSizingMode = 'AUTO'
-        itemFrame.itemSpacing = 10
-        itemFrame.counterAxisAlignItems = 'CENTER'
-        
-        // Pass/fail indicator (green ✓ or red ✗)
-        const indicatorText = check.passed ? '✓' : '✗'
-        const indicatorColor = check.passed 
-          ? { r: 0.2, g: 0.6, b: 0.3 }  // Green
-          : { r: 0.92, g: 0.26, b: 0.21 }  // Red
-        
-        const indicator = await createTextNode(indicatorText, {
-          fontSize: 16,
-          fontName: fonts.bold,
-          fills: [{ type: 'SOLID', color: indicatorColor }]
-        })
-        itemFrame.appendChild(indicator)
-        
-        // Dimension name
-        const dimensionText = await createTextNode(check.dimension, {
-          fontSize: 13,
-          fontName: fonts.regular,
-          fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
-        })
-        itemFrame.appendChild(dimensionText)
-        
-        checklistFrame.appendChild(itemFrame)
+        const severityForFail = check.passed
+          ? undefined
+          : highestSeverityForDimension(check.dimension, reportData.findings)
+        const dimensionTag = await createDimensionTag(
+          check.dimension,
+          check.passed ? 'pass' : 'fail',
+          fonts,
+          severityForFail
+        )
+        checklistFrame.appendChild(dimensionTag)
       }
       
       root.appendChild(checklistFrame)
+      checklistFrame.layoutSizingHorizontal = 'FILL'
     }
-    
+
     // Findings (grouped by severity: High -> Medium -> Low)
     if (reportData.findings.length > 0) {
       const findingsLabel = await createTextNode(`Findings (${reportData.findings.length})`, {
@@ -189,7 +179,9 @@ export class DeceptiveReportComponent implements ArtifactComponent {
         fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
       })
       root.appendChild(findingsLabel)
-      
+      ;(findingsLabel as TextNode).layoutSizingHorizontal = 'FILL'
+      ;(findingsLabel as TextNode).textAutoResize = 'HEIGHT'
+
       // Sort findings by severity (High -> Medium -> Low)
       const severityOrder = { High: 0, Medium: 1, Low: 2 }
       const sortedFindings = [...reportData.findings].sort((a, b) => 
@@ -201,8 +193,7 @@ export class DeceptiveReportComponent implements ArtifactComponent {
         findingFrame.name = `Finding: ${finding.category}`
         findingFrame.layoutMode = 'VERTICAL'
         findingFrame.primaryAxisSizingMode = 'AUTO'
-        findingFrame.counterAxisSizingMode = 'FIXED'
-        findingFrame.resize(root.width - 48, 100)
+        findingFrame.counterAxisSizingMode = 'AUTO'
         findingFrame.paddingTop = 16
         findingFrame.paddingRight = 16
         findingFrame.paddingBottom = 16
@@ -228,39 +219,13 @@ export class DeceptiveReportComponent implements ArtifactComponent {
           fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
         })
         headerFrame.appendChild(categoryText)
-        
-        // Severity badge
-        const findingSeverityFrame = figma.createFrame()
-        findingSeverityFrame.name = 'Severity'
-        findingSeverityFrame.layoutMode = 'HORIZONTAL'
-        findingSeverityFrame.primaryAxisSizingMode = 'AUTO'
-        findingSeverityFrame.counterAxisSizingMode = 'AUTO'
-        findingSeverityFrame.paddingTop = 4
-        findingSeverityFrame.paddingRight = 8
-        findingSeverityFrame.paddingBottom = 4
-        findingSeverityFrame.paddingLeft = 8
-        findingSeverityFrame.cornerRadius = 6
-        
-        const severityColors: Record<string, { r: number; g: number; b: number }> = {
-          Low: { r: 0.96, g: 0.65, b: 0.14 },
-          Medium: { r: 0.96, g: 0.52, b: 0.26 },
-          High: { r: 0.92, g: 0.26, b: 0.21 }
-        }
-        const color = severityColors[finding.severity]
-        findingSeverityFrame.fills = [{ type: 'SOLID', color: { r: color.r * 0.15, g: color.g * 0.15, b: color.b * 0.15 } }]
-        findingSeverityFrame.strokes = [{ type: 'SOLID', color: color, opacity: 0.3 }]
-        findingSeverityFrame.strokeWeight = 1
-        
-        const severityText = await createTextNode(finding.severity, {
-          fontSize: 11,
-          fontName: fonts.bold,
-          fills: [{ type: 'SOLID', color }]
-        })
-        findingSeverityFrame.appendChild(severityText)
-        headerFrame.appendChild(findingSeverityFrame)
-        
+        setTextFillAndHug(categoryText)
+
+        const findingSeverityTag = await createFindingSeverityTag(finding.severity, fonts)
+        headerFrame.appendChild(findingSeverityTag)
+
         findingFrame.appendChild(headerFrame)
-        
+
         // Description
         const descLabel = await createTextNode('What was found:', {
           fontSize: 12,
@@ -268,14 +233,16 @@ export class DeceptiveReportComponent implements ArtifactComponent {
           fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
         })
         findingFrame.appendChild(descLabel)
-        
+        setTextFillAndHug(descLabel)
+
         const descText = await createTextNode(finding.description, {
           fontSize: 12,
           fontName: fonts.regular,
           fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
         })
         findingFrame.appendChild(descText)
-        
+        setTextFillAndHug(descText)
+
         // Why deceptive
         const whyLabel = await createTextNode('Why it\'s deceptive:', {
           fontSize: 12,
@@ -283,14 +250,16 @@ export class DeceptiveReportComponent implements ArtifactComponent {
           fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
         })
         findingFrame.appendChild(whyLabel)
-        
+        setTextFillAndHug(whyLabel)
+
         const whyText = await createTextNode(finding.whyDeceptive, {
           fontSize: 12,
           fontName: fonts.regular,
           fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
         })
         findingFrame.appendChild(whyText)
-        
+        setTextFillAndHug(whyText)
+
         // User harm
         const harmLabel = await createTextNode('Potential user harm:', {
           fontSize: 12,
@@ -298,14 +267,16 @@ export class DeceptiveReportComponent implements ArtifactComponent {
           fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
         })
         findingFrame.appendChild(harmLabel)
-        
+        setTextFillAndHug(harmLabel)
+
         const harmText = await createTextNode(finding.userHarm, {
           fontSize: 12,
           fontName: fonts.regular,
           fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3 } }]
         })
         findingFrame.appendChild(harmText)
-        
+        setTextFillAndHug(harmText)
+
         // Remediation
         const remLabel = await createTextNode('Suggested remediation:', {
           fontSize: 12,
@@ -313,14 +284,16 @@ export class DeceptiveReportComponent implements ArtifactComponent {
           fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.6, b: 0.3 } }]
         })
         findingFrame.appendChild(remLabel)
-        
+        setTextFillAndHug(remLabel)
+
         const remText = await createTextNode(finding.remediation, {
           fontSize: 12,
           fontName: fonts.regular,
           fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.5, b: 0.2 } }]
         })
         findingFrame.appendChild(remText)
-        
+        setTextFillAndHug(remText)
+
         // Evidence (optional)
         if (finding.evidence) {
           const evLabel = await createTextNode('Evidence:', {
@@ -329,25 +302,28 @@ export class DeceptiveReportComponent implements ArtifactComponent {
             fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }]
           })
           findingFrame.appendChild(evLabel)
-          
+          setTextFillAndHug(evLabel)
+
           const evText = await createTextNode(finding.evidence, {
             fontSize: 11,
             fontName: fonts.regular,
             fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }]
           })
           findingFrame.appendChild(evText)
+          setTextFillAndHug(evText)
         }
-        
+
         root.appendChild(findingFrame)
+        findingFrame.layoutSizingHorizontal = 'FILL'
       }
     } else {
-      // No findings
       const noFindingsText = await createTextNode('No deceptive patterns identified in this design.', {
         fontSize: 13,
         fontName: fonts.regular,
         fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
       })
       root.appendChild(noFindingsText)
+      setTextFillAndHug(noFindingsText)
     }
   }
 }

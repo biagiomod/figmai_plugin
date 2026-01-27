@@ -260,15 +260,23 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
     }
   }
   
-  // Create frame (NOT auto-layout, clearly labeled as fallback)
+  // Create frame as auto-layout so text can fill width and hug height (no fixed text width)
   const frame = figma.createFrame()
   frame.name = 'FigmAI — Critique (fallback)'
-  // Set pluginData to identify as critique artifact
   frame.setPluginData('figmai.artifactType', 'critique')
   frame.setPluginData('figmai.assistant', 'design_critique')
-  // No layoutMode, no padding, no itemSpacing - just a container
+  frame.layoutMode = 'VERTICAL'
+  frame.primaryAxisSizingMode = 'AUTO'
+  frame.counterAxisSizingMode = 'FIXED'
+  frame.paddingTop = 24
+  frame.paddingRight = 24
+  frame.paddingBottom = 24
+  frame.paddingLeft = 24
+  frame.itemSpacing = 0
+  frame.resize(640, 1) // Initial; updated to content height after append below
+  frame.clipsContent = false
   
-  // Create text node
+  // Create text node (no resize or width/height - fill/hug set after append)
   const textNode = figma.createText()
   textNode.name = 'Critique Text'
   textNode.fontName = fonts.regular
@@ -306,15 +314,17 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
     }
   }
   
-  // Constrain width to 640px
-  textNode.resize(640, textNode.height)
-  
-  // Append text to frame
+  // Append text first, then set fill horizontal (required: node must be child of auto-layout frame)
   frame.appendChild(textNode)
-  
-  // Resize frame to fit text
-  frame.resize(textNode.width, textNode.height)
-  
+  textNode.layoutSizingHorizontal = 'FILL'
+  textNode.textAutoResize = 'HEIGHT'
+
+  // Ensure frame height is content-driven (avoid leaving at 1px)
+  const contentHeight = Math.max(1, frame.paddingTop + frame.paddingBottom + textNode.height)
+  if (frame.height !== contentHeight) {
+    frame.resize(frame.width, contentHeight)
+  }
+
   // Calculate placement using canonical placement utilities (same as artifacts)
   const placementTarget = getPlacementTarget(selectedNode)
   const targetBounds = placementTarget ? getAnchorBounds(placementTarget) : null

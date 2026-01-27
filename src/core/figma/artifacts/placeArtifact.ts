@@ -154,7 +154,9 @@ export async function placeArtifactFrame(options: PlaceArtifactOptions): Promise
   root.layoutMode = 'VERTICAL'
   root.primaryAxisSizingMode = 'AUTO'
   root.counterAxisSizingMode = 'FIXED'
-  root.resize(width, 100) // Initial size, will auto-resize
+  // Width fixed; height is corrected after content is built in createArtifact (post-render) so root never stays 1px.
+  root.resize(width, 1)
+  root.clipsContent = false
   root.paddingTop = 0
   root.paddingRight = 0
   root.paddingBottom = 0

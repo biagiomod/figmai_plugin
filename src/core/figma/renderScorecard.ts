@@ -49,8 +49,9 @@ function isAutoLayoutParent(node: SceneNode): node is SceneNode & { parent: Fram
 }
 
 /**
- * Safely set layoutSizingHorizontal to FILL
- * Only sets FILL if parent is an auto-layout frame and node is already appended
+ * Safely set layoutSizingHorizontal to FILL (fill horizontal).
+ * Only sets FILL if parent is an auto-layout frame and node is already appended.
+ * Report text must never get explicit width/height; use FILL + textAutoResize HEIGHT (createTextNode sets HEIGHT; call this after append for fill).
  */
 function safeSetFillX(node: SceneNode): void {
   // Only FrameNode, ComponentNode, InstanceNode, and TextNode support layoutSizingHorizontal
@@ -721,8 +722,11 @@ export async function buildScorecardContent(
   await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' })
   
   // Configure root frame as the card itself (no separate cardFrame wrapper)
-  // CRITICAL: Set layoutMode FIRST before appending any children
+  // CRITICAL: Set layoutMode FIRST before appending any children. No fixed height; content-driven vertical sizing so text is not clipped.
   root.layoutMode = 'VERTICAL'
+  root.primaryAxisSizingMode = 'AUTO'
+  root.counterAxisSizingMode = 'FIXED'
+  root.clipsContent = false
   root.paddingTop = 20
   root.paddingRight = 20
   root.paddingBottom = 20

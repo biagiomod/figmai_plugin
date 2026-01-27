@@ -1,0 +1,1012 @@
+// ### Design Critique Report Styling ###
+
+// ### Severity Tags - Overall severity only shown at top of report ###
+
+{
+    "type": "FRAME",
+    "name": "Overal Severity Badge - High",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 6,
+        "right": 12,
+        "bottom": 6,
+        "left": 12
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 107,
+    "height": 27,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 83,
+        "height": 15,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Severity: High",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 12,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  {
+    "type": "FRAME",
+    "name": "Overal Severity Badge - Medium",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 6,
+        "right": 12,
+        "bottom": 6,
+        "left": 12
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 127,
+    "height": 27,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0.38333332538604736,
+            "b": 0
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 103,
+        "height": 15,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Severity: Medium",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 12,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  {
+    "type": "FRAME",
+    "name": "Overal Severity Badge - Low",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 6,
+        "right": 12,
+        "bottom": 6,
+        "left": 12
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 104,
+    "height": 27,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0.7038756012916565,
+            "b": 0.2275014966726303
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 80,
+        "height": 15,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.36012619733810425,
+                "g": 0.22207783162593842,
+                "b": 0
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Severity: Low",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 12,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  {
+    "type": "FRAME",
+    "name": "Overal Severity Badge - Pass",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 6,
+        "right": 12,
+        "bottom": 6,
+        "left": 12
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 77,
+    "height": 31,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 0.20000000298023224,
+            "g": 0.6000000238418579,
+            "b": 0.30000001192092896
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 15,
+        "height": 19,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "✓",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 16,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      },
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 32,
+        "height": 15,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Pass!",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 12,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+
+  // ### Dimensions Checked Section Tags examples ###
+
+  // High Severity example
+  {
+    "type": "FRAME",
+    "name": "Dimension: Forced Action",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 2,
+        "right": 8,
+        "bottom": 2,
+        "left": 8
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 126,
+    "height": 23,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 15,
+        "height": 19,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "✗",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 16,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      },
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 89,
+        "height": 16,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Forced Action",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 13,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  // Medium Severity example
+  {
+    "type": "FRAME",
+    "name": "Dimension: Interface Interference",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 2,
+        "right": 8,
+        "bottom": 2,
+        "left": 8
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 177,
+    "height": 23,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0.38333332538604736,
+            "b": 0
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 15,
+        "height": 19,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "✗",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 16,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      },
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 140,
+        "height": 16,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Interface Interference",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 13,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  // Low Severity example
+
+  {
+    "type": "FRAME",
+    "name": "Dimension: Misleading Defaults",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 2,
+        "right": 8,
+        "bottom": 2,
+        "left": 8
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 164,
+    "height": 23,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0.7038756012916565,
+            "b": 0.2275014966726303
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 15,
+        "height": 19,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.36012619733810425,
+                "g": 0.22207783162593842,
+                "b": 0
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "✗",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 16,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      },
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 127,
+        "height": 16,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.36012619733810425,
+                "g": 0.22207783162593842,
+                "b": 0
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Misleading Defaults",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 13,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  // Pass example
+  {
+    "type": "FRAME",
+    "name": "Dimension: Nagging",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 2,
+        "right": 8,
+        "bottom": 2,
+        "left": 8
+      },
+      "itemSpacing": 6,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 91,
+    "height": 23,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 0.20000000298023224,
+            "g": 0.6000000238418579,
+            "b": 0.30000001192092896
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 15,
+        "height": 19,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "✓",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 16,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      },
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 54,
+        "height": 16,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Nagging",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 13,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+//   ### Finding Section Severity Tags examples ###
+
+// High Severity example
+{
+    "type": "FRAME",
+    "name": "Severity - High",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 4,
+        "right": 8,
+        "bottom": 4,
+        "left": 8
+      },
+      "itemSpacing": 0,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 42,
+    "height": 21,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 26,
+        "height": 13,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "High",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 11,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  // Medium Severity example
+
+  {
+    "type": "FRAME",
+    "name": "Severity - Medium",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 4,
+        "right": 8,
+        "bottom": 4,
+        "left": 8
+      },
+      "itemSpacing": 0,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 60,
+    "height": 21,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0.38333332538604736,
+            "b": 0
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 44,
+        "height": 13,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Medium",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 11,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
+
+  // Low Severity example
+
+  {
+    "type": "FRAME",
+    "name": "Severity",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "padding": {
+        "top": 4,
+        "right": 8,
+        "bottom": 4,
+        "left": 8
+      },
+      "itemSpacing": 0,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "AUTO"
+      }
+    },
+    "width": 39,
+    "height": 21,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 0.7038756012916565,
+            "b": 0.2275014966726303
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+    },
+    "children": [
+      {
+        "type": "TEXT",
+        "name": "Text",
+        "width": 23,
+        "height": 13,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.36012619733810425,
+                "g": 0.22207783162593842,
+                "b": 0
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "OUTSIDE"
+        },
+        "text": {
+          "characters": "Low",
+          "fontFamily": "Inter",
+          "fontStyle": "Bold",
+          "fontSize": 11,
+          "lineHeight": {
+            "unit": "AUTO"
+          },
+          "letterSpacing": {
+            "unit": "PERCENT",
+            "value": 0
+          },
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textCase": "ORIGINAL"
+        }
+      }
+    ]
+  }
