@@ -172,7 +172,7 @@ You generate structured content inventories and tables that help teams track, or
     label: 'Content Review',
     intro: 'I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.',
     hoverSummary: 'Content guidelines specialist',
-    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
+    tag: { isVisible: true, label: 'Alpha', variant: 'alpha' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('ux_copy_review', `# Content Review Assistant
 
 You are **FigmAI's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.
@@ -274,7 +274,7 @@ You specialize in evaluating and improving text content for clarity, tone, user 
     label: 'Dev Handoff',
     intro: 'I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.',
     hoverSummary: 'Generate developer specifications',
-    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
+    tag: { isVisible: true, label: 'Alpha', variant: 'alpha' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('dev_handoff', `# Dev Handoff Assistant
 
 You are **FigmAI's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.
@@ -312,7 +312,7 @@ You generate developer-friendly specifications, measurements, and implementation
     label: 'Accessibility',
     intro: 'I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.',
     hoverSummary: 'Accessibility specialist',
-    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
+    tag: { isVisible: true, label: 'Alpha', variant: 'alpha' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('accessibility', `# Accessibility Assistant
 
 You are **FigmAI's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.
@@ -356,7 +356,7 @@ You specialize in identifying accessibility barriers and providing specific, act
     label: 'Errors',
     intro: 'I identify design errors, inconsistencies, and quality issues. Select elements to find problems before handoff.',
     hoverSummary: 'Error screen specialist',
-    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
+    tag: { isVisible: true, label: 'Alpha', variant: 'alpha' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('errors', `# Errors Assistant
 
 You are **FigmAI's Errors Assistant**, a design quality assurance specialist embedded inside a Figma plugin.
@@ -391,7 +391,7 @@ You identify design errors, inconsistencies, and quality issues that could cause
     label: 'Design Workshop',
     intro: '**Welcome to your Design Workshop Assistant!**\n\nI generate 1-5 Figma screens from a JSON specification. Describe the screens you want, and I\'ll create them on the canvas.',
     hoverSummary: 'Screen generator specialist',
-    tag: { isVisible: true, label: 'Beta', variant: 'beta' },
+    tag: { isVisible: true, label: 'Alpha', variant: 'alpha' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('design_workshop', `# Design Workshop Assistant
 
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.
@@ -464,7 +464,7 @@ You MUST respond with valid JSON in this exact format (NO markdown fences, NO ot
     label: 'Discovery Copilot',
     intro: '**Welcome to Discovery Copilot!**\n\nI\'ll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you\'re solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet\'s begin! What are you discovering today? (e.g., "redesigning checkout flow", "building a new feature")',
     hoverSummary: 'Discovery process specialist',
-    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
+    tag: { isVisible: true, label: 'Alpha', variant: 'alpha' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('discovery_copilot', `# Discovery Copilot Assistant
 
 You are **FigmAI's Discovery Copilot Assistant**, a structured discovery thinking guide embedded inside a Figma plugin.

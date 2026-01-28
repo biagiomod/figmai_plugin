@@ -44,7 +44,7 @@ export interface QuickAction {
 export interface AssistantTag {
   isVisible?: boolean
   label?: string
-  variant?: 'new' | 'beta'
+  variant?: 'new' | 'beta' | 'alpha'
 }
 
 export interface Assistant {

@@ -1716,21 +1716,12 @@ ${htmlTable}
     return iconMap[iconId] || null
   }
 
-  /** Tag styles per refs_for_cursor/tags_for_assistants.json: beta = Soft Warning, new = Success */
-  const getAssistantTagStyle = (variant: 'new' | 'beta'): { [key: string]: string | number } => {
-    if (variant === 'beta') {
-      return {
-        padding: '4px 8px',
-        borderRadius: 8,
-        backgroundColor: '#FFB43A',
-        color: '#5C3800',
-        fontFamily: 'Inter, sans-serif',
-        fontWeight: 700,
-        fontSize: 11,
-        lineHeight: 1.2
-      }
-    }
-    return {
+  /**
+   * Tag styles mirroring refs_for_cursor/tags_for_assistants.json.
+   * new = Tag - Success (green); beta = Tag - Soft Warning (amber); alpha = Tag - Warning (orange, white text).
+   */
+  const ASSISTANT_TAG_STYLES: Record<'new' | 'beta' | 'alpha', { [key: string]: string | number }> = {
+    new: {
       padding: '4px 8px',
       borderRadius: 8,
       backgroundColor: '#38F066',
@@ -1739,12 +1730,38 @@ ${htmlTable}
       fontWeight: 700,
       fontSize: 11,
       lineHeight: 1.2
+    },
+    beta: {
+      padding: '4px 8px',
+      borderRadius: 8,
+      backgroundColor: '#FFB43A',
+      color: '#5C3800',
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: 700,
+      fontSize: 11,
+      lineHeight: 1.2
+    },
+    alpha: {
+      padding: '4px 8px',
+      borderRadius: 8,
+      backgroundColor: '#FF6200',
+      color: '#FFFFFF',
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: 700,
+      fontSize: 11,
+      lineHeight: 1.2
     }
+  }
+
+  const getAssistantTagStyle = (variant: 'new' | 'beta' | 'alpha'): { [key: string]: string | number } => {
+    return ASSISTANT_TAG_STYLES[variant] ?? ASSISTANT_TAG_STYLES.new
   }
 
   const getAssistantTagLabel = (tag: AssistantTag): string => {
     if (tag.label != null && tag.label.trim() !== '') return tag.label
-    return tag.variant === 'beta' ? 'Beta' : 'New'
+    if (tag.variant === 'alpha') return 'Alpha'
+    if (tag.variant === 'beta') return 'Beta'
+    return 'New'
   }
   
   // Get latest assistant message for quick actions
