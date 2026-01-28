@@ -7,7 +7,7 @@ This document outlines the architecture, conventions, and guidelines for contrib
 The plugin follows a modular architecture with clear separation between:
 - **Core**: Reusable, public-facing functionality
 - **Assistants**: Modular AI functionalities with handlers
-- **Work Adapter**: Extension points for Work-only features
+- **Custom Adapter**: Extension points for custom-only features
 - **UI**: React-based user interface
 
 ### Directory Structure
@@ -20,7 +20,7 @@ src/
 │   ├── stage/                     # Unified rendering system
 │   ├── output/                    # Response normalization
 │   ├── provider/                  # LLM providers
-│   └── work/                      # Work adapter interface (stubs)
+│   └── work/                      # Custom adapter interface (stubs)
 ├── assistants/                    # Assistant registry
 ├── ui/                            # React UI components
 └── main.ts                        # Thin orchestrator
@@ -71,15 +71,15 @@ export class MyAssistantHandler implements AssistantHandler {
 - Don't create `createXFrameOnCanvas` functions
 - Use existing systems: `core/figma/artifacts/` or `core/stage/`
 
-### 3. Work Adapter Pattern
+### 3. Custom Adapter Pattern
 
 **DO**: Add Work features via adapter
 
 - Add stub to `core/work/adapter.ts`
-- Implement in `work/adapter.ts` (Work-only)
+- Implement in `work/adapter.ts` (custom-only)
 - Use `workAdapter.{feature}?.call()` in Public code
 
-**DON'T**: Hardcode Work-only features
+**DON'T**: Hardcode custom-only features
 
 - No direct Confluence API calls in Public code
 - No design system detection in Public code
@@ -93,7 +93,7 @@ export const workAdapter: WorkAdapter = {
   confluenceApi: undefined, // Work will override
 }
 
-// work/adapter.ts (WORK-ONLY)
+// work/adapter.ts (custom-only)
 import { workAdapter } from '../core/work/adapter'
 workAdapter.confluenceApi = {
   async sendTable(table, format) {
@@ -126,7 +126,7 @@ workAdapter.confluenceApi = {
 ## Adding Work Features
 
 1. **Add stub** to `core/work/adapter.ts`
-2. **Implement** in `work/adapter.ts` (Work-only)
+2. **Implement** in `work/adapter.ts` (custom-only)
 3. **Use** `workAdapter.{feature}?.call()` in Public code
 
 ## File Naming Conventions
@@ -148,14 +148,14 @@ workAdapter.confluenceApi = {
 - Test handlers independently
 - Test rendering paths
 - Test error handling
-- Test Work adapter stubs
+- Test Custom adapter stubs
 
-## Migration Path for Work Plugin
+## Migration Path for Custom Plugin
 
 1. Copy Public codebase to Work repository
 2. Add `work/adapter.ts` with real implementations
 3. Override `core/work/adapter.ts` exports (or use module replacement)
-4. Add Work-specific assistants to `assistants/index.ts`
+4. Add custom-specific assistants to `assistants/index.ts`
 5. Test Work features
 
 **Future updates**: Pull Public changes, merge conflicts only in `work/adapter.ts` (single file)

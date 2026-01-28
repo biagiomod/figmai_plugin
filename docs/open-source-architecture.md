@@ -1,6 +1,6 @@
-# Open Source Architecture & Corporate Review Guide
+# Open Source Architecture & Enterprise Review Guide
 
-**Audience:** Corporate security, privacy, and legal reviewers evaluating the FigmAI plugin.
+**Audience:** Enterprise security, privacy, and legal reviewers evaluating the FigmAI plugin.
 
 This document describes the open-source FigmAI plugin architecture, its network access patterns, and how custom deployments can configure endpoints and knowledge bases while maintaining separation from the public codebase.
 
@@ -102,7 +102,7 @@ In `custom/config.json`, the public repository includes temporary development de
 ```
 
 - These domains are transitional defaults included to make the open-source build functional out of the box.
-- They are not recommended for production or corporate use.
+- They are not recommended for production or enterprise use.
 - These values are validated and written into `manifest.json.networkAccess.allowedDomains` at build time.
 - If a custom deployment provides empty arrays, the patcher applies the same three development defaults to maintain functionality until custom values are configured.
 
@@ -149,7 +149,7 @@ This system intentionally does not include:
 
 ---
 
-## 8. Corporate Reviewer Checklist
+## 8. Enterprise Reviewer Checklist
 
 Use this checklist when evaluating a custom deployment of this plugin:
 
@@ -170,7 +170,7 @@ Use this checklist when evaluating a custom deployment of this plugin:
 
 - **Secrets management**
   - [ ] Verify that no API keys or secrets are committed to the repository.
-  - [ ] Check that runtime secrets (if any) are provided via secure channels (environment variables, Figma clientStorage, or corporate secret stores).
+  - [ ] Check that runtime secrets (if any) are provided via secure channels (environment variables, Figma clientStorage, or enterprise secret stores).
 
 - **Build behavior**
   - [ ] Run `npm run build` and inspect `manifest.json` to confirm the expected `allowedDomains`.

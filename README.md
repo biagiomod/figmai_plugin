@@ -306,7 +306,7 @@ See **[Adapter Pattern](docs/work-plugin/adapter-pattern.md)** [CONTEXTUAL] for 
 1. **Adding a new assistant**: Start at `assistants/index.ts` → create handler → register handler
 2. **Understanding message flow**: Read `main.ts` quick action handler → trace to handler → trace to provider
 3. **Rendering output**: Check if handler exists → if not, default to chat message → if yes, handler renders to canvas
-4. **Work features**: Check `core/work/adapter.ts` → implement in Work plugin's `work/adapter.ts`
+4. **Custom features**: Check `core/work/adapter.ts` → implement in Custom plugin's `work/adapter.ts`
 
 ### Key Assumptions
 
@@ -406,9 +406,9 @@ The documentation is organized by topic with clear labels ([AUTHORITATIVE], [REF
 ### Quick Links
 
 - **[Getting Started](docs/01-getting-started.md)** - Architecture guide
-- **[Work Plugin Guide](docs/work-plugin/README.md)** - Work Plugin migration
-- **[Connection Modes](docs/connection-modes.md)** - Proxy vs Internal API (coming soon)
-- **[Extension Points](docs/work-plugin/extension-points.md)** - Work Plugin hooks reference
+- **[Custom Plugin Guide](docs/work-plugin/README.md)** - Custom Plugin migration
+- **[Connection Modes](docs/connection-modes.md)** - Proxy vs Internal API
+- **[Extension Points](docs/work-plugin/extension-points.md)** - Custom Plugin hooks reference
 
 For complete documentation navigation, see **[docs/README.md](docs/README.md)**.
 
@@ -416,7 +416,7 @@ For complete documentation navigation, see **[docs/README.md](docs/README.md)**.
 - `src/main.ts` - Main thread orchestrator (read header comment)
 - `src/ui.tsx` - UI thread (read header comment)
 - `core/assistants/handlers/` - Handler implementations
-- `core/work/adapter.ts` - Work adapter interface
+- `core/work/adapter.ts` - Custom adapter interface
 
 ---
 

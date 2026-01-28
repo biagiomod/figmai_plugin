@@ -38,8 +38,8 @@ Custom content is appended to the public knowledge base with a separator (`---`)
 
 **Example:**
 - Public knowledge: "You are a helpful assistant..."
-- Custom knowledge: "## Corporate Guidelines\n\nFollow company style guide..."
-- Result: "You are a helpful assistant...\n\n---\n\n## Corporate Guidelines\n\nFollow company style guide..."
+- Custom knowledge: "## Custom Guidelines\n\nFollow your style guide..."
+- Result: "You are a helpful assistant...\n\n---\n\n## Custom Guidelines\n\nFollow your style guide..."
 
 ### Override (`"override"`)
 Custom content completely replaces the public knowledge base.

@@ -1,3 +1,7 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # UI State Lifecycle Stabilization - Implementation Summary
 
 ## Changes Made

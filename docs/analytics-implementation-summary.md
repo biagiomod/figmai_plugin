@@ -7,7 +7,7 @@
 
 ## Overview
 
-Implemented work-only analytics system with hard config toggle. Analytics is disabled by default and must be explicitly enabled via `custom/config.json`. When disabled, analytics is a true no-op (no timers, no storage, no network calls).
+Implemented custom-only analytics system with hard config toggle. Analytics is disabled by default and must be explicitly enabled via `custom/config.json`. When disabled, analytics is a true no-op (no timers, no storage, no network calls).
 
 ---
 
@@ -181,7 +181,7 @@ The manifest patcher validates the endpoint URL as a pure origin and includes it
 1. Test with real analytics endpoint
 2. Monitor event volume and adjust batch/flush settings if needed
 3. Add additional event types if required
-4. Configure analytics endpoint in corporate deployments
+4. Configure analytics endpoint in custom or enterprise deployments
 
 ---
 

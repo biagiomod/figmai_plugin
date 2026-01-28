@@ -1,3 +1,7 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # Codebase Audit Report
 ## FigmAI Plugin - Public Plugin Readiness Assessment
 

@@ -1,3 +1,7 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # UI State Lifecycle Verification - Execution Summary
 
 **Date:** 2026-01-21  
@@ -147,4 +151,4 @@ All automated checks pass. The UI state lifecycle stabilization is correctly imp
 
 **Ready for:** Manual verification in Figma plugin environment.
 
-**Full Report:** See `VERIFICATION_REPORT.md` for detailed analysis.
+**Full Report:** See [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) (this directory) for detailed analysis.

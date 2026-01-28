@@ -1,6 +1,6 @@
 # Custom Overlay System
 
-This directory allows corporate environments to overlay custom configuration and knowledge bases onto the public plugin codebase.
+This directory allows custom or enterprise environments to overlay configuration and knowledge bases onto the public plugin codebase.
 
 ## Overview
 
@@ -23,9 +23,9 @@ All custom content is bundled at build time via the prebuild script (`scripts/ge
       └── *.example.md             # Example knowledge base files (reference)
 ```
 
-## Setup for Corporate Environments
+## Setup for Custom or Enterprise Environments
 
-**Important:** The public repo ships placeholder files (`config.json` and `knowledge/*.md`) with safe defaults. Corporate users should edit these files directly and commit them to their corporate repo.
+**Important:** The public repo ships placeholder files (`config.json` and `knowledge/*.md`) with safe defaults. Custom deployments should edit these files directly and commit them to their own repo.
 
 1. **Edit `custom/config.json` directly:**
    - Set `ui.defaultMode` to your preferred default mode (`'simple'`, `'advanced'`, or `'content-mvp'`)
@@ -42,7 +42,7 @@ All custom content is bundled at build time via the prebuild script (`scripts/ge
    - Configure policies in `config.json` to append or override public knowledge bases
 
 3. **Commit your changes:**
-   - Commit `config.json` and edited knowledge base files to your corporate repo
+   - Commit `config.json` and edited knowledge base files to your repo
    - These files are tracked in git (not ignored)
 
 4. **Rebuild:**
@@ -102,8 +102,8 @@ See `config.example.json` for the full schema. Key fields:
 - `designSystems.denylist` (array, optional): These registry IDs cannot load
 - `designSystems.strictMode` (boolean): If `true`, registry load failures disable entire system (default: `false`)
 
-**Work-Only Configuration:**
-To ensure only work registries load (prevent example DS activation):
+**Custom-only configuration:**
+To ensure only custom registries load (prevent example DS activation):
 ```json
 {
   "designSystems": {
@@ -136,7 +136,7 @@ Network allowlists are also configured via `custom/config.json`:
 ```
 
 - `baseAllowedDomains` (string[]): Baseline domains that are acceptable in all builds (public-safe). In the public repo, this defaults to `["https://api.openai.com"]` so the plugin works out of the box.
-- `extraAllowedDomains` (string[]): Additional domains used only in corporate or development builds (for example, ngrok tunnels or localhost proxies). In the public repo, this defaults to `["http://localhost:8787", "https://overobedient-buddy-leathern.ngrok-free.dev"]` for local and tunnel-based development.
+- `extraAllowedDomains` (string[]): Additional domains used only in custom or development builds (for example, ngrok tunnels or localhost proxies). In the public repo, this defaults to `["http://localhost:8787", "https://overobedient-buddy-leathern.ngrok-free.dev"]` for local and tunnel-based development.
 
 At build time, the script `scripts/update-manifest-network-access.ts` merges these arrays and updates `manifest.json.networkAccess.allowedDomains`. Figma then enforces this allowlist at runtime.
 
@@ -152,14 +152,14 @@ At build time, the script `scripts/update-manifest-network-access.ts` merges the
   - `"https://api.example.com"`
   - `"http://localhost:8787"`
 - Do not include secrets here (no API keys or tokens) – only domains/endpoints.
-- Corporate repos are expected to **replace** the public defaults in `networkAccess` with their own internal endpoints and dev domains as needed.
+- Custom deployments are expected to **replace** the public defaults in `networkAccess` with their own endpoints and dev domains as needed.
 
 ## Knowledge Base Policies
 
 ### Append Policy
 Custom content is appended to the public knowledge base with a separator (`---`).
 
-**Use case:** Add corporate-specific guidelines or examples to existing public knowledge.
+**Use case:** Add custom-specific guidelines or examples to existing public knowledge.
 
 ### Override Policy
 Custom content completely replaces the public knowledge base.
@@ -191,7 +191,7 @@ When updating the plugin:
 ## File Tracking Strategy
 
 - **Public repo:** Ships placeholder files (`config.json` with empty/default values, `knowledge/*.md` with placeholder content)
-- **Corporate repo:** Edit the placeholder files directly and commit them with your custom content
+- **Custom repo:** Edit the placeholder files directly and commit them with your custom content
 - **No gitignore needed:** All files are tracked - edit and commit as needed
 - **Security:** ⚠️ **Do not commit secrets** (API keys, tokens) in `config.json`. Use environment variables or secure storage instead.
 

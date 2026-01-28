@@ -1,3 +1,7 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # Phase 1: Mode Persistence Verification
 
 This document provides step-by-step verification procedures to ensure mode persistence is working correctly after the Phase 1 fixes.

@@ -42,7 +42,7 @@ export function createWorkAdapter(): WorkAdapter {
 
 ### `credentials.override.ts` (DO NOT COMMIT)
 
-This file contains Work-only credentials and endpoint configurations.
+This file contains custom-only credentials and endpoint configurations.
 
 **Example:**
 ```typescript

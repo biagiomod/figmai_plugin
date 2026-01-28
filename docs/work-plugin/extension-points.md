@@ -498,8 +498,8 @@ Design System Reference Packs would be JSON document packs that describe design 
 - Example: `"button/primary"` → lookup component key from pack → create instance
 
 **How It Would Work:**
-1. Work Plugin provides DS Reference Pack JSON (describes tokens, components, mappings)
-2. Pack loaded at runtime (or bundled with Work Plugin)
+1. Custom Plugin provides DS Reference Pack JSON (describes tokens, components, mappings)
+2. Pack loaded at runtime (or bundled with Custom Plugin)
 3. Renderer checks pack before rendering primitives
 4. If pack has mapping for block intent, use component instance
 5. Otherwise, fall back to primitive rendering (current behavior)
@@ -525,7 +525,7 @@ workAdapter.designSystem?.detectSystem(node: SceneNode): Promise<DesignSystemInf
 
 **Implementation Example:**
 ```typescript
-// work/adapter.ts (Work Plugin)
+// work/adapter.ts (Custom Plugin)
 workAdapter.designSystem = {
   async detectSystem(node: SceneNode): Promise<DesignSystemInfo | null> {
     // Check component library
@@ -595,7 +595,7 @@ This ensures Work can apply DS content handling rules once, and everything downs
 
 **XHTML Encoding:**
 - XHTML is encoded using `encodeXhtmlDocument()` from `core/encoding/xhtml.ts`
-- Work adapter receives fully-encoded XHTML ready for Confluence API
+- Custom adapter receives fully-encoded XHTML ready for Confluence API
 - Encoding happens after post-processing, so redacted/normalized content is properly encoded
 - Work implementation includes a safety check to re-encode if content appears unencoded (double-guard)
 
@@ -685,7 +685,7 @@ export default workAdapter
 **UI Success/Error Handling:**
 - Success: Modal shows success state, chat bubble "Table sent to Confluence" appears on close
 - Error: Modal shows error state with error message, user can go back or close
-- Fallback (no Work adapter): Public plugin simulates success, chat bubble still appears
+- Fallback (no Custom adapter): Public plugin simulates success, chat bubble still appears
 
 
 ---
@@ -771,7 +771,7 @@ To add a new extension point:
 
 4. **Document** in this file (EXTENSION_POINTS.md)
 
-5. **Implement** in Work Plugin's `src/work/workAdapter.override.ts`
+5. **Implement** in Custom Plugin's `src/work/workAdapter.override.ts`
 
 ## Best Practices
 
@@ -789,9 +789,9 @@ To add a new extension point:
 - Don't modify Public Plugin code to add hooks
 - Don't break interface contracts
 - Don't scatter hook logic across multiple files
-- Don't hardcode Work-specific behavior in Public Plugin
+- Don't hardcode custom-specific behavior in Public Plugin
 
-## Public Utilities for Work Plugin
+## Public Utilities for Custom Plugin
 
 The Public Plugin provides utility functions that Work can use for common tasks like Confluence export.
 
@@ -954,7 +954,7 @@ export class CustomComplianceHook implements ComplianceHook {
 
 ### Custom Provider
 
-Implement custom LLM provider for work-specific LLM endpoints.
+Implement custom LLM provider for custom-specific LLM endpoints.
 
 **Interface:** `Provider` in `core/provider/provider.ts`
 

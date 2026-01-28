@@ -6,6 +6,13 @@
 
 ---
 
+## Terminology note
+
+- **Current convention:** The project uses **"custom"** for deployment-specific variants (e.g. Custom Plugin, custom overlay, custom config). Use this terminology in all new and active documentation.
+- **This document:** References to "work" (e.g. Work Plugin, work adapter, work environment) in this summary are **historical/meta** — they describe past renames and file paths. They are not a signal to reintroduce "work" in prose elsewhere.
+
+---
+
 ## Overview
 
 This cleanup standardized terminology, reduced duplication, removed bloat, and verified accuracy across all documentation files. All changes are prose-only; no code paths, file names, or functional behavior were altered.

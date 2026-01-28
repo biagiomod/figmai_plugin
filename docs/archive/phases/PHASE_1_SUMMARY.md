@@ -1,3 +1,7 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # Phase 1: Mode Reset Fix - Summary
 
 ## Changes Made

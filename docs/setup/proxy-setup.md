@@ -832,7 +832,7 @@ The proxy abstraction allows:
 
 ### Internal LLM Integration
 
-For internal/corporate LLMs:
+For internal or enterprise LLMs:
 
 1. **Update proxy** to call internal API instead of OpenAI
 2. **Keep same contract** (`/v1/chat` endpoint, same request/response format)

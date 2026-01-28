@@ -2,13 +2,13 @@
 
 **Date:** 2024-12-19  
 **Scope:** FigmAI Plugin + Proxy Platform  
-**Focus:** Migration readiness for restricted work environments
+**Focus:** Migration readiness for restricted custom or enterprise environments
 
 ---
 
 ## Executive Summary
 
-The codebase is **mostly portable** with good separation of concerns, but several hardcoded values and configuration gaps need addressing before migration to restricted work environments. The proxy-based architecture is well-suited for enterprise deployments, but configuration must be fully externalized.
+The codebase is **mostly portable** with good separation of concerns, but several hardcoded values and configuration gaps need addressing before migration to restricted custom or enterprise environments. The proxy-based architecture is well-suited for enterprise deployments, but configuration must be fully externalized.
 
 **Overall Portability Score:** 🟡 **Good (75/100)**
 
@@ -25,21 +25,21 @@ The codebase is **mostly portable** with good separation of concerns, but severa
 #### 1.1 Default Model Name
 **Location:** `src/core/settings.ts:20`, `src/ui/components/SettingsModal.tsx:24,48,75,92,220`
 - **Issue:** Default model `'gpt-4.1-mini'` hardcoded in multiple places
-- **Impact:** Work environments may use different model names (e.g., internal LLM endpoints)
+- **Impact:** Custom/enterprise environments may use different model names (e.g., internal LLM endpoints)
 - **Risk:** High - Requires code changes to support different default models
 - **Fix:** Move to `CONFIG` with environment-aware defaults
 
 #### 1.2 Provider Selection Logic
 **Location:** `src/core/config.ts:9`, `src/core/provider/providerFactory.ts:14-34`
 - **Issue:** Default provider `'openai'` hardcoded; provider factory has hardcoded switch logic
-- **Impact:** Work environments may require different providers or provider selection rules
+- **Impact:** Custom/enterprise environments may require different providers or provider selection rules
 - **Risk:** High - Provider selection not configurable
 - **Fix:** Make provider selection configurable via settings/config
 
 #### 1.3 Assistant Knowledge Base Paths
 **Location:** `src/assistants/index.ts:44,163,196,232,274,301`
 - **Issue:** Knowledge base markdown files referenced in comments but loaded inline
-- **Impact:** Work environments may need to override or extend knowledge bases
+- **Impact:** Custom/enterprise environments may need to override or extend knowledge bases
 - **Risk:** Medium - No extension point for custom knowledge bases
 - **Fix:** Create knowledge base loader interface with configurable paths
 
@@ -48,34 +48,34 @@ The codebase is **mostly portable** with good separation of concerns, but severa
 #### 2.1 Feature Flags Not Environment-Aware
 **Location:** `src/core/config.ts:12-16`
 - **Issue:** Feature flags hardcoded; no environment-specific overrides
-- **Impact:** Work environments may need different feature sets (e.g., disable vision, enable compliance hooks)
+- **Impact:** Custom/enterprise environments may need different feature sets (e.g., disable vision, enable compliance hooks)
 - **Risk:** Medium - Requires code changes for different feature sets
 - **Fix:** Support environment-specific feature flags via config
 
 #### 2.2 Timeout Values
 **Location:** `src/core/settings.ts:21`
 - **Issue:** Default timeout `30000ms` hardcoded
-- **Impact:** Work environments may have slower networks or stricter timeouts
+- **Impact:** Custom/enterprise environments may have slower networks or stricter timeouts
 - **Risk:** Low-Medium - May cause issues in restricted networks
 - **Fix:** Make configurable with environment-aware defaults
 
 #### 2.3 Brand Name Hardcoded
 **Location:** `src/core/brand.ts:8`
 - **Issue:** Brand name `'FigmAI'` hardcoded
-- **Impact:** Work environments may need white-labeling
+- **Impact:** Custom/enterprise environments may need white-labeling
 - **Risk:** Low - Cosmetic but may be required for enterprise
 - **Fix:** Make configurable (optional)
 
 #### 2.4 Assistant Registry Hardcoded
 **Location:** `src/assistants/index.ts:84-341`
 - **Issue:** All assistants defined in code; no way to add/remove assistants without code changes
-- **Impact:** Work environments may need custom assistants or disable certain ones
+- **Impact:** Custom/enterprise environments may need custom assistants or disable certain ones
 - **Fix:** Create assistant registry loader with configurable sources
 
 #### 2.5 Component Detection Logic
 **Location:** `src/core/context/selectionSummary.ts:262-268`
-- **Issue:** Component detection uses generic Figma API; no hooks for work-specific design system detection
-- **Impact:** Work environments may need to detect internal design system components differently
+- **Issue:** Component detection uses generic Figma API; no hooks for custom-specific design system detection
+- **Impact:** Custom/enterprise environments may need to detect internal design system components differently
 - **Risk:** Medium - Extension point needed for custom component detection
 - **Fix:** Create component scanner interface
 
@@ -91,7 +91,7 @@ The codebase is **mostly portable** with good separation of concerns, but severa
 #### 3.2 Auth Mode Labels
 **Location:** `src/ui/components/SettingsModal.tsx:252-253`
 - **Issue:** Auth mode labels hardcoded ("Personal", "Commercial")
-- **Impact:** Minor - May need work-specific labels
+- **Impact:** Minor - May need custom-specific labels
 - **Risk:** Low
 - **Fix:** Make configurable
 
@@ -162,10 +162,10 @@ export interface Settings {
   defaultModel: string
   requestTimeoutMs: number
   
-  // New fields for work environments
+  // New fields for custom/enterprise environments
   environment?: 'personal' | 'work' | 'production'
-  customKnowledgeBaseUrl?: string // For work-specific KBs
-  designSystemComponentPrefix?: string // For work-specific component detection
+  customKnowledgeBaseUrl?: string // For custom-specific KBs
+  designSystemComponentPrefix?: string // For custom-specific component detection
   complianceMode?: boolean
 }
 ```
@@ -181,7 +181,7 @@ export interface Settings {
 **Implementation:**
 - Create `src/core/config/loader.ts` to handle multi-source config loading
 - Support `.env` files for local development
-- Support `config.work.json` for work environments
+- Support `config.custom.json` for custom/enterprise environments
 - Validate config schema on load
 
 ---
@@ -392,7 +392,7 @@ export function registerCustomProvider(config: CustomProviderConfig): void {
    - Custom provider guide
 
 5. **`README.md`** - Update with migration section
-6. **`docs/setup/proxy-setup.md`** - Add work environment section
+6. **`docs/setup/proxy-setup.md`** - Add custom environment section
 
 ---
 
@@ -419,10 +419,10 @@ export function registerCustomProvider(config: CustomProviderConfig): void {
   - [ ] Test authentication flow
 
 - [ ] **Configuration**
-  - [ ] Create `config.work.json` with work-specific settings
+  - [ ] Create `config.custom.json` with custom-specific settings
   - [ ] Set environment variables if required
   - [ ] Verify default model name matches work LLM
-  - [ ] Configure feature flags for work environment
+  - [ ] Configure feature flags for custom environment
 
 ### Migration Steps
 
@@ -433,7 +433,7 @@ export function registerCustomProvider(config: CustomProviderConfig): void {
    - [ ] Update settings schema
 
 2. **Configuration Setup**
-   - [ ] Create `config.work.json` with work settings
+   - [ ] Create `config.custom.json` with work settings
    - [ ] Set `defaultModel` to work LLM endpoint
    - [ ] Configure `proxyBaseUrl` to work proxy
    - [ ] Set `environment: 'work'` in settings
@@ -465,7 +465,7 @@ export function registerCustomProvider(config: CustomProviderConfig): void {
   - [ ] Run quick action → action executes
   - [ ] Export selection → images exported (if enabled)
 
-- [ ] **Work-Specific Tests**
+- [ ] **Custom-specific tests**
   - [ ] Custom component detection works (if implemented)
   - [ ] Custom knowledge bases load (if implemented)
   - [ ] Compliance hooks execute (if implemented)

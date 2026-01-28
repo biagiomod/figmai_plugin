@@ -76,7 +76,7 @@ export interface Settings {
   // Network configuration
   requestTimeoutMs: number
   
-  // Work environment settings
+  // Custom environment settings
   environment?: 'personal' | 'work' | 'production'
   customKnowledgeBaseUrl?: string
   designSystemComponentPrefix?: string
@@ -200,7 +200,7 @@ Settings are persisted in Figma clientStorage and override config file defaults.
 | `defaultModel` | `string` | `'gpt-4.1-mini'` | Default model name/endpoint |
 | `availableModels` | `string[]` | `[]` | Available models (optional) |
 
-**Note:** Model names are provider-specific. For work environments, use internal LLM endpoint names.
+**Note:** Model names are provider-specific. For custom environments, use internal LLM endpoint names.
 
 ### Feature Flags
 
@@ -260,7 +260,7 @@ Settings are persisted in Figma clientStorage and override config file defaults.
 }
 ```
 
-### Work Environment
+### Custom Environment
 
 ```json
 {
@@ -362,7 +362,7 @@ Invalid configurations fall back to defaults and log warnings.
 3. **Use environment variables for CI/CD or deployment**
 4. **Never commit credentials to config files**
 5. **Validate config on load**
-6. **Document work-specific customizations**
+6. **Document custom-specific customizations**
 
 ---
 

@@ -1,3 +1,7 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # Phase 2: Config Consolidation - Implementation Summary
 
 ## Execution Log
@@ -17,7 +21,7 @@
 - Added `llm.uiMode: "full"` (default behavior)
 - Added `resources.links.*` with empty URLs (buttons won't render until URLs provided)
 - Added `resources.credits.*` with empty arrays (sections won't render until populated)
-- Example file shows populated examples for corporate reference
+- Example file shows populated examples for custom reference
 
 ### Step 3: Regenerated TypeScript Config
 **Action:** Ran `npm run generate-custom-overlay`
@@ -59,7 +63,7 @@
 ### Step 8: Updated Documentation
 **File:** `custom/README.md`
 - Added comprehensive schema documentation for all new fields
-- Added examples for corporate customization
+- Added examples for custom customization
 - Documented behavior: empty arrays/URLs result in empty UI (graceful degradation)
 
 ## Verification Results

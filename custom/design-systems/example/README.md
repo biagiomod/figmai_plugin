@@ -47,9 +47,9 @@ To enable this example registry for local testing:
 4. Rebuild: `npm run build`
 5. Reload plugin in Figma
 
-## Work-Only Protection
+## Custom-only protection
 
-For work builds, ensure example registry is **not** in `activeRegistries`. Use allowlist/denylist for extra protection:
+For custom builds, ensure example registry is **not** in `activeRegistries`. Use allowlist/denylist for extra protection:
 
 ```json
 {

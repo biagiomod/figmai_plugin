@@ -1,3 +1,7 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # Design System Component Registry - Implementation Summary
 
 ## Implementation Complete
@@ -88,7 +92,7 @@ All phases of the Design System Component Registry implementation have been comp
 - `designSystems.activeRegistries`: Array of registry IDs
 - `designSystems.allowlist`: Registry filtering (most restrictive)
 - `designSystems.denylist`: Registry filtering
-- `designSystems.strictMode`: Fail-loud mode for work environments
+- `designSystems.strictMode`: Fail-loud mode for custom environments
 
 ### 2. Registry Loading & Validation
 - Loads registry JSON files from `custom/design-systems/<id>/registry.json`
@@ -132,7 +136,7 @@ All phases of the Design System Component Registry implementation have been comp
 - Includes optional Markdown documentation
 - **Disabled by default** (not in activeRegistries)
 
-## Work-Only Protection
+## Custom-only Protection
 
 ✅ **Multiple Protection Layers:**
 1. Example DS disabled by default (not in activeRegistries)
@@ -140,7 +144,7 @@ All phases of the Design System Component Registry implementation have been comp
 3. Denylist explicitly blocks example DS
 4. Strict mode fails loudly on misconfiguration
 
-**Example work-only config:**
+**Example custom-only config:**
 ```json
 {
   "designSystems": {
@@ -197,7 +201,7 @@ All phases of the Design System Component Registry implementation have been comp
 - [ ] Verify no errors, assistants work normally
 - [ ] Verify no DS knowledge in assistant prompts
 
-### 2. Work-Only Configuration
+### 2. Custom-only Configuration
 - [ ] Set `designSystems.activeRegistries: ["custom"]` (no "example")
 - [ ] Set `designSystems.denylist: ["example"]`
 - [ ] Rebuild, reload
@@ -236,12 +240,12 @@ All phases of the Design System Component Registry implementation have been comp
 
 ## Next Steps for Production Use
 
-1. **Create Work Registry:**
+1. **Create Custom Registry:**
    - Create `custom/design-systems/custom/registry.json`
    - Add actual component keys from your Figma library
    - Populate rich metadata for each component
 
-2. **Configure Work-Only:**
+2. **Configure Custom-only:**
    - Set `activeRegistries: ["custom"]`
    - Set `allowlist: ["custom"]` (optional, extra protection)
    - Set `strictMode: true` (optional, for fail-loud behavior)
@@ -274,7 +278,7 @@ All phases of the Design System Component Registry implementation have been comp
 ✅ Plugin runs without errors when DS registry is disabled  
 ✅ Plugin loads and uses active registries when enabled  
 ✅ Example DS cannot activate unless explicitly in activeRegistries  
-✅ Work-only configuration prevents example DS activation  
+✅ Custom-only configuration prevents example DS activation  
 ✅ Strict mode fails loudly on misconfiguration  
 ✅ Assistants can query and place components via tool  
 ✅ Knowledge injection only includes active registries  
@@ -285,6 +289,6 @@ All phases of the Design System Component Registry implementation have been comp
 ## Implementation Complete
 
 All planned features have been implemented and verified. The system is ready for:
-1. Creating work-specific registries
+1. Creating custom-specific registries
 2. Testing component placement with real library components
-3. Production deployment with work-only configuration
+3. Production deployment with custom-only configuration

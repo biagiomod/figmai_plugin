@@ -169,5 +169,5 @@ Before completing task:
 - **Migration Steps:** `docs/work-plugin/migration-guide.md`
 - **Extension Points:** `docs/work-plugin/extension-points.md`
 - **Custom Pattern:** `docs/work-plugin/adapter-pattern.md`
-- **Message Contract:** `docs/message-contract.md`
+- **Message Contract:** `docs/reference/message-contract.md`
 

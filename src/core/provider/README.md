@@ -9,7 +9,7 @@ The proxy and provider system provides a clean abstraction layer between the Fig
 - **External LLMs** (e.g., OpenAI via proxy)
 - **Internal/Enterprise LLMs** with constraints
 - **Text-only and multimodal requests** (images)
-- **Strict runtimes** (Figma, Electron, corporate infrastructure)
+- **Strict runtimes** (Figma, Electron, enterprise infrastructure)
 
 ## Design Principles
 

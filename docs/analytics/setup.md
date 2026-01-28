@@ -13,7 +13,7 @@ The FigmAI plugin includes an optional analytics system that tracks usage events
 - Privacy-safe (no PII, no file names, no prompts)
 - Non-blocking (analytics failures never affect plugin functionality)
 - Configurable batching and retry behavior
-- Work-only (no public defaults)
+- custom-only (no public defaults)
 
 ---
 

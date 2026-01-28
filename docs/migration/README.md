@@ -1,6 +1,6 @@
 # Migration Documentation Index
 
-Complete guide for migrating the FigmAI plugin to restricted work environments.
+Complete guide for migrating the FigmAI plugin to restricted custom or enterprise environments.
 
 ---
 
@@ -62,7 +62,7 @@ Complete guide for migrating the FigmAI plugin to restricted work environments.
 - [ ] Identify required configuration
 
 ### Migration
-- [ ] Create work configuration file
+- [ ] Create custom configuration file
 - [ ] Set environment variables (if needed)
 - [ ] Implement extensions (if needed)
 - [ ] Configure settings in plugin
@@ -83,5 +83,5 @@ For questions or issues:
 1. Review relevant documentation file
 2. Check troubleshooting sections
 3. Review portability analysis for known issues
-4. Contact work IT/security team for environment-specific issues
+4. Contact your IT/security team for environment-specific issues
 

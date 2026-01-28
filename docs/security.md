@@ -189,7 +189,7 @@ Access-Control-Allow-Headers: Content-Type, X-FigmAI-Token, Authorization
 - Implement compliance hooks for request/response logging
 - Sanitize sensitive data before sending
 - Review proxy server compliance policies
-- Ensure proxy server meets work security requirements
+- Ensure proxy server meets your security requirements
 
 **See:** `docs/work-plugin/extension-points.md` for compliance hook implementation.
 
@@ -213,7 +213,7 @@ Access-Control-Allow-Headers: Content-Type, X-FigmAI-Token, Authorization
 3. **Data:**
    - Be aware of what data is sent to proxy
    - Review selection before sending
-   - Use compliance mode in work environments
+   - Use compliance mode in custom environments
 
 ### For Administrators (Custom Environments)
 
@@ -286,7 +286,7 @@ Access-Control-Allow-Headers: Content-Type, X-FigmAI-Token, Authorization
 
 **Plugin:**
 - No built-in audit logging
-- Use compliance hooks for work environments
+- Use compliance hooks for custom environments
 
 **Proxy Server:**
 - Should log all requests
@@ -365,7 +365,7 @@ Implement compliance hooks for:
 For security questions:
 1. Review this guide
 2. Check proxy server security documentation
-3. Contact security team for work environments
+3. Contact security team for custom environments
 4. Review Figma plugin security documentation
 
 For security issues:

@@ -8,14 +8,14 @@ The registry system allows you to:
 - Define design system components with rich metadata (purpose, when to use, accessibility notes)
 - Enable Assistants to recommend and place components automatically
 - Maintain component documentation in a structured, LLM-friendly format
-- Control which registries are active via configuration (work-only protection)
+- Control which registries are active via configuration (custom-only protection)
 
 ## Key Principles
 
 1. **No Global Taxonomy**: Each registry is self-describing. No cross-registry taxonomy alignment required.
 2. **Self-Contained**: Each component entry includes all information needed for LLM selection (purpose, whenToUse, whenNotToUse, examples).
 3. **Config-Driven**: Registry activation controlled via `custom/config.json` (no runtime switching).
-4. **Work-Only Protection**: Example/demo registries disabled by default; allowlist/denylist prevent accidental activation.
+4. **Custom-only protection**: Example/demo registries disabled by default; allowlist/denylist prevent accidental activation.
 
 ## File Structure
 
@@ -144,9 +144,9 @@ Configure registries in `custom/config.json`:
 - `denylist`: These registry IDs cannot load (optional)
 - `strictMode`: If `true`, registry load failures disable entire system (default: `false`)
 
-### Work-Only Configuration
+### Custom-only configuration
 
-To ensure only work registries load (prevent example DS activation):
+To ensure only custom registries load (prevent example DS activation):
 
 ```json
 {
@@ -260,7 +260,7 @@ When component keys change (e.g., after library reorganization):
 
 - **Check activeRegistries**: Ensure "example" is not listed
 - **Set denylist**: Add `"denylist": ["example"]` for extra protection
-- **Set allowlist**: Use `"allowlist": ["custom"]` to only allow work registries
+- **Set allowlist**: Use `"allowlist": ["custom"]` to only allow custom registries
 - **Enable strict mode**: `"strictMode": true` fails loudly on misconfiguration
 
 ## Best Practices

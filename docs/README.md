@@ -30,41 +30,40 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 
 #### Architecture
 - **[Getting Started](01-getting-started.md)** [AUTHORITATIVE] - Architecture guide for AI assistants and human developers
+- **[Invariants](invariants.md)** [REFERENCE] - Implemented invariants (routing, handler contract, placement)
 - **[Message Contract](reference/message-contract.md)** [REFERENCE] - UI ↔ Main thread message types and payloads
-- **[Open Source Architecture](open-source-architecture.md)** [REFERENCE] - Overview for corporate security/legal reviewers
+- **[Open Source Architecture](open-source-architecture.md)** [REFERENCE] - Overview for enterprise security/legal reviewers
 
 #### Connection Modes
-- **[Connection Modes Overview](connection-modes.md)** [AUTHORITATIVE] - Proxy vs Internal API comparison (coming soon)
+- **[Connection Modes Overview](connection-modes.md)** [AUTHORITATIVE] - Proxy vs Internal API comparison
 - **[Proxy Setup](setup/proxy-setup.md)** [AUTHORITATIVE] - Proxy server configuration
-- **[Internal API Setup](setup/internal-api-setup.md)** [AUTHORITATIVE] - Internal API configuration (coming soon)
-- **[Response Parsing](reference/response-parsing.md)** [AUTHORITATIVE] - Unified response parsing guide (coming soon)
+- **[Internal API Setup](setup/internal-api-setup.md)** [AUTHORITATIVE] - Internal API configuration
 
 #### Custom Plugin
 - **[Custom Plugin Guide](work-plugin/README.md)** [AUTHORITATIVE] - Entry point for Custom Plugin documentation
 - **[Migration Guide](work-plugin/migration-guide.md)** [AUTHORITATIVE] - Step-by-step migration instructions
 - **[Adapter Pattern](work-plugin/adapter-pattern.md)** [CONTEXTUAL] - Custom adapter pattern deep dive
 - **[Extension Points](work-plugin/extension-points.md)** [REFERENCE] - All extension hooks and implementation guide
-- **[Custom Constraints](work-plugin/constraints.md)** [AUTHORITATIVE] - Custom environment constraints (coming soon)
 
 #### Custom Overlay System
-- **[Custom Overlay Guide](../custom/README.md)** [AUTHORITATIVE] - Corporate overlay system for custom config and knowledge bases
+- **[Custom Overlay Guide](../custom/README.md)** [AUTHORITATIVE] - Custom overlay system for config and knowledge bases
 
 #### Analytics
 - **[Setup Guide](analytics/setup.md)** [AUTHORITATIVE] - How to enable and configure analytics
 - **[Endpoint Specification](analytics/endpoint-spec.md)** [REFERENCE] - API specification for analytics ingestion
 - **[Metrics Guide](analytics/metrics-guide.md)** [REFERENCE] - Event types and metrics guide
+- **[Implementation Summary](analytics-implementation-summary.md)** [REFERENCE] - Analytics implementation details and architecture
 
 #### Reference
 - **[Message Contract](reference/message-contract.md)** [REFERENCE] - Message types and payloads
 - **[Configuration](configuration.md)** [REFERENCE] - Configuration schema and environment variables
 - **[Content Models](content-models.md)** [REFERENCE] - Table format presets for Content Table Assistant
 - **[Debugging](reference/debugging.md)** [REFERENCE] - Scoped debugging system and configuration
-- **[Response Parsing](reference/response-parsing.md)** [AUTHORITATIVE] - Unified response parsing guide (coming soon)
 
 #### Setup & Troubleshooting
 - **[Proxy Setup](setup/proxy-setup.md)** [AUTHORITATIVE] - Proxy server and plugin setup
-- **[Internal API Setup](setup/internal-api-setup.md)** [AUTHORITATIVE] - Internal API setup guide (coming soon)
-- **[Debugging](setup/debugging.md)** [AUTHORITATIVE] - Debug controls and troubleshooting (coming soon)
+- **[Internal API Setup](setup/internal-api-setup.md)** [AUTHORITATIVE] - Internal API setup guide
+- **[Debugging](reference/debugging.md)** [REFERENCE] - Scoped debugging and configuration
 - **[Troubleshooting](troubleshooting/)** - Common issues and solutions
   - [Internal API Parsing](troubleshooting/internal-api-parsing.md) [REFERENCE] - Internal API response parsing troubleshooting
 
@@ -72,6 +71,7 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 - **[Security](security.md)** [AUTHORITATIVE] - Security considerations and data storage
 - **[Health Report](health-report.md)** [REFERENCE] - Codebase health status and migration readiness assessment
 - **[AI Task Brief](ai-task-brief.md)** [REFERENCE] - Quick reference for common migration tasks
+- **[Backlog](backlog.md)** [REFERENCE] - Canonical backlog for planned work and technical debt
 
 #### Migration Documentation
 - **[Migration Index](migration/README.md)** [REFERENCE] - Migration documentation overview
@@ -79,7 +79,9 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 
 #### Archived (Historical/Strategic)
 - **[Archive](archive/)** [HISTORICAL] - Historical audits, completed refactors, strategic planning
-  - See [archive/README.md](archive/README.md) for details
+  - [archive/phases/](archive/phases/) - Phase 0/1/2 and UI stabilization summaries
+  - [archive/verification/](archive/verification/) - Verification reports
+  - See [archive/README.md](archive/README.md) for details if present
 
 ---
 
@@ -104,7 +106,7 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 → Check [Extension Points](work-plugin/extension-points.md) [REFERENCE] for available hooks
 
 **I need to understand connection modes:**
-→ Read [Connection Modes](connection-modes.md) [AUTHORITATIVE] (coming soon), then setup guide for your mode
+→ Read [Connection Modes](connection-modes.md) [AUTHORITATIVE], then setup guide for your mode
 
 **I need to understand message flow:**
 → Read [Message Contract](reference/message-contract.md) [REFERENCE]
@@ -128,25 +130,21 @@ docs/
 │
 ├── 01-getting-started.md        # [AUTHORITATIVE] Architecture guide
 │
-├── connection-modes.md          # [AUTHORITATIVE] Proxy vs Internal API (coming soon)
+├── connection-modes.md          # [AUTHORITATIVE] Proxy vs Internal API
 │
 ├── work-plugin/                 # Custom Plugin documentation
 │   ├── README.md               # [AUTHORITATIVE] Entry point
 │   ├── migration-guide.md      # [AUTHORITATIVE] Step-by-step migration
 │   ├── adapter-pattern.md      # [CONTEXTUAL] Adapter pattern deep dive
-│   ├── extension-points.md     # [REFERENCE] Extension hooks reference
-│   └── constraints.md          # [AUTHORITATIVE] Custom constraints (coming soon)
+│   └── extension-points.md     # [REFERENCE] Extension hooks reference
 │
 ├── setup/                       # Setup guides
 │   ├── proxy-setup.md          # [AUTHORITATIVE] Proxy configuration
-│   ├── internal-api-setup.md  # [AUTHORITATIVE] Internal API setup (coming soon)
-│   └── debugging.md            # [AUTHORITATIVE] Debug controls (coming soon)
+│   └── internal-api-setup.md   # [AUTHORITATIVE] Internal API setup
 │
 ├── reference/                   # Reference documentation
 │   ├── message-contract.md     # [REFERENCE] Message types
-│   ├── debugging.md            # [REFERENCE] Debugging system
-│   ├── response-parsing.md     # [AUTHORITATIVE] Response parsing (coming soon)
-│   └── (other reference docs)
+│   └── debugging.md            # [REFERENCE] Debugging system
 │
 ├── troubleshooting/             # Troubleshooting guides
 │   └── internal-api-parsing.md # [REFERENCE] Internal API troubleshooting

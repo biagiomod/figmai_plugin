@@ -1,9 +1,13 @@
+Archived: historical reference.
+Terminology in this document may be outdated.
+See docs/README.md for current documentation.
+
 # Phase 2: Config Consolidation - Validation Report
 
 ## Repo Sanity Checks ✅
 
 ### Files Changed (12 total)
-1. `PHASE_2_IMPLEMENTATION_SUMMARY.md` - Documentation
+1. [PHASE_2_IMPLEMENTATION_SUMMARY.md](PHASE_2_IMPLEMENTATION_SUMMARY.md) - Documentation
 2. `build/main.js` - Build output (auto-generated)
 3. `build/ui.js` - Build output (auto-generated)
 4. `custom/README.md` - Updated schema documentation

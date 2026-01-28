@@ -7,7 +7,7 @@
 
 ## Overview
 
-This guide walks you through migrating the FigmAI plugin to a restricted corporate environment with minimal code changes. The Custom Plugin extends the Public Plugin via a single adapter override file, allowing custom-only features without modifying core Public Plugin code.
+This guide walks you through migrating the FigmAI plugin to a restricted custom or enterprise environment with minimal code changes. The Custom Plugin extends the Public Plugin via a single adapter override file, allowing custom-only features without modifying core Public Plugin code.
 
 **Key Concepts:**
 - **Public Plugin**: Open-source base plugin
@@ -24,8 +24,8 @@ Before starting migration, verify these requirements:
 - ✅ Public Plugin builds successfully (`npm run build`)
 - ✅ Public Plugin runs in Figma without errors
 - ✅ All tests pass (if applicable)
-- ✅ Corporate environment has Node.js/npm access
-- ✅ Corporate environment has network/proxy access for LLM providers
+- ✅ Custom/restricted environment has Node.js/npm access
+- ✅ Custom/restricted environment has network/proxy access for LLM providers
 
 ### Node.js & Build Tools
 - [ ] **Node.js version:** Check `package.json` for required version (if specified)
@@ -34,18 +34,18 @@ Before starting migration, verify these requirements:
 - [ ] **Dependencies:** Verify all npm dependencies are whitelisted/allowed
 
 ### Network Requirements
-- [ ] **Proxy server:** Corporate proxy server URL is accessible
+- [ ] **Proxy server:** Proxy server URL is accessible
 - [ ] **HTTPS access:** Outbound HTTPS requests are allowed
 - [ ] **CORS:** Proxy server CORS policy allows Figma plugin origin
 - [ ] **Firewall:** No firewall rules blocking proxy communication
 
 ### Authentication
-- [ ] **Token format:** Verify token format matches corporate requirements
+- [ ] **Token format:** Verify token format matches your requirements
 - [ ] **Token storage:** Confirm Figma clientStorage is acceptable for credential storage
 - [ ] **Auth mode:** Determine if shared_token or session_token is required
 
 ### Configuration
-- [ ] **Model name:** Identify corporate LLM model name/endpoint
+- [ ] **Model name:** Identify LLM model name/endpoint
 - [ ] **Feature flags:** Determine which features should be enabled/disabled
 - [ ] **Assistants:** Identify which assistants should be available
 
@@ -106,7 +106,7 @@ export default workAdapter
 
 ### Step 4: Implement Required Extension Points
 
-Based on corporate requirements, implement extension points in `workAdapter.override.ts`:
+Based on your requirements, implement extension points in `workAdapter.override.ts`:
 
 #### 4a. Confluence Integration (if needed)
 
@@ -216,7 +216,7 @@ src/work/dsRules.override.ts
    - **Proxy Base URL:** `https://internal-proxy.company.com`
    - **Default Model:** `internal-llm-v1`
    - **Auth Mode:** Select appropriate mode
-   - **Token:** Enter corporate-provided token
+   - **Token:** Enter your token
 5. Click "Test Connection" to verify
 6. Save settings
 
@@ -287,7 +287,7 @@ Implement compliance logging, request validation, and response sanitization.
 
 ### Custom Provider
 
-Implement custom LLM provider for corporate-specific LLM endpoints.
+Implement custom LLM provider for custom-specific LLM endpoints.
 
 **Reference:** See [Extension Points](extension-points.md) → "Custom Provider"
 
@@ -379,11 +379,11 @@ If migration fails, rollback steps:
 
 ## Support
 
-For issues specific to corporate environment:
+For issues specific to your environment:
 1. Check this guide's troubleshooting section
 2. Review [Extension Points](extension-points.md) for detailed troubleshooting
 3. Check [Security](../security.md) for security considerations
-4. Contact corporate IT/security team for network/auth issues
+4. Contact your IT/security team for network/auth issues
 
 For plugin-specific issues:
 1. Check [README.md](../../README.md)
@@ -413,4 +413,4 @@ After successful migration:
 - **Custom Overlay:** [custom/README.md](../../custom/README.md)
 - **Configuration:** [configuration.md](../configuration.md)
 - **Security:** [security.md](../security.md)
-- **Message Contract:** [message-contract.md](../message-contract.md)
+- **Message Contract:** [message-contract.md](../reference/message-contract.md)

@@ -1,15 +1,15 @@
 # Codebase Health Report
 **Date:** 2025-01-27  
-**Scope:** Public Plugin → Work Plugin Migration Readiness  
+**Scope:** Public Plugin → Custom Plugin Migration Readiness  
 **Focus:** Quality, Maintainability, Correctness
 
 ---
 
 ## Executive Summary
 
-The codebase is in **good health** with a clean Public ↔ Work boundary. The handler pattern is consistent, the Work adapter loader is safe, and the canonical Confluence pipeline is properly used. A few minor issues were identified and fixed.
+The codebase is in **good health** with a clean Public ↔ Custom boundary. The handler pattern is consistent, the Custom adapter loader is safe, and the canonical Confluence pipeline is properly used. A few minor issues were identified and fixed.
 
-**Overall Assessment:** ✅ **HEALTHY** - Ready for Work Plugin migration
+**Overall Assessment:** ✅ **HEALTHY** - Ready for Custom Plugin migration
 
 ---
 
@@ -19,12 +19,12 @@ The codebase is in **good health** with a clean Public ↔ Work boundary. The ha
 - ✅ **Handler pattern is consistent** across assistants (Design Critique, Content Table)
 - ✅ **Message routing is clear** in `main.ts` and `ui.tsx` with proper architecture headers
 - ✅ **Canonical Confluence pipeline** (`buildConfluenceXhtmlFromTable`) is the only path to XHTML generation
-- ✅ **Work adapter loader** (`loadWorkAdapter`) safely handles missing override files with no-op fallback
+- ✅ **Custom adapter loader** (`loadWorkAdapter`) safely handles missing override files with no-op fallback
 - ✅ **Extension points** are properly documented and implemented
 
-### Work Adapter / Override Boundary
+### Custom Adapter / Override Boundary
 - ✅ **`.gitignore` covers all override files** (`src/work/*.override.ts`)
-- ✅ **No Work-only constants/strings leak** into Public code
+- ✅ **No custom-only constants/strings leak** into Public code
 - ✅ **Override files use placeholders** (safe for Public repo)
 - ✅ **Loader uses dynamic import** with proper error handling
 
@@ -99,8 +99,8 @@ The codebase is in **good health** with a clean Public ↔ Work boundary. The ha
 
 - ✅ `npm run build` passes
 - ✅ No occurrences of deprecated design system naming remain (case-insensitive) - all replaced with "FPO-DS"
-- ✅ Public plugin runs without Work overrides enabled
-- ✅ All Work-only files are git-ignored
+- ✅ Public plugin runs without custom overrides enabled
+- ✅ All custom-only files are git-ignored
 - ✅ No hardcoded endpoints in tracked files
 - ✅ Canonical Confluence pipeline is the only XHTML path
 - ✅ Handler pattern is consistent
@@ -110,10 +110,10 @@ The codebase is in **good health** with a clean Public ↔ Work boundary. The ha
 
 ## Summary
 
-The codebase is **healthy and ready** for Work Plugin migration. All critical issues have been addressed:
+The codebase is **healthy and ready** for Custom Plugin migration. All critical issues have been addressed:
 
-- ✅ Clean Public ↔ Work boundary
-- ✅ Safe Work adapter loader
+- ✅ Clean Public ↔ Custom boundary
+- ✅ Safe Custom adapter loader
 - ✅ Consistent handler pattern
 - ✅ Canonical Confluence pipeline
 - ✅ Proper documentation
