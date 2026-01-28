@@ -144,6 +144,24 @@ getPageContentBounds(page: PageNode, exclude?: SceneNode): Rect | null
 4. **ABOVE** (anchor top - margin - height). If no collision → use it.
 5. **Beyond obstruction:** In the horizontal band of the anchor (e.g. same vertical range), find the rightmost obstacle; place to the right of that with margin, x aligned to step. If still in collision (e.g. tall obstacles), advance x by step and repeat until no collision or max iterations.
 
+### 2.4.1 Explicit gap-fit (single placement)
+
+Before accepting a candidate for RIGHT/LEFT/BELOW/ABOVE, we evaluate whether there is enough gap between the anchor and the nearest obstacle in that direction (within the relevant band). Only if the gap fits the placed size do we use that candidate; then we still run the full collision check as a sanity gate.
+
+- **Band definition**
+  - **RIGHT/LEFT:** Vertical band = anchor’s y-range `[anchor.y, anchor.y + anchor.height]`. An obstacle is “in band” if it overlaps this y-range.
+  - **BELOW/ABOVE:** Horizontal band = anchor’s x-range `[anchor.x, anchor.x + anchor.width]`. An obstacle is “in band” if it overlaps this x-range.
+
+- **Gap and fit**
+  - **RIGHT:** From obstacles in the vertical band, take those with `o.x >= anchor.x + anchor.width`. Nearest = minimum such `o.x`. Gap = `(nearestLeft - margin) - (anchorRight + margin)`. Accept only if no such obstacle (infinite gap) or `gap >= placedSize.width`. Position: `x = anchorRight + margin`, `y = anchor.y`.
+  - **LEFT:** From vertical band, take obstacles with `o.x + o.width <= anchor.x`. Nearest right edge = max of `o.x + o.width`. Gap = `(anchor.x - margin) - (nearestRight + margin)`. Accept only if no such obstacle or `gap >= placedSize.width`. Position: `x = anchor.x - margin - placedSize.width`, `y = anchor.y`.
+  - **BELOW:** From obstacles in the horizontal band, take those with `o.y >= anchor.y + anchor.height`. Nearest top = minimum such `o.y`. Gap = `(nearestTop - margin) - (anchorBottom + margin)`. Accept only if no such obstacle or `gap >= placedSize.height`. Position: `x = anchor.x`, `y = anchorBottom + margin`.
+  - **ABOVE:** From horizontal band, take obstacles with `o.y + o.height <= anchor.y`. Nearest bottom edge = max of `o.y + o.height`. Gap = `(anchor.y - margin - placedSize.height) - (nearestBottom + margin)`. Accept only if no such obstacle or `gap >= placedSize.height`. Position: `x = anchor.x`, `y = anchor.y - margin - placedSize.height`.
+
+- **Priority and fallback:** Order remains RIGHT → LEFT → BELOW → ABOVE → beyond-right. When no obstacle exists in band in that direction, gap is treated as infinite and placement is allowed. Beyond-right is unchanged (vertical band, rightmost + margin, step until no collision).
+
+- **Below/above:** A single x position is used (`anchor.x`, left-aligned). Only vertical gap is evaluated; no horizontal gap search in this refinement.
+
 ### 2.5 Batch strategy
 
 - Single call: compute “page content bounds” (union of page children, excluding the new node).

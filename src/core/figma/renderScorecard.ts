@@ -825,7 +825,7 @@ export async function renderScorecardV2(
       width: 560,
       spacing: 40,
       version: 'v2',
-      replace: true
+      replace: false
     })
     
     // Build content into the root frame

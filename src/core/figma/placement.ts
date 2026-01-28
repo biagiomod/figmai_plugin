@@ -119,9 +119,26 @@ export interface SinglePlacementOptions {
 
 const MAX_BEYOND_ITERATIONS = 80
 
+/** Obstacles that overlap the anchor's y-range (vertical band). Used for RIGHT/LEFT gap-fit. */
+function obstaclesInVerticalBand(obstacles: Rect[], anchor: Rect): Rect[] {
+  const bandTop = anchor.y
+  const bandBottom = anchor.y + anchor.height
+  return obstacles.filter(o => !(o.y + o.height <= bandTop || o.y >= bandBottom))
+}
+
+/** Obstacles that overlap the anchor's x-range (horizontal band). Used for BELOW/ABOVE gap-fit. */
+function obstaclesInHorizontalBand(obstacles: Rect[], anchor: Rect): Rect[] {
+  const bandLeft = anchor.x
+  const bandRight = anchor.x + anchor.width
+  return obstacles.filter(o => !(o.x + o.width <= bandLeft || o.x >= bandRight))
+}
+
 /**
  * Low-level: compute position for a single item with collision avoidance.
+ * Uses explicit gap-fit: for each direction we only accept if the gap between anchor and nearest
+ * obstacle in that band fits the placed size (vertical band for RIGHT/LEFT, horizontal band for BELOW/ABOVE).
  * Candidate order: RIGHT → LEFT → BELOW → ABOVE → beyond rightmost in anchor band.
+ * Placement is "closest possible" (tight to anchor + margin) when a gap fits.
  */
 export function computeSinglePlacement(
   placedSize: { width: number; height: number },
@@ -134,6 +151,7 @@ export function computeSinglePlacement(
   const anchor = options.anchorBounds ?? null
   const minX = 0
   const minY = 40
+  const placementDebug = debug.scope('subsystem:placement')
 
   function collides(candidate: Rect): boolean {
     for (const o of obstacles) {
@@ -149,34 +167,101 @@ export function computeSinglePlacement(
     return { x, y, method: 'viewport-center', reason: 'no_selection' }
   }
 
-  const candidates: { rect: Rect; method: PlacementResult['method'] }[] = []
+  const a = anchor
+  const anchorRight = a.x + a.width
+  const anchorBottom = a.y + a.height
+
+  /** Returns true if RIGHT candidate fits: no obstacle in band to the right, or gap >= width. */
+  function rightGapFits(): boolean {
+    const vert = obstaclesInVerticalBand(obstacles, a)
+    const toRight = vert.filter(o => o.x >= anchorRight)
+    if (toRight.length === 0) return true
+    const nearestLeft = Math.min(...toRight.map(o => o.x))
+    const gap = (nearestLeft - margin) - (anchorRight + margin)
+    if (debug.isEnabled('subsystem:placement')) {
+      placementDebug.log('RIGHT gap-fit', { gap, need: placedSize.width, fits: gap >= placedSize.width })
+    }
+    return gap >= placedSize.width
+  }
+
+  /** Returns true if LEFT candidate fits. */
+  function leftGapFits(): boolean {
+    const vert = obstaclesInVerticalBand(obstacles, a)
+    const toLeft = vert.filter(o => o.x + o.width <= a.x)
+    if (toLeft.length === 0) return true
+    const nearestRight = Math.max(...toLeft.map(o => o.x + o.width))
+    const gap = (a.x - margin) - (nearestRight + margin)
+    if (debug.isEnabled('subsystem:placement')) {
+      placementDebug.log('LEFT gap-fit', { gap, need: placedSize.width, fits: gap >= placedSize.width })
+    }
+    return gap >= placedSize.width
+  }
+
+  /** Returns true if BELOW candidate fits. */
+  function belowGapFits(): boolean {
+    const horiz = obstaclesInHorizontalBand(obstacles, a)
+    const below = horiz.filter(o => o.y >= anchorBottom)
+    if (below.length === 0) return true
+    const nearestTop = Math.min(...below.map(o => o.y))
+    const gap = (nearestTop - margin) - (anchorBottom + margin)
+    if (debug.isEnabled('subsystem:placement')) {
+      placementDebug.log('BELOW gap-fit', { gap, need: placedSize.height, fits: gap >= placedSize.height })
+    }
+    return gap >= placedSize.height
+  }
+
+  /** Returns true if ABOVE candidate fits. */
+  function aboveGapFits(): boolean {
+    const horiz = obstaclesInHorizontalBand(obstacles, a)
+    const above = horiz.filter(o => o.y + o.height <= a.y)
+    if (above.length === 0) return true
+    const nearestBottom = Math.max(...above.map(o => o.y + o.height))
+    const gap = (a.y - margin - placedSize.height) - (nearestBottom + margin)
+    if (debug.isEnabled('subsystem:placement')) {
+      placementDebug.log('ABOVE gap-fit', { gap, need: placedSize.height, fits: gap >= placedSize.height })
+    }
+    return gap >= placedSize.height
+  }
+
+  const candidates: { rect: Rect; method: PlacementResult['method']; gapFits: () => boolean }[] = []
   if (preferSide === 'right') {
     candidates.push(
-      { rect: { x: anchor.x + anchor.width + margin, y: anchor.y, width: placedSize.width, height: placedSize.height }, method: 'right' },
-      { rect: { x: anchor.x - margin - placedSize.width, y: anchor.y, width: placedSize.width, height: placedSize.height }, method: 'left' },
-      { rect: { x: anchor.x, y: anchor.y + anchor.height + margin, width: placedSize.width, height: placedSize.height }, method: 'below' },
-      { rect: { x: anchor.x, y: anchor.y - margin - placedSize.height, width: placedSize.width, height: placedSize.height }, method: 'above' }
+      { rect: { x: anchorRight + margin, y: a.y, width: placedSize.width, height: placedSize.height }, method: 'right', gapFits: rightGapFits },
+      { rect: { x: a.x - margin - placedSize.width, y: a.y, width: placedSize.width, height: placedSize.height }, method: 'left', gapFits: leftGapFits },
+      { rect: { x: a.x, y: anchorBottom + margin, width: placedSize.width, height: placedSize.height }, method: 'below', gapFits: belowGapFits },
+      { rect: { x: a.x, y: a.y - margin - placedSize.height, width: placedSize.width, height: placedSize.height }, method: 'above', gapFits: aboveGapFits }
     )
   } else {
     candidates.push(
-      { rect: { x: anchor.x - margin - placedSize.width, y: anchor.y, width: placedSize.width, height: placedSize.height }, method: 'left' },
-      { rect: { x: anchor.x + anchor.width + margin, y: anchor.y, width: placedSize.width, height: placedSize.height }, method: 'right' },
-      { rect: { x: anchor.x, y: anchor.y + anchor.height + margin, width: placedSize.width, height: placedSize.height }, method: 'below' },
-      { rect: { x: anchor.x, y: anchor.y - margin - placedSize.height, width: placedSize.width, height: placedSize.height }, method: 'above' }
+      { rect: { x: a.x - margin - placedSize.width, y: a.y, width: placedSize.width, height: placedSize.height }, method: 'left', gapFits: leftGapFits },
+      { rect: { x: anchorRight + margin, y: a.y, width: placedSize.width, height: placedSize.height }, method: 'right', gapFits: rightGapFits },
+      { rect: { x: a.x, y: anchorBottom + margin, width: placedSize.width, height: placedSize.height }, method: 'below', gapFits: belowGapFits },
+      { rect: { x: a.x, y: a.y - margin - placedSize.height, width: placedSize.width, height: placedSize.height }, method: 'above', gapFits: aboveGapFits }
     )
   }
 
-  for (const { rect, method } of candidates) {
+  for (const { rect, method, gapFits } of candidates) {
+    if (!gapFits()) {
+      if (debug.isEnabled('subsystem:placement')) {
+        placementDebug.log(`${method} skipped: gap insufficient`)
+      }
+      continue
+    }
     const x = Math.max(rect.x, minX)
     const y = Math.max(rect.y, minY)
     const r: Rect = { x, y, width: placedSize.width, height: placedSize.height }
-    if (!collides(r)) return { x, y, method }
+    if (!collides(r)) {
+      if (debug.isEnabled('subsystem:placement')) {
+        placementDebug.log('placement chosen', { method, x, y })
+      }
+      return { x, y, method }
+    }
   }
 
   // Beyond rightmost in anchor vertical band
-  const bandTop = anchor.y
-  const bandBottom = anchor.y + anchor.height
-  let rightmost = anchor.x + anchor.width
+  const bandTop = a.y
+  const bandBottom = a.y + a.height
+  let rightmost = a.x + a.width
   for (const o of obstacles) {
     const oBottom = o.y + o.height
     const oTop = o.y
@@ -187,12 +272,12 @@ export function computeSinglePlacement(
   startX = Math.ceil(startX / step) * step
   for (let i = 0; i < MAX_BEYOND_ITERATIONS; i++) {
     const x = startX + i * step
-    const y = Math.max(anchor.y, minY)
+    const y = Math.max(a.y, minY)
     const r: Rect = { x, y, width: placedSize.width, height: placedSize.height }
     if (!collides(r)) return { x, y, method: 'beyond-right', reason: 'all_sides_blocked' }
   }
   const x = startX
-  const y = Math.max(anchor.y, minY)
+  const y = Math.max(a.y, minY)
   return { x, y, method: 'beyond-right', reason: 'max_iterations' }
 }
 

@@ -444,8 +444,7 @@ Return ONLY the JSON object, no markdown fences, no other text.`
             type: 'scorecard',
             assistant: 'design_critique',
             selectedNode,
-            version: 'v2',
-            replace: true
+            version: 'v2'
           }, result.data)
           dcDebug.log('AFTER createArtifact (scorecard)', { runId, status: 'SUCCESS' })
           figma.notify('Scorecard placed (v2)')
