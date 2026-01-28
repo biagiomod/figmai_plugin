@@ -41,10 +41,22 @@ export interface QuickAction {
   imageScale?: number
 }
 
+export interface AssistantTag {
+  isVisible?: boolean
+  label?: string
+  variant?: 'new' | 'beta'
+}
+
 export interface Assistant {
   id: string
   label: string
   intro: string
+  /** Shown in chat when assistant is selected or chat resets. Falls back to intro if absent. */
+  welcomeMessage?: string
+  /** Shown in Select Assistant modal on hover. Falls back to intro if absent. */
+  hoverSummary?: string
+  /** Optional tag badge on assistant button in Select Assistant modal. */
+  tag?: AssistantTag
   promptMarkdown: string
   iconId: string
   kind: AssistantKind

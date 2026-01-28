@@ -75,7 +75,7 @@ import { categorizeError } from './core/analytics/errorCodes'
 
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
-import { getDefaultAssistant, getAssistant, listAssistants, getShortInstructions } from './assistants'
+import { getDefaultAssistant, getAssistant, getWelcomeMessage, listAssistants, getShortInstructions } from './assistants'
 import type { Assistant } from './assistants'
 import { createProvider } from './core/provider/providerFactory'
 import type { Provider, ChatRequest } from './core/provider/provider'
@@ -355,7 +355,7 @@ once<ResetHandler>('RESET', async function () {
   const introMessage: Message = {
     id: generateMessageId(),
     role: 'assistant',
-    content: currentAssistant.intro,
+    content: getWelcomeMessage(currentAssistant),
     timestamp: Date.now()
   }
   messageHistory.push(introMessage)
@@ -428,7 +428,7 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
       const instructionsMessage: Message = {
         id: generateMessageId(),
         role: 'assistant',
-        content: assistant.intro,
+        content: getWelcomeMessage(assistant),
         timestamp: Date.now(),
         assistantId: assistantId,
         isInstructions: true

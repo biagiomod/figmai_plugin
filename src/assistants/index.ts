@@ -118,13 +118,14 @@ Evaluate: Hierarchy, Layout, Spacing, Typography, Color/Contrast, Affordance, Co
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.`
 
 // Re-export types for convenience (canonical definitions are in core/types.ts)
-export type { Assistant, QuickAction } from '../core/types'
+export type { Assistant, AssistantTag, QuickAction } from '../core/types'
 
 export const ASSISTANTS: Assistant[] = [
   {
     id: 'general',
     label: 'General',
-    intro: 'I\'m your general design assistant. Ask me anything about design, Figma, or your current work.',
+    intro: 'I\'m your general Design Assistant. Ask me anything about design or your current work.',
+    hoverSummary: 'General design specialist',
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('general', generalPrompt)),
     iconId: 'AskIcon',
     kind: 'ai',
@@ -133,13 +134,13 @@ export const ASSISTANTS: Assistant[] = [
         id: 'explain',
         label: 'Explain this design',
         templateMessage: 'Can you explain this design to me? What are the key elements and their purpose?',
-        requiresSelection: false
+        requiresSelection: true
       },
       {
         id: 'suggestions',
         label: 'Design suggestions',
         templateMessage: 'What suggestions do you have to improve this design?',
-        requiresSelection: false
+        requiresSelection: true
       }
     ]
   },
@@ -147,6 +148,8 @@ export const ASSISTANTS: Assistant[] = [
     id: 'content_table',
     label: 'Content Table',
     intro: '**Welcome to your Content Table Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.',
+    hoverSummary: 'Content table specialist',
+    tag: { isVisible: true, label: 'Beta', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('content_table', `# Content Table Assistant
 
 You are **FigmAI's Content Table Assistant**, a content strategist and information architect embedded inside a Figma plugin.
@@ -167,7 +170,9 @@ You generate structured content inventories and tables that help teams track, or
   {
     id: 'ux_copy_review',
     label: 'Content Review',
-    intro: 'I review and improve text content for clarity, tone, and UX effectiveness. Select text layers to analyze copy.',
+    intro: 'I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.',
+    hoverSummary: 'Content guidelines specialist',
+    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('ux_copy_review', `# Content Review Assistant
 
 You are **FigmAI's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.
@@ -201,6 +206,8 @@ You specialize in evaluating and improving text content for clarity, tone, user 
     id: 'design_critique',
     label: 'Design Critique',
     intro: 'I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.',
+    hoverSummary: 'Design review specialist plus dark pattern detection',
+    tag: { isVisible: true, label: 'Beta', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('design_critique', designCritiquePrompt)),
     iconId: 'ArtIcon',
     kind: 'ai',
@@ -236,6 +243,8 @@ You specialize in evaluating and improving text content for clarity, tone, user 
     id: 'code2design',
     label: 'Code2Design',
     intro: 'Import/export JSON templates to create and manage Figma designs.',
+    hoverSummary: 'Use JSON to create designs and get JSON from your designs',
+    tag: { isVisible: true, label: 'Beta', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('code2design', generalPrompt)), // Reuse general for now
     iconId: 'CodeIcon',
     kind: 'hybrid',
@@ -264,6 +273,8 @@ You specialize in evaluating and improving text content for clarity, tone, user 
     id: 'dev_handoff',
     label: 'Dev Handoff',
     intro: 'I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.',
+    hoverSummary: 'Generate developer specifications',
+    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('dev_handoff', `# Dev Handoff Assistant
 
 You are **FigmAI's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.
@@ -300,6 +311,8 @@ You generate developer-friendly specifications, measurements, and implementation
     id: 'accessibility',
     label: 'Accessibility',
     intro: 'I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.',
+    hoverSummary: 'Accessibility specialist',
+    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('accessibility', `# Accessibility Assistant
 
 You are **FigmAI's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.
@@ -342,6 +355,8 @@ You specialize in identifying accessibility barriers and providing specific, act
     id: 'errors',
     label: 'Errors',
     intro: 'I identify design errors, inconsistencies, and quality issues. Select elements to find problems before handoff.',
+    hoverSummary: 'Error screen specialist',
+    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('errors', `# Errors Assistant
 
 You are **FigmAI's Errors Assistant**, a design quality assurance specialist embedded inside a Figma plugin.
@@ -375,6 +390,8 @@ You identify design errors, inconsistencies, and quality issues that could cause
     id: 'design_workshop',
     label: 'Design Workshop',
     intro: '**Welcome to your Design Workshop Assistant!**\n\nI generate 1-5 Figma screens from a JSON specification. Describe the screens you want, and I\'ll create them on the canvas.',
+    hoverSummary: 'Screen generator specialist',
+    tag: { isVisible: true, label: 'Beta', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('design_workshop', `# Design Workshop Assistant
 
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.
@@ -446,6 +463,8 @@ You MUST respond with valid JSON in this exact format (NO markdown fences, NO ot
     id: 'discovery_copilot',
     label: 'Discovery Copilot',
     intro: '**Welcome to Discovery Copilot!**\n\nI\'ll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you\'re solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet\'s begin! What are you discovering today? (e.g., "redesigning checkout flow", "building a new feature")',
+    hoverSummary: 'Discovery process specialist',
+    tag: { isVisible: true, label: 'Alpha', variant: 'beta' },
     promptMarkdown: appendDesignSystemKnowledge(mergeKnowledgeBase('discovery_copilot', `# Discovery Copilot Assistant
 
 You are **FigmAI's Discovery Copilot Assistant**, a structured discovery thinking guide embedded inside a Figma plugin.
@@ -542,6 +561,20 @@ When the user has provided all information, return ONLY valid JSON matching Disc
 ]
 
 /**
+ * Welcome message for chat (when assistant is selected or chat resets). Falls back to intro.
+ */
+export function getWelcomeMessage(a: Assistant): string {
+  return a.welcomeMessage ?? a.intro
+}
+
+/**
+ * Hover summary for Select Assistant modal. Falls back to intro.
+ */
+export function getHoverSummary(a: Assistant): string {
+  return a.hoverSummary ?? a.intro
+}
+
+/**
  * Get assistant by ID
  */
 export function getAssistant(id: string): Assistant | undefined {
@@ -565,7 +598,7 @@ export function listAssistantsByMode(mode: 'simple' | 'advanced' | 'content-mvp'
     // Content-MVP mode: Only show Content Table Assistant
     return ASSISTANTS.filter(a => a.id === 'content_table')
   }
-  
+
   if (mode === 'simple') {
     // Simple mode: Show a focused set of assistants in a friendly order
     // Order: General → Content Table → Design Critique → Design Workshop
@@ -577,7 +610,7 @@ export function listAssistantsByMode(mode: 'simple' | 'advanced' | 'content-mvp'
         return indexA - indexB
       })
   }
-  
+
   // Advanced mode: Show all assistants
   return ASSISTANTS
 }
@@ -593,7 +626,7 @@ export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'
     const contentTable = ASSISTANTS.find(a => a.id === 'content_table')
     return contentTable || ASSISTANTS[0]
   }
-  
+
   if (mode === 'simple') {
     const general = ASSISTANTS.find(a => a.id === 'general')
     return general || ASSISTANTS[0]
@@ -607,19 +640,19 @@ export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'
  */
 export function getShortInstructions(assistant: Assistant): string {
   const prompt = assistant.promptMarkdown || ''
-  
+
   // Try to extract first paragraph (text before double newline)
   const firstParagraph = prompt.split('\n\n')[0]?.trim()
   if (firstParagraph && firstParagraph.length > 0 && firstParagraph.length <= 300) {
     return firstParagraph
   }
-  
+
   // Fallback: first 200 characters, truncated at word boundary
   const truncated = prompt.substring(0, 200)
   const lastSpace = truncated.lastIndexOf(' ')
   if (lastSpace > 150) {
     return truncated.substring(0, lastSpace) + '...'
   }
-  
+
   return truncated + (prompt.length > 200 ? '...' : '')
 }

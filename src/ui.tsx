@@ -84,8 +84,8 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
-import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant } from './assistants'
-import type { Assistant as AssistantType, QuickAction } from './assistants'
+import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant, getHoverSummary } from './assistants'
+import type { Assistant as AssistantType, AssistantTag, QuickAction } from './assistants'
 import { SettingsModal } from './ui/components/SettingsModal'
 import { ConfluenceModal } from './ui/components/ConfluenceModal'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
@@ -1715,6 +1715,37 @@ ${htmlTable}
     
     return iconMap[iconId] || null
   }
+
+  /** Tag styles per refs_for_cursor/tags_for_assistants.json: beta = Soft Warning, new = Success */
+  const getAssistantTagStyle = (variant: 'new' | 'beta'): { [key: string]: string | number } => {
+    if (variant === 'beta') {
+      return {
+        padding: '4px 8px',
+        borderRadius: 8,
+        backgroundColor: '#FFB43A',
+        color: '#5C3800',
+        fontFamily: 'Inter, sans-serif',
+        fontWeight: 700,
+        fontSize: 11,
+        lineHeight: 1.2
+      }
+    }
+    return {
+      padding: '4px 8px',
+      borderRadius: 8,
+      backgroundColor: '#38F066',
+      color: '#1A5C2B',
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: 700,
+      fontSize: 11,
+      lineHeight: 1.2
+    }
+  }
+
+  const getAssistantTagLabel = (tag: AssistantTag): string => {
+    if (tag.label != null && tag.label.trim() !== '') return tag.label
+    return tag.variant === 'beta' ? 'Beta' : 'New'
+  }
   
   // Get latest assistant message for quick actions
   const latestAssistantMessage = messages
@@ -2753,9 +2784,19 @@ ${htmlTable}
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
                   <div style={{
-                    fontWeight: 'var(--font-weight-semibold)'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-xs)',
+                    flexWrap: 'wrap'
                   }}>
-                    {a.label}
+                    <span style={{ fontWeight: 'var(--font-weight-semibold)' }}>
+                      {a.label}
+                    </span>
+                    {a.tag?.isVisible === true && a.tag?.variant != null && (
+                      <span style={getAssistantTagStyle(a.tag.variant)}>
+                        {getAssistantTagLabel(a.tag)}
+                      </span>
+                    )}
                   </div>
                   <div 
                     data-description
@@ -2766,7 +2807,7 @@ ${htmlTable}
                       lineHeight: 1.4
                     }}
                   >
-                    {a.intro}
+                    {getHoverSummary(a)}
                   </div>
                 </div>
               </button>
