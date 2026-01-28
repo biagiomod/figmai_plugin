@@ -66,7 +66,7 @@ export class StubProvider implements Provider {
     return parts.join('\n')
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string }> {
+  async testConnection(_options?: import('./provider').TestConnectionOptions): Promise<{ success: boolean; message: string }> {
     return {
       success: true,
       message: 'Stub provider is always available (development mode)'

@@ -4,11 +4,12 @@
  * Uses session-based authentication (browser cookies)
  */
 
-import type { Provider, ChatRequest, ProviderCapabilities } from './provider'
+import type { Provider, ChatRequest, ProviderCapabilities, TestConnectionOptions } from './provider'
 import { ProviderError, ProviderErrorType, errorToString } from './provider'
 import { getSettings } from '../settings'
 import { CONFIG } from '../config'
 import { debug } from '../debug/logger'
+import { getHostForObservability } from './observability'
 
 /**
  * Fetch with optional timeout support
@@ -42,8 +43,19 @@ async function fetchWithTimeout(
 }
 
 /**
- * Convert error to human-readable string
+ * Detect Azure/OpenAI content-filter style 400 response from body (conservative).
+ * Do not retry when this returns true.
  */
+function isContentFilterResponse(body: string): boolean {
+  const lower = body.toLowerCase()
+  return (
+    lower.includes('content_filter') ||
+    lower.includes('content filtering') ||
+    lower.includes('content policy') ||
+    lower.includes('content filter')
+  )
+}
+
 /**
  * Internal API Provider
  * Handles requests to organization's Internal API with session-based auth
@@ -233,29 +245,30 @@ export class InternalApiProvider implements Provider {
 
         const url = baseUrl
         const providerDebug = debug.scope('subsystem:provider')
-
+        // Privacy-safe: log only provider type + host (no URL path, body, or PII)
+        providerDebug.log('request_route', { provider: 'internal-api', host: getHostForObservability(url) })
         providerDebug.log('Sending request', {
             provider: 'internal-api',
-            url,
             messageLength: userMessages.length,
             hasSelectionSummary: !!request.selectionSummary
         })
 
-        try {
-            const response = await fetchWithTimeout(
-                url,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
+        const maxRetries = 2
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await fetchWithTimeout(
+                    url,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
                     },
-                    body: JSON.stringify(payload)
-                    // Note: credentials omitted to match curl behavior and avoid CORS issues
-                },
-                settings.requestTimeoutMs
-            )
+                    settings.requestTimeoutMs
+                )
 
-            if (!response.ok) {
+                if (!response.ok) {
                 let errorText = ''
                 try {
                     errorText = await response.text()
@@ -280,8 +293,24 @@ export class InternalApiProvider implements Provider {
                         errorText,
                         true
                     )
+                } else if (response.status === 400) {
+                    if (isContentFilterResponse(errorText)) {
+                        throw new ProviderError(
+                            'Response was blocked by content policy. Try rephrasing or simplifying the request.',
+                            ProviderErrorType.CONTENT_FILTER,
+                            response.status,
+                            errorText,
+                            false
+                        )
+                    }
+                    throw new ProviderError(
+                        `Could not connect to Internal API. Please check your network connection and ensure you're on your organization network.`,
+                        ProviderErrorType.INVALID_REQUEST,
+                        response.status,
+                        errorText,
+                        false
+                    )
                 } else if (response.status === 0 || response.status >= 400) {
-                    // CORS or network errors
                     const isCorsError = response.status === 0
                     throw new ProviderError(
                         isCorsError
@@ -290,7 +319,7 @@ export class InternalApiProvider implements Provider {
                         ProviderErrorType.NETWORK,
                         response.status,
                         errorText,
-                        true
+                        false
                     )
                 } else {
                     throw new ProviderError(
@@ -363,10 +392,16 @@ export class InternalApiProvider implements Provider {
 
             return responseText
         } catch (error) {
+            const err = error instanceof ProviderError ? error : null
+            const isRetryable = err ? err.isRetryable() : true
+            if (attempt < maxRetries && isRetryable) {
+                const delayMs = attempt === 0 ? 1000 : 2000
+                await new Promise((r) => setTimeout(r, delayMs))
+                continue
+            }
             if (error instanceof ProviderError) {
                 throw error
             }
-
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
                     throw new ProviderError(
@@ -385,20 +420,23 @@ export class InternalApiProvider implements Provider {
                     true
                 )
             }
-
             throw new ProviderError(
                 `Failed to communicate with Internal API: ${errorToString(error)}`,
                 ProviderErrorType.UNKNOWN
             )
         }
+        }
+        throw new ProviderError(
+            'Internal API request failed after retries.',
+            ProviderErrorType.UNKNOWN
+        )
     }
 
     /**
-     * Test connection to Internal API
-     * Returns diagnostic information for debugging
-     * @param internalApiUrl Optional URL to test. If not provided, reads from settings.
+     * Test connection to Internal API.
+     * Uses options.internalApiUrl if provided (e.g. test unsaved URL); otherwise reads from settings.
      */
-    async testConnection(internalApiUrl?: string): Promise<{
+    async testConnection(options?: TestConnectionOptions): Promise<{
         success: boolean
         message: string
         diagnostics?: {
@@ -412,8 +450,7 @@ export class InternalApiProvider implements Provider {
             errorMessage?: string
         }
     }> {
-        // Use provided URL or fall back to settings
-        const urlToTest = internalApiUrl || (await getSettings()).internalApiUrl
+        const urlToTest = options?.internalApiUrl || (await getSettings()).internalApiUrl
 
         if (!urlToTest) {
             return {

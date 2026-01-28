@@ -29,7 +29,7 @@ export class CopilotProvider implements Provider {
     )
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string }> {
+  async testConnection(_options?: import('./provider').TestConnectionOptions): Promise<{ success: boolean; message: string }> {
     return {
       success: false,
       message: 'Copilot provider is not yet implemented'

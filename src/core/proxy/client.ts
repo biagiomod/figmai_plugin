@@ -6,6 +6,7 @@
 import { getSettings } from '../settings'
 import { ProviderError, ProviderErrorType, errorToString } from '../provider/provider'
 import { extractResponseText } from '../provider/normalize'
+import { getHostForObservability } from '../provider/observability'
 import { debug } from '../debug/logger'
 
 /**
@@ -276,7 +277,8 @@ export class ProxyClient {
     
     const baseUrl = this.normalizeProxyBaseUrl(settings.proxyBaseUrl)
     const url = `${baseUrl}/v1/chat`
-    
+    debug.scope('subsystem:provider').log('request_route', { provider: 'proxy', host: getHostForObservability(baseUrl) })
+
     const headers = await this.getAuthHeaders()
     
     const payload: Record<string, unknown> = {

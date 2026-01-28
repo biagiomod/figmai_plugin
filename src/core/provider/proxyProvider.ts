@@ -1,4 +1,4 @@
-import type { Provider, ChatRequest, ProviderCapabilities } from './provider'
+import type { Provider, ChatRequest, ProviderCapabilities, TestConnectionOptions } from './provider'
 import { proxyClient } from '../proxy/client'
 import { getSettings } from '../settings'
 import { prepareRequest } from './normalize'
@@ -47,7 +47,7 @@ export class ProxyProvider implements Provider {
     })
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string }> {
+  async testConnection(_options?: TestConnectionOptions): Promise<{ success: boolean; message: string }> {
     return await proxyClient.healthCheck()
   }
   

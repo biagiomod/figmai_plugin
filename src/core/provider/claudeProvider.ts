@@ -27,7 +27,7 @@ export class ClaudeProvider implements Provider {
     )
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string }> {
+  async testConnection(_options?: import('./provider').TestConnectionOptions): Promise<{ success: boolean; message: string }> {
     return {
       success: false,
       message: 'Claude provider is not yet implemented'

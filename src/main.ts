@@ -989,7 +989,8 @@ on<RunToolHandler>('RUN_TOOL', async function (toolId: string, payload: Record<s
 on<SaveSettingsHandler>('SAVE_SETTINGS', async function (settings: Record<string, unknown>) {
   try {
     await saveSettings(settings as Partial<import('./core/settings').Settings>)
-    // Reinitialize provider with new settings
+    // Provider re-init ensures all subsequent requests use the newly saved connection.
+    // When Internal API is enabled, no other path should serve chat with a stale provider.
     currentProvider = await createProvider(currentProviderId)
   } catch (error) {
     const errorMessage = errorToString(error)
@@ -1025,60 +1026,41 @@ on<RequestSettingsHandler>('REQUEST_SETTINGS', async function (requestId?: strin
   }
 })
 
-// Handle test proxy connection
+// Handle test connection — uses same precedence as createProvider(); optional override for unsaved Internal API URL
 on<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', async function (options?: {
   connectionType?: 'proxy' | 'internal-api'
   internalApiUrl?: string
   proxyBaseUrl?: string
 }) {
   try {
-    // Get current settings to determine connection type if not provided
-    const settings = await getSettings()
-    const testConnectionType = options?.connectionType || settings.connectionType || 'proxy'
-    
-    // Create the appropriate provider based on connection type
     let testProvider: Provider
-    if (testConnectionType === 'internal-api') {
-      // Force create Internal API provider for testing
+    const testOptions = options?.internalApiUrl != null ? { internalApiUrl: options.internalApiUrl } : undefined
+
+    // When UI passes an unsaved Internal API URL to test, use InternalApiProvider for that test only
+    if (testOptions?.internalApiUrl) {
       const { InternalApiProvider } = await import('./core/provider/internalApiProvider')
       testProvider = new InternalApiProvider()
-      // Pass URL directly to avoid race condition with settings persistence
-      const result = await (testProvider as any).testConnection(options?.internalApiUrl)
-      figma.ui.postMessage({ 
-        pluginMessage: { 
-          type: 'TEST_RESULT', 
-          success: result.success, 
-          message: result.message,
-          diagnostics: result.diagnostics // Include diagnostics if present
-        } 
-      })
-      return
     } else {
-      // Use proxy provider (existing behavior - unchanged)
-      if (!currentProvider) {
-        currentProvider = await createProvider(currentProviderId)
-      }
-      testProvider = currentProvider
-      // Proxy provider doesn't accept URL parameter (maintains backward compatibility)
-      const result = await testProvider.testConnection()
-      figma.ui.postMessage({ 
-        pluginMessage: { 
-          type: 'TEST_RESULT', 
-          success: result.success, 
-          message: result.message,
-          diagnostics: (result as any).diagnostics // Include diagnostics if present
-        } 
-      })
-      return
+      testProvider = await createProvider(currentProviderId)
     }
+
+    const result = await testProvider.testConnection(testOptions)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'TEST_RESULT',
+        success: result.success,
+        message: result.message,
+        diagnostics: (result as { diagnostics?: unknown }).diagnostics
+      }
+    })
   } catch (error) {
     const errorMessage = errorToString(error)
-    figma.ui.postMessage({ 
-      pluginMessage: { 
-        type: 'TEST_RESULT', 
-        success: false, 
-        message: `Connection test failed: ${errorMessage}` 
-      } 
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'TEST_RESULT',
+        success: false,
+        message: `Connection test failed: ${errorMessage}`
+      }
     })
   }
 })

@@ -279,6 +279,8 @@ export class DesignCritiqueHandler implements AssistantHandler {
   private getDarkUxEvaluationPrompt(): string {
     return `IMPORTANT: Output must be a single JSON object with this exact schema. Return JSON only, no other text.
 
+Evaluate the design for compliance with ethical UX guidelines. Identify patterns that may pressure, confuse, or harm users (sometimes called dark or deceptive patterns). Output structure must match the schema below exactly.
+
 {
   "summary": "Overall assessment of deceptive patterns found (string)",
   "overallSeverity": "None" | "Low" | "Medium" | "High",
@@ -338,10 +340,10 @@ export class DesignCritiqueHandler implements AssistantHandler {
 }
 
 CRITICAL: The dimensionsChecklist array must contain exactly 10 items, one for each dimension listed below. For each dimension:
-- Set "passed": true if NO deceptive patterns were found for that dimension
-- Set "passed": false if deceptive patterns were found (these should also appear in the "findings" array with matching category)
+- Set "passed": true if NO issues were found for that dimension
+- Set "passed": false if issues were found (these should also appear in the "findings" array with matching category)
 
-Evaluate the design against these Dark & Deceptive UX categories:
+Evaluate the design against these ethical UX dimensions (Dark & Deceptive UX categories):
 
 1. **Forced Action**: Requiring users to do something unrelated to their goal (e.g., mandatory account creation, bundled consent)
 2. **Nagging**: Repeated prompts interrupting user flow to influence behavior
@@ -355,7 +357,7 @@ Evaluate the design against these Dark & Deceptive UX categories:
 10. **Misleading Defaults**: Defaults that benefit the business over the user without clear disclosure
 
 Evaluation Principles:
-- Judge intent + effect, not just visual style
+- Judge intent and effect, not just visual style
 - Consider financial harm, loss of autonomy, confusion, and regulatory risk
 - If evidence is insufficient, explicitly state this in the summary
 - Be specific about what you observe in the design

@@ -112,6 +112,8 @@ export enum ProviderErrorType {
   PROVIDER_ERROR = 'provider_error',
   /** Timeout */
   TIMEOUT = 'timeout',
+  /** Response blocked by content policy / content filter (e.g. Azure). Do not retry. */
+  CONTENT_FILTER = 'content_filter',
   /** Unknown/unexpected error */
   UNKNOWN = 'unknown'
 }
@@ -139,11 +141,13 @@ export class ProviderError extends Error {
     if (this.retryable !== undefined) {
       return this.retryable
     }
-    // Default retryable logic
-    return this.type === ProviderErrorType.NETWORK || 
+    if (this.type === ProviderErrorType.CONTENT_FILTER) {
+      return false
+    }
+    return this.type === ProviderErrorType.NETWORK ||
            this.type === ProviderErrorType.TIMEOUT ||
-           (this.type === ProviderErrorType.PROVIDER_ERROR && 
-            this.statusCode !== undefined && 
+           (this.type === ProviderErrorType.PROVIDER_ERROR &&
+            this.statusCode !== undefined &&
             this.statusCode >= 500)
   }
 }
@@ -199,6 +203,14 @@ export function errorToString(error: unknown): string {
 }
 
 /**
+ * Options for testConnection (e.g. URL override when testing before save).
+ * Providers that do not use overrides may ignore this.
+ */
+export interface TestConnectionOptions {
+  internalApiUrl?: string
+}
+
+/**
  * Provider interface for LLM integration
  * All providers must implement this interface
  */
@@ -237,10 +249,11 @@ export interface Provider {
   sendChat(request: ChatRequest): Promise<string>
   
   /**
-   * Test connection to the provider
-   * Returns success status and message
+   * Test connection to the provider.
+   * Options may include overrides (e.g. internalApiUrl to test an unsaved URL).
+   * Returns success status and message; implementations may include optional diagnostics.
    */
-  testConnection(): Promise<{ success: boolean; message: string }>
+  testConnection(options?: TestConnectionOptions): Promise<{ success: boolean; message: string }>
   
   /**
    * Optional: Send a chat request with streaming support

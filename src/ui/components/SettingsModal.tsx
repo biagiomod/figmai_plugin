@@ -698,6 +698,19 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             </button>
           </div>
         </div>
+
+        {connectionType === 'internal-api' && proxyBaseUrl.trim() !== '' && (
+          <div style={{
+            marginTop: 'var(--spacing-sm)',
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: 'var(--font-size-sm)',
+            color: 'var(--fg-secondary)'
+          }}>
+            Internal API active; proxy ignored.
+          </div>
+        )}
         
         {/* Proxy Mode Fields */}
         {connectionType === 'proxy' && (
