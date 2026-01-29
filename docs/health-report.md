@@ -23,7 +23,7 @@ The codebase is in **good health** with a clean Public ↔ Custom boundary. The 
 - ✅ **Extension points** are properly documented and implemented
 
 ### Custom Adapter / Override Boundary
-- ✅ **`.gitignore` covers all override files** (`src/work/*.override.ts`)
+- ✅ **`.gitignore`** ignores `src/work/*.override.ts` with exception **`!src/work/workAdapter.override.ts`** (no-op stub committed for build stability)
 - ✅ **No custom-only constants/strings leak** into Public code
 - ✅ **Override files use placeholders** (safe for Public repo)
 - ✅ **Loader uses dynamic import** with proper error handling

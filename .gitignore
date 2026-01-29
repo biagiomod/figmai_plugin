@@ -15,6 +15,7 @@ node_modules/
 *.fix
 
 # Work-only override files (not committed to Public repo)
-src/work/workAdapter.override.ts
+# Exception: workAdapter.override.ts has a committed no-op stub for build stability
 src/work/credentials.override.ts
 src/work/*.override.ts
+!src/work/workAdapter.override.ts

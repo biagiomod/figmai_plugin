@@ -1,6 +1,6 @@
 # Custom-Only Overrides
 
-This folder is for custom-only override files that are **NOT committed to the Public repo**.
+This folder holds override files for custom-only features. The repo commits a **no-op stub** for `workAdapter.override.ts` for build stability; other override files are git-ignored.
 
 ## Purpose
 
@@ -8,7 +8,9 @@ The Custom Plugin can drop in override files that provide proprietary implementa
 
 ## Files
 
-### `workAdapter.override.ts` (DO NOT COMMIT)
+### `workAdapter.override.ts` (committed stub)
+
+The repo commits a **safe no-op stub** at this path so the dynamic import in `src/core/work/loadAdapter.ts` resolves in all environments (fresh clone, CI). Custom variants **overwrite or replace** this file locally or in private forks. Other `*.override.ts` files in this folder remain ignored.
 
 This file should export a `WorkAdapter` implementation. It can use either:
 
@@ -234,21 +236,19 @@ See `docs/work-plugin/extension-points.md` for detailed documentation.
 
 ## Git Ignore
 
-This folder's override files are ignored by `.gitignore`:
-- `workAdapter.override.ts`
-- `credentials.override.ts`
-- `dsRules.override.ts`
-- Any `*.override.ts` files
+`.gitignore` uses a broad rule for override files plus a negation so only the stub is tracked:
+- **Tracked:** `workAdapter.override.ts` (no-op stub; committed for build stability)
+- **Ignored:** `credentials.override.ts`, `dsRules.override.ts`, and any other `*.override.ts` files
 
 ## Testing
 
-To test locally (without committing):
-1. Create/update `workAdapter.override.ts` in this folder
-2. Create/update `credentials.override.ts` with your endpoint
-3. Create/update `dsRules.override.ts` with your DS rules
+To test custom implementations locally:
+1. Overwrite `workAdapter.override.ts` with your implementation (the committed stub is no-op)
+2. Create/update `credentials.override.ts` with your endpoint (git-ignored)
+3. Create/update `dsRules.override.ts` with your DS rules (git-ignored)
 4. Export a `WorkAdapter` implementation
 5. The plugin will automatically use it
-6. Remove or reset the files before committing
+6. Do not commit credentials or proprietary overrides; only the no-op stub is tracked
 
 ## Confluence Integration Details
 

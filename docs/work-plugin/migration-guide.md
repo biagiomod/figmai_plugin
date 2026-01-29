@@ -82,7 +82,7 @@ mkdir -p src/work
 
 ### Step 3: Create Custom Adapter Override
 
-Create `src/work/workAdapter.override.ts`:
+The repo includes a **no-op stub** at `src/work/workAdapter.override.ts` for build stability. Overwrite it with your implementation:
 
 ```typescript
 import type { WorkAdapter } from '../core/work/adapter'
@@ -100,7 +100,7 @@ export default workAdapter
 
 **Verify:** File exists and exports `WorkAdapter`
 
-**IMPORTANT:** This file is git-ignored. Never commit custom-only implementations to Public repo.
+**Note:** A no-op stub is committed; overwrite it locally or in private forks. Do not commit credentials or proprietary implementations to the Public repo.
 
 ---
 
@@ -195,15 +195,15 @@ For basic build steps, see **[README.md](../../README.md)** [AUTHORITATIVE].
 
 ### Step 7: Verify .gitignore
 
-Ensure `.gitignore` includes:
+Ensure `.gitignore` includes (stub exception so build passes in all environments):
 
 ```
-src/work/*.override.ts
 src/work/credentials.override.ts
-src/work/dsRules.override.ts
+src/work/*.override.ts
+!src/work/workAdapter.override.ts
 ```
 
-**Verify:** Override files are git-ignored
+**Verify:** Only `workAdapter.override.ts` is tracked (no-op stub); other override files are git-ignored
 
 ---
 
@@ -367,8 +367,8 @@ If migration fails, rollback steps:
    - Reset to defaults
 
 3. **Remove extensions:**
-   - Remove `src/work/workAdapter.override.ts`
-   - Remove any override files
+   - Restore the no-op stub at `src/work/workAdapter.override.ts` (or leave your overwrite and revert manually)
+   - Remove any other override files (`credentials.override.ts`, `dsRules.override.ts`, etc.)
 
 4. **Rebuild:**
    ```bash
