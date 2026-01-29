@@ -4,7 +4,7 @@
  */
 
 import type { SelectionState } from '../../types'
-import type { Provider, NormalizedMessage } from '../../provider/provider'
+import type { Provider, NormalizedMessage, ChatRequest } from '../../provider/provider'
 
 /**
  * Context passed to handler for processing responses
@@ -16,6 +16,8 @@ export interface HandlerContext {
   selectionOrder: string[]
   selection: SelectionState
   provider: Provider
+  /** Send chat with content-safety recovery (use for repair/follow-up flows). */
+  sendChatWithRecovery: (request: ChatRequest) => Promise<string>
   sendAssistantMessage: (message: string) => void
   replaceStatusMessage: (finalContent: string, isError?: boolean) => void
   requestId: string

@@ -495,7 +495,7 @@ ${response.substring(0, 2000)}`
             }
           ]
           
-          const repairResponse = await provider.sendChat({
+          const repairResponse = await context.sendChatWithRecovery({
             messages: repairMessages,
             assistantId: context.assistantId,
             assistantName: 'Design Critique',

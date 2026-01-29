@@ -5,6 +5,7 @@
 
 import { getSettings } from '../settings'
 import { ProviderError, ProviderErrorType, errorToString } from '../provider/provider'
+import { isContentFilterResponse } from '../contentSafety'
 import { extractResponseText } from '../provider/normalize'
 import { getHostForObservability } from '../provider/observability'
 import { debug } from '../debug/logger'
@@ -353,7 +354,27 @@ export class ProxyClient {
         } catch {
           errorText = 'Unable to read error response'
         }
-        
+
+        if (response.status === 429) {
+          throw new ProxyError(
+            'Rate limit exceeded. Please try again in a moment.',
+            ProviderErrorType.RATE_LIMIT,
+            response.status,
+            errorText,
+            true
+          )
+        }
+
+        if (isContentFilterResponse(response.status, errorText.toLowerCase())) {
+          throw new ProxyError(
+            'Request blocked by content policy.',
+            ProviderErrorType.CONTENT_FILTER,
+            response.status,
+            errorText,
+            false
+          )
+        }
+
         throw new ProxyError(
           `Proxy request failed: ${response.status} ${response.statusText}${errorText ? `. ${errorText}` : ''}`,
           ProviderErrorType.UNKNOWN,

@@ -11,6 +11,7 @@ export type ErrorCategory =
   | 'provider_rate_limit'
   | 'provider_timeout'
   | 'provider_invalid_response'
+  | 'provider_content_filter'
   | 'handler_execution'
   | 'tool_execution'
   | 'settings_load'
@@ -43,6 +44,9 @@ export function categorizeError(error: unknown): ErrorCategory {
       case 'INVALID_REQUEST':
       case 'PROVIDER_ERROR':
         return 'provider_invalid_response'
+      case 'CONTENT_FILTER':
+      case 'content_filter':
+        return 'provider_content_filter'
     }
   }
 

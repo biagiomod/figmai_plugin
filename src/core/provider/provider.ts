@@ -176,6 +176,8 @@ export function errorToString(error: unknown): string {
           return `Server error (${error.statusCode}): The server encountered an error. Please try again later.`
         }
         return `Provider error: ${error.message}`
+      case ProviderErrorType.CONTENT_FILTER:
+        return error.message
       default:
         return error.message
     }

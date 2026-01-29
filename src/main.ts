@@ -80,6 +80,7 @@ import type { Assistant } from './assistants'
 import { createProvider } from './core/provider/providerFactory'
 import type { Provider, ChatRequest } from './core/provider/provider'
 import { normalizeMessages } from './core/provider/normalize'
+import { sendChatWithRecovery } from './core/contentSafety'
 import { routeToolCall } from './core/tools/toolRouter'
 import { summarizeSelection } from './core/context/selection'
 import { buildSelectionContext } from './core/context/selectionContext'
@@ -547,7 +548,7 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
         })
       }
     }
-    const response = await currentProvider.sendChat({
+    const recoveryResult = await sendChatWithRecovery(currentProvider, {
       messages: finalChatMessages,
       assistantId: currentAssistant.id,
       assistantName: currentAssistant.label,
@@ -555,17 +556,31 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       selectionSummary: selectionContext?.selectionSummary,
       images: selectionContext?.images,
       quickActionId: undefined
+    }, {
+      selectionSummary: selectionContext?.selectionSummary,
+      assistantId: currentAssistant.id,
+      quickActionId: undefined
     })
-    
+    const response = recoveryResult.response
+    const contentSimplified = recoveryResult.recoveredWithSummary === true
+
     // Check if handler can process the response
     if (handler) {
       const handlerContext = {
         assistantId: currentAssistant.id,
-        actionId: undefined, // Chat message, not quick action
+        actionId: undefined as string | undefined,
         response,
         selectionOrder,
         selection: selectionContext?.selection || summarizeSelection(selectionOrder),
         provider: currentProvider!,
+        sendChatWithRecovery: async (req: ChatRequest) => {
+          const r = await sendChatWithRecovery(currentProvider!, req, {
+            selectionSummary: req.selectionSummary ?? selectionContext?.selectionSummary,
+            assistantId: currentAssistant.id,
+            quickActionId: undefined
+          })
+          return r.response
+        },
         sendAssistantMessage,
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
         requestId
@@ -584,23 +599,24 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
     }
     
     // Only send to chat if handler didn't handle it
-    replaceStatusMessage(requestId, response)
-    
+    replaceStatusMessage(requestId, contentSimplified ? `${response}\n\nSome content was simplified to obtain this response.` : response)
+
     // Track assistant complete (success) for chat messages
     getAnalytics().track('assistant_complete', {
       assistantId: currentAssistant.id,
       success: true
     })
   } catch (error) {
-    const errorMessage = errorToString(error)
-    replaceStatusMessage(requestId, `Error: ${errorMessage}`, true)
-    
+    const isContentPolicy = error instanceof ProviderError && error.type === ProviderErrorType.CONTENT_FILTER
+    const displayMessage = isContentPolicy ? (error as ProviderError).message : `Error: ${errorToString(error)}`
+    replaceStatusMessage(requestId, displayMessage, true)
+
     // Track error
     getAnalytics().track('error', {
       category: categorizeError(error),
       assistantId: currentAssistant.id
     })
-    
+
     // Track assistant complete (failure)
     getAnalytics().track('assistant_complete', {
       assistantId: currentAssistant.id,
@@ -658,13 +674,22 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
       figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
       sendStatusMessage(requestId, 'Placing demo cards on stage…')
 
+      const providerForContext = currentProvider || await createProvider(currentProviderId)
       const handlerContext = {
         assistantId,
         actionId,
         response: '',
         selectionOrder,
         selection: summarizeSelection(selectionOrder),
-        provider: currentProvider || await createProvider(currentProviderId),
+        provider: providerForContext,
+        sendChatWithRecovery: async (req: ChatRequest) => {
+          const r = await sendChatWithRecovery(providerForContext, req, {
+            selectionSummary: req.selectionSummary,
+            assistantId,
+            quickActionId: actionId
+          })
+          return r.response
+        },
         sendAssistantMessage,
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
         requestId
@@ -679,13 +704,22 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
       }
     }
     if (assistantId === 'content_table' && actionId === 'generate-table') {
+      const providerForContext = currentProvider || await createProvider(currentProviderId)
       const handlerContext = {
         assistantId,
         actionId,
         response: '', // Not used for Content Table
         selectionOrder,
         selection: summarizeSelection(selectionOrder),
-        provider: currentProvider || await createProvider(currentProviderId),
+        provider: providerForContext,
+        sendChatWithRecovery: async (req: ChatRequest) => {
+          const r = await sendChatWithRecovery(providerForContext, req, {
+            selectionSummary: req.selectionSummary,
+            assistantId,
+            quickActionId: actionId
+          })
+          return r.response
+        },
         sendAssistantMessage,
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
         requestId
@@ -874,7 +908,7 @@ Use SEND JSON to import or GET JSON to export your designs.`
       }
     }
     
-    const response = await currentProvider.sendChat({
+    const recoveryResult = await sendChatWithRecovery(currentProvider, {
       messages: chatMessages,
       assistantId: assistant.id,
       assistantName: assistant.label,
@@ -882,8 +916,14 @@ Use SEND JSON to import or GET JSON to export your designs.`
       selectionSummary: selectionContext.selectionSummary,
       images: selectionContext.images,
       quickActionId: action.id
+    }, {
+      selectionSummary: selectionContext.selectionSummary,
+      assistantId: assistant.id,
+      quickActionId: action.id
     })
-    
+    const response = recoveryResult.response
+    const contentSimplified = recoveryResult.recoveredWithSummary === true
+
     // Check if handler exists and can handle the response
     let responseHandled = false
     if (handler) {
@@ -894,6 +934,14 @@ Use SEND JSON to import or GET JSON to export your designs.`
         selectionOrder,
         selection: selectionContext.selection,
         provider: currentProvider!,
+        sendChatWithRecovery: async (req: ChatRequest) => {
+          const r = await sendChatWithRecovery(currentProvider!, req, {
+            selectionSummary: req.selectionSummary,
+            assistantId: assistant.id,
+            quickActionId: action.id
+          })
+          return r.response
+        },
         sendAssistantMessage,
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
         requestId
@@ -913,7 +961,7 @@ Use SEND JSON to import or GET JSON to export your designs.`
     
     // Only send response to chat if handler didn't handle it
     if (!responseHandled) {
-      replaceStatusMessage(requestId, response)
+      replaceStatusMessage(requestId, contentSimplified ? `${response}\n\nSome content was simplified to obtain this response.` : response)
     }
 
     // Track assistant complete (success)
@@ -923,16 +971,17 @@ Use SEND JSON to import or GET JSON to export your designs.`
       success: true
     })
   } catch (error) {
-    const errorMessage = errorToString(error)
-    replaceStatusMessage(requestId, `Error: ${errorMessage}`, true)
-    
+    const isContentPolicy = error instanceof ProviderError && error.type === ProviderErrorType.CONTENT_FILTER
+    const displayMessage = isContentPolicy ? (error as ProviderError).message : `Error: ${errorToString(error)}`
+    replaceStatusMessage(requestId, displayMessage, true)
+
     // Track error
     getAnalytics().track('error', {
       category: categorizeError(error),
       assistantId: assistant.id,
       actionId: action.id
     })
-    
+
     // Track assistant complete (failure)
     getAnalytics().track('assistant_complete', {
       assistantId: assistant.id,
