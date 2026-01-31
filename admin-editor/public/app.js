@@ -46,6 +46,62 @@
     return keysA.every(k => keysB.includes(k) && deepEqual(a[k], b[k]))
   }
 
+  /** Recursively sort object keys (localeCompare); arrays preserve order; primitives unchanged. Mirrors server sortKeys. */
+  function sortKeysUi (obj) {
+    if (obj === null || typeof obj !== 'object') return obj
+    if (Array.isArray(obj)) return obj.map(sortKeysUi)
+    const keys = Object.keys(obj).sort(function (a, b) { return a.localeCompare(b) })
+    const out = {}
+    for (let i = 0; i < keys.length; i++) out[keys[i]] = sortKeysUi(obj[keys[i]])
+    return out
+  }
+
+  /** Canonicalize config to match server canonicalizeConfig: top-level order then nested alphabetical. */
+  var CONFIG_KEYS_ORDER_UI = ['ui', 'llm', 'knowledgeBases', 'networkAccess', 'resources', 'designSystems', 'analytics']
+  function canonicalizeConfigUi (obj) {
+    if (obj === null || typeof obj !== 'object') return obj
+    var record = obj
+    var out = {}
+    for (var i = 0; i < CONFIG_KEYS_ORDER_UI.length; i++) {
+      var k = CONFIG_KEYS_ORDER_UI[i]
+      if (record[k] !== undefined) out[k] = sortKeysUi(record[k])
+    }
+    var rest = Object.keys(record).filter(function (k) { return CONFIG_KEYS_ORDER_UI.indexOf(k) === -1 }).sort()
+    for (var j = 0; j < rest.length; j++) { var r = rest[j]; out[r] = sortKeysUi(record[r]) }
+    return out
+  }
+
+  /** Canonicalize assistants manifest to match server canonicalizeAssistantsManifest: top-level order then nested alphabetical. */
+  var MANIFEST_KEYS_ORDER_UI = ['assistants']
+  function canonicalizeAssistantsManifestUi (obj) {
+    if (obj === null || typeof obj !== 'object') return obj
+    var record = obj
+    var out = {}
+    for (var i = 0; i < MANIFEST_KEYS_ORDER_UI.length; i++) {
+      var k = MANIFEST_KEYS_ORDER_UI[i]
+      if (record[k] !== undefined) out[k] = sortKeysUi(record[k])
+    }
+    var rest = Object.keys(record).filter(function (k) { return MANIFEST_KEYS_ORDER_UI.indexOf(k) === -1 }).sort()
+    for (var j = 0; j < rest.length; j++) { var r = rest[j]; out[r] = sortKeysUi(record[r]) }
+    return out
+  }
+
+  /** Build canonical model: config and manifest use server-matching order; rest use sortKeysUi; contentModelsRaw unchanged. */
+  function canonicalizeModel (data) {
+    var m = data.model || data
+    var known = { config: 1, assistantsManifest: 1, customKnowledge: 1, designSystemRegistries: 1, contentModelsRaw: 1 }
+    var out = {
+      config: canonicalizeConfigUi(m.config),
+      assistantsManifest: canonicalizeAssistantsManifestUi(m.assistantsManifest),
+      customKnowledge: sortKeysUi(m.customKnowledge || {}),
+      designSystemRegistries: sortKeysUi(m.designSystemRegistries || {}),
+      contentModelsRaw: m.contentModelsRaw
+    }
+    var rest = Object.keys(m).filter(function (k) { return !known[k] }).sort()
+    for (var i = 0; i < rest.length; i++) out[rest[i]] = sortKeysUi(m[rest[i]])
+    return out
+  }
+
   function hasUnsavedChanges () {
     return state.originalModel !== null && state.editedModel !== null && !deepEqual(state.originalModel, state.editedModel)
   }
@@ -150,8 +206,9 @@
     updateStatus()
     try {
       const data = await apiGetModel()
-      state.originalModel = data.model
-      state.editedModel = deepClone(data.model)
+      const canonical = canonicalizeModel(data.model)
+      state.originalModel = canonical
+      state.editedModel = deepClone(canonical)
       state.meta = data.meta || null
       state.validation = data.validation || { errors: [], warnings: [] }
       state.loadedAt = new Date().toLocaleString()

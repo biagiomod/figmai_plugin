@@ -46,6 +46,10 @@ After a successful save, the server runs these **generators** (not build/publish
 
 You must run **`npm run build`** (and publish) yourself. The save response includes **next steps**: “Ask the plugin owner to run `npm run build` and then publish via the normal process.”
 
+## Preview (dry-run)
+
+**Preview changes** calls `POST /api/save?dryRun=1` and shows which files would be written and which generators would run. The UI compares against a **canonical** model state: when you load the model, it is canonicalized so that **config** and **assistants manifest** match server ordering (`canonicalizeConfig`, `canonicalizeAssistantsManifest`); other objects use deterministic recursive key sort; markdown raw (`contentModelsRaw`) is unchanged. That canonical form is used as both the baseline and the initial edited state. So if you make no semantic edits, preview shows no changes (no format-only diffs from key order or newlines). After a save, written files are in the same canonical form, so future load → preview with no edits stays empty.
+
 ## API
 
 - **GET /api/model** – Load current model from repo files. Returns `{ model, meta, validation }`.
