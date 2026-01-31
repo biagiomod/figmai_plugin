@@ -1,0 +1,127 @@
+/**
+ * Admin Config Editor – local server.
+ * GET /api/model, POST /api/validate, POST /api/save.
+ * Serves static files from admin-editor/public.
+ * Does NOT build or publish the plugin; runs generators after save only.
+ */
+
+import express from 'express'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { loadModel } from './src/model'
+import { validateModel, adminEditableModelSchema, saveRequestBodySchema } from './src/schema'
+import { saveModel, saveModelDryRun } from './src/save'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const adminEditorDir = __dirname
+const repoRoot = path.resolve(adminEditorDir, '..')
+const backupRootDir = path.join(adminEditorDir, '.backups')
+
+const app = express()
+app.use(express.json({ limit: '10mb' }))
+app.use(express.static(path.join(adminEditorDir, 'public')))
+
+// GET /api/model – load single AdminEditableModel from repo files
+app.get('/api/model', (_req, res) => {
+  try {
+    const { model, meta } = loadModel(repoRoot)
+    const validation = validateModel(model)
+    res.json({
+      model,
+      meta: {
+        repoRoot: meta.repoRoot,
+        filePaths: meta.filePaths,
+        lastModified: meta.lastModified,
+        revision: meta.revision,
+        files: meta.files
+      },
+      validation: {
+        errors: validation.errors,
+        warnings: validation.warnings
+      }
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? String(err) })
+  }
+})
+
+// POST /api/validate – validate payload; do not write. Body must match AdminEditableModel (strict).
+app.post('/api/validate', (req, res) => {
+  try {
+    const parsed = adminEditableModelSchema.safeParse(req.body)
+    if (!parsed.success) {
+      const errors = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
+      return res.status(400).json({ errors, warnings: [] })
+    }
+    const result = validateModel(parsed.data)
+    res.json({ errors: result.errors, warnings: result.warnings })
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? String(err) })
+  }
+})
+
+// POST /api/save – validate, backup, write, run generators; return summary.
+// Query ?dryRun=1: preview only (filesWouldWrite, generatorsWouldRun, backupsWouldCreateAt).
+// Body: AdminEditableModel + meta.revision (concurrency guard). On revision mismatch returns 409.
+app.post('/api/save', (req, res) => {
+  const dryRun = req.query.dryRun === '1' || req.query.dryRun === 'true'
+  try {
+    const parsed = saveRequestBodySchema.safeParse(req.body)
+    if (!parsed.success) {
+      const errors = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
+      return res.status(400).json({ errors, success: false })
+    }
+    const { model: currentModel, meta: currentMeta } = loadModel(repoRoot)
+    const clientRevision = parsed.data.meta.revision
+    if (currentMeta.revision !== clientRevision) {
+      return res.status(409).json({
+        error: 'Files changed since load; reload to avoid overwriting.',
+        meta: {
+          repoRoot: currentMeta.repoRoot,
+          filePaths: currentMeta.filePaths,
+          lastModified: currentMeta.lastModified,
+          revision: currentMeta.revision,
+          files: currentMeta.files
+        }
+      })
+    }
+    const toSave = {
+      config: parsed.data.config,
+      assistantsManifest: parsed.data.assistantsManifest,
+      customKnowledge: parsed.data.customKnowledge,
+      contentModelsRaw: parsed.data.contentModelsRaw,
+      designSystemRegistries: parsed.data.designSystemRegistries
+    }
+    if (dryRun) {
+      const summary = saveModelDryRun(toSave, currentMeta, backupRootDir)
+      if (!summary.success) {
+        return res.status(400).json(summary)
+      }
+      return res.json(summary)
+    }
+    const summary = saveModel(toSave, currentMeta, backupRootDir)
+    if (!summary.success) {
+      res.status(400).json(summary)
+      return
+    }
+    res.json(summary)
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      filesWritten: [],
+      backupsCreatedAt: '',
+      backupRoot: '',
+      generatorsRun: [],
+      errors: [err?.message ?? String(err)],
+      nextSteps: 'Ask the plugin owner to run `npm run build` and then publish via the normal process.'
+    })
+  }
+})
+
+const PORT = process.env.ADMIN_EDITOR_PORT ? parseInt(process.env.ADMIN_EDITOR_PORT, 10) : 3333
+app.listen(PORT, () => {
+  console.log(`Admin Config Editor server at http://localhost:${PORT}`)
+  console.log(`Repo root: ${repoRoot}`)
+  console.log('Endpoints: GET /api/model, POST /api/validate, POST /api/save')
+})

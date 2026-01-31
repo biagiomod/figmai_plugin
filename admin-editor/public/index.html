@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Config Editor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <h1>Admin Config Editor</h1>
+      <div id="status" class="status">
+        <span id="status-connection">—</span>
+        <span id="status-loaded">—</span>
+        <span id="status-repo">—</span>
+      </div>
+    </header>
+
+    <div id="unsaved-banner" class="unsaved-banner" style="display: none;">
+      Unsaved changes
+      <button type="button" id="discard-all-btn">Discard all changes</button>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="config" aria-selected="true">Config</button>
+      <button type="button" role="tab" data-tab="assistants">Assistants</button>
+      <button type="button" role="tab" data-tab="knowledge">Knowledge</button>
+      <button type="button" role="tab" data-tab="content-models" id="tab-content-models" style="display: none;">Content Models</button>
+      <button type="button" role="tab" data-tab="registries" id="tab-registries" style="display: none;">Design System Registries</button>
+    </nav>
+
+    <main class="main">
+      <section id="panel-config" role="tabpanel" class="panel" aria-hidden="false"></section>
+      <section id="panel-assistants" role="tabpanel" class="panel" aria-hidden="true"></section>
+      <section id="panel-knowledge" role="tabpanel" class="panel" aria-hidden="true"></section>
+      <section id="panel-content-models" role="tabpanel" class="panel" aria-hidden="true" style="display: none;"></section>
+      <section id="panel-registries" role="tabpanel" class="panel" aria-hidden="true" style="display: none;"></section>
+    </main>
+
+    <div id="conflict-banner" class="conflict-banner" style="display: none;">
+      <span>Reload required</span>
+      <button type="button" id="reload-after-conflict-btn">Reload</button>
+    </div>
+
+    <footer class="footer">
+      <div class="footer-actions">
+        <button type="button" id="reload-btn">Reload</button>
+        <button type="button" id="validate-btn">Validate</button>
+        <button type="button" id="preview-btn">Preview changes</button>
+        <button type="button" id="save-btn">Save</button>
+      </div>
+      <div id="validation-message" class="validation-message"></div>
+      <div id="save-summary" class="save-summary" style="display: none;"></div>
+      <div id="preview-summary" class="preview-summary" style="display: none;"></div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

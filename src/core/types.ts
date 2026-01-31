@@ -263,6 +263,61 @@ export interface ContentTableRefImageErrorHandler extends EventHandler {
   handler: (message: string) => void
 }
 
+export interface AnalyticsTaggingSessionUpdatedHandler extends EventHandler {
+  name: 'ANALYTICS_TAGGING_SESSION_UPDATED'
+  handler: (session: unknown, warning?: string, screenIdWarning?: boolean, actionIdWarning?: boolean) => void
+}
+
+export interface AnalyticsTaggingOpenExportHandler extends EventHandler {
+  name: 'ANALYTICS_TAGGING_OPEN_EXPORT'
+  handler: (session: unknown) => void
+}
+
+export interface RequestAnalyticsTaggingSessionHandler extends EventHandler {
+  name: 'REQUEST_ANALYTICS_TAGGING_SESSION'
+  handler: () => void
+}
+
+export interface StartRowFromTargetSelectionHandler extends EventHandler {
+  name: 'START_ROW_FROM_TARGET_SELECTION'
+  handler: () => void
+}
+
+export interface UpdateDraftRowFieldsHandler extends EventHandler {
+  name: 'UPDATE_DRAFT_ROW_FIELDS'
+  handler: (updates: Record<string, unknown>) => void
+}
+
+export interface RequestSectionScreenshotCaptureHandler extends EventHandler {
+  name: 'REQUEST_SECTION_SCREENSHOT_CAPTURE'
+  handler: () => void
+}
+
+export interface DiscardDraftRowHandler extends EventHandler {
+  name: 'DISCARD_DRAFT_ROW'
+  handler: () => void
+}
+
+export interface AnalyticsTaggingUpdateRowHandler extends EventHandler {
+  name: 'ANALYTICS_TAGGING_UPDATE_ROW'
+  handler: (rowId: string, updates: Record<string, unknown>) => void
+}
+
+export interface RequestAnalyticsTaggingScreenshotHandler extends EventHandler {
+  name: 'REQUEST_ANALYTICS_TAGGING_SCREENSHOT'
+  handler: (screenshotRef: unknown) => void
+}
+
+export interface AnalyticsTaggingScreenshotReadyHandler extends EventHandler {
+  name: 'ANALYTICS_TAGGING_SCREENSHOT_READY'
+  handler: (refId: string, dataUrl: string) => void
+}
+
+export interface AnalyticsTaggingScreenshotErrorHandler extends EventHandler {
+  name: 'ANALYTICS_TAGGING_SCREENSHOT_ERROR'
+  handler: (refId: string, message: string) => void
+}
+
 export interface RunPlaceholderScorecardHandler extends EventHandler {
   name: 'RUN_PLACEHOLDER_SCORECARD'
   handler: () => void

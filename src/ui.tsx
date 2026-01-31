@@ -88,6 +88,7 @@ import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant
 import type { Assistant as AssistantType, AssistantTag, QuickAction } from './assistants'
 import { SettingsModal } from './ui/components/SettingsModal'
 import { ConfluenceModal } from './ui/components/ConfluenceModal'
+import { AnalyticsTaggingTable } from './ui/components/AnalyticsTaggingTable'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
 import { ProviderIndicators } from './ui/components/ProviderIndicators'
 import { GenericAiIndicator } from './ui/components/GenericAiIndicator'
@@ -118,10 +119,14 @@ import type {
   Assistant,
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
+  RequestAnalyticsTaggingSessionHandler,
+  AnalyticsTaggingUpdateRowHandler,
 } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { PRESET_INFO } from './core/contentTable/presets.generated'
+import { sessionToTable } from './core/analyticsTagging/sessionToTable'
+import type { Session } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
 import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits } from './custom/config'
 import { BUILD_VERSION } from './core/build'
@@ -345,6 +350,12 @@ function Plugin() {
   const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
   const [showConfluenceModal, setShowConfluenceModal] = useState(false)
   const [confluenceFormat, setConfluenceFormat] = useState<TableFormatPreset>('universal')
+  // Analytics Tagging state
+  const [analyticsTaggingSession, setAnalyticsTaggingSession] = useState<Session | null>(null)
+  const [analyticsTaggingAutosaveStatus, setAnalyticsTaggingAutosaveStatus] = useState<'saved' | 'saving' | 'failed'>('saved')
+  const [analyticsTaggingScreenshotPreviews, setAnalyticsTaggingScreenshotPreviews] = useState<Record<string, string>>({})
+  const [analyticsTaggingWarning, setAnalyticsTaggingWarning] = useState<string | null>(null)
+  const [analyticsTaggingExportSession, setAnalyticsTaggingExportSession] = useState<Session | null>(null)
   // Clipboard debug state
   const [showPasteDebug, setShowPasteDebug] = useState(false)
   const [debugHtml, setDebugHtml] = useState('')
@@ -593,6 +604,30 @@ function Plugin() {
           console.error('[UI] Received PLACEHOLDER_SCORECARD_ERROR:', message.message)
           // Show error toast (figma.notify is handled in main thread)
           break
+        case 'ANALYTICS_TAGGING_SESSION_UPDATED':
+          if (message.session) {
+            setAnalyticsTaggingSession(message.session as Session)
+            setAnalyticsTaggingAutosaveStatus('saved')
+            if (message.warning) setAnalyticsTaggingWarning(message.warning as string)
+            else setAnalyticsTaggingWarning(null)
+          }
+          break
+        case 'ANALYTICS_TAGGING_OPEN_EXPORT':
+          if (message.session) {
+            setAnalyticsTaggingExportSession(message.session as Session)
+            setSelectedFormat('analytics-tagging')
+            setPendingAction('confluence')
+            setShowFormatModal(true)
+          }
+          break
+        case 'ANALYTICS_TAGGING_SCREENSHOT_READY':
+          if (message.refId && message.dataUrl) {
+            setAnalyticsTaggingScreenshotPreviews(prev => ({ ...prev, [message.refId as string]: message.dataUrl as string }))
+          }
+          break
+        case 'ANALYTICS_TAGGING_SCREENSHOT_ERROR':
+          // Optional: show toast or leave preview empty
+          break
         case 'SCORECARD_PLACED':
           // Legacy handler - status messages are now managed in main thread via replaceStatusMessage
           // This case can be removed in future cleanup, but keeping for backward compatibility
@@ -674,6 +709,13 @@ function Plugin() {
       emit<SetAssistantHandler>('SET_ASSISTANT', 'content_table')
     }
   }, []) // Only run on mount
+
+  // Request Analytics Tagging session when assistant is analytics_tagging
+  useEffect(() => {
+    if (assistant.id === 'analytics_tagging') {
+      emit<RequestAnalyticsTaggingSessionHandler>('REQUEST_ANALYTICS_TAGGING_SESSION')
+    }
+  }, [assistant.id])
 
   // Update assistant when mode changes
   useEffect(() => {
@@ -1089,6 +1131,11 @@ function Plugin() {
   }, [jsonOutput])
   
   // Handle Copy Ref Image
+  const handleAnalyticsTaggingUpdateRow = useCallback((rowId: string, updates: Record<string, unknown>) => {
+    setAnalyticsTaggingAutosaveStatus('saving')
+    emit<AnalyticsTaggingUpdateRowHandler>('ANALYTICS_TAGGING_UPDATE_ROW', rowId, updates)
+  }, [])
+
   const handleCopyRefImage = useCallback(() => {
     if (!contentTable || !contentTable.meta?.rootNodeId) {
       console.error('[UI] Copy Ref Image: No table or rootNodeId missing', { 
@@ -1966,32 +2013,41 @@ ${htmlTable}
           overflowY: 'auto',
           overflowX: 'hidden',
           padding: 'var(--spacing-md)',
-          paddingTop: messages.length > 0 ? 'calc(var(--spacing-md) + 32px)' : 'var(--spacing-md)',
+          paddingTop: (assistant.id === 'analytics_tagging' || messages.length > 0) ? 'calc(var(--spacing-md) + 32px)' : 'var(--spacing-md)',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--spacing-md)',
           minHeight: 0
         }}>
-        {messages.length === 0 && !isCode2Design && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: 1,
-            textAlign: 'center',
-            color: 'var(--fg)',
-            padding: 'var(--spacing-xl)',
-            fontSize: 'var(--font-size-xl)',
-            lineHeight: '1.5'
-          }}>
-            All Your Design Tools.
-            <br />
-            One Place.
-          </div>
-        )}
-        
-        {/* Code2Design Helper Message */}
+        {assistant.id === 'analytics_tagging' ? (
+          <AnalyticsTaggingTable
+            session={analyticsTaggingSession ?? { id: '', rows: [], draftRow: null, createdAtISO: '', updatedAtISO: '' }}
+            onUpdateRow={handleAnalyticsTaggingUpdateRow}
+            screenshotPreviews={analyticsTaggingScreenshotPreviews}
+            autosaveStatus={analyticsTaggingAutosaveStatus}
+            warning={analyticsTaggingWarning ?? undefined}
+          />
+        ) : (
+          <div style={{ display: 'contents' }}>
+            {messages.length === 0 && !isCode2Design && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 1,
+                textAlign: 'center',
+                color: 'var(--fg)',
+                padding: 'var(--spacing-xl)',
+                fontSize: 'var(--font-size-xl)',
+                lineHeight: '1.5'
+              }}>
+                All Your Design Tools.
+                <br />
+                One Place.
+              </div>
+            )}
+            {/* Code2Design Helper Message */}
         {isCode2Design && hasShownCode2DesignHelper && messages.length === 0 && (
           <div style={{
             padding: 'var(--spacing-md)',
@@ -2474,6 +2530,8 @@ ${htmlTable}
         
         
         <div ref={messagesEndRef} />
+          </div>
+        )}
         </div>
       </div>
       
@@ -2496,8 +2554,8 @@ ${htmlTable}
             marginBottom: 'var(--spacing-xs)'
           }}>
             {quickActions.map((action: QuickAction) => {
-              const isDisabled = action.requiresSelection && !selectionState.hasSelection
-              const isPrimary = (assistant.id === 'design_critique' && action.id === 'give-critique') || (assistant.id === 'content_table' && action.id === 'generate-table')
+              const isDisabled = (action.requiresSelection && !selectionState.hasSelection) || (assistant.id === 'analytics_tagging' && action.id === 'capture-screenshot-add-row' && !analyticsTaggingSession?.draftRow)
+              const isPrimary = (assistant.id === 'design_critique' && action.id === 'give-critique') || (assistant.id === 'content_table' && action.id === 'generate-table') || (assistant.id === 'analytics_tagging' && ((!analyticsTaggingSession?.draftRow && action.id === 'capture-action-item') || (!!analyticsTaggingSession?.draftRow && action.id === 'capture-screenshot-add-row')))
               
               return (
                 <button
@@ -2926,17 +2984,20 @@ ${htmlTable}
       )}
       
       {/* Confluence Modal */}
-      {showConfluenceModal && contentTable && (
+      {showConfluenceModal && (contentTable || analyticsTaggingExportSession) && (
         <ConfluenceModal
-          contentTable={contentTable}
+          contentTable={analyticsTaggingExportSession ? sessionToTable(analyticsTaggingExportSession) : contentTable!}
           format={confluenceFormat}
-          onClose={() => setShowConfluenceModal(false)}
+          onClose={() => {
+            setShowConfluenceModal(false)
+            if (analyticsTaggingExportSession) setAnalyticsTaggingExportSession(null)
+          }}
           onSuccess={handleConfluenceSuccess}
         />
       )}
       
-      {/* Format Selection Modal for Content Table */}
-      {showFormatModal && contentTable && (
+      {/* Format Selection Modal for Content Table / Analytics Tagging Export */}
+      {showFormatModal && (contentTable || analyticsTaggingExportSession) && (
         <div style={{
           position: 'fixed',
           top: 0,

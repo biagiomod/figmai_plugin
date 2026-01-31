@@ -13,18 +13,24 @@
     "@create-figma-plugin/build": "4.0.3",
     "@create-figma-plugin/tsconfig": "4.0.3",
     "@figma/plugin-typings": "1.109.0",
+    "@types/express": "4.17.21",
     "@types/node": "20.14.15",
+    "express": "4.21.1",
     "tsx": "4.21.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "zod": "3.23.8"
   },
   "scripts": {
+    "admin": "tsx admin-editor/server.ts",
+    "admin:dev": "tsx admin-editor/server.ts",
+    "generate-assistants": "tsx scripts/generate-assistants-from-manifest.ts",
     "generate-presets": "tsx scripts/generate-presets.ts",
     "generate-custom-overlay": "tsx scripts/generate-custom-overlay.ts",
     "generate-dark-demo-cards": "tsx scripts/generate-dark-demo-cards.ts",
-    "prebuild": "npm run generate-presets && npm run generate-custom-overlay && npm run generate-dark-demo-cards",
+    "prebuild": "npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && npm run generate-dark-demo-cards",
     "build": "build-figma-plugin --typecheck --minify",
     "postbuild": "node scripts/check-sync-api.js && tsx scripts/update-manifest-network-access.ts",
-    "watch": "npm run generate-presets && npm run generate-custom-overlay && tsx scripts/update-manifest-network-access.ts --watch && build-figma-plugin --typecheck --watch"
+    "watch": "npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && tsx scripts/update-manifest-network-access.ts --watch && build-figma-plugin --typecheck --watch"
   },
   "figma-plugin": {
     "editorType": [

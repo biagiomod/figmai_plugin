@@ -14,6 +14,9 @@ node_modules/
 *.final
 *.fix
 
+# Admin Config Editor backups (local only)
+admin-editor/.backups/
+
 # Work-only override files (not committed to Public repo)
 # Exception: workAdapter.override.ts has a committed no-op stub for build stability
 src/work/credentials.override.ts

@@ -114,8 +114,18 @@ import type {
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
   RunPlaceholderScorecardHandler,
-  RunScorecardV2PlaceholderHandler
+  RunScorecardV2PlaceholderHandler,
+  RequestAnalyticsTaggingSessionHandler,
+  StartRowFromTargetSelectionHandler,
+  UpdateDraftRowFieldsHandler,
+  RequestSectionScreenshotCaptureHandler,
+  DiscardDraftRowHandler,
+  AnalyticsTaggingUpdateRowHandler,
+  RequestAnalyticsTaggingScreenshotHandler
 } from './core/types'
+import { loadSession, saveSession } from './core/analyticsTagging/storage'
+import { captureVisibleInArea } from './core/analyticsTagging/screenshot'
+import type { Row, Session, ScreenshotRef } from './core/analyticsTagging/types'
 import { scanContentTable } from './core/contentTable/scanner'
 import { normalizeDesignCritique, fromDesignCritiqueJson, parseScorecardJson } from './core/output/normalize'
 import { renderDocumentToStage } from './core/stage/renderDocument'
@@ -735,6 +745,36 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
         return
       }
     }
+    if (assistantId === 'analytics_tagging' && (actionId === 'capture-action-item' || actionId === 'capture-screenshot-add-row' || actionId === 'export' || actionId === 'new-session')) {
+      const providerForContext = currentProvider || await createProvider(currentProviderId)
+      const handlerContext = {
+        assistantId,
+        actionId,
+        response: '',
+        selectionOrder,
+        selection: summarizeSelection(selectionOrder),
+        provider: providerForContext,
+        sendChatWithRecovery: async (req: ChatRequest) => {
+          const r = await sendChatWithRecovery(providerForContext, req, {
+            selectionSummary: req.selectionSummary,
+            assistantId,
+            quickActionId: actionId
+          })
+          return r.response
+        },
+        sendAssistantMessage,
+        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+        requestId
+      }
+      const result = await handler.handleResponse(handlerContext)
+      if (result.handled) {
+        const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
+        if (statusIndex !== -1) {
+          replaceStatusMessage(requestId, result.message || 'Done')
+        }
+        return
+      }
+    }
   }
   
   // Special handling for Code2Design quick actions
@@ -1071,6 +1111,205 @@ on<RequestSettingsHandler>('REQUEST_SETTINGS', async function (requestId?: strin
         settings: await getSettings(), // Return defaults on error
         requestId // Include requestId even on error
       } 
+    })
+  }
+})
+
+// Handle request analytics tagging session (load and send to UI)
+on<RequestAnalyticsTaggingSessionHandler>('REQUEST_ANALYTICS_TAGGING_SESSION', async function () {
+  try {
+    const session = await loadSession()
+    const emptySession = { id: '', rows: [], draftRow: null as null, createdAtISO: '', updatedAtISO: '' }
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SESSION_UPDATED',
+        session: session ?? emptySession
+      }
+    })
+  } catch (e) {
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SESSION_UPDATED',
+        session: { id: '', rows: [], draftRow: null, createdAtISO: '', updatedAtISO: '' }
+      }
+    })
+  }
+})
+
+// Two-step workflow: create draft from current selection (exactly 1 node = target)
+on<StartRowFromTargetSelectionHandler>('START_ROW_FROM_TARGET_SELECTION', async function () {
+  const requestId = generateRequestId()
+  const handler = getHandler('analytics_tagging', 'capture-action-item')
+  if (!handler) return
+  const providerForContext = currentProvider || await createProvider(currentProviderId)
+  const handlerContext = {
+    assistantId: 'analytics_tagging',
+    actionId: 'capture-action-item',
+    response: '',
+    selectionOrder,
+    selection: summarizeSelection(selectionOrder),
+    provider: providerForContext,
+    sendChatWithRecovery: async (req: ChatRequest) => {
+      const r = await sendChatWithRecovery(providerForContext, req, {
+        selectionSummary: req.selectionSummary,
+        assistantId: 'analytics_tagging',
+        quickActionId: 'capture-action-item'
+      })
+      return r.response
+    },
+    sendAssistantMessage,
+    replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+    requestId
+  }
+  await handler.handleResponse(handlerContext)
+})
+
+// Two-step workflow: merge draft row field edits
+on<UpdateDraftRowFieldsHandler>('UPDATE_DRAFT_ROW_FIELDS', async function (updates: Record<string, unknown>) {
+  try {
+    const session = await loadSession()
+    if (!session || !session.draftRow) return
+    const allowed = ['screenId', 'description', 'actionType', 'component', 'actionId', 'actionName', 'population', 'note']
+    const draftAny = session.draftRow as unknown as Record<string, unknown>
+    for (const key of allowed) {
+      if (key in updates && typeof updates[key] === 'string') {
+        draftAny[key] = updates[key]
+      }
+    }
+    if (typeof updates.actionType === 'string') {
+      ;(session.draftRow as { actionType: string }).actionType = updates.actionType
+    }
+    session.updatedAtISO = new Date().toISOString()
+    await saveSession(session)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SESSION_UPDATED',
+        session
+      }
+    })
+  } catch (_) {
+    // ignore
+  }
+})
+
+// Two-step workflow: capture screenshot for draft and commit row (exactly 1 node = container)
+on<RequestSectionScreenshotCaptureHandler>('REQUEST_SECTION_SCREENSHOT_CAPTURE', async function () {
+  const requestId = generateRequestId()
+  const handler = getHandler('analytics_tagging', 'capture-screenshot-add-row')
+  if (!handler) return
+  const providerForContext = currentProvider || await createProvider(currentProviderId)
+  const handlerContext = {
+    assistantId: 'analytics_tagging',
+    actionId: 'capture-screenshot-add-row',
+    response: '',
+    selectionOrder,
+    selection: summarizeSelection(selectionOrder),
+    provider: providerForContext,
+    sendChatWithRecovery: async (req: ChatRequest) => {
+      const r = await sendChatWithRecovery(providerForContext, req, {
+        selectionSummary: req.selectionSummary,
+        assistantId: 'analytics_tagging',
+        quickActionId: 'capture-screenshot-add-row'
+      })
+      return r.response
+    },
+    sendAssistantMessage,
+    replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+    requestId
+  }
+  await handler.handleResponse(handlerContext)
+})
+
+// Two-step workflow: discard draft without committing
+on<DiscardDraftRowHandler>('DISCARD_DRAFT_ROW', async function () {
+  try {
+    const session = await loadSession()
+    if (!session) return
+    session.draftRow = null
+    session.updatedAtISO = new Date().toISOString()
+    await saveSession(session)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SESSION_UPDATED',
+        session
+      }
+    })
+  } catch (_) {
+    // ignore
+  }
+})
+
+// Handle analytics tagging row update (autosave)
+on<AnalyticsTaggingUpdateRowHandler>('ANALYTICS_TAGGING_UPDATE_ROW', async function (rowId: string, updates: Record<string, unknown>) {
+  try {
+    const session = await loadSession()
+    if (!session) return
+    const index = session.rows.findIndex(r => r.id === rowId)
+    if (index === -1) return
+    const row = session.rows[index]
+    const allowed = ['screenId', 'description', 'actionType', 'component', 'actionId', 'actionName', 'population', 'note']
+    const rowAny = row as unknown as Record<string, unknown>
+    const updatesAny = updates as Record<string, unknown>
+    for (const key of allowed) {
+      if (key in updatesAny && typeof updatesAny[key] === 'string') {
+        rowAny[key] = updatesAny[key]
+      }
+    }
+    if ('actionType' in updates && typeof updates.actionType === 'string') {
+      row.actionType = updates.actionType as Row['actionType']
+    }
+    session.updatedAtISO = new Date().toISOString()
+    await saveSession(session)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SESSION_UPDATED',
+        session
+      }
+    })
+  } catch (_) {
+    // ignore
+  }
+})
+
+// Handle request analytics tagging screenshot (regenerate on demand for preview/export)
+on<RequestAnalyticsTaggingScreenshotHandler>('REQUEST_ANALYTICS_TAGGING_SCREENSHOT', async function (screenshotRef: unknown) {
+  const ref = screenshotRef as ScreenshotRef
+  const refId = ref?.id ?? ''
+  try {
+    const container = await figma.getNodeByIdAsync(ref.containerNodeId)
+    const target = await figma.getNodeByIdAsync(ref.targetNodeId)
+    if (!container || !target || container.type === 'DOCUMENT' || container.type === 'PAGE' || target.type === 'DOCUMENT' || target.type === 'PAGE') {
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'ANALYTICS_TAGGING_SCREENSHOT_ERROR',
+          refId,
+          message: 'Nodes no longer available.'
+        }
+      })
+      return
+    }
+    const { bytes } = await captureVisibleInArea({
+      container: container as SceneNode,
+      target: target as SceneNode,
+      rootNodeId: ref.rootNodeId,
+      screenshotRefId: refId
+    })
+    const base64 = figma.base64Encode(bytes)
+    const dataUrl = `data:image/png;base64,${base64}`
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SCREENSHOT_READY',
+        refId,
+        dataUrl
+      }
+    })
+  } catch (e) {
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SCREENSHOT_ERROR',
+        refId,
+        message: e instanceof Error ? e.message : 'Screenshot failed.'
+      }
     })
   }
 })

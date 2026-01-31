@@ -70,6 +70,12 @@ export const PRESET_INFO: PresetInfo[] = [
     label: "Content Model 5",
     description: "Placeholder for future content model",
     enabled: false
+  },
+  {
+    id: 'analytics-tagging' as TableFormatPreset,
+    label: "Analytics Tagging",
+    description: "Screen ID, screenshot, description, action type, component, Action ID, Figma link, population, note",
+    enabled: true
   }
 ]
 
@@ -370,6 +376,58 @@ export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
   ],
   'content-model-5': [
 
+  ],
+  'analytics-tagging': [
+    {
+      key: "screenId",
+      label: "Screen ID",
+      extract: (item) => resolvePath(item, "screenId")
+    },
+    {
+      key: "screenshot",
+      label: "Screenshot",
+      extract: (item) => resolvePath(item, "screenshot")
+    },
+    {
+      key: "description",
+      label: "Description",
+      extract: (item) => resolvePath(item, "description")
+    },
+    {
+      key: "actionType",
+      label: "Action Type",
+      extract: (item) => resolvePath(item, "actionType")
+    },
+    {
+      key: "component",
+      label: "Component",
+      extract: (item) => resolvePath(item, "component.name")
+    },
+    {
+      key: "actionId",
+      label: "Action ID",
+      extract: (item) => resolvePath(item, "actionId")
+    },
+    {
+      key: "actionName",
+      label: "Action Name",
+      extract: (item) => resolvePath(item, "actionName")
+    },
+    {
+      key: "figmaElementLink",
+      label: "Figma Element Link",
+      extract: (item) => resolvePath(item, "figmaElementLink")
+    },
+    {
+      key: "population",
+      label: "Population",
+      extract: (item) => resolvePath(item, "population")
+    },
+    {
+      key: "note",
+      label: "Note",
+      extract: (item) => resolvePath(item, "note")
+    }
   ]
 }
 

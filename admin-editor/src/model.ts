@@ -1,0 +1,175 @@
+/**
+ * Load AdminEditableModel from repo files.
+ * Reads only agreed sources-of-truth; no TS edits.
+ * Computes revision (hash of path + mtimeMs + size) for concurrency guard.
+ */
+
+import * as crypto from 'crypto'
+import * as fs from 'fs'
+import * as path from 'path'
+import type { AdminEditableModel } from './schema'
+
+export interface ModelMeta {
+  repoRoot: string
+  filePaths: {
+    config: string
+    assistantsManifest: string
+    customKnowledge: Record<string, string> // assistantId -> absolute path
+    contentModels: string
+    designSystemRegistries: Record<string, string> // registryId -> absolute path
+  }
+  lastModified: Record<string, string> // path -> ISO string (best-effort)
+  /** path -> { mtimeMs, size } for all loaded editable files */
+  files: Record<string, { mtimeMs: number; size: number }>
+  /** Stable hash of path + mtimeMs + size for concurrency guard */
+  revision: string
+}
+
+function safeStatMtime(filePath: string): string | undefined {
+  try {
+    const stat = fs.statSync(filePath)
+    return stat.mtime.toISOString()
+  } catch {
+    return undefined
+  }
+}
+
+function readJson<T>(filePath: string): T | null {
+  try {
+    if (!fs.existsSync(filePath)) return null
+    const content = fs.readFileSync(filePath, 'utf-8')
+    return JSON.parse(content) as T
+  } catch {
+    return null
+  }
+}
+
+function readText(filePath: string): string {
+  try {
+    if (!fs.existsSync(filePath)) return ''
+    return fs.readFileSync(filePath, 'utf-8')
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Load custom/knowledge/*.md (skip README, *.example.md).
+ * Returns map by assistantId (filename without .md).
+ */
+function loadCustomKnowledge(repoRoot: string): { byId: Record<string, string>; paths: Record<string, string> } {
+  const knowledgeDir = path.join(repoRoot, 'custom', 'knowledge')
+  const byId: Record<string, string> = {}
+  const paths: Record<string, string> = {}
+  if (!fs.existsSync(knowledgeDir)) return { byId, paths }
+  try {
+    const files = fs.readdirSync(knowledgeDir)
+    for (const file of files) {
+      if (file === 'README.md' || file.endsWith('.example.md')) continue
+      if (file.endsWith('.md')) {
+        const assistantId = file.replace(/\.md$/, '')
+        const filePath = path.join(knowledgeDir, file)
+        byId[assistantId] = readText(filePath)
+        paths[assistantId] = filePath
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { byId, paths }
+}
+
+/**
+ * Load custom/design-systems/<id>/registry.json.
+ */
+function loadDesignSystemRegistries(repoRoot: string): {
+  registries: Record<string, unknown>
+  paths: Record<string, string>
+} {
+  const dsDir = path.join(repoRoot, 'custom', 'design-systems')
+  const registries: Record<string, unknown> = {}
+  const paths: Record<string, string> = {}
+  if (!fs.existsSync(dsDir)) return { registries, paths }
+  try {
+    const entries = fs.readdirSync(dsDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const registryPath = path.join(dsDir, entry.name, 'registry.json')
+      if (fs.existsSync(registryPath)) {
+        const data = readJson<unknown>(registryPath)
+        if (data !== null) {
+          registries[entry.name] = data
+          paths[entry.name] = registryPath
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { registries, paths }
+}
+
+export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: ModelMeta } {
+  const configPath = path.join(repoRoot, 'custom', 'config.json')
+  const manifestPath = path.join(repoRoot, 'custom', 'assistants.manifest.json')
+  const contentModelsPath = path.join(repoRoot, 'docs', 'content-models.md')
+
+  const config = readJson<AdminEditableModel['config']>(configPath) ?? {}
+  const manifest = readJson<AdminEditableModel['assistantsManifest']>(manifestPath) ?? { assistants: [] }
+  const { byId: customKnowledge, paths: knowledgePaths } = loadCustomKnowledge(repoRoot)
+  const contentModelsRaw = readText(contentModelsPath)
+  const { registries: designSystemRegistries, paths: registryPaths } = loadDesignSystemRegistries(repoRoot)
+
+  const model: AdminEditableModel = {
+    config,
+    assistantsManifest: manifest,
+    customKnowledge,
+    contentModelsRaw: contentModelsRaw || undefined,
+    designSystemRegistries: Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined
+  }
+
+  const lastModified: Record<string, string> = {}
+  const files: Record<string, { mtimeMs: number; size: number }> = {}
+
+  const allPaths = [
+    configPath,
+    manifestPath,
+    contentModelsPath,
+    ...Object.values(knowledgePaths),
+    ...Object.values(registryPaths)
+  ]
+  for (const p of allPaths) {
+    const m = safeStatMtime(p)
+    if (m) lastModified[p] = m
+    try {
+      const stat = fs.statSync(p)
+      files[p] = { mtimeMs: stat.mtimeMs, size: stat.size }
+    } catch {
+      // skip missing
+    }
+  }
+
+  const revision = computeRevision(files)
+  const meta: ModelMeta = {
+    repoRoot,
+    filePaths: {
+      config: configPath,
+      assistantsManifest: manifestPath,
+      customKnowledge: knowledgePaths,
+      contentModels: contentModelsPath,
+      designSystemRegistries: registryPaths
+    },
+    lastModified,
+    files,
+    revision
+  }
+
+  return { model, meta }
+}
+
+function computeRevision(files: Record<string, { mtimeMs: number; size: number }>): string {
+  const keys = Object.keys(files).sort()
+  const parts = keys.map((p) => `${p}:${files[p].mtimeMs}:${files[p].size}`)
+  const input = parts.join('|')
+  return crypto.createHash('sha256').update(input, 'utf8').digest('hex').slice(0, 16)
+}

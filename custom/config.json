@@ -1,7 +1,9 @@
 {
   "ui": {
     "defaultMode": "simple",
-    "hideContentMvpMode": false
+    "hideContentMvpMode": false,
+    "simpleModeIds": ["general", "content_table", "design_critique", "design_workshop"],
+    "contentMvpAssistantId": "content_table"
   },
   "llm": {
     "endpoint": "",

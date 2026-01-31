@@ -67,6 +67,26 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 - **[Troubleshooting](troubleshooting/)** - Common issues and solutions
   - [Internal API Parsing](troubleshooting/internal-api-parsing.md) [REFERENCE] - Internal API response parsing troubleshooting
 
+#### Custom / Admin Config Editor
+- **[Admin Config Editor – Plan V3](ADMIN_CONFIG_EDITOR_PLAN_V3.md)** [AUTHORITATIVE] - Current plan: sources of truth, classification, Phases 0–3, Go/No-Go, risks, doc hygiene policy
+- **[Admin Config Editor – Run the server](../admin-editor/README.md)** [REFERENCE] - How to run the local admin editor (Phase 1 server), what is editable, backups, troubleshooting
+- **[Admin Config Editor – Revised Plan (V2)](ADMIN_CONFIG_EDITOR_PLAN_V2.md)** [SUPERSEDED REFERENCE] - Superseded by V3; kept for reference
+- **[Admin Config Editor – Audit](ADMIN_CONFIG_EDITOR_AUDIT.md)** [REFERENCE] - Config and assistant sources, read/write flow
+- **[Admin Config Editor – Architecture](ADMIN_CONFIG_EDITOR_ARCHITECTURE.md)** [REFERENCE] - Single editable model, write targets, validation
+
+#### Other plans and summaries
+- **[Admin Config Editor – Implementation Plan](ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md)** [HISTORICAL] - Superseded by Plan V2; kept for reference
+- **[Analytics Tagging – Assistant Plan](ANALYTICS_TAGGING_ASSISTANT_PLAN.md)** [REFERENCE] - Analytics Tagging assistant design
+- **[Analytics Tagging – Two-Step Workflow Plan](ANALYTICS_TAGGING_TWO_STEP_WORKFLOW_PLAN.md)** [REFERENCE] - Two-step single-selection workflow
+- **[Analytics Tagging – Verification](ANALYTICS_TAGGING_VERIFICATION.md)** [REFERENCE] - Verification notes
+- **[Content Safety and Recovery Plan](CONTENT_SAFETY_AND_RECOVERY_PLAN.md)** [REFERENCE] - Content safety and recovery design
+- **[Selection Policy Plan](SELECTION_POLICY_PLAN.md)** [REFERENCE] - Selection policy for Analytics Tagging
+- **[Documentation Cleanup Summary](documentation-cleanup-summary.md)** [REFERENCE] - Documentation cleanup notes
+- **[Deceptive Review](deceptive-review.md)** [REFERENCE] - Deceptive review feature
+- **[Smart Placement V2 Plan](smart-placement-v2-plan.md)** [REFERENCE] - Smart placement plan
+- **[Smart Placement V2 Summary](smart-placement-v2-summary.md)** [REFERENCE] - Smart placement summary
+- **[Internal API Routing (Plans)](plans/internal-api-routing-and-stability-implementation.md)** [REFERENCE] - Internal API routing implementation plan
+
 #### Other
 - **[Security](security.md)** [AUTHORITATIVE] - Security considerations and data storage
 - **[Health Report](health-report.md)** [REFERENCE] - Codebase health status and migration readiness assessment
@@ -88,6 +108,7 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 ## Documentation Labels
 
 - **[AUTHORITATIVE]** - Source of truth for this topic. Read this first.
+- **[SUPERSEDED REFERENCE]** - Superseded by a newer doc; kept for reference only.
 - **[CONTEXTUAL]** - Supporting context or deep dive. Useful but not required.
 - **[REFERENCE]** - Quick reference, schemas, lookup tables. Use for specific lookups.
 - **[HISTORICAL]** - Archived content. Kept for reference but not current.

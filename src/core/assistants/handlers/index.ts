@@ -8,6 +8,7 @@ import { ContentTableHandler } from './contentTable'
 import { DesignCritiqueHandler } from './designCritique'
 import { DesignWorkshopHandler } from './designWorkshop'
 import { DiscoveryCopilotHandler } from './discovery'
+import { AnalyticsTaggingHandler } from './analyticsTagging'
 
 /**
  * All registered handlers
@@ -16,7 +17,8 @@ const handlers: AssistantHandler[] = [
   new ContentTableHandler(),
   new DesignCritiqueHandler(),
   new DesignWorkshopHandler(),
-  new DiscoveryCopilotHandler()
+  new DiscoveryCopilotHandler(),
+  new AnalyticsTaggingHandler()
 ]
 
 /**

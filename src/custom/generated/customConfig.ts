@@ -11,6 +11,8 @@ export interface CustomConfig {
   ui?: {
     defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
+    simpleModeIds?: string[]
+    contentMvpAssistantId?: string
   }
   llm?: {
     endpoint?: string
@@ -59,7 +61,14 @@ export interface CustomConfig {
 export const customConfig: CustomConfig | null = {
   "ui": {
     "defaultMode": "simple",
-    "hideContentMvpMode": false
+    "hideContentMvpMode": false,
+    "simpleModeIds": [
+      "general",
+      "content_table",
+      "design_critique",
+      "design_workshop"
+    ],
+    "contentMvpAssistantId": "content_table"
   },
   "llm": {
     "endpoint": "",

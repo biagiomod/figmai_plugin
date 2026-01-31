@@ -188,3 +188,24 @@ If a path is missing, it returns an empty string.
 **columns:**
 (empty - not yet defined)
 
+---
+
+## Analytics Tagging
+
+**id:** analytics-tagging  
+**label:** Analytics Tagging  
+**description:** Screen ID, screenshot, description, action type, component, Action ID, Figma link, population, note  
+**enabled:** true
+
+**columns:**
+- key: screenId, label: Screen ID, path: screenId
+- key: screenshot, label: Screenshot, path: screenshot
+- key: description, label: Description, path: description
+- key: actionType, label: Action Type, path: actionType
+- key: component, label: Component, path: component.name
+- key: actionId, label: Action ID, path: actionId
+- key: actionName, label: Action Name, path: actionName
+- key: figmaElementLink, label: Figma Element Link, path: figmaElementLink
+- key: population, label: Population, path: population
+- key: note, label: Note, path: note
+

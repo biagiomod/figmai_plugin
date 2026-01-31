@@ -13,7 +13,10 @@ import * as path from 'path'
 
 interface CustomConfig {
   ui?: {
+    defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
+    simpleModeIds?: string[]
+    contentMvpAssistantId?: string
   }
   llm?: {
     endpoint?: string
@@ -145,11 +148,37 @@ function loadDesignSystemRegistries(rootDir: string): Record<string, any> {
   return registries
 }
 
+const DEFAULT_SIMPLE_MODE_IDS = ['general', 'content_table', 'design_critique', 'design_workshop']
+const DEFAULT_CONTENT_MVP_ASSISTANT_ID = 'content_table'
+
+/**
+ * Normalize config so emitted TS has defaults for modal visibility (simpleModeIds, contentMvpAssistantId).
+ */
+function normalizeConfigForEmit(config: CustomConfig): CustomConfig {
+  const out = { ...config }
+  if (out.ui) {
+    out.ui = { ...out.ui }
+    if (!Array.isArray(out.ui.simpleModeIds) || out.ui.simpleModeIds.length === 0) {
+      out.ui.simpleModeIds = DEFAULT_SIMPLE_MODE_IDS
+    }
+    if (!out.ui.contentMvpAssistantId) {
+      out.ui.contentMvpAssistantId = DEFAULT_CONTENT_MVP_ASSISTANT_ID
+    }
+  } else {
+    out.ui = {
+      simpleModeIds: DEFAULT_SIMPLE_MODE_IDS,
+      contentMvpAssistantId: DEFAULT_CONTENT_MVP_ASSISTANT_ID
+    }
+  }
+  return out
+}
+
 /**
  * Generate custom config TypeScript module
  */
 function generateConfigModule(config: CustomConfig | null): string {
-  const configValue = config ? JSON.stringify(config, null, 2) : 'null'
+  const normalized = config ? normalizeConfigForEmit(config) : null
+  const configValue = normalized ? JSON.stringify(normalized, null, 2) : 'null'
   
   return `/**
  * Generated Custom Config
@@ -164,6 +193,8 @@ export interface CustomConfig {
   ui?: {
     defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
+    simpleModeIds?: string[]
+    contentMvpAssistantId?: string
   }
   llm?: {
     endpoint?: string

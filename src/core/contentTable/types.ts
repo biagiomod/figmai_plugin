@@ -100,3 +100,4 @@ export type TableFormatPreset =
   | "content-model-5"
   | "ada-only"
   | "dev-only"
+  | "analytics-tagging"
