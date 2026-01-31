@@ -132,10 +132,13 @@ export const adminEditableModelSchema = z
 
 export type AdminEditableModel = z.infer<typeof adminEditableModelSchema>
 
-// --- Save request: model + meta.revision (for concurrency guard) ---
-export const saveRequestBodySchema = adminEditableModelSchema.and(
-  z.object({ meta: z.object({ revision: z.string() }) })
-)
+// --- Save request: { model, meta } (meta.revision for concurrency guard). Strict, no extra keys. ---
+export const saveRequestBodySchema = z
+  .object({
+    model: adminEditableModelSchema,
+    meta: z.object({ revision: z.string() })
+  })
+  .strict()
 export type SaveRequestBody = z.infer<typeof saveRequestBodySchema>
 
 // --- Validation result ---

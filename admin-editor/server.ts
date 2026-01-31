@@ -63,7 +63,7 @@ app.post('/api/validate', (req, res) => {
 
 // POST /api/save – validate, backup, write, run generators; return summary.
 // Query ?dryRun=1: preview only (filesWouldWrite, generatorsWouldRun, backupsWouldCreateAt).
-// Body: AdminEditableModel + meta.revision (concurrency guard). On revision mismatch returns 409.
+// Body: { model: AdminEditableModel, meta: { revision } }. On revision mismatch returns 409.
 app.post('/api/save', (req, res) => {
   const dryRun = req.query.dryRun === '1' || req.query.dryRun === 'true'
   try {
@@ -72,7 +72,7 @@ app.post('/api/save', (req, res) => {
       const errors = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
       return res.status(400).json({ errors, success: false })
     }
-    const { model: currentModel, meta: currentMeta } = loadModel(repoRoot)
+    const { meta: currentMeta } = loadModel(repoRoot)
     const clientRevision = parsed.data.meta.revision
     if (currentMeta.revision !== clientRevision) {
       return res.status(409).json({
@@ -86,12 +86,13 @@ app.post('/api/save', (req, res) => {
         }
       })
     }
+    const m = parsed.data.model
     const toSave = {
-      config: parsed.data.config,
-      assistantsManifest: parsed.data.assistantsManifest,
-      customKnowledge: parsed.data.customKnowledge,
-      contentModelsRaw: parsed.data.contentModelsRaw,
-      designSystemRegistries: parsed.data.designSystemRegistries
+      config: m.config,
+      assistantsManifest: m.assistantsManifest,
+      customKnowledge: m.customKnowledge,
+      contentModelsRaw: m.contentModelsRaw,
+      designSystemRegistries: m.designSystemRegistries
     }
     if (dryRun) {
       const summary = saveModelDryRun(toSave, currentMeta, backupRootDir)

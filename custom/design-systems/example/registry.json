@@ -7,7 +7,11 @@
     {
       "name": "Primary Button",
       "key": "I123:456;789:012",
-      "aliases": ["button.primary", "btn-primary", "primary-btn"],
+      "aliases": [
+        "button.primary",
+        "btn-primary",
+        "primary-btn"
+      ],
       "purpose": "Primary action button for the most important user actions such as submitting forms, confirming critical actions, or completing a purchase.",
       "whenToUse": [
         "Submitting forms or completing a transaction",
@@ -30,16 +34,30 @@
       ],
       "isComponentSet": true,
       "variantProperties": {
-        "Size": ["Small", "Medium", "Large"],
-        "State": ["Default", "Hover", "Active", "Disabled"],
-        "Width": ["Auto", "Full"]
+        "Size": [
+          "Small",
+          "Medium",
+          "Large"
+        ],
+        "State": [
+          "Default",
+          "Hover",
+          "Active",
+          "Disabled"
+        ],
+        "Width": [
+          "Auto",
+          "Full"
+        ]
       },
       "accessibility": {
         "minSize": {
           "width": 44,
           "height": 44
         },
-        "requiredLabels": ["Button text or aria-label"],
+        "requiredLabels": [
+          "Button text or aria-label"
+        ],
         "contrastRequirements": "WCAG AA: 4.5:1 contrast ratio for text",
         "ariaGuidance": "Use aria-label if button text is not descriptive enough. Ensure focus indicators are visible."
       },
@@ -55,7 +73,10 @@
     {
       "name": "Card",
       "key": "I234:567;890:123",
-      "aliases": ["card.container", "content-card"],
+      "aliases": [
+        "card.container",
+        "content-card"
+      ],
       "purpose": "Container component for grouping related content such as articles, product information, user profiles, or dashboard widgets.",
       "whenToUse": [
         "Displaying a collection of related information",
@@ -78,7 +99,9 @@
       ],
       "isComponentSet": false,
       "accessibility": {
-        "requiredLabels": ["Card title or heading"],
+        "requiredLabels": [
+          "Card title or heading"
+        ],
         "contrastRequirements": "WCAG AA: 4.5:1 contrast ratio for text content",
         "ariaGuidance": "Use semantic HTML structure. If card is interactive, use role='button' or role='link' with appropriate keyboard handlers."
       },
@@ -93,7 +116,11 @@
     {
       "name": "Text Input",
       "key": "I345:678;901:234",
-      "aliases": ["input.text", "textfield", "form-input"],
+      "aliases": [
+        "input.text",
+        "textfield",
+        "form-input"
+      ],
       "purpose": "Single-line text input field for collecting user text input such as names, emails, search queries, or short-form responses.",
       "whenToUse": [
         "Collecting user text input (names, emails, addresses)",
@@ -116,15 +143,32 @@
       ],
       "isComponentSet": true,
       "variantProperties": {
-        "Size": ["Small", "Medium", "Large"],
-        "State": ["Default", "Focus", "Error", "Disabled"],
-        "Type": ["Text", "Email", "Number", "Tel", "URL"]
+        "Size": [
+          "Small",
+          "Medium",
+          "Large"
+        ],
+        "State": [
+          "Default",
+          "Focus",
+          "Error",
+          "Disabled"
+        ],
+        "Type": [
+          "Text",
+          "Email",
+          "Number",
+          "Tel",
+          "URL"
+        ]
       },
       "accessibility": {
         "minSize": {
           "height": 44
         },
-        "requiredLabels": ["Label text or aria-label"],
+        "requiredLabels": [
+          "Label text or aria-label"
+        ],
         "contrastRequirements": "WCAG AA: 4.5:1 contrast ratio for text and borders",
         "ariaGuidance": "Always associate label with input using 'for' attribute or aria-labelledby. Use aria-invalid for error states. Provide aria-describedby for helper text or error messages."
       },

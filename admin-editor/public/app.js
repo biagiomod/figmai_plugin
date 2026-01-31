@@ -122,7 +122,7 @@
 
   async function apiSave (payload, dryRun) {
     const body = {
-      ...payload,
+      model: payload,
       meta: { revision: state.meta?.revision ?? '' }
     }
     const url = API_BASE + '/api/save' + (dryRun ? '?dryRun=1' : '')
@@ -138,7 +138,10 @@
       err.data = data
       throw err
     }
-    if (!res.ok) throw new Error(data.errors?.join(' ') || data.error || res.statusText || 'Save failed')
+    if (!res.ok) {
+      const msg = Array.isArray(data.errors) ? data.errors.join('; ') : (data.error || res.statusText || 'Save failed')
+      throw new Error(msg)
+    }
     return data
   }
 
@@ -659,7 +662,10 @@
         document.getElementById('validation-message').innerHTML = '<span class="errors">' + escapeHtml(err.message || 'Files changed since load; reload to avoid overwriting.') + '</span>'
       } else {
         showConflictBanner(false)
-        document.getElementById('validation-message').innerHTML = '<span class="errors">Save failed: ' + escapeHtml(String(err.message)) + '</span>'
+        const msg = String(err.message || 'Save failed')
+        const parts = msg.includes('; ') ? msg.split('; ') : [msg]
+        const list = parts.map(function (p) { return '<li>' + escapeHtml(p) + '</li>' }).join('')
+        document.getElementById('validation-message').innerHTML = '<span class="errors">Save failed</span><ul class="errors">' + list + '</ul>'
       }
       renderValidationMessage()
     }
@@ -674,6 +680,9 @@
     try {
       const summary = await apiSave(getEditedModel(), true)
       state.previewSummary = summary
+      if (!summary || (summary.success === true && typeof summary.filesWouldWrite === 'undefined' && typeof summary.generatorsWouldRun === 'undefined')) {
+        console.error('[Admin Editor] Preview request returned no preview summary. Expected { success, filesWouldWrite?, generatorsWouldRun?, backupPreview?, nextSteps? }.')
+      }
       renderPreviewSummary()
       renderValidationMessage()
     } catch (err) {
@@ -681,7 +690,10 @@
         showConflictBanner(true)
         document.getElementById('validation-message').innerHTML = '<span class="errors">' + escapeHtml(err.message || 'Reload required.') + '</span>'
       } else {
-        document.getElementById('validation-message').innerHTML = '<span class="errors">Preview failed: ' + escapeHtml(String(err.message)) + '</span>'
+        const msg = String(err.message || 'Preview failed')
+        const parts = msg.includes('; ') ? msg.split('; ') : [msg]
+        const list = parts.map(function (p) { return '<li>' + escapeHtml(p) + '</li>' }).join('')
+        document.getElementById('validation-message').innerHTML = '<span class="errors">Preview failed</span><ul class="errors">' + list + '</ul>'
       }
       renderValidationMessage()
     }
@@ -696,6 +708,7 @@
     document.getElementById('reload-btn').onclick = function () { loadModel() }
     document.getElementById('validate-btn').onclick = function () { runValidate() }
     document.getElementById('save-btn').onclick = function () { runSave() }
+    document.getElementById('preview-btn').onclick = function () { runPreview() }
     document.getElementById('discard-all-btn').onclick = function () {
       if (!state.originalModel) return
       state.editedModel = deepClone(state.originalModel)
