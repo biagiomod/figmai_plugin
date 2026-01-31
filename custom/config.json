@@ -1,9 +1,14 @@
 {
   "ui": {
+    "contentMvpAssistantId": "content_table",
     "defaultMode": "simple",
     "hideContentMvpMode": false,
-    "simpleModeIds": ["general", "content_table", "design_critique", "design_workshop"],
-    "contentMvpAssistantId": "content_table"
+    "simpleModeIds": [
+      "general",
+      "content_table",
+      "design_critique",
+      "design_workshop"
+    ]
   },
   "llm": {
     "endpoint": "",
@@ -21,6 +26,16 @@
     ]
   },
   "resources": {
+    "credits": {
+      "apiTeam": [],
+      "createdBy": [
+        {
+          "label": "Biagio G",
+          "url": ""
+        }
+      ],
+      "llmInstruct": []
+    },
     "links": {
       "about": {
         "label": "About",
@@ -34,24 +49,14 @@
         "label": "Join Meetup",
         "url": ""
       }
-    },
-    "credits": {
-      "createdBy": [
-        {
-          "label": "Biagio G",
-          "url": ""
-        }
-      ],
-      "apiTeam": [],
-      "llmInstruct": []
     }
   },
   "designSystems": {
-    "enabled": true,
     "activeRegistries": [
       "example"
     ],
     "denylist": [],
+    "enabled": true,
     "strictMode": true
   }
 }

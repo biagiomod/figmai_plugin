@@ -60,6 +60,7 @@ export interface CustomConfig {
 
 export const customConfig: CustomConfig | null = {
   "ui": {
+    "contentMvpAssistantId": "content_table",
     "defaultMode": "simple",
     "hideContentMvpMode": false,
     "simpleModeIds": [
@@ -67,8 +68,7 @@ export const customConfig: CustomConfig | null = {
       "content_table",
       "design_critique",
       "design_workshop"
-    ],
-    "contentMvpAssistantId": "content_table"
+    ]
   },
   "llm": {
     "endpoint": "",
@@ -86,6 +86,16 @@ export const customConfig: CustomConfig | null = {
     ]
   },
   "resources": {
+    "credits": {
+      "apiTeam": [],
+      "createdBy": [
+        {
+          "label": "Biagio G",
+          "url": ""
+        }
+      ],
+      "llmInstruct": []
+    },
     "links": {
       "about": {
         "label": "About",
@@ -99,24 +109,14 @@ export const customConfig: CustomConfig | null = {
         "label": "Join Meetup",
         "url": ""
       }
-    },
-    "credits": {
-      "createdBy": [
-        {
-          "label": "Biagio G",
-          "url": ""
-        }
-      ],
-      "apiTeam": [],
-      "llmInstruct": []
     }
   },
   "designSystems": {
-    "enabled": true,
     "activeRegistries": [
       "example"
     ],
     "denylist": [],
+    "enabled": true,
     "strictMode": true
   }
 }

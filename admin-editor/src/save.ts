@@ -51,6 +51,9 @@ export interface SaveDryRunSummary {
 const NEXT_STEPS =
   'Ask the plugin owner to run `npm run build` and then publish via the normal process.'
 
+const NO_CHANGES_MESSAGE =
+  'No changes detected. Nothing to build or publish.'
+
 /**
  * Run a generator script (npm run <script>) from repo root.
  * Returns exitCode, stdout, stderr for failure reporting.
@@ -160,6 +163,16 @@ export function saveModelDryRun(
     }
   }
   const filesWouldWrite = computeFilesWouldWrite(model, meta, backupRootDir)
+  if (filesWouldWrite.length === 0) {
+    return {
+      success: true,
+      filesWouldWrite: [],
+      generatorsWouldRun: [],
+      backupsWouldCreateAt: '',
+      backupRootPreview: '',
+      nextSteps: NO_CHANGES_MESSAGE
+    }
+  }
   const ts = backupTimestamp()
   const backupRootPreview = path.join(backupRootDir, ts)
   return {
@@ -192,6 +205,18 @@ export function saveModel(
       generatorsRun: [],
       errors: validation.errors,
       nextSteps: NEXT_STEPS
+    }
+  }
+
+  const filesWouldWrite = computeFilesWouldWrite(model, meta, backupRootDir)
+  if (filesWouldWrite.length === 0) {
+    return {
+      success: true,
+      filesWritten: [],
+      generatorsRun: [],
+      backupsCreatedAt: '',
+      backupRoot: '',
+      nextSteps: NO_CHANGES_MESSAGE
     }
   }
 
