@@ -16,7 +16,7 @@ Or:
 npm run admin:dev
 ```
 
-Then open **http://localhost:3333** in your browser. The Phase 2 UI loads the model, provides tabs (Config, Assistants, Knowledge, Content Models, Design System Registries), and a footer with Reload, Validate, and Save. All writes go through the server; the UI only calls the API.
+Then open **http://localhost:3333** in your browser. The Phase 2 UI loads the model, provides tabs (Config, Assistants, Knowledge, Content Models, Design System Registries), and a footer with Reload, Validate, Preview changes, and Save. All writes go through the server; the UI only calls the API. The UI includes loading/disabled states, keyboard-accessible tabs (arrow keys, focus-visible), error recovery (Retry on load failure, Reload on 409 conflict, Copy error), and danger-zone framing for raw editors (Config advanced JSON, Content Models, Registries) with optional inline JSON validation feedback.
 
 To use a different port:
 
@@ -67,6 +67,30 @@ Before each write, the server copies the target file under **admin-editor/.backu
 - Does **not** compile or build the plugin
 - Does **not** publish the plugin
 - Does **not** edit any `.ts` or `.tsx` files
+
+## Manual test checklist
+
+Use this to verify footer states, validation staleness, copy error, tabs a11y, and inline JSON behavior.
+
+1. **Footer buttons**
+   - Reload: enabled when not loading; label "Reload" (or "Loading…" during load).
+   - Preview / Save: disabled when no unsaved changes; enabled when dirty (Preview always when dirty, Save only after Validate with no errors).
+   - After Validate with errors: Save stays disabled until errors are fixed and Validate run again.
+   - After any edit: Save disabled until Validate is run again (validation stale).
+   - After Validate (no errors): Save enabled if dirty. After Save/Preview request completes, labels restore to "Save" / "Preview changes".
+
+2. **Validation staleness**
+   - Load → edit one field → Save is disabled. Click Validate → Save enabled (if no errors). Edit again → Save disabled until Validate again.
+
+3. **Copy error**
+   - Trigger a validation or save/preview error; click "Copy error". Pasted content is a short, bounded message + errors (no large DOM dump). Optional: "Copy details" for generator output is already bounded (generator stderr/stdout only).
+
+4. **Tabs a11y**
+   - Each tab has `aria-controls` pointing to its panel (`panel-config`, etc.). Arrow Left/Right moves between visible tabs; Enter/Space activates. Hidden tabs (Content Models / Registries when empty) have `tabindex="-1"` and are not focusable.
+
+5. **Inline JSON**
+   - Config → Advanced: raw config JSON. Enter invalid JSON → "Invalid JSON" appears under textarea; Save is disabled until JSON is valid or section is reset. Other tabs and Validate still work.
+   - Registries: invalid JSON in a registry textarea → "Invalid JSON" for that block; Save disabled until all registry JSON is valid or section is reset.
 
 ## Troubleshooting
 

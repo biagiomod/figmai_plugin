@@ -21,6 +21,16 @@ interface CustomConfig {
   llm?: {
     endpoint?: string
     hideModelSettings?: boolean
+    uiMode?: 'full' | 'connection-only'
+    promptDiagnostics?: {
+      enabled?: boolean
+      level?: 'off' | 'compact' | 'details'
+    }
+    safety?: {
+      forceNoKbName?: boolean
+      forceNoSelectionSummary?: boolean
+      forceNoImages?: boolean
+    }
   }
   knowledgeBases?: Record<string, {
     policy: 'append' | 'override'
@@ -200,6 +210,15 @@ export interface CustomConfig {
     endpoint?: string
     hideModelSettings?: boolean
     uiMode?: 'full' | 'connection-only'
+    promptDiagnostics?: {
+      enabled?: boolean
+      level?: 'off' | 'compact' | 'details'
+    }
+    safety?: {
+      forceNoKbName?: boolean
+      forceNoSelectionSummary?: boolean
+      forceNoImages?: boolean
+    }
   }
   knowledgeBases?: Record<string, {
     policy: 'append' | 'override'

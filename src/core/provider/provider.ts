@@ -70,6 +70,8 @@ export interface ChatRequest {
   selectionSummary?: string
   images?: ImageData[]
   quickAction?: string
+  /** When true, provider may omit or reduce context (e.g. empty kbName) for content-policy fallback */
+  minimalForContentFilter?: boolean
 }
 
 /**

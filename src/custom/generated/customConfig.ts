@@ -18,6 +18,15 @@ export interface CustomConfig {
     endpoint?: string
     hideModelSettings?: boolean
     uiMode?: 'full' | 'connection-only'
+    promptDiagnostics?: {
+      enabled?: boolean
+      level?: 'off' | 'compact' | 'details'
+    }
+    safety?: {
+      forceNoKbName?: boolean
+      forceNoSelectionSummary?: boolean
+      forceNoImages?: boolean
+    }
   }
   knowledgeBases?: Record<string, {
     policy: 'append' | 'override'
@@ -73,7 +82,16 @@ export const customConfig: CustomConfig | null = {
   "llm": {
     "endpoint": "",
     "hideModelSettings": false,
-    "uiMode": "full"
+    "uiMode": "full",
+    "promptDiagnostics": {
+      "enabled": false,
+      "level": "compact"
+    },
+    "safety": {
+      "forceNoKbName": false,
+      "forceNoSelectionSummary": false,
+      "forceNoImages": true
+    }
   },
   "knowledgeBases": {},
   "networkAccess": {

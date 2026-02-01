@@ -234,13 +234,12 @@ export class InternalApiProvider implements Provider {
             )
         }
 
-        const payload = {
+        const payload: Record<string, string> = {
             type: 'generalChat',
-            message: userMessages,
-            kbName: 'figma'
-            //   knowledgeBase: 'general',
-            //   knowledgeBaseSelect: 'general',
-            //   assistant: 'general'
+            message: userMessages
+        }
+        if (!request.minimalForContentFilter) {
+            payload.kbName = 'figma'
         }
 
         const url = baseUrl

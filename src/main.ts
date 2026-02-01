@@ -518,15 +518,17 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   
   // Apply preamble injection for providers that support it (Internal API only)
   let finalChatMessages = chatMessages
+  let assistantPreambleForRecovery: string | undefined
   if (currentProvider && currentProvider.capabilities.supportsPreambleInjection) {
     // Check if this is the first user message in the segment
-    const isFirstUserMessage = segmentMessages.length > 0 && 
+    const isFirstUserMessage = segmentMessages.length > 0 &&
       segmentMessages[0].role === 'user' &&
       preambleSentForSegment !== currentAssistant.id
-    
+
     if (isFirstUserMessage && finalChatMessages.length > 0 && finalChatMessages[0].role === 'user') {
       // Prepend assistant preamble to first user message (invisible to user)
       const preamble = `${currentAssistant.label} context: ${getShortInstructions(currentAssistant)}. Ignore previous assistant instructions.\n\n`
+      assistantPreambleForRecovery = preamble
       finalChatMessages[0] = {
         ...finalChatMessages[0],
         content: preamble + finalChatMessages[0].content
@@ -569,8 +571,12 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
     }, {
       selectionSummary: selectionContext?.selectionSummary,
       assistantId: currentAssistant.id,
-      quickActionId: undefined
+      quickActionId: undefined,
+      assistantPreamble: assistantPreambleForRecovery
     })
+    if (recoveryResult.diagnostics) {
+      figma.ui.postMessage({ pluginMessage: { type: 'PROMPT_DIAG', diagnostics: recoveryResult.diagnostics } })
+    }
     const response = recoveryResult.response
     const contentSimplified = recoveryResult.recoveredWithSummary === true
 
@@ -878,16 +884,15 @@ Use SEND JSON to import or GET JSON to export your designs.`
     }))
   )
   
-  // Apply preamble injection for providers that support it (Internal API only)
+  let assistantPreambleForQuickAction: string | undefined
   if (currentProvider && currentProvider.capabilities.supportsPreambleInjection) {
-    // Check if this is the first user message in the segment
-    const isFirstUserMessage = segmentMessages.length > 0 && 
+    const isFirstUserMessage = segmentMessages.length > 0 &&
       segmentMessages[0].role === 'user' &&
       preambleSentForSegment !== assistant.id
-    
+
     if (isFirstUserMessage && chatMessages.length > 0 && chatMessages[0].role === 'user') {
-      // Prepend assistant preamble to first user message (invisible to user)
       const preamble = `${assistant.label} context: ${getShortInstructions(assistant)}. Ignore previous assistant instructions.\n\n`
+      assistantPreambleForQuickAction = preamble
       chatMessages[0] = {
         ...chatMessages[0],
         content: preamble + chatMessages[0].content
@@ -896,7 +901,7 @@ Use SEND JSON to import or GET JSON to export your designs.`
       console.log('[Main] Injected preamble for Internal API (first message in segment, quick action)')
     }
   }
-  
+
   // Allow handler to modify messages (e.g., Design Critique JSON enforcement)
   if (handler && handler.prepareMessages) {
     const modifiedMessages = handler.prepareMessages(chatMessages)
@@ -959,8 +964,12 @@ Use SEND JSON to import or GET JSON to export your designs.`
     }, {
       selectionSummary: selectionContext.selectionSummary,
       assistantId: assistant.id,
-      quickActionId: action.id
+      quickActionId: action.id,
+      assistantPreamble: assistantPreambleForQuickAction
     })
+    if (recoveryResult.diagnostics) {
+      figma.ui.postMessage({ pluginMessage: { type: 'PROMPT_DIAG', diagnostics: recoveryResult.diagnostics } })
+    }
     const response = recoveryResult.response
     const contentSimplified = recoveryResult.recoveredWithSummary === true
 

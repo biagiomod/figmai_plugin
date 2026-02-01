@@ -1,13 +1,26 @@
 /**
  * Content Safety — Send with recovery
- * Orchestrates Tier 1 → send; on CONTENT_FILTER, Tier 2 → send; on CONTENT_FILTER, Tier 3 → send.
+ * Pipeline (assemble → sanitize → budget → assert) → send; on CONTENT_FILTER, one fallback with minimal payload; then Tier 2 → Tier 3.
  * Does not change provider selection or add external calls.
  */
 
 import type { Provider, ChatRequest } from '../provider/provider'
 import { ProviderError, ProviderErrorType } from '../provider/provider'
-import { preparePayloadTier1, preparePayloadTier2, preparePayloadTier3, detectSensitivePatterns, mergeSignals, buildScreenChunksFromSelectionSummaryString, formatScreenIndex } from './prepare'
+import { preparePayloadTier2, preparePayloadTier3, detectSensitivePatterns, mergeSignals, buildScreenChunksFromSelectionSummaryString, formatScreenIndex } from './prepare'
 import type { DetectionSignals, ContentBlockContext } from './types'
+import {
+  assembleSegments,
+  sanitizeSegments,
+  applyBudgets,
+  buildMessages,
+  applySafetyAssertions,
+  diagnose,
+  DEFAULT_BUDGETS,
+  ALLOW_IMAGES_BUDGETS,
+  type PromptSegments,
+  type DiagFlag
+} from '../llm/promptPipeline'
+import { isPromptDiagnosticsEnabled, getSafetyToggles } from '../../custom/config'
 
 const CONTENT_POLICY_PHRASES = ['content_filter', 'content policy', 'content filtering', 'content_policy', 'blocked by content']
 
@@ -17,6 +30,10 @@ export interface SendChatWithRecoveryOptions {
   /** For metadata-only logging: assistantId, quickActionId. */
   assistantId?: string
   quickActionId?: string
+  /** When set, pipeline treats preamble separately for budgeting/flags (split from first user message). */
+  assistantPreamble?: string
+  /** When true, use ALLOW_IMAGES_BUDGETS (small cap) so up to 2 images under byte cap can be sent; still subject to forceNoImages. */
+  allowImages?: boolean
 }
 
 export interface SendChatWithRecoveryResult {
@@ -24,6 +41,14 @@ export interface SendChatWithRecoveryResult {
   tierUsed: 1 | 2 | 3
   recoveredWithRedaction?: boolean
   recoveredWithSummary?: boolean
+  /** When prompt diagnostics enabled: one-line compact string, optional details, and safety toggles for Work mode UI. */
+  diagnostics?: {
+    compact: string
+    details?: Record<string, number | string>
+    safety?: { noKbName?: boolean; noCtx?: boolean; noImages?: boolean }
+  }
+  /** True when CONTENT_FILTER was recovered via minimal-payload fallback. */
+  fallbackUsed?: boolean
 }
 
 function emptySignals(): DetectionSignals {
@@ -112,14 +137,90 @@ export async function sendChatWithRecovery(
   const signals = collectSignals(originalRequest)
   const assistantId = options?.assistantId
   const quickActionId = options?.quickActionId
+  const diagnosticsEnabled = isPromptDiagnosticsEnabled()
+  const kbName = provider.id === 'internal-api' ? 'figma' : 'none'
 
-  // Attempt 1: Tier 1
-  const payload1 = preparePayloadTier1(originalRequest)
+  // Attempt 1: Pipeline (assemble → sanitize → budget → assert) then send
+  const { segments: segmentsBefore } = assembleSegments(originalRequest, {
+    assistantPreamble: options?.assistantPreamble
+  })
+  const { segments: segmentsSanitized, flags: sanitizeFlags } = sanitizeSegments(segmentsBefore)
+  const budgets = options?.allowImages === true ? ALLOW_IMAGES_BUDGETS : DEFAULT_BUDGETS
+  const { segments: segmentsAfter, flags: budgetFlags, trims } = applyBudgets(segmentsSanitized, budgets)
+  const allFlags: DiagFlag[] = Array.from(new Set([...sanitizeFlags, ...budgetFlags]))
+  const request1 = buildMessages(segmentsAfter, originalRequest)
+  const { request: payload1Raw } = applySafetyAssertions(request1)
+  const safety = getSafetyToggles()
+  const payload1: ChatRequest = {
+    ...payload1Raw,
+    ...(safety.forceNoKbName ? { minimalForContentFilter: true } : {}),
+    ...(safety.forceNoSelectionSummary ? { selectionSummary: undefined } : {}),
+    ...(safety.forceNoImages ? { images: undefined } : {})
+  }
+  const forced = {
+    noKbName: safety.forceNoKbName,
+    noCtx: safety.forceNoSelectionSummary,
+    noImages: safety.forceNoImages
+  }
   const charCount1 = payload1.messages.reduce((n, m) => n + m.content.length, 0) + (payload1.selectionSummary?.length ?? 0)
   try {
     const response = await provider.sendChat(payload1)
     logRecoveryMeta(1, true, charCount1, undefined, undefined, assistantId, quickActionId)
-    return { response, tierUsed: 1 }
+    const result: SendChatWithRecoveryResult = { response, tierUsed: 1 }
+    if (diagnosticsEnabled) {
+      const { compact, details } = diagnose({
+        segmentsBefore,
+        segmentsAfter,
+        providerId: provider.id,
+        kbName,
+        fallback: 0,
+        trims,
+        flags: allFlags,
+        forced
+      })
+      result.diagnostics = { compact, details, safety: forced }
+    }
+    return result
+  } catch (err) {
+    if (!(err instanceof ProviderError) || err.type !== ProviderErrorType.CONTENT_FILTER) {
+      throw err
+    }
+  }
+
+  // Fallback: one retry with minimal payload (no selectionSummary, no images; minimal message)
+  const lastUserContentForFallback = originalRequest.messages.length > 0
+    ? (originalRequest.messages[originalRequest.messages.length - 1]?.content ?? '')
+    : ''
+  const minimalMessage =
+    'User requested assistance. Context was reduced for policy compliance.\n\n' + lastUserContentForFallback
+  const minimalRequest: ChatRequest = {
+    ...originalRequest,
+    messages: [{ role: 'user', content: minimalMessage }],
+    selectionSummary: undefined,
+    images: undefined,
+    minimalForContentFilter: true
+  }
+  const { segments: minSegmentsBefore } = assembleSegments(minimalRequest)
+  const { segments: minSanitized } = sanitizeSegments(minSegmentsBefore)
+  const { segments: minAfter, trims: minTrims, flags: minFlags } = applyBudgets(minSanitized)
+  const payloadFallback = applySafetyAssertions(buildMessages(minAfter, minimalRequest)).request
+  try {
+    const response = await provider.sendChat(payloadFallback)
+    logRecoveryMeta(1, true, payloadFallback.messages.reduce((n, m) => n + m.content.length, 0), undefined, undefined, assistantId, quickActionId)
+    const result: SendChatWithRecoveryResult = { response, tierUsed: 1, fallbackUsed: true }
+    if (diagnosticsEnabled) {
+      const { compact, details } = diagnose({
+        segmentsBefore: minSegmentsBefore,
+        segmentsAfter: minAfter,
+        providerId: provider.id,
+        kbName,
+        fallback: 1,
+        trims: minTrims,
+        flags: minFlags
+      })
+      result.diagnostics = { compact, details }
+    }
+    return result
   } catch (err) {
     if (!(err instanceof ProviderError) || err.type !== ProviderErrorType.CONTENT_FILTER) {
       throw err
@@ -145,11 +246,11 @@ export async function sendChatWithRecovery(
     ? buildScreenChunksFromSelectionSummaryString(selectionSummaryForTier3)
     : []
   const indexString = chunks.length > 0 ? formatScreenIndex(chunks) : 'Selection context omitted for policy compliance.'
-  const lastUserContent = originalRequest.messages.length > 0
+  const lastUserContentForTier3 = originalRequest.messages.length > 0
     ? (originalRequest.messages[originalRequest.messages.length - 1]?.content ?? '')
     : ''
-  const lastUserHadSignals = lastUserContent
-    ? Object.values(detectSensitivePatterns(lastUserContent)).some(Boolean)
+  const lastUserHadSignals = lastUserContentForTier3
+    ? Object.values(detectSensitivePatterns(lastUserContentForTier3)).some(Boolean)
     : false
   const payload3 = preparePayloadTier3(originalRequest, indexString, {
     neutralizeLastUserMessage: lastUserHadSignals

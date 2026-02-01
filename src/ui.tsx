@@ -128,7 +128,7 @@ import { PRESET_INFO } from './core/contentTable/presets.generated'
 import { sessionToTable } from './core/analyticsTagging/sessionToTable'
 import type { Session } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
-import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits } from './custom/config'
+import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits, isPromptDiagnosticsEnabled } from './custom/config'
 import { BUILD_VERSION } from './core/build'
 import { debugLog } from './ui/utils/debug'
 
@@ -349,6 +349,12 @@ function Plugin() {
   const [isCopyingRefImage, setIsCopyingRefImage] = useState(false)
   const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
   const [showConfluenceModal, setShowConfluenceModal] = useState(false)
+  const [lastPromptDiagnostics, setLastPromptDiagnostics] = useState<{
+    compact: string
+    details?: Record<string, number | string>
+    safety?: { noKbName?: boolean; noCtx?: boolean; noImages?: boolean }
+  } | null>(null)
+  const [showPromptDiagDetails, setShowPromptDiagDetails] = useState(false)
   const [confluenceFormat, setConfluenceFormat] = useState<TableFormatPreset>('universal')
   // Analytics Tagging state
   const [analyticsTaggingSession, setAnalyticsTaggingSession] = useState<Session | null>(null)
@@ -433,6 +439,15 @@ function Plugin() {
             setSelectionState(message.state)
           } else {
             console.warn('SELECTION_STATE message missing state:', message)
+          }
+          break
+        case 'PROMPT_DIAG':
+          if (message.diagnostics && typeof message.diagnostics.compact === 'string') {
+            setLastPromptDiagnostics({
+              compact: message.diagnostics.compact,
+              details: message.diagnostics.details,
+              safety: message.diagnostics.safety
+            })
           }
           break
         case 'ASSISTANT_MESSAGE':
@@ -769,6 +784,8 @@ function Plugin() {
     setShowTableView(false)
     setShowCopyFormatModal(false)
     setShowConfluenceModal(false)
+    setLastPromptDiagnostics(null)
+    setShowPromptDiagDetails(false)
     
     // Reset selection-related state
     setSelectionRequired(false)
@@ -2603,7 +2620,111 @@ ${htmlTable}
             This action requires a selection. Please select one or more nodes.
           </div>
         )}
-        
+
+        {/* Prompt diagnostics (compact, no raw prompt) + Work mode */}
+        {isPromptDiagnosticsEnabled() && lastPromptDiagnostics && (
+          <div style={{
+            padding: 'var(--spacing-sm)',
+            backgroundColor: 'var(--surface-row)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            wordBreak: 'break-all'
+          }}>
+            {lastPromptDiagnostics.safety && (lastPromptDiagnostics.safety.noKbName || lastPromptDiagnostics.safety.noCtx || lastPromptDiagnostics.safety.noImages) && (
+              <div style={{ marginBottom: 'var(--spacing-xs)', color: 'var(--fg-secondary)', fontSize: '10px' }}>
+                Work mode: {[
+                  lastPromptDiagnostics.safety.noKbName && 'no KB',
+                  lastPromptDiagnostics.safety.noCtx && 'no ctx',
+                  lastPromptDiagnostics.safety.noImages && 'no images'
+                ].filter(Boolean).join(', ')}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+              <span style={{ flex: 1, minWidth: 0 }} title={lastPromptDiagnostics.compact}>
+                {lastPromptDiagnostics.compact}
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard?.writeText(lastPromptDiagnostics!.compact)
+                    setShowCopySuccess(true)
+                    setTimeout(() => setShowCopySuccess(false), 2000)
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{
+                  padding: '2px 6px',
+                  fontSize: '10px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer'
+                }}
+              >
+                Copy diag
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const checklist = 'Enable llm.promptDiagnostics.enabled; set llm.safety.forceNoKbName/forceNoSelectionSummary/forceNoImages; send Hello?; copy diag; A/B: forceNoKbName on vs off to isolate kbName.'
+                  try {
+                    await navigator.clipboard?.writeText(checklist)
+                    setShowCopySuccess(true)
+                    setTimeout(() => setShowCopySuccess(false), 2000)
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{
+                  padding: '2px 6px',
+                  fontSize: '10px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer'
+                }}
+              >
+                Copy env checklist
+              </button>
+              {lastPromptDiagnostics.details && (
+                <button
+                  type="button"
+                  onClick={() => setShowPromptDiagDetails((v) => !v)}
+                  style={{
+                    padding: '2px 6px',
+                    fontSize: '10px',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg)',
+                    color: 'var(--fg)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showPromptDiagDetails ? 'Hide details' : 'Show details'}
+                </button>
+              )}
+            </div>
+            {showPromptDiagDetails && lastPromptDiagnostics.details && (
+              <table style={{ marginTop: 'var(--spacing-xs)', width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {Object.entries(lastPromptDiagnostics.details).map(([k, v]) => (
+                    <tr key={k}>
+                      <td style={{ padding: '2px 6px 2px 0', color: 'var(--fg-secondary)' }}>{k}</td>
+                      <td style={{ padding: '2px 0' }}>{String(v)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
         {/* Text Input */}
         <TextboxMultiline
           ref={inputRef}

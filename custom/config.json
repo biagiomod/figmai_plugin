@@ -13,7 +13,16 @@
   "llm": {
     "endpoint": "",
     "hideModelSettings": false,
-    "uiMode": "full"
+    "uiMode": "full",
+    "promptDiagnostics": {
+      "enabled": false,
+      "level": "compact"
+    },
+    "safety": {
+      "forceNoKbName": false,
+      "forceNoSelectionSummary": false,
+      "forceNoImages": true
+    }
   },
   "knowledgeBases": {},
   "networkAccess": {

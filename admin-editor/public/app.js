@@ -19,10 +19,14 @@
     saveSummary: null,
     previewSummary: null,
     conflictBanner: false,
+    loadingAction: null,
     selectedTab: 'config',
     selectedAssistantId: null,
     selectedKnowledgeId: null,
-    loadedAt: null
+    loadedAt: null,
+    configRawParseError: false,
+    registryParseErrors: {},
+    lastDisplayError: null
   }
 
   function deepClone (obj) {
@@ -125,14 +129,49 @@
   }
 
   function showUnsavedBanner () {
+    if (hasUnsavedChanges()) state.lastValidation = null
     const banner = document.getElementById('unsaved-banner')
     banner.style.display = hasUnsavedChanges() ? 'flex' : 'none'
+    updateFooterButtons()
   }
 
   function showConflictBanner (show) {
     state.conflictBanner = !!show
     const banner = document.getElementById('conflict-banner')
     banner.style.display = show ? 'flex' : 'none'
+  }
+
+  function updateFooterButtons () {
+    const loading = state.loadingAction
+    const dirty = hasUnsavedChanges()
+    const hasErrors = state.lastValidation && state.lastValidation.errors && state.lastValidation.errors.length > 0
+    const validationStale = dirty && !state.lastValidation
+    const hasParseError = state.configRawParseError || Object.keys(state.registryParseErrors || {}).some(function (k) { return state.registryParseErrors[k] })
+    const reloadBtn = document.getElementById('reload-btn')
+    const validateBtn = document.getElementById('validate-btn')
+    const previewBtn = document.getElementById('preview-btn')
+    const saveBtn = document.getElementById('save-btn')
+    if (reloadBtn) {
+      reloadBtn.disabled = !!loading
+      reloadBtn.textContent = loading === 'reload' ? 'Loading…' : 'Reload'
+    }
+    if (validateBtn) {
+      validateBtn.disabled = !!loading
+      validateBtn.textContent = loading === 'validate' ? 'Validating…' : 'Validate'
+    }
+    if (previewBtn) {
+      previewBtn.disabled = !!loading || !dirty
+      previewBtn.textContent = loading === 'preview' ? 'Previewing…' : 'Preview changes'
+    }
+    if (saveBtn) {
+      saveBtn.disabled = !!loading || !dirty || validationStale || !!hasErrors || !!hasParseError
+      saveBtn.textContent = loading === 'save' ? 'Saving…' : 'Save'
+    }
+    const footerStatus = document.getElementById('footer-status')
+    if (footerStatus) {
+      footerStatus.textContent = loading ? (loading.charAt(0).toUpperCase() + loading.slice(1) + '…') : ''
+      footerStatus.style.display = loading ? 'block' : 'none'
+    }
   }
 
   function getEditedModel () {
@@ -203,7 +242,9 @@
 
   async function loadModel () {
     state.connected = false
+    state.loadingAction = 'reload'
     updateStatus()
+    updateFooterButtons()
     try {
       const data = await apiGetModel()
       const canonical = canonicalizeModel(data.model)
@@ -216,15 +257,36 @@
       state.saveSummary = null
       state.previewSummary = null
       state.lastValidation = null
+      state.configRawParseError = false
+      state.registryParseErrors = {}
+      state.lastDisplayError = null
       showConflictBanner(false)
       updateStatus()
       showUnsavedBanner()
       renderAllPanels()
+      state.loadingAction = null
+      updateFooterButtons()
       return true
     } catch (err) {
       state.connected = false
+      state.loadingAction = null
       updateStatus()
-      document.getElementById('validation-message').innerHTML = '<span class="errors">Load failed: ' + escapeHtml(String(err.message)) + '</span>'
+      updateFooterButtons()
+      const msg = String(err.message || 'Load failed')
+      state.lastDisplayError = { message: 'Load failed', errors: [msg] }
+      const validationEl = document.getElementById('validation-message')
+      validationEl.innerHTML = '<div class="error-block">' +
+        '<span class="errors">' + escapeHtml(msg) + '</span> ' +
+        '<button type="button" class="btn-small" id="load-retry-btn">Retry</button> ' +
+        '<button type="button" class="btn-small" id="load-copy-error-btn">Copy error</button>' +
+        '</div>'
+      const retryBtn = document.getElementById('load-retry-btn')
+      if (retryBtn) retryBtn.onclick = function () { loadModel() }
+      const copyBtn = document.getElementById('load-copy-error-btn')
+      if (copyBtn) copyBtn.onclick = function () {
+        const text = state.lastDisplayError ? formatCopyableError(state.lastDisplayError) : ('Load failed: ' + msg)
+        navigator.clipboard.writeText(text).then(() => { copyBtn.textContent = 'Copied!' })
+      }
       return false
     }
   }
@@ -235,21 +297,65 @@
     return div.innerHTML
   }
 
+  function getValidationErrorText () {
+    const last = state.lastValidation
+    const errs = last ? (last.errors || []) : state.validation.errors || []
+    const warns = last ? (last.warnings || []) : state.validation.warnings || []
+    const parts = []
+    if (errs.length) parts.push('Errors: ' + errs.join('; '))
+    if (warns.length) parts.push('Warnings: ' + warns.join('; '))
+    return parts.length ? parts.join('\n') : ''
+  }
+
+  /** Bounded payload for Copy error: message + errors (no arbitrary DOM). Max ~4k chars. */
+  function formatCopyableError (obj) {
+    if (!obj || typeof obj.message !== 'string') return ''
+    const parts = [obj.message]
+    if (Array.isArray(obj.errors) && obj.errors.length) parts.push(obj.errors.join('\n'))
+    if (obj.details && typeof obj.details === 'string') parts.push(obj.details)
+    const text = parts.join('\n\n')
+    return text.length > 4096 ? text.slice(0, 4096) + '\n…(truncated)' : text
+  }
+
   function renderValidationMessage () {
+    state.lastDisplayError = null
     const el = document.getElementById('validation-message')
     const last = state.lastValidation
     if (!last) {
-      el.innerHTML = state.validation.errors.length || state.validation.warnings.length
-        ? '<span class="errors">' + state.validation.errors.map(escapeHtml).join('; ') + '</span>' +
-          (state.validation.warnings.length ? '<div class="warnings">' + state.validation.warnings.map(escapeHtml).join('; ') + '</div>' : '')
-        : ''
+      const hasErr = state.validation.errors.length > 0
+      const hasWarn = state.validation.warnings.length > 0
+      if (!hasErr && !hasWarn) {
+        el.innerHTML = ''
+        updateFooterButtons()
+        return
+      }
+      let html = '<span class="errors">' + state.validation.errors.map(escapeHtml).join('; ') + '</span>'
+      if (hasWarn) html += '<div class="warnings">' + state.validation.warnings.map(escapeHtml).join('; ') + '</div>'
+      if (hasErr) html += ' <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
+      el.innerHTML = html
+      bindCopyValidationError()
+      updateFooterButtons()
       return
     }
     let html = ''
     if (last.errors && last.errors.length) html += '<span class="errors">' + last.errors.map(escapeHtml).join('; ') + '</span>'
     if (last.warnings && last.warnings.length) html += '<div class="warnings">' + last.warnings.map(escapeHtml).join('; ') + '</div>'
     if (!html) html = 'Validation passed.'
+    else html += ' <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
     el.innerHTML = html
+    bindCopyValidationError()
+    updateFooterButtons()
+  }
+
+  function bindCopyValidationError () {
+    const btn = document.getElementById('copy-validation-error-btn')
+    if (!btn) return
+    btn.onclick = function () {
+      const text = state.lastDisplayError
+        ? formatCopyableError(state.lastDisplayError)
+        : getValidationErrorText()
+      if (text) navigator.clipboard.writeText(text).then(() => { btn.textContent = 'Copied!' })
+    }
   }
 
   function renderSaveSummary () {
@@ -354,8 +460,10 @@
     html += '<input type="text" id="config-simpleModeIds" value="' + escapeHtml(simpleModeIds) + '" placeholder="e.g. general, design_critique">'
     html += '<label>Content-MVP assistant ID</label>'
     html += '<input type="text" id="config-contentMvpAssistantId" value="' + escapeHtml(ui.contentMvpAssistantId || '') + '" placeholder="e.g. content_table">'
-    html += '<details class="collapsible"><summary>Advanced: raw config JSON</summary>'
-    html += '<textarea class="raw large" id="config-raw" rows="12">' + escapeHtml(JSON.stringify(m.config, null, 2)) + '</textarea>'
+    html += '<details class="collapsible danger-zone"><summary>Advanced: raw config JSON</summary>'
+    html += '<p class="danger-zone-label">Raw editing — invalid JSON will fail validation.</p>'
+    html += '<textarea class="raw large" id="config-raw" rows="12" aria-describedby="config-raw-error">' + escapeHtml(JSON.stringify(m.config, null, 2)) + '</textarea>'
+    html += '<span id="config-raw-error" class="inline-error" aria-live="polite"></span>'
     html += '</details>'
     panel.innerHTML = html
 
@@ -375,16 +483,24 @@
       state.editedModel.config.ui.contentMvpAssistantId = this.value.trim() || undefined
       showUnsavedBanner()
     }
-    document.getElementById('config-raw').onchange = function () {
+    document.getElementById('config-raw').onchange = document.getElementById('config-raw').oninput = function () {
+      const errEl = document.getElementById('config-raw-error')
       try {
         const parsed = JSON.parse(this.value)
         state.editedModel.config = parsed
+        state.configRawParseError = false
+        if (errEl) { errEl.textContent = ''; errEl.classList.remove('visible') }
         showUnsavedBanner()
-      } catch (_) { /* ignore invalid JSON until validate */ }
+      } catch (_) {
+        state.configRawParseError = true
+        if (errEl) { errEl.textContent = 'Invalid JSON'; errEl.classList.add('visible') }
+        showUnsavedBanner()
+      }
     }
     document.getElementById('reset-config-btn').onclick = function () {
       if (!state.originalModel) return
       state.editedModel.config = deepClone(state.originalModel.config)
+      state.configRawParseError = false
       showUnsavedBanner()
       renderConfigTab()
     }
@@ -584,9 +700,12 @@
     const m = state.editedModel
     const raw = m?.contentModelsRaw ?? ''
 
-    let html = '<div class="banner-warning">Changing this affects generated presets. Edit with care.</div>'
+    let html = '<div class="danger-zone">'
+    html += '<p class="danger-zone-label">Raw content model markdown — changing this affects generated presets. Edit with care.</p>'
+    html += '<div class="banner-warning">Changing this affects generated presets. Edit with care.</div>'
     html += '<div class="reset-section"><button type="button" class="btn-small" id="revert-content-models-btn">Revert</button></div>'
     html += '<textarea id="content-models-raw" class="large" rows="24">' + escapeHtml(raw) + '</textarea>'
+    html += '</div>'
     panel.innerHTML = html
 
     document.getElementById('content-models-raw').onchange = document.getElementById('content-models-raw').oninput = function () {
@@ -609,29 +728,44 @@
 
     let html = '<div class="section-title">Design System Registries</div>'
     html += '<div class="reset-section"><button type="button" class="btn-small" id="reset-registries-btn">Reset section</button></div>'
+    html += '<p class="danger-zone-label">Raw registry JSON per design system — invalid JSON will fail validation.</p>'
     ids.forEach(id => {
       const val = regs[id]
       const str = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val)
-      html += '<div class="registry-block"><label>' + escapeHtml(id) + ' (registry.json)</label>'
-      html += '<textarea id="registry-' + escapeHtml(id) + '" class="large" rows="10">' + escapeHtml(str) + '</textarea></div>'
+      html += '<div class="registry-block danger-zone"><label>' + escapeHtml(id) + ' (registry.json)</label>'
+      html += '<textarea id="registry-' + escapeHtml(id) + '" class="large" rows="10" aria-describedby="registry-error-' + escapeHtml(id) + '">' + escapeHtml(str) + '</textarea>'
+      html += '<span id="registry-error-' + escapeHtml(id) + '" class="inline-error" aria-live="polite"></span></div>'
     })
     if (ids.length === 0) html += '<p>No registries present.</p>'
     panel.innerHTML = html
 
     ids.forEach(id => {
       const ta = document.getElementById('registry-' + id)
+      const errEl = document.getElementById('registry-error-' + id)
       if (ta) ta.onchange = ta.oninput = function () {
         try {
           state.editedModel.designSystemRegistries[id] = JSON.parse(this.value)
+          if (!state.registryParseErrors) state.registryParseErrors = {}
+          state.registryParseErrors[id] = false
+          if (errEl) { errEl.textContent = ''; errEl.classList.remove('visible') }
           showUnsavedBanner()
-        } catch (_) { /* allow invalid during edit */ }
+        } catch (_) {
+          if (!state.registryParseErrors) state.registryParseErrors = {}
+          state.registryParseErrors[id] = true
+          if (errEl) { errEl.textContent = 'Invalid JSON'; errEl.classList.add('visible') }
+          showUnsavedBanner()
+        }
       }
     })
-    document.getElementById('reset-registries-btn').onclick = function () {
-      if (!state.originalModel) return
-      state.editedModel.designSystemRegistries = state.originalModel.designSystemRegistries ? deepClone(state.originalModel.designSystemRegistries) : undefined
-      showUnsavedBanner()
-      renderRegistriesTab()
+    const resetRegBtn = document.getElementById('reset-registries-btn')
+    if (resetRegBtn) {
+      resetRegBtn.onclick = function () {
+        if (!state.originalModel) return
+        state.editedModel.designSystemRegistries = state.originalModel.designSystemRegistries ? deepClone(state.originalModel.designSystemRegistries) : undefined
+        state.registryParseErrors = {}
+        showUnsavedBanner()
+        renderRegistriesTab()
+      }
     }
   }
 
@@ -661,15 +795,40 @@
     renderValidationMessage()
     renderSaveSummary()
     renderPreviewSummary()
+    updateTabFocusability()
     switchTab(state.selectedTab)
+  }
+
+  function getVisibleTabButtons () {
+    return Array.prototype.filter.call(
+      document.querySelectorAll('.tabs button[role="tab"]'),
+      function (btn) { return btn.style.display !== 'none' }
+    )
+  }
+
+  function updateTabFocusability () {
+    document.querySelectorAll('.tabs button[role="tab"]').forEach(function (btn) {
+      btn.setAttribute('tabindex', btn.style.display === 'none' ? '-1' : '0')
+    })
+  }
+
+  var TAB_SUBHEADERS = {
+    config: 'Config — UI and plugin settings',
+    assistants: 'Assistants — Definitions and prompts',
+    knowledge: 'Knowledge — Markdown files per assistant',
+    'content-models': 'Content Models — Raw content model markdown',
+    registries: 'Design System Registries — Registry JSON per design system'
   }
 
   function switchTab (tabId) {
     state.selectedTab = tabId
-    document.querySelectorAll('.tabs button[role="tab"]').forEach(btn => {
+    const tabButtons = document.querySelectorAll('.tabs button[role="tab"]')
+    tabButtons.forEach(btn => {
       const sel = btn.getAttribute('data-tab') === tabId
       btn.setAttribute('aria-selected', sel ? 'true' : 'false')
     })
+    const subheaderEl = document.getElementById('tab-subheader')
+    if (subheaderEl) subheaderEl.textContent = TAB_SUBHEADERS[tabId] || tabId
     const panelIds = ['panel-config', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries']
     const tabIds = ['config', 'assistants', 'knowledge', 'content-models', 'registries']
     panelIds.forEach((pid, i) => {
@@ -682,6 +841,9 @@
   }
 
   async function runValidate () {
+    if (state.loadingAction) return state.lastValidation
+    state.loadingAction = 'validate'
+    updateFooterButtons()
     try {
       const result = await apiValidate(getEditedModel())
       state.lastValidation = result
@@ -691,15 +853,21 @@
       state.lastValidation = { errors: [err.message], warnings: [] }
       renderValidationMessage()
       return state.lastValidation
+    } finally {
+      state.loadingAction = null
+      updateFooterButtons()
     }
   }
 
   async function runSave () {
+    if (state.loadingAction) return
     const last = state.lastValidation
     if (last && last.errors && last.errors.length > 0) {
       document.getElementById('validation-message').innerHTML = '<span class="errors">Fix validation errors before saving.</span>'
       return
     }
+    state.loadingAction = 'save'
+    updateFooterButtons()
     try {
       const summary = await apiSave(getEditedModel(), false)
       state.saveSummary = summary
@@ -716,24 +884,35 @@
     } catch (err) {
       if (err.status === 409) {
         showConflictBanner(true)
-        document.getElementById('validation-message').innerHTML = '<span class="errors">' + escapeHtml(err.message || 'Files changed since load; reload to avoid overwriting.') + '</span>'
+        const conflictMsg = 'Files changed on disk since you loaded. Reload to get the latest, then re-apply your changes if needed.'
+        state.lastDisplayError = { message: 'Save conflict', errors: [conflictMsg] }
+        document.getElementById('validation-message').innerHTML = '<span class="errors">' + escapeHtml(conflictMsg) + '</span> <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
+        bindCopyValidationError()
       } else {
         showConflictBanner(false)
         const msg = String(err.message || 'Save failed')
         const parts = msg.includes('; ') ? msg.split('; ') : [msg]
+        state.lastDisplayError = { message: 'Save failed', errors: parts }
         const list = parts.map(function (p) { return '<li>' + escapeHtml(p) + '</li>' }).join('')
-        document.getElementById('validation-message').innerHTML = '<span class="errors">Save failed</span><ul class="errors">' + list + '</ul>'
+        document.getElementById('validation-message').innerHTML = '<span class="errors">Save failed</span><ul class="errors">' + list + '</ul> <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
+        bindCopyValidationError()
       }
       renderValidationMessage()
+    } finally {
+      state.loadingAction = null
+      updateFooterButtons()
     }
   }
 
   async function runPreview () {
+    if (state.loadingAction) return
     const last = state.lastValidation
     if (last && last.errors && last.errors.length > 0) {
       document.getElementById('validation-message').innerHTML = '<span class="errors">Fix validation errors before preview.</span>'
       return
     }
+    state.loadingAction = 'preview'
+    updateFooterButtons()
     try {
       const summary = await apiSave(getEditedModel(), true)
       state.previewSummary = summary
@@ -745,18 +924,48 @@
     } catch (err) {
       if (err.status === 409) {
         showConflictBanner(true)
-        document.getElementById('validation-message').innerHTML = '<span class="errors">' + escapeHtml(err.message || 'Reload required.') + '</span>'
+        const conflictMsg = 'Files changed on disk since you loaded. Reload to get the latest, then re-apply your changes if needed.'
+        state.lastDisplayError = { message: 'Preview conflict', errors: [conflictMsg] }
+        document.getElementById('validation-message').innerHTML = '<span class="errors">' + escapeHtml(conflictMsg) + '</span> <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
+        bindCopyValidationError()
       } else {
         const msg = String(err.message || 'Preview failed')
         const parts = msg.includes('; ') ? msg.split('; ') : [msg]
+        state.lastDisplayError = { message: 'Preview failed', errors: parts }
         const list = parts.map(function (p) { return '<li>' + escapeHtml(p) + '</li>' }).join('')
-        document.getElementById('validation-message').innerHTML = '<span class="errors">Preview failed</span><ul class="errors">' + list + '</ul>'
+        document.getElementById('validation-message').innerHTML = '<span class="errors">Preview failed</span><ul class="errors">' + list + '</ul> <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
+        bindCopyValidationError()
       }
       renderValidationMessage()
+    } finally {
+      state.loadingAction = null
+      updateFooterButtons()
     }
   }
 
   function bindEvents () {
+    const tablist = document.querySelector('.tabs[role="tablist"]')
+    if (tablist) {
+      tablist.addEventListener('keydown', function (e) {
+        const visible = getVisibleTabButtons()
+        if (visible.length === 0) return
+        const current = e.target
+        if (current.getAttribute('role') !== 'tab' || current.closest('.tabs') !== tablist) return
+        let idx = visible.indexOf(current)
+        if (idx === -1) return
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault()
+          idx = e.key === 'ArrowLeft' ? (idx - 1 + visible.length) % visible.length : (idx + 1) % visible.length
+          const next = visible[idx]
+          const tabId = next.getAttribute('data-tab')
+          switchTab(tabId)
+          next.focus()
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          switchTab(current.getAttribute('data-tab'))
+        }
+      })
+    }
     document.querySelectorAll('.tabs button[role="tab"]').forEach(btn => {
       btn.addEventListener('click', function () {
         switchTab(this.getAttribute('data-tab'))
@@ -772,10 +981,19 @@
       showUnsavedBanner()
       renderAllPanels()
     }
+    const reloadConflictBtn = document.getElementById('reload-after-conflict-btn')
+    if (reloadConflictBtn) {
+      reloadConflictBtn.onclick = function () {
+        showConflictBanner(false)
+        loadModel()
+      }
+    }
   }
 
   function init () {
     bindEvents()
+    updateFooterButtons()
+    switchTab(state.selectedTab)
     loadModel()
   }
 

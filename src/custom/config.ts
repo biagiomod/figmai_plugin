@@ -46,6 +46,37 @@ export function getLlmUiMode(): 'full' | 'connection-only' {
 }
 
 /**
+ * Whether prompt diagnostics are enabled (default false)
+ */
+export function isPromptDiagnosticsEnabled(): boolean {
+  return customConfig?.llm?.promptDiagnostics?.enabled === true
+}
+
+/**
+ * Prompt diagnostics level (default 'compact' when enabled)
+ */
+export function getPromptDiagnosticsLevel(): 'off' | 'compact' | 'details' {
+  const level = customConfig?.llm?.promptDiagnostics?.level
+  if (level === 'off' || level === 'compact' || level === 'details') return level
+  return 'compact'
+}
+
+/**
+ * Safety toggles for work/Azure isolation (defaults: forceNoKbName false, forceNoSelectionSummary false, forceNoImages true)
+ */
+export function getSafetyToggles(): {
+  forceNoKbName: boolean
+  forceNoSelectionSummary: boolean
+  forceNoImages: boolean
+} {
+  return {
+    forceNoKbName: customConfig?.llm?.safety?.forceNoKbName === true,
+    forceNoSelectionSummary: customConfig?.llm?.safety?.forceNoSelectionSummary === true,
+    forceNoImages: customConfig?.llm?.safety?.forceNoImages !== false
+  }
+}
+
+/**
  * Get resources links (defensive: returns empty objects if not configured)
  */
 export function getResourcesLinks(): {

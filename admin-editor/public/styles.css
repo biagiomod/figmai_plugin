@@ -119,6 +119,8 @@ body {
   margin-bottom: -1px;
 }
 .tabs button:hover { color: var(--fg); background: var(--bg-secondary); }
+.tabs button:focus-visible,
+.tabs button:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tabs button[aria-selected="true"] {
   background: var(--bg);
   color: var(--fg);
@@ -130,6 +132,13 @@ body {
   flex: 1;
   padding: var(--spacing-lg) 0;
   min-height: 0;
+}
+.tab-subheader {
+  font-size: 0.9rem;
+  color: var(--fg-secondary);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing);
+  border-bottom: 1px solid var(--border);
 }
 .panel {
   display: none;
@@ -160,10 +169,25 @@ body {
   background: var(--bg);
 }
 .footer-actions button:hover { background: #e8e8e8; }
+.footer-actions button:focus-visible,
+.footer-actions button:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 .footer-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
+.footer-status { font-size: 0.85rem; color: var(--fg-secondary); margin-bottom: var(--spacing); }
+.footer-hint { font-size: 0.85rem; color: var(--fg-secondary); margin: 0 0 var(--spacing) 0; }
 .validation-message { font-size: 0.9rem; min-height: 1.2em; }
+.error-block { margin-bottom: var(--spacing); }
 .validation-message .errors { color: var(--error); }
 .validation-message .warnings { color: var(--warning); margin-top: 4px; }
+.danger-zone {
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing);
+  background: #fffef9;
+}
+.danger-zone-label { font-size: 0.9rem; color: var(--fg-secondary); margin: 0 0 var(--spacing) 0; }
+.inline-error { font-size: 0.85rem; color: var(--error); display: none; margin-top: 4px; }
+.inline-error.visible { display: block; }
 .save-summary {
   margin-top: var(--spacing);
   padding: var(--spacing-md);
@@ -203,6 +227,12 @@ textarea {
   border-radius: var(--radius);
   margin-bottom: var(--spacing-md);
 }
+input:focus-visible,
+input:focus,
+select:focus-visible,
+select:focus,
+textarea:focus-visible,
+textarea:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 textarea { min-height: 80px; resize: vertical; }
 textarea.large { min-height: 200px; }
 .field-row { display: flex; align-items: center; gap: var(--spacing); margin-bottom: var(--spacing-md); }
@@ -233,6 +263,12 @@ textarea.large { min-height: 200px; }
 .quick-actions-list input { flex: 1; max-width: none; margin: 0; }
 .quick-actions-list button { padding: 4px 8px; cursor: pointer; }
 .btn-small { padding: 4px 10px; font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); }
+.btn-small:focus-visible,
+.btn-small:focus,
+.unsaved-banner button:focus-visible,
+.unsaved-banner button:focus,
+.conflict-banner button:focus-visible,
+.conflict-banner button:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 .add-btn { margin-top: var(--spacing); }
 
 #panel-knowledge .preview-toggle { margin-bottom: var(--spacing); }

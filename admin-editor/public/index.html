@@ -22,15 +22,16 @@
       <button type="button" id="discard-all-btn">Discard all changes</button>
     </div>
 
-    <nav class="tabs" role="tablist">
-      <button type="button" role="tab" data-tab="config" aria-selected="true">Config</button>
-      <button type="button" role="tab" data-tab="assistants">Assistants</button>
-      <button type="button" role="tab" data-tab="knowledge">Knowledge</button>
-      <button type="button" role="tab" data-tab="content-models" id="tab-content-models" style="display: none;">Content Models</button>
-      <button type="button" role="tab" data-tab="registries" id="tab-registries" style="display: none;">Design System Registries</button>
+    <nav class="tabs" role="tablist" aria-label="Editor sections">
+      <button type="button" role="tab" data-tab="config" aria-selected="true" aria-controls="panel-config" tabindex="0">Config</button>
+      <button type="button" role="tab" data-tab="assistants" aria-selected="false" aria-controls="panel-assistants" tabindex="0">Assistants</button>
+      <button type="button" role="tab" data-tab="knowledge" aria-selected="false" aria-controls="panel-knowledge" tabindex="0">Knowledge</button>
+      <button type="button" role="tab" data-tab="content-models" id="tab-content-models" aria-selected="false" aria-controls="panel-content-models" tabindex="-1" style="display: none;">Content Models</button>
+      <button type="button" role="tab" data-tab="registries" id="tab-registries" aria-selected="false" aria-controls="panel-registries" tabindex="-1" style="display: none;">Design System Registries</button>
     </nav>
 
     <main class="main">
+      <div id="tab-subheader" class="tab-subheader" aria-live="polite"></div>
       <section id="panel-config" role="tabpanel" class="panel" aria-hidden="false"></section>
       <section id="panel-assistants" role="tabpanel" class="panel" aria-hidden="true"></section>
       <section id="panel-knowledge" role="tabpanel" class="panel" aria-hidden="true"></section>
@@ -39,7 +40,7 @@
     </main>
 
     <div id="conflict-banner" class="conflict-banner" style="display: none;">
-      <span>Reload required</span>
+      <span>Files changed on disk. Reload to get the latest.</span>
       <button type="button" id="reload-after-conflict-btn">Reload</button>
     </div>
 
@@ -50,6 +51,8 @@
         <button type="button" id="preview-btn">Preview changes</button>
         <button type="button" id="save-btn">Save</button>
       </div>
+      <div id="footer-status" class="footer-status" style="display: none;" aria-live="polite"></div>
+      <p class="footer-hint">Preview shows what would change (no writes). Save writes files and runs generators.</p>
       <div id="validation-message" class="validation-message"></div>
       <div id="save-summary" class="save-summary" style="display: none;"></div>
       <div id="preview-summary" class="preview-summary" style="display: none;"></div>
