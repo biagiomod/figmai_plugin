@@ -39,9 +39,10 @@
 - `images` — not sent; provider has `supportsImages: false`, and normalizer strips images.
 
 **System / preamble:**
-- There is no separate system message in the payload. Preamble is built in `main.ts` as:  
-  `"${assistant.label} context: ${getShortInstructions(assistant)}. Ignore previous assistant instructions.\n\n"`  
-  and **prepended to the first user message content** before the request is passed to `sendChatWithRecovery`. So the "final" user text sent to the backend is **preamble + user text** in one string.
+- There is no separate system message in the payload. Preamble is built in `main.ts` using a **safe session header** (no instruction-override or jailbreak-style language):  
+  `SESSION_HEADER_SAFE + "\n\n" + "${assistant.label} context: " + getShortInstructions(assistant) + "\n\n"`  
+  where `SESSION_HEADER_SAFE` is: *"Start a new conversation. Use only the assistant instructions and context provided in this request."*  
+  This is **prepended to the first user message content** before the request is passed to `sendChatWithRecovery`. The final user text sent to the backend is **preamble + user text** in one string.
 
 **User messages:**
 - All `request.messages` with `role === 'user'` are concatenated into `message`. So a single string is sent.
@@ -84,6 +85,15 @@
 | Logs | Not currently injected into prompts | — | — |
 
 **Exact merge point:** When `main.ts` (or handlers) builds the object passed to `sendChatWithRecovery({ messages, selectionSummary, images, ... })`. Preamble is already merged into `messages[0].content` for the first user message before that call.
+
+---
+
+## 3.1 Session lifecycle (assistant change = new session)
+
+- **Conversation state:** Main thread holds `messageHistory` (single source of truth). Messages are grouped by **assistant segment**: each segment starts with a boundary message (`isBoundary: true`, `assistantId`).
+- **When the user changes the selected assistant:** `SET_ASSISTANT` in `main.ts` inserts a boundary for the new assistant, pushes greeting + instructions (UI-only), and sets `preambleSentForSegment = null`. The **next user message** is the first in that segment and is treated as a **fresh session**: it gets the safe session header + assistant context prepended (preamble injection).
+- **Segment scope:** `getCurrentAssistantSegment(messageHistory, currentAssistantId)` returns only messages after the last boundary for that assistant (excluding UI-only: boundary, greeting, instructions, status). So switching assistant effectively “resets” the conversation for the new assistant without clearing global history.
+- **No override/jailbreak phrases:** The assembled prompt contains no phrases such as “ignore previous instructions”, “disregard prior”, or “you are now”. Only the neutral session header and assistant instructions/context are used.
 
 ---
 
@@ -156,6 +166,16 @@ Use these checks without verbose logs or raw prompt dumps.
 4. **Preview**
    - No verbose dumps, no raw prompt text, no base64 in UI or default logs.
 
+5. **Enterprise-safe prompt (no override/jailbreak language)**
+   - Send "Hello?" in General Assistant (Internal API / Azure).
+   - Confirm the request succeeds (no content-filter block from preamble).
+   - Confirm the assembled prompt contains **no** phrases such as "ignore previous instructions", "disregard prior", or "you are now". The preamble uses only the safe session header and assistant context.
+
+6. **Assistant change = new session**
+   - Switch to Assistant A, send one message, get a reply.
+   - Switch to Assistant B; send "Hello?".
+   - Confirm the message is treated as first-in-session for B (safe session header + B’s context prepended) and that no A context bleeds into the request.
+
 ---
 
 ## 8. References
@@ -165,4 +185,4 @@ Use these checks without verbose logs or raw prompt dumps.
 - **Pipeline:** `src/core/llm/promptPipeline.ts` — assemble, sanitize, budgets, build, diagnose.
 - **Internal API:** `src/core/provider/internalApiProvider.ts` — payload: `message`, `kbName` only (omit `kbName` when `minimalForContentFilter`).
 - **Proxy:** `src/core/provider/proxyProvider.ts` and `src/core/proxy/client.ts` — payload includes `messages`, `selectionSummary`, `images`.
-- **Preamble:** `main.ts` (e.g. ~519–536, ~881–897) — preamble prepended to first user message before `sendChatWithRecovery`.
+- **Preamble:** `main.ts` — `SESSION_HEADER_SAFE` constant and preamble prepended to first user message (general and quick-action paths) before `sendChatWithRecovery`. No instruction-override or jailbreak language.

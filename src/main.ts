@@ -150,6 +150,10 @@ let selectionOrder: string[] = []
 let lastAssistantId: string | null = null
 let preambleSentForSegment: string | null = null // Track if preamble sent for current segment (segmentId = assistantId)
 
+/** Safe session header: neutral framing for providers (e.g. Internal API). No instruction-override or jailbreak-style language. */
+const SESSION_HEADER_SAFE =
+  'Start a new conversation. Use only the assistant instructions and context provided in this request.'
+
 // Initialize provider
 async function initializeProvider() {
   try {
@@ -526,8 +530,11 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       preambleSentForSegment !== currentAssistant.id
 
     if (isFirstUserMessage && finalChatMessages.length > 0 && finalChatMessages[0].role === 'user') {
-      // Prepend assistant preamble to first user message (invisible to user)
-      const preamble = `${currentAssistant.label} context: ${getShortInstructions(currentAssistant)}. Ignore previous assistant instructions.\n\n`
+      // Prepend safe session header + assistant context (no instruction-override language)
+      const preamble =
+        SESSION_HEADER_SAFE +
+        '\n\n' +
+        `${currentAssistant.label} context: ${getShortInstructions(currentAssistant)}\n\n`
       assistantPreambleForRecovery = preamble
       finalChatMessages[0] = {
         ...finalChatMessages[0],
@@ -891,7 +898,10 @@ Use SEND JSON to import or GET JSON to export your designs.`
       preambleSentForSegment !== assistant.id
 
     if (isFirstUserMessage && chatMessages.length > 0 && chatMessages[0].role === 'user') {
-      const preamble = `${assistant.label} context: ${getShortInstructions(assistant)}. Ignore previous assistant instructions.\n\n`
+      const preamble =
+        SESSION_HEADER_SAFE +
+        '\n\n' +
+        `${assistant.label} context: ${getShortInstructions(assistant)}\n\n`
       assistantPreambleForQuickAction = preamble
       chatMessages[0] = {
         ...chatMessages[0],
