@@ -152,7 +152,7 @@ let preambleSentForSegment: string | null = null // Track if preamble sent for c
 
 /** Safe session header: neutral framing for providers (e.g. Internal API). No instruction-override or jailbreak-style language. */
 const SESSION_HEADER_SAFE =
-  'Start a new conversation. Use only the assistant instructions and context provided in this request.'
+  'Start a new conversation.'
 
 // Initialize provider
 async function initializeProvider() {
