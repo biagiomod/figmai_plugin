@@ -29,7 +29,7 @@
     "generate-dark-demo-cards": "tsx scripts/generate-dark-demo-cards.ts",
     "prebuild": "npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && npm run generate-dark-demo-cards",
     "build": "build-figma-plugin --typecheck --minify",
-    "postbuild": "node scripts/check-sync-api.js && tsx scripts/update-manifest-network-access.ts",
+    "postbuild": "node scripts/check-sync-api.js && node scripts/check-banned-phrases.js && tsx scripts/update-manifest-network-access.ts",
     "assert-prompt-pipeline": "tsx scripts/assert-prompt-pipeline.ts",
     "watch": "npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && tsx scripts/update-manifest-network-access.ts --watch && build-figma-plugin --typecheck --watch"
   },
