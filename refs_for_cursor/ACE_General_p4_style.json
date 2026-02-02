@@ -1,0 +1,3353 @@
+{
+    "type": "FRAME",
+    "name": "Section",
+    "layout": {
+      "mode": "VERTICAL",
+      "padding": {
+        "top": 16,
+        "right": 16,
+        "bottom": 16,
+        "left": 16
+      },
+      "itemSpacing": 24,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "FIXED"
+      },
+      "align": "STRETCH"
+    },
+    "width": 944,
+    "height": 1515,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 1,
+            "g": 1,
+            "b": 1
+          }
+        }
+      ],
+      "strokes": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 0.800000011920929,
+            "g": 0.800000011920929,
+            "b": 0.800000011920929
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 12
+    },
+    "children": [
+      {
+        "type": "FRAME",
+        "name": "Title",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 12,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "FIXED"
+          },
+          "align": "STRETCH"
+        },
+        "width": 912,
+        "height": 47,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "TEXT",
+            "name": "Text",
+            "width": 64,
+            "height": 13,
+            "visual": {
+              "fills": [
+                {
+                  "type": "SOLID",
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 0
+                  }
+                }
+              ],
+              "strokeWeight": 1,
+              "strokeAlign": "OUTSIDE"
+            },
+            "text": {
+              "characters": "Credits",
+              "fontFamily": "Protipo",
+              "fontStyle": "Semibold",
+              "fontSize": 18,
+              "lineHeight": {
+                "unit": "AUTO"
+              },
+              "letterSpacing": {
+                "unit": "PIXELS",
+                "value": 0
+              },
+              "textAlignHorizontal": "LEFT",
+              "textAlignVertical": "CENTER",
+              "textCase": "ORIGINAL"
+            }
+          },
+          {
+            "type": "TEXT",
+            "name": "Text",
+            "width": 164,
+            "height": 22,
+            "visual": {
+              "fills": [
+                {
+                  "type": "SOLID",
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 0
+                  }
+                }
+              ],
+              "strokeWeight": 1,
+              "strokeAlign": "OUTSIDE"
+            },
+            "text": {
+              "characters": "Share the loveLeave fields blank to hide slot",
+              "fontFamily": "Protipo",
+              "fontStyle": "Regular",
+              "fontSize": 12,
+              "lineHeight": {
+                "unit": "AUTO"
+              },
+              "letterSpacing": {
+                "unit": "PIXELS",
+                "value": 0
+              },
+              "textAlignHorizontal": "LEFT",
+              "textAlignVertical": "CENTER",
+              "textCase": "ORIGINAL"
+            }
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 1",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 111,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 111,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Created By Slot 1",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 53,
+                    "height": 25,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 25,
+                        "height": 7,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 10,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Biagio G",
+                        "width": 53,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Biagio G",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 162,
+                    "height": 25,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 19,
+                        "height": 7,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 10,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "https://www.google.com",
+                        "width": 162,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "https://www.google.com",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 2",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 113,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 113,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Created By Slot 2",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 3",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 113,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 113,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Created By Slot 3",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Rule",
+        "layout": {
+          "mode": "HORIZONTAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 10,
+          "sizing": {
+            "primary": "FIXED",
+            "counter": "FIXED"
+          },
+          "align": "STRETCH"
+        },
+        "width": 482.5,
+        "height": 1,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.4000000059604645,
+                "g": 0.4000000059604645,
+                "b": 0.4000000059604645
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE",
+          "cornerRadius": 60,
+          "opacity": 0.6600000262260437
+        }
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 4",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 100,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 100,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "API Team Slot 1",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 5",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 103,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 103,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "API Team Slot 2",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 6",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 103,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 103,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "API Team Slot 3",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Rule",
+        "layout": {
+          "mode": "HORIZONTAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 10,
+          "sizing": {
+            "primary": "FIXED",
+            "counter": "FIXED"
+          },
+          "align": "STRETCH"
+        },
+        "width": 482.5,
+        "height": 1,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.4000000059604645,
+                "g": 0.4000000059604645,
+                "b": 0.4000000059604645
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE",
+          "cornerRadius": 60,
+          "opacity": 0.6600000262260437
+        }
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 7",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 130,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 130,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Content Team Slot 1",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 8",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 132,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 132,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Content Team Slot 2",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "FRAME",
+        "name": "Group 9",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "itemSpacing": 16,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "AUTO"
+          }
+        },
+        "width": 482.5,
+        "height": 130,
+        "visual": {
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE"
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title and Desc",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 8,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "AUTO"
+              }
+            },
+            "width": 133,
+            "height": 10,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Text",
+                "width": 133,
+                "height": 10,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.20000000298023224,
+                        "g": 0.20000000298023224,
+                        "b": 0.20000000298023224
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Content Team Slot 3",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 14,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 35,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "Label",
+                        "width": 35,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Label",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Text Input Group",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 16,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              }
+            },
+            "width": 482.5,
+            "height": 44,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Input",
+                "layout": {
+                  "mode": "HORIZONTAL",
+                  "padding": {
+                    "top": 8,
+                    "right": 16,
+                    "bottom": 8,
+                    "left": 16
+                  },
+                  "itemSpacing": 8,
+                  "sizing": {
+                    "primary": "FIXED",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 482.5,
+                "height": 44,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0.949999988079071,
+                        "g": 0.949999988079071,
+                        "b": 0.949999988079071
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE",
+                  "cornerRadius": 8
+                },
+                "children": [
+                  {
+                    "type": "FRAME",
+                    "name": "Frame 463",
+                    "layout": {
+                      "mode": "VERTICAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 8,
+                      "sizing": {
+                        "primary": "AUTO",
+                        "counter": "AUTO"
+                      }
+                    },
+                    "width": 26,
+                    "height": 10,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "TEXT",
+                        "name": "URL",
+                        "width": 26,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.4000000059604645,
+                                "g": 0.4000000059604645,
+                                "b": 0.4000000059604645
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "URL",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }

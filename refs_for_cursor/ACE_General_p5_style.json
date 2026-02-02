@@ -1,0 +1,324 @@
+{
+  "type": "FRAME",
+  "name": "Section",
+  "layout": {
+    "mode": "VERTICAL",
+    "padding": {
+      "top": 16,
+      "right": 16,
+      "bottom": 16,
+      "left": 16
+    },
+    "itemSpacing": 24,
+    "sizing": {
+      "primary": "AUTO",
+      "counter": "FIXED"
+    },
+    "align": "STRETCH"
+  },
+  "width": 944,
+  "height": 302,
+  "visual": {
+    "fills": [
+      {
+        "type": "SOLID",
+        "color": {
+          "r": 0.983642578125,
+          "g": 0.9570304751396179,
+          "b": 0.8505825996398926
+        }
+      }
+    ],
+    "strokes": [
+      {
+        "type": "SOLID",
+        "color": {
+          "r": 0.800000011920929,
+          "g": 0.800000011920929,
+          "b": 0.800000011920929
+        }
+      }
+    ],
+    "strokeWeight": 1,
+    "strokeAlign": "INSIDE",
+    "cornerRadius": 12
+  },
+  "children": [
+    {
+      "type": "FRAME",
+      "name": "Title and Action",
+      "layout": {
+        "mode": "HORIZONTAL",
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "itemSpacing": 12,
+        "sizing": {
+          "primary": "FIXED",
+          "counter": "AUTO"
+        },
+        "align": "STRETCH"
+      },
+      "width": 912,
+      "height": 33,
+      "visual": {
+        "strokeWeight": 1,
+        "strokeAlign": "INSIDE"
+      },
+      "children": [
+        {
+          "type": "FRAME",
+          "name": "Title and Description",
+          "layout": {
+            "mode": "VERTICAL",
+            "padding": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "itemSpacing": 12,
+            "sizing": {
+              "primary": "AUTO",
+              "counter": "AUTO"
+            }
+          },
+          "width": 237,
+          "height": 33,
+          "visual": {
+            "strokeWeight": 1,
+            "strokeAlign": "INSIDE"
+          },
+          "children": [
+            {
+              "type": "TEXT",
+              "name": "Title",
+              "width": 237,
+              "height": 13,
+              "visual": {
+                "fills": [
+                  {
+                    "type": "SOLID",
+                    "color": {
+                      "r": 0,
+                      "g": 0,
+                      "b": 0
+                    }
+                  }
+                ],
+                "strokeWeight": 1,
+                "strokeAlign": "OUTSIDE"
+              },
+              "text": {
+                "characters": "Advanced: Raw JSON Config",
+                "fontFamily": "Protipo",
+                "fontStyle": "Semibold",
+                "fontSize": 18,
+                "lineHeight": {
+                  "unit": "AUTO"
+                },
+                "letterSpacing": {
+                  "unit": "PIXELS",
+                  "value": 0
+                },
+                "textAlignHorizontal": "LEFT",
+                "textAlignVertical": "CENTER",
+                "textCase": "ORIGINAL"
+              }
+            },
+            {
+              "type": "TEXT",
+              "name": "Description",
+              "width": 224,
+              "height": 8,
+              "visual": {
+                "fills": [
+                  {
+                    "type": "SOLID",
+                    "color": {
+                      "r": 0,
+                      "g": 0,
+                      "b": 0
+                    }
+                  }
+                ],
+                "strokeWeight": 1,
+                "strokeAlign": "OUTSIDE"
+              },
+              "text": {
+                "characters": "Warning: Invalid JSON will fail validation",
+                "fontFamily": "Protipo",
+                "fontStyle": "Regular",
+                "fontSize": 12,
+                "lineHeight": {
+                  "unit": "AUTO"
+                },
+                "letterSpacing": {
+                  "unit": "PIXELS",
+                  "value": 0
+                },
+                "textAlignHorizontal": "LEFT",
+                "textAlignVertical": "CENTER",
+                "textCase": "ORIGINAL"
+              }
+            }
+          ]
+        },
+        {
+          "type": "INSTANCE",
+          "name": "Chevron - Up",
+          "width": 20,
+          "height": 20,
+          "visual": {
+            "strokeWeight": 0.8333333730697632,
+            "strokeAlign": "INSIDE"
+          },
+          "children": [
+            {
+              "type": "BOOLEAN_OPERATION",
+              "name": "Union",
+              "width": 11.25088119506836,
+              "height": 6.25075626373291,
+              "visual": {
+                "fills": [
+                  {
+                    "type": "SOLID",
+                    "color": {
+                      "r": 0.20000000298023224,
+                      "g": 0.20000000298023224,
+                      "b": 0.20000000298023224
+                    }
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "VECTOR",
+                  "name": "Vector",
+                  "width": 10,
+                  "height": 5,
+                  "visual": {
+                    "strokes": [
+                      {
+                        "type": "SOLID",
+                        "color": {
+                          "r": 0,
+                          "g": 0,
+                          "b": 0
+                        }
+                      }
+                    ],
+                    "strokeWeight": 1.25
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "FRAME",
+      "name": "Text Area",
+      "layout": {
+        "mode": "HORIZONTAL",
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "itemSpacing": 16,
+        "sizing": {
+          "primary": "FIXED",
+          "counter": "AUTO"
+        }
+      },
+      "width": 482.5,
+      "height": 213,
+      "visual": {
+        "strokeWeight": 1,
+        "strokeAlign": "INSIDE"
+      },
+      "children": [
+        {
+          "type": "FRAME",
+          "name": "Input",
+          "layout": {
+            "mode": "HORIZONTAL",
+            "padding": {
+              "top": 8,
+              "right": 16,
+              "bottom": 8,
+              "left": 16
+            },
+            "itemSpacing": 8,
+            "sizing": {
+              "primary": "FIXED",
+              "counter": "AUTO"
+            },
+            "grow": 1
+          },
+          "width": 482.5,
+          "height": 213,
+          "visual": {
+            "fills": [
+              {
+                "type": "SOLID",
+                "color": {
+                  "r": 1,
+                  "g": 1,
+                  "b": 1
+                }
+              }
+            ],
+            "strokeWeight": 1,
+            "strokeAlign": "INSIDE",
+            "cornerRadius": 8
+          },
+          "children": [
+            {
+              "type": "TEXT",
+              "name": "{ \"ui\": { \"contentMvpAssistantId\": \"content_table\", \"defaultMode\": \"simple\", \"hideContentMvpMode\": false, \"simpleModeIds\": [ \"general\", \"content_table\", \"design_critique\", \"design_workshop\" ] },",
+              "width": 284,
+              "height": 197,
+              "visual": {
+                "fills": [
+                  {
+                    "type": "SOLID",
+                    "color": {
+                      "r": 0.4000000059604645,
+                      "g": 0.4000000059604645,
+                      "b": 0.4000000059604645
+                    }
+                  }
+                ],
+                "strokeWeight": 1,
+                "strokeAlign": "OUTSIDE"
+              },
+              "text": {
+                "characters": "{\n  \"ui\": {\n    \"contentMvpAssistantId\": \"content_table\",\n    \"defaultMode\": \"simple\",\n    \"hideContentMvpMode\": false,\n    \"simpleModeIds\": [\n      \"general\",\n      \"content_table\",\n      \"design_critique\",\n      \"design_workshop\"\n    ]\n  },",
+                "fontFamily": "Protipo",
+                "fontStyle": "Regular",
+                "fontSize": 14,
+                "lineHeight": {
+                  "unit": "AUTO"
+                },
+                "letterSpacing": {
+                  "unit": "PIXELS",
+                  "value": 0
+                },
+                "textAlignHorizontal": "LEFT",
+                "textAlignVertical": "CENTER",
+                "textCase": "ORIGINAL"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

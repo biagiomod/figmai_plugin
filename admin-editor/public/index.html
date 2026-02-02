@@ -4,38 +4,77 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Config Editor</title>
+  <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app" class="ace-shell">
-    <aside class="ace-sidebar" aria-label="Editor sections">
-      <nav class="tabs" role="tablist" aria-label="Editor sections">
-        <button type="button" role="tab" data-tab="config" aria-selected="true" aria-controls="panel-config" tabindex="0">Config</button>
-        <button type="button" role="tab" data-tab="assistants" aria-selected="false" aria-controls="panel-assistants" tabindex="0">Assistants</button>
-        <button type="button" role="tab" data-tab="knowledge" aria-selected="false" aria-controls="panel-knowledge" tabindex="0">Knowledge</button>
-        <button type="button" role="tab" data-tab="content-models" id="tab-content-models" aria-selected="false" aria-controls="panel-content-models" tabindex="-1" style="display: none;">Content Models</button>
-        <button type="button" role="tab" data-tab="registries" id="tab-registries" aria-selected="false" aria-controls="panel-registries" tabindex="-1" style="display: none;">Design System Registries</button>
-      </nav>
-    </aside>
-
-    <div class="ace-main">
-      <div class="ace-topbar">
-        <header class="header">
-          <h1>Admin Config Editor</h1>
-          <div id="status" class="status">
-            <span id="status-connection">—</span>
-            <span id="status-loaded">—</span>
-            <span id="status-repo">—</span>
-          </div>
-        </header>
-        <div class="ace-topbar-actions">
-          <button type="button" id="reload-btn">Reload</button>
-          <button type="button" id="validate-btn">Validate</button>
-          <button type="button" id="preview-btn">Preview changes</button>
-          <button type="button" id="save-btn">Save</button>
-        </div>
+  <header class="ace-topbar" role="banner">
+    <div class="ace-topbar-inner ace-container">
+      <div class="ace-topbar-brand">
+        <img src="assets/logo-figmai.svg" alt="" class="ace-logo" width="117" height="36" />
+        <span class="ace-topbar-label" id="ace-label">ACE (Admin Config Editor)</span>
       </div>
+      <div class="ace-topbar-actions">
+        <button type="button" id="reload-btn">Reset</button>
+        <button type="button" id="validate-btn">Validate</button>
+        <button type="button" id="preview-btn">Preview changes</button>
+        <button type="button" id="save-btn">Save</button>
+      </div>
+    </div>
+  </header>
 
+  <div id="app" class="ace-shell">
+    <div class="ace-content-area ace-container">
+      <aside class="ace-sidebar" aria-label="Editor sections">
+        <nav class="tabs ace-leftnav" role="tablist" aria-label="Editor sections">
+          <div class="ace-nav-group ace-nav-group-primary">
+            <button type="button" role="tab" class="ace-nav-item" data-tab="config" aria-selected="true" aria-controls="panel-config" tabindex="0">
+              <img src="assets/icons/ACEGeneralIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">General</span>
+            </button>
+            <button type="button" role="tab" class="ace-nav-item" data-tab="assistants" aria-selected="false" aria-controls="panel-assistants" tabindex="0">
+              <img src="assets/icons/ACEAssistantsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">Assistants</span>
+            </button>
+            <button type="button" role="tab" class="ace-nav-item" id="tab-registries" data-tab="registries" aria-selected="false" aria-controls="panel-registries" tabindex="-1" style="display: none;">
+              <img src="assets/icons/ACEDesignSystemsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">Design Systems</span>
+            </button>
+            <button type="button" role="tab" class="ace-nav-item" id="tab-content-models" data-tab="content-models" aria-selected="false" aria-controls="panel-content-models" tabindex="-1" style="display: none;">
+              <img src="assets/icons/ACEContentTablesIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">Content Tables</span>
+            </button>
+            <button type="button" class="ace-nav-item" data-action="coming-soon" aria-label="Analytics – coming soon">
+              <img src="assets/icons/ACEAnalyticsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">Analytics</span>
+            </button>
+          </div>
+          <div class="ace-nav-group ace-nav-group-secondary">
+            <button type="button" class="ace-nav-item" data-action="coming-soon" aria-label="Help – coming soon">
+              <img src="assets/icons/ACEHelpIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">Help</span>
+            </button>
+            <button type="button" class="ace-nav-item ace-nav-server is-disconnected" id="server-status-nav-btn" data-action="server-status" aria-label="Server status">
+              <img src="assets/icons/ACEServerIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">Server: <span id="nav-status-label">—</span></span>
+            </button>
+            <div id="status" class="visually-hidden" aria-hidden="true">
+              <span id="status-connection">—</span>
+              <span id="status-loaded">—</span>
+              <span id="status-repo">—</span>
+            </div>
+            <button type="button" class="ace-nav-item ace-nav-item-user" data-action="coming-soon" aria-label="User – coming soon">
+              <img src="assets/icons/ACEUserIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">User</span>
+            </button>
+          </div>
+        </nav>
+        <div class="visually-hidden" aria-hidden="true">
+          <button type="button" role="tab" data-tab="knowledge" aria-controls="panel-knowledge" tabindex="-1">Knowledge</button>
+        </div>
+      </aside>
+
+      <div class="ace-main">
       <div id="unsaved-banner" class="unsaved-banner" style="display: none;">
         Unsaved changes
         <button type="button" id="discard-all-btn">Discard all changes</button>
@@ -55,13 +94,36 @@
         <button type="button" id="reload-after-conflict-btn">Reload</button>
       </div>
 
-      <footer class="footer">
+      <footer class="footer visually-hidden" aria-hidden="true">
         <div id="footer-status" class="footer-status" style="display: none;" aria-live="polite"></div>
-        <p class="footer-hint">Preview shows what would change (no writes). Save writes files and runs generators.</p>
         <div id="validation-message" class="validation-message"></div>
         <div id="save-summary" class="save-summary" style="display: none;"></div>
         <div id="preview-summary" class="preview-summary" style="display: none;"></div>
       </footer>
+      </div>
+    </div>
+  </div>
+
+  <div id="action-modal" class="ace-modal" role="dialog" aria-modal="true" aria-labelledby="action-modal-title" aria-live="polite" hidden>
+    <div class="ace-modal-backdrop" id="action-modal-backdrop"></div>
+    <div class="ace-modal-panel">
+      <div id="action-modal-loading" class="ace-modal-state" hidden>
+        <p id="action-modal-loading-text" class="ace-modal-message">Saving…</p>
+      </div>
+      <div id="action-modal-success" class="ace-modal-state" hidden>
+        <h2 id="action-modal-title" class="ace-modal-title">Done</h2>
+        <p id="action-modal-success-text" class="ace-modal-message"></p>
+        <button type="button" id="action-modal-close-btn" class="btn btn-primary">Close</button>
+      </div>
+      <div id="action-modal-error" class="ace-modal-state" hidden>
+        <h2 class="ace-modal-title ace-modal-error-title">Error</h2>
+        <p id="action-modal-error-text" class="ace-modal-message"></p>
+        <div class="ace-modal-actions">
+          <button type="button" id="action-modal-copy-btn" class="btn btn-secondary">Copy error</button>
+          <button type="button" id="action-modal-retry-btn" class="btn btn-ghost" hidden>Retry</button>
+          <button type="button" id="action-modal-close-error-btn" class="btn btn-primary">Close</button>
+        </div>
+      </div>
     </div>
   </div>
 

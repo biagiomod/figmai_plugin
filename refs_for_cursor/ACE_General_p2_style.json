@@ -1,0 +1,3689 @@
+{
+    "type": "FRAME",
+    "name": "Main",
+    "layout": {
+      "mode": "VERTICAL",
+      "padding": {
+        "top": 32,
+        "right": 32,
+        "bottom": 32,
+        "left": 32
+      },
+      "itemSpacing": 32,
+      "sizing": {
+        "primary": "AUTO",
+        "counter": "FIXED"
+      },
+      "grow": 1
+    },
+    "width": 1008,
+    "height": 603,
+    "visual": {
+      "fills": [
+        {
+          "type": "SOLID",
+          "color": {
+            "r": 0.9800000190734863,
+            "g": 0.9800000190734863,
+            "b": 0.9800000190734863
+          }
+        }
+      ],
+      "strokeWeight": 1,
+      "strokeAlign": "INSIDE"
+    },
+    "children": [
+      {
+        "type": "FRAME",
+        "name": "Section",
+        "layout": {
+          "mode": "VERTICAL",
+          "padding": {
+            "top": 16,
+            "right": 16,
+            "bottom": 16,
+            "left": 16
+          },
+          "itemSpacing": 24,
+          "sizing": {
+            "primary": "AUTO",
+            "counter": "FIXED"
+          },
+          "align": "STRETCH"
+        },
+        "width": 944,
+        "height": 539,
+        "visual": {
+          "fills": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+              }
+            }
+          ],
+          "strokes": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.800000011920929,
+                "g": 0.800000011920929,
+                "b": 0.800000011920929
+              }
+            }
+          ],
+          "strokeWeight": 1,
+          "strokeAlign": "INSIDE",
+          "cornerRadius": 12
+        },
+        "children": [
+          {
+            "type": "FRAME",
+            "name": "Title Group",
+            "layout": {
+              "mode": "VERTICAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 12,
+              "sizing": {
+                "primary": "AUTO",
+                "counter": "FIXED"
+              },
+              "align": "STRETCH"
+            },
+            "width": 912,
+            "height": 33,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "TEXT",
+                "name": "Title",
+                "width": 122,
+                "height": 13,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0,
+                        "g": 0,
+                        "b": 0
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Mode Settings",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Semibold",
+                  "fontSize": 18,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              },
+              {
+                "type": "TEXT",
+                "name": "Desc",
+                "width": 258,
+                "height": 8,
+                "visual": {
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "color": {
+                        "r": 0,
+                        "g": 0,
+                        "b": 0
+                      }
+                    }
+                  ],
+                  "strokeWeight": 1,
+                  "strokeAlign": "OUTSIDE"
+                },
+                "text": {
+                  "characters": "Choose what Assistants are visible to the user",
+                  "fontFamily": "Protipo",
+                  "fontStyle": "Regular",
+                  "fontSize": 12,
+                  "lineHeight": {
+                    "unit": "AUTO"
+                  },
+                  "letterSpacing": {
+                    "unit": "PIXELS",
+                    "value": 0
+                  },
+                  "textAlignHorizontal": "LEFT",
+                  "textAlignVertical": "CENTER",
+                  "textCase": "ORIGINAL"
+                }
+              }
+            ]
+          },
+          {
+            "type": "FRAME",
+            "name": "Two Columns",
+            "layout": {
+              "mode": "HORIZONTAL",
+              "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              },
+              "itemSpacing": 40,
+              "sizing": {
+                "primary": "FIXED",
+                "counter": "AUTO"
+              },
+              "align": "STRETCH"
+            },
+            "width": 912,
+            "height": 450,
+            "visual": {
+              "strokeWeight": 1,
+              "strokeAlign": "INSIDE"
+            },
+            "children": [
+              {
+                "type": "FRAME",
+                "name": "Column",
+                "layout": {
+                  "mode": "VERTICAL",
+                  "padding": {
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0,
+                    "left": 0
+                  },
+                  "itemSpacing": 16,
+                  "sizing": {
+                    "primary": "AUTO",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 436,
+                "height": 450,
+                "visual": {
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE"
+                },
+                "children": [
+                  {
+                    "type": "TEXT",
+                    "name": "Text",
+                    "width": 45,
+                    "height": 10,
+                    "visual": {
+                      "fills": [
+                        {
+                          "type": "SOLID",
+                          "color": {
+                            "r": 0.20000000298023224,
+                            "g": 0.20000000298023224,
+                            "b": 0.20000000298023224
+                          }
+                        }
+                      ],
+                      "strokeWeight": 1,
+                      "strokeAlign": "OUTSIDE"
+                    },
+                    "text": {
+                      "characters": "Simple",
+                      "fontFamily": "Protipo",
+                      "fontStyle": "Semibold",
+                      "fontSize": 14,
+                      "lineHeight": {
+                        "unit": "AUTO"
+                      },
+                      "letterSpacing": {
+                        "unit": "PIXELS",
+                        "value": 0
+                      },
+                      "textAlignHorizontal": "LEFT",
+                      "textAlignVertical": "CENTER",
+                      "textCase": "ORIGINAL"
+                    }
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "General",
+                        "width": 52,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "General",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Accessibility",
+                        "width": 82,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Accessibility",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Analytics Tagging",
+                        "width": 115,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Analytics Tagging",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Content Review",
+                        "width": 103,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Content Review",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Content Table",
+                        "width": 91,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Content Table",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Discovery Copilot",
+                        "width": 115,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Discovery Copilot",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Design Workshop",
+                        "width": 116,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Design Workshop",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Design Critique",
+                        "width": 102,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Design Critique",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Code2Design",
+                        "width": 87,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Code2Design",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Dev Handoff",
+                        "width": 80,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Dev Handoff",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Errors",
+                        "width": 45,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Errors",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "FRAME",
+                "name": "Column",
+                "layout": {
+                  "mode": "VERTICAL",
+                  "padding": {
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0,
+                    "left": 0
+                  },
+                  "itemSpacing": 16,
+                  "sizing": {
+                    "primary": "AUTO",
+                    "counter": "FIXED"
+                  },
+                  "grow": 1
+                },
+                "width": 436,
+                "height": 450,
+                "visual": {
+                  "strokeWeight": 1,
+                  "strokeAlign": "INSIDE"
+                },
+                "children": [
+                  {
+                    "type": "TEXT",
+                    "name": "Text",
+                    "width": 65,
+                    "height": 10,
+                    "visual": {
+                      "fills": [
+                        {
+                          "type": "SOLID",
+                          "color": {
+                            "r": 0.20000000298023224,
+                            "g": 0.20000000298023224,
+                            "b": 0.20000000298023224
+                          }
+                        }
+                      ],
+                      "strokeWeight": 1,
+                      "strokeAlign": "OUTSIDE"
+                    },
+                    "text": {
+                      "characters": "Advanced",
+                      "fontFamily": "Protipo",
+                      "fontStyle": "Semibold",
+                      "fontSize": 14,
+                      "lineHeight": {
+                        "unit": "AUTO"
+                      },
+                      "letterSpacing": {
+                        "unit": "PIXELS",
+                        "value": 0
+                      },
+                      "textAlignHorizontal": "LEFT",
+                      "textAlignVertical": "CENTER",
+                      "textCase": "TITLE"
+                    }
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "General",
+                        "width": 52,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "General",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Accessibility",
+                        "width": 82,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Accessibility",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Analytics Tagging",
+                        "width": 115,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Analytics Tagging",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Content Review",
+                        "width": 103,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Content Review",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Content Table",
+                        "width": 91,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Content Table",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Discovery Copilot",
+                        "width": 115,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Discovery Copilot",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Design Workshop",
+                        "width": 116,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Design Workshop",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Design Critique",
+                        "width": 102,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Design Critique",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Code2Design",
+                        "width": 87,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Code2Design",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 0,
+                                "height": 0,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.20000000298023224,
+                                        "g": 0.20000000298023224,
+                                        "b": 0.20000000298023224
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Dev Handoff",
+                        "width": 80,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Dev Handoff",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FRAME",
+                    "name": "Row",
+                    "layout": {
+                      "mode": "HORIZONTAL",
+                      "padding": {
+                        "top": 0,
+                        "right": 0,
+                        "bottom": 0,
+                        "left": 0
+                      },
+                      "itemSpacing": 12,
+                      "sizing": {
+                        "primary": "FIXED",
+                        "counter": "AUTO"
+                      },
+                      "align": "STRETCH"
+                    },
+                    "width": 436,
+                    "height": 24,
+                    "visual": {
+                      "strokeWeight": 1,
+                      "strokeAlign": "INSIDE"
+                    },
+                    "children": [
+                      {
+                        "type": "FRAME",
+                        "name": "Checkbox",
+                        "layout": {
+                          "mode": "HORIZONTAL",
+                          "padding": {
+                            "top": 0,
+                            "right": 0,
+                            "bottom": 0,
+                            "left": 0
+                          },
+                          "itemSpacing": 0,
+                          "sizing": {
+                            "primary": "FIXED",
+                            "counter": "FIXED"
+                          }
+                        },
+                        "width": 24,
+                        "height": 24,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 1,
+                                "g": 1,
+                                "b": 1
+                              }
+                            }
+                          ],
+                          "strokes": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.8352941274642944,
+                                "g": 0.0470588244497776,
+                                "b": 0.4901960790157318
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1.6666666269302368,
+                          "strokeAlign": "INSIDE"
+                        },
+                        "children": [
+                          {
+                            "type": "INSTANCE",
+                            "name": "Check",
+                            "width": 20,
+                            "height": 20,
+                            "visual": {
+                              "strokeWeight": 0.8333333134651184,
+                              "strokeAlign": "INSIDE"
+                            },
+                            "children": [
+                              {
+                                "type": "BOOLEAN_OPERATION",
+                                "name": "Icon",
+                                "width": 15.332962989807129,
+                                "height": 12.000237464904785,
+                                "visual": {
+                                  "fills": [
+                                    {
+                                      "type": "SOLID",
+                                      "color": {
+                                        "r": 0.8352941274642944,
+                                        "g": 0.0470588244497776,
+                                        "b": 0.4901960790157318
+                                      }
+                                    }
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "type": "VECTOR",
+                                    "name": "Vector",
+                                    "width": 13.333333015441895,
+                                    "height": 10,
+                                    "visual": {
+                                      "strokes": [
+                                        {
+                                          "type": "SOLID",
+                                          "color": {
+                                            "r": 0.8352941274642944,
+                                            "g": 0.0470588244497776,
+                                            "b": 0.4901960790157318
+                                          }
+                                        }
+                                      ],
+                                      "strokeWeight": 2
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TEXT",
+                        "name": "Errors",
+                        "width": 45,
+                        "height": 10,
+                        "visual": {
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "color": {
+                                "r": 0.20000000298023224,
+                                "g": 0.20000000298023224,
+                                "b": 0.20000000298023224
+                              }
+                            }
+                          ],
+                          "strokeWeight": 1,
+                          "strokeAlign": "OUTSIDE"
+                        },
+                        "text": {
+                          "characters": "Errors",
+                          "fontFamily": "Protipo",
+                          "fontStyle": "Regular",
+                          "fontSize": 14,
+                          "lineHeight": {
+                            "unit": "AUTO"
+                          },
+                          "letterSpacing": {
+                            "unit": "PIXELS",
+                            "value": 0
+                          },
+                          "textAlignHorizontal": "LEFT",
+                          "textAlignVertical": "CENTER",
+                          "textCase": "ORIGINAL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }

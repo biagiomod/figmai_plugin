@@ -16,6 +16,7 @@ interface CustomConfig {
     defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
     simpleModeIds?: string[]
+    advancedModeIds?: string[]
     contentMvpAssistantId?: string
   }
   llm?: {
@@ -204,6 +205,7 @@ export interface CustomConfig {
     defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
     simpleModeIds?: string[]
+    advancedModeIds?: string[]
     contentMvpAssistantId?: string
   }
   llm?: {

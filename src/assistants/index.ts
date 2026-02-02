@@ -53,11 +53,46 @@ export function listAssistants(): Assistant[] {
 const DEFAULT_SIMPLE_MODE_IDS = ['general', 'content_table', 'design_critique', 'design_workshop']
 const DEFAULT_CONTENT_MVP_ASSISTANT_ID = 'content_table'
 
+/** Design order for Advanced mode (must match ACE). Assistants not in this list follow in manifest order. */
+const ADVANCED_DESIGN_ORDER = [
+  'general',
+  'accessibility',
+  'analytics_tagging',
+  'ux_copy_review',
+  'content_table',
+  'discovery_copilot',
+  'design_workshop',
+  'design_critique',
+  'code2design',
+  'dev_handoff',
+  'errors'
+]
+
+function getAdvancedOrderedAssistants(): Assistant[] {
+  const byId = new Map(ASSISTANTS.map((a) => [a.id, a]))
+  const ordered: Assistant[] = []
+  const seen = new Set<string>()
+  for (const id of ADVANCED_DESIGN_ORDER) {
+    const a = byId.get(id)
+    if (a) {
+      ordered.push(a)
+      seen.add(id)
+    }
+  }
+  for (const a of ASSISTANTS) {
+    if (!seen.has(a.id)) {
+      ordered.push(a)
+      seen.add(a.id)
+    }
+  }
+  return ordered
+}
+
 /**
  * List assistants filtered by mode.
  * Simple mode: configurable list and order from custom config (ui.simpleModeIds).
  * Content-MVP mode: single assistant from custom config (ui.contentMvpAssistantId).
- * Advanced mode: all assistants.
+ * Advanced mode: configurable list and order from custom config (ui.advancedModeIds); if absent, all in design order.
  */
 export function listAssistantsByMode(mode: 'simple' | 'advanced' | 'content-mvp'): Assistant[] {
   if (mode === 'content-mvp') {
@@ -74,14 +109,22 @@ export function listAssistantsByMode(mode: 'simple' | 'advanced' | 'content-mvp'
     })
   }
 
-  return ASSISTANTS
+  const ids = customConfig?.ui?.advancedModeIds
+  if (Array.isArray(ids) && ids.length > 0) {
+    return ASSISTANTS.filter((a) => ids.includes(a.id)).sort((a, b) => {
+      const indexA = ids.indexOf(a.id)
+      const indexB = ids.indexOf(b.id)
+      return indexA - indexB
+    })
+  }
+  return getAdvancedOrderedAssistants()
 }
 
 /**
  * Get default assistant.
  * Content-MVP: assistant from config (contentMvpAssistantId).
  * Simple: first in simpleModeIds or General.
- * Advanced: first assistant (General).
+ * Advanced: first in advancedModeIds (or design order) or General.
  */
 export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'): Assistant {
   if (mode === 'content-mvp') {
@@ -94,6 +137,10 @@ export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'
     const firstId = ids[0] ?? 'general'
     const a = ASSISTANTS.find((x) => x.id === firstId)
     return a ?? ASSISTANTS[0]
+  }
+  if (mode === 'advanced') {
+    const list = listAssistantsByMode('advanced')
+    return list[0] ?? ASSISTANTS[0]
   }
   return ASSISTANTS[0]
 }

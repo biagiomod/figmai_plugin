@@ -208,4 +208,3 @@ If a path is missing, it returns an empty string.
 - key: figmaElementLink, label: Figma Element Link, path: figmaElementLink
 - key: population, label: Population, path: population
 - key: note, label: Note, path: note
-

@@ -24,6 +24,16 @@ To use a different port:
 ADMIN_EDITOR_PORT=4444 npm run admin
 ```
 
+## Config schema: Resource Links
+
+The **Resource Links** card on the Config tab edits `config.resources.links`. The plugin runtime expects exactly three keys: `about`, `feedback`, `meetup`. Each entry is `{ "label": "string", "url": "string" }`. The runtime shows a button only when `url` is non-empty (trimmed); `label` falls back to "About", "Feedback", "Join Meetup" when empty. ACE maps:
+
+- **Button 1** → `config.resources.links.about`
+- **Button 2** → `config.resources.links.feedback`
+- **Button 3** → `config.resources.links.meetup`
+
+If both label and URL are blank for a slot, ACE removes that key from the saved config so the runtime does not show the button. No compatibility mapping layer is used; ACE writes the same keys the plugin reads from `getResourcesLinks()` (see `src/custom/config.ts`).
+
 ## What files are editable
 
 The editor reads and writes **only** these sources of truth:
