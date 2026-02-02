@@ -16,7 +16,7 @@ Or:
 npm run admin:dev
 ```
 
-Then open **http://localhost:3333** in your browser. The Phase 2 UI loads the model, provides tabs (Config, Assistants, Knowledge, Content Models, Design System Registries), and a footer with Reload, Validate, Preview changes, and Save. All writes go through the server; the UI only calls the API. The UI includes loading/disabled states, keyboard-accessible tabs (arrow keys, focus-visible), error recovery (Retry on load failure, Reload on 409 conflict, Copy error), and danger-zone framing for raw editors (Config advanced JSON, Content Models, Registries) with optional inline JSON validation feedback.
+Then open **http://localhost:3333** in your browser. The Phase 2 UI loads the model and uses a Figma-derived shell: **left sidebar nav** (tabs: Config, Assistants, Knowledge, Content Models, Design System Registries), **sticky top action bar** (Reload, Validate, Preview, Save), and **main content** with a sticky section header and card-based layout for General Plugin Settings. Raw JSON remains in a clearly labeled danger zone. All writes go through the server; the UI only calls the API. The UI includes loading/disabled states, keyboard-accessible tabs (arrow keys, focus-visible), error recovery (Retry, Reload on 409, Copy error), and danger-zone framing for raw editors.
 
 To use a different port:
 

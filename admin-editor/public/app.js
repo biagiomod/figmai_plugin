@@ -436,7 +436,7 @@
     el.innerHTML = html
   }
 
-  // ——— Config tab ———
+  // ——— Config tab (General Plugin Settings — card layout) ———
   function renderConfigTab () {
     const panel = document.getElementById('panel-config')
     const m = state.editedModel
@@ -448,23 +448,31 @@
     const simpleModeIds = Array.isArray(ui.simpleModeIds) ? ui.simpleModeIds.join(', ') : ''
     const assistantIds = (state.editedModel?.assistantsManifest?.assistants || []).map(a => a.id)
 
-    let html = '<div class="section-title">Config</div>'
-    html += '<div class="reset-section"><button type="button" class="btn-small" id="reset-config-btn">Reset section</button></div>'
-    html += '<label>Default mode</label>'
+    let html = '<div class="ace-section-header">'
+    html += '<h2 class="ace-section-title">General Plugin Settings</h2>'
+    html += '<button type="button" class="btn-small btn-ghost" id="reset-config-btn">Reset this section only</button>'
+    html += '</div>'
+    html += '<div class="ace-config-cards ace-cards">'
+    html += '<div class="ace-card"><h3 class="ace-card-title">Default mode</h3>'
+    html += '<label for="config-defaultMode">UI mode when the plugin loads</label>'
     html += '<select id="config-defaultMode">'
     for (const opt of ['content-mvp', 'simple', 'advanced']) {
       html += '<option value="' + opt + '"' + (ui.defaultMode === opt ? ' selected' : '') + '>' + opt + '</option>'
     }
-    html += '</select>'
-    html += '<label>Simple mode assistant IDs (comma-separated)</label>'
+    html += '</select></div>'
+    html += '<div class="ace-card"><h3 class="ace-card-title">Mode settings</h3>'
+    html += '<label for="config-simpleModeIds">Simple mode assistant IDs (comma-separated)</label>'
     html += '<input type="text" id="config-simpleModeIds" value="' + escapeHtml(simpleModeIds) + '" placeholder="e.g. general, design_critique">'
-    html += '<label>Content-MVP assistant ID</label>'
+    html += '<label for="config-contentMvpAssistantId">Content-MVP assistant ID</label>'
     html += '<input type="text" id="config-contentMvpAssistantId" value="' + escapeHtml(ui.contentMvpAssistantId || '') + '" placeholder="e.g. content_table">'
-    html += '<details class="collapsible danger-zone"><summary>Advanced: raw config JSON</summary>'
-    html += '<p class="danger-zone-label">Raw editing — invalid JSON will fail validation.</p>'
+    html += '</div>'
+    html += '<div class="ace-card danger-zone">'
+    html += '<details class="collapsible"><summary><strong>Advanced: Raw JSON Config</strong></summary>'
+    html += '<p class="danger-zone-label">Raw editing — invalid JSON will fail validation. Edit only if you know the schema.</p>'
     html += '<textarea class="raw large" id="config-raw" rows="12" aria-describedby="config-raw-error">' + escapeHtml(JSON.stringify(m.config, null, 2)) + '</textarea>'
     html += '<span id="config-raw-error" class="inline-error" aria-live="polite"></span>'
-    html += '</details>'
+    html += '</details></div>'
+    html += '</div>'
     panel.innerHTML = html
 
     document.getElementById('config-defaultMode').onchange = function () {
@@ -813,7 +821,7 @@
   }
 
   var TAB_SUBHEADERS = {
-    config: 'Config — UI and plugin settings',
+    config: 'General Plugin Settings',
     assistants: 'Assistants — Definitions and prompts',
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
