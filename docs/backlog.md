@@ -25,10 +25,11 @@ This file is the canonical backlog. All work items must be tracked here before i
 
 ### Modification Rules
 
-1. **Only the Editor agent may modify this file**
-   - Human editors should propose changes via PRs or issue tracking
-   - AI agents (except Editor) should read-only and reference items by ID
-   - Direct edits to this file should be rare and deliberate
+1. **Only the Backlog Maintainer may modify this file**
+   - The Backlog Maintainer is the Code Steward agent in Execute mode, or an approved human maintainer.
+   - Other contributors should propose changes via PRs or issue tracking.
+   - AI agents (except Code Steward in Execute mode when applying approved backlog updates) should treat this file read-only and reference items by ID.
+   - Direct edits to this file should be rare and deliberate.
 
 2. **Code changes must reference a Backlog ID**
    - Commit messages: `feat: Add feature X (BL-001)`
@@ -174,6 +175,15 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 |----|-------|----------|--------|-------|---------------------|---------------|
 | BL-005 | Public HTML marketing website for FigmAI plugin | P2 | Proposed | Unassigned | Static site exists with overview, feature list, screenshots, docs links, and contact info | |
 | BL-006 | HTML admin/editor interface for custom config and knowledge files | P2 | Proposed | Unassigned | Editors can update content through UI, with validation and export back to source format | |
+| BL-011 | AT-A (Analytics Tagging Assistant) placeholder — improvements/known issues, details TBD | P2 | Proposed | Unassigned | Placeholder tracked; scope and acceptance criteria to be defined. | |
+| BL-012 | ACE: AI settings tab + Internal API activation without requiring Test Connection | P2 | Proposed | Unassigned | ACE has an AI settings tab; internal API can be activated without mandatory Test Connection. | |
+| BL-013 | ACE: Assistants wizard UX + "How Assistants work" documentation | P2 | Proposed | Unassigned | Wizard UX is improved; "How Assistants work" doc exists and is discoverable. | |
+| BL-014 | ACE: Apply same UX improvements to Design Systems section | P2 | Proposed | Unassigned | Design Systems section has UX improvements aligned with other ACE sections. | |
+| BL-015 | ACE: Roles/permissions (Owner/Editor/Reviewer) | P2 | Proposed | Unassigned | ACE supports Owner, Editor, and Reviewer roles with appropriate permissions. | |
+| BL-016 | ACE: Versioning, backup, and revert | P2 | Proposed | Unassigned | Users can create backups, view version history, and revert where applicable. | |
+| BL-017 | ACE: Internal hosting guidance (local → internal work environment) | P2 | Proposed | Unassigned | Documentation or guidance exists for hosting ACE from local to internal work environment. | |
+| BL-018 | ACE: Upgrade strategy + visible ACE build/version number in ACE UI | P2 | Proposed | Unassigned | Upgrade strategy is documented; ACE UI displays build/version number. | |
+| BL-019 | ACE: Simple backlog page viewer/editor | P2 | Proposed | Unassigned | ACE has a dedicated page that views backlog.md; editing limited to Owner/Editor when roles exist (viewer-only acceptable initially). Scope limited to backlog.md only. | |
 
 ---
 
@@ -184,7 +194,7 @@ Known issues and defects that need to be addressed.
 | ID | Title | Priority | Status | Owner | Acceptance Criteria | Notes / Links |
 |----|-------|----------|--------|-------|---------------------|---------------|
 | BL-001 | DCA does not invoke DESIGN_SYSTEM_QUERY for DS availability questions | P1 | Blocked | Unassigned | See details below | DS enforcement implementation session |
-| BL-002 | Plugin-generated elements are not placed at intended canvas locations | P1 | Proposed | Unassigned | Generated elements consistently appear in predictable, user-intended positions relative to selection or viewport | |
+| BL-002 | Plugin-generated elements are not placed at intended canvas locations | P2 | Approved | Unassigned | Generated elements appear in predictable, user-intended positions (substantially improved). Remaining edge-case testing and refinements deferred. | Partially addressed; placement now working much better. Remaining testing/refinements deferred; deprioritized for now. |
 | BL-003 | Processing animation donut does not animate | P2 | Proposed | Unassigned | Processing indicator animates smoothly while async operations are running | |
 
 #### BL-001: DCA does not invoke DESIGN_SYSTEM_QUERY for DS availability questions
@@ -233,7 +243,8 @@ Technical improvements, refactoring, and code quality improvements.
 
 | ID | Title | Priority | Status | Owner | Acceptance Criteria | Notes / Links |
 |----|-------|----------|--------|-------|---------------------|---------------|
-| *No tech debt items* | | | | | | |
+| BL-009 | Documentation cleanup (remove bloat/redundancy, normalize filename/formatting) | P2 | Proposed | Unassigned | Docs have less redundancy; filenames and formatting are normalized; no unnecessary bloat. | |
+| BL-010 | Code cleanup (remove bloat/redundancy, normalize filename/formatting) | P2 | Proposed | Unassigned | Code has less redundancy; filenames and formatting are normalized; no unnecessary bloat. | |
 
 ---
 
@@ -477,6 +488,7 @@ This section tracks significant changes to the backlog structure itself.
 | Date | Change | Reason |
 |------|--------|--------|
 | 2026-01-26 | Initial backlog structure created | Establish canonical backlog system |
+| 2026-01-21 | Governance rule updated (Editor → Backlog Maintainer); BL-002 updated (deprioritized, partially addressed); new items added (AT-A placeholder, ACE roadmap including backlog viewer/editor, Tech Debt) | Apply approved Backlog Update execution plan |
 
 ---
 
