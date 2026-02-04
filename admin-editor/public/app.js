@@ -8,6 +8,7 @@
   'use strict'
 
   const API_BASE = ''
+  const ACE_DEBUG = false // set true to log Save request/response (revision, status, conflict payload)
 
   const state = {
     connected: false,
@@ -246,7 +247,7 @@
 
   // ——— API ———
   async function apiGetModel () {
-    const res = await fetch(API_BASE + '/api/model')
+    const res = await fetch(API_BASE + '/api/model', { cache: 'no-store' })
     if (!res.ok) throw new Error(res.statusText || 'Failed to load model')
     const data = await res.json()
     return data
@@ -263,10 +264,16 @@
     return data
   }
 
+  // Baseline token: state.meta.revision. Set on Load (GET /api/model) and after Save success (POST /api/save response.meta). Validate does not update it. Save sends it; backend returns 409 if disk revision !== sent revision.
   async function apiSave (payload, dryRun) {
+    const sentRevision = state.meta?.revision ?? ''
     const body = {
       model: payload,
-      meta: { revision: state.meta?.revision ?? '' }
+      meta: { revision: sentRevision }
+    }
+    if (ACE_DEBUG) {
+      var revLen = typeof sentRevision === 'string' ? sentRevision.length : 0
+      console.log('[ACE Save] request: dryRun=' + !!dryRun + ', hasStateMeta=' + !!state.meta + ', meta.revision=' + (sentRevision || '(empty)') + ', revisionLength=' + revLen)
     }
     const url = API_BASE + '/api/save' + (dryRun ? '?dryRun=1' : '')
     const res = await fetch(url, {
@@ -275,6 +282,11 @@
       body: JSON.stringify(body)
     })
     const data = await res.json()
+    if (ACE_DEBUG) {
+      var resRev = (data.meta && data.meta.revision) ? data.meta.revision : ''
+      var resRevLen = typeof resRev === 'string' ? resRev.length : 0
+      console.log('[ACE Save] response: status=' + res.status + ', success=' + (data.success === true) + (res.status === 200 ? ', meta.revisionLength=' + resRevLen + ', meta.revision=' + (resRev || '(missing)') : '') + (res.status === 409 ? ', serverRevisionLength=' + resRevLen + ', serverRevision=' + (resRev || '(missing)') : ''))
+    }
     if (res.status === 409) {
       const err = new Error(data.error || 'Conflict')
       err.status = 409
@@ -1310,7 +1322,13 @@
       if (summary.success) {
         state.originalModel = getEditedModel()
         state.editedModel = deepClone(state.originalModel)
+        if (summary.meta) state.meta = summary.meta
+        if (ACE_DEBUG) {
+          var postRev = (summary.meta && summary.meta.revision) ? summary.meta.revision : ''
+          console.log('[ACE Save] success path: summary.meta=' + (summary.meta ? 'present' : 'missing') + ', summary.meta.revisionLength=' + (typeof postRev === 'string' ? postRev.length : 0))
+        }
         state.lastValidation = null
+        showConflictBanner(false)
         showUnsavedBanner()
         renderAllPanels()
         showActionModal({ state: 'success', message: 'Saved successfully.' })

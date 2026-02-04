@@ -83,16 +83,16 @@ export const customConfig: CustomConfig | null = {
   "llm": {
     "endpoint": "",
     "hideModelSettings": false,
-    "uiMode": "full",
     "promptDiagnostics": {
       "enabled": false,
       "level": "compact"
     },
     "safety": {
+      "forceNoImages": true,
       "forceNoKbName": false,
-      "forceNoSelectionSummary": false,
-      "forceNoImages": true
-    }
+      "forceNoSelectionSummary": false
+    },
+    "uiMode": "full"
   },
   "knowledgeBases": {},
   "networkAccess": {

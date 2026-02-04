@@ -18,12 +18,15 @@ const adminEditorDir = __dirname
 const repoRoot = path.resolve(adminEditorDir, '..')
 const backupRootDir = path.join(adminEditorDir, '.backups')
 
+const ACE_DEBUG = process.env.ACE_DEBUG === '1' || process.env.ACE_DEBUG === 'true'
 const app = express()
 app.use(express.json({ limit: '10mb' }))
 app.use(express.static(path.join(adminEditorDir, 'public')))
 
-// GET /api/model – load single AdminEditableModel from repo files
+// GET /api/model – load single AdminEditableModel from repo files.
+// Cache-Control: no-store so client never gets a cached revision (avoids false 409 on Save).
 app.get('/api/model', (_req, res) => {
+  res.set('Cache-Control', 'no-store')
   try {
     const { model, meta } = loadModel(repoRoot)
     const validation = validateModel(model)
@@ -64,6 +67,7 @@ app.post('/api/validate', (req, res) => {
 // POST /api/save – validate, backup, write, run generators; return summary.
 // Query ?dryRun=1: preview only (filesWouldWrite, generatorsWouldRun, backupsWouldCreateAt).
 // Body: { model: AdminEditableModel, meta: { revision } }. On revision mismatch returns 409.
+// Conflict check is done once at request start (before any writes); generators cannot cause a false 409.
 app.post('/api/save', (req, res) => {
   const dryRun = req.query.dryRun === '1' || req.query.dryRun === 'true'
   try {
@@ -74,6 +78,10 @@ app.post('/api/save', (req, res) => {
     }
     const { meta: currentMeta } = loadModel(repoRoot)
     const clientRevision = parsed.data.meta.revision
+    if (ACE_DEBUG) {
+      const match = currentMeta.revision === clientRevision
+      console.log('[ACE /api/save] start: clientRevisionLength=' + (typeof clientRevision === 'string' ? clientRevision.length : 0) + ', currentMeta.revisionLength=' + (typeof currentMeta.revision === 'string' ? currentMeta.revision.length : 0) + ', match=' + match)
+    }
     if (currentMeta.revision !== clientRevision) {
       return res.status(409).json({
         error: 'Files changed since load; reload to avoid overwriting.',
@@ -106,7 +114,11 @@ app.post('/api/save', (req, res) => {
       res.status(400).json(summary)
       return
     }
-    res.json(summary)
+    const { meta: newMeta } = loadModel(repoRoot)
+    if (ACE_DEBUG) {
+      console.log('[ACE /api/save] 200: newMeta.revisionLength=' + (typeof newMeta.revision === 'string' ? newMeta.revision.length : 0))
+    }
+    res.json({ ...summary, meta: newMeta })
   } catch (err: any) {
     res.status(500).json({
       success: false,
