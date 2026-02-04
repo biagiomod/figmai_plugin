@@ -378,6 +378,64 @@ body {
   line-height: 1.4;
 }
 
+/* Collapsible section (General page cards) */
+.ace-section.ace-collapsible {
+  background: var(--ace-surface);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-card-radius);
+  box-shadow: var(--ace-shadow-card);
+  overflow: hidden;
+}
+.ace-collapsible .ace-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: var(--ace-card-padding);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.ace-collapsible .ace-section-header:focus-visible {
+  outline: 2px solid var(--ace-accent);
+  outline-offset: 2px;
+  border-radius: var(--ace-radius);
+}
+.ace-collapsible .ace-section-title {
+  font-size: var(--ace-font-size-18);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+  margin: 0;
+}
+.ace-collapsible .ace-section-chevron {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.ace-collapsible .ace-section-body {
+  padding: var(--ace-card-padding);
+}
+/* Single card: no nested border; inner .ace-card is content-only (no stroke/shadow) */
+.ace-collapsible .ace-section-body > .ace-card {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+}
+.ace-collapsible .ace-section-body > .ace-card {
+  background: transparent;
+}
+.ace-collapsible[data-section="advanced-raw-json"] .ace-section-body {
+  background: #fbf4d9;
+}
+.ace-collapsible.is-collapsed .ace-section-body {
+  display: none;
+}
+
 /* ========== Buttons ========== */
 .btn,
 .btn-primary,
@@ -550,12 +608,13 @@ body {
 .validation-message .warnings { color: var(--warning); margin-top: 4px; }
 
 /* ========== Banners ========== */
+/* Align with main content: same horizontal inset as .main (var(--ace-space-32)) */
 .unsaved-banner {
   padding: var(--ace-space-12) var(--ace-space-16);
   background: #fffbe6;
   border: 1px solid var(--warning);
   border-radius: var(--ace-radius);
-  margin: var(--ace-space-16) 0;
+  margin: var(--ace-space-16) var(--ace-space-32);
   display: flex;
   align-items: center;
   gap: var(--ace-space-16);
@@ -577,7 +636,7 @@ body {
   background: #ffe6e6;
   border: 1px solid var(--error);
   border-radius: var(--ace-radius);
-  margin: var(--ace-space-16) 0;
+  margin: var(--ace-space-16) var(--ace-space-32);
   display: flex;
   align-items: center;
   gap: var(--ace-space-16);
@@ -1092,4 +1151,41 @@ textarea.ace-field.large {
 .ace-modal-actions .btn:focus-visible {
   outline: 2px solid var(--ace-accent);
   outline-offset: 2px;
+}
+
+/* Server Status modal: stacked lines, status colors */
+.ace-server-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-8);
+}
+.ace-server-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ace-space-8);
+  flex-wrap: wrap;
+}
+.ace-server-label {
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+  min-width: 4.5em;
+}
+.ace-server-value {
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--ace-text);
+  word-break: break-all;
+}
+.ace-server-state {
+  font-weight: 700;
+}
+.ace-server-state--connected {
+  color: var(--success);
+}
+.ace-server-state--disconnected {
+  color: #f57c00;
+}
+.ace-server-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }

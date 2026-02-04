@@ -168,7 +168,11 @@
       loading.hidden = false
     } else if (opts.state === 'success') {
       if (successTitle) successTitle.textContent = opts.title != null ? opts.title : 'Done'
-      successText.textContent = opts.message || 'Done.'
+      if (opts.htmlMessage != null) {
+        successText.innerHTML = opts.htmlMessage
+      } else {
+        successText.textContent = opts.message || 'Done.'
+      }
       success.hidden = false
     } else if (opts.state === 'error') {
       errText.textContent = opts.message || 'Something went wrong.'
@@ -341,6 +345,46 @@
     const div = document.createElement('div')
     div.textContent = s
     return div.innerHTML
+  }
+
+  var SECTION_STATE_KEY = 'ace.ui.configSectionExpanded.v1'
+  var CONFIG_SECTION_KEYS = ['default-mode', 'mode-settings', 'ai-api-endpoint', 'resource-links', 'credits', 'advanced-raw-json']
+  function getDefaultExpandedState () {
+    var out = {}
+    for (var i = 0; i < CONFIG_SECTION_KEYS.length; i++) {
+      out[CONFIG_SECTION_KEYS[i]] = CONFIG_SECTION_KEYS[i] === 'default-mode'
+    }
+    return out
+  }
+  function loadSectionExpandedState () {
+    try {
+      var raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(SECTION_STATE_KEY) : null
+      if (!raw) return getDefaultExpandedState()
+      var parsed = JSON.parse(raw)
+      if (typeof parsed !== 'object' || parsed === null) return getDefaultExpandedState()
+      var result = getDefaultExpandedState()
+      for (var k in parsed) {
+        if (Object.prototype.hasOwnProperty.call(result, k)) result[k] = !!parsed[k]
+      }
+      return result
+    } catch (_) {}
+    return getDefaultExpandedState()
+  }
+  function saveSectionExpandedState (map) {
+    try {
+      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SECTION_STATE_KEY, JSON.stringify(map))
+    } catch (_) {}
+  }
+  function collapsibleSection (sectionId, title, bodyHtml, expanded) {
+    var isExpanded = expanded === true
+    var chevron = isExpanded ? 'ChevronUpIcon.svg' : 'ChevronDownIcon.svg'
+    return '<section class="ace-section ace-collapsible' + (isExpanded ? '' : ' is-collapsed') + '" data-section="' + escapeHtml(sectionId) + '">' +
+      '<button type="button" class="ace-section-header" aria-expanded="' + (isExpanded ? 'true' : 'false') + '" aria-controls="section-' + escapeHtml(sectionId) + '-body">' +
+      '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
+      '<img class="ace-section-chevron" src="assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />' +
+      '</button>' +
+      '<div id="section-' + escapeHtml(sectionId) + '-body" class="ace-section-body">' + bodyHtml + '</div>' +
+      '</section>'
   }
 
   function getValidationErrorText () {
@@ -535,103 +579,147 @@
     html += '<button type="button" class="ace-section-header-btn" id="reset-config-btn">RESET THIS SECTION ONLY</button>'
     html += '</div>'
     html += '<div class="ace-config-cards ace-cards">'
+    var expandedMap = loadSectionExpandedState()
     var defaultMode = ui.defaultMode || 'simple'
     var defaultModeForSegmented = (defaultMode === 'content-mvp' || defaultMode === 'simple') ? 'simple' : 'advanced'
-    html += '<div class="ace-card"><h3 class="ace-card-title">Default Mode</h3>'
-    html += '<p class="ace-card-subtext">Choose what level of complexity to show the user upon opening</p>'
-    html += '<div class="ace-segmented-btns" role="group" aria-label="Default mode">'
-    html += '<button type="button" class="ace-segmented-btn' + (defaultModeForSegmented === 'simple' ? ' is-active' : '') + '" data-default-mode="simple">Simple</button>'
-    html += '<button type="button" class="ace-segmented-btn' + (defaultModeForSegmented === 'advanced' ? ' is-active' : '') + '" data-default-mode="advanced">Advanced</button>'
-    html += '</div>'
-    html += '<select id="config-defaultMode" class="visually-hidden" aria-hidden="true" tabindex="-1">'
-    for (var i = 0, opts = ['content-mvp', 'simple', 'advanced']; i < opts.length; i++) {
-      var opt = opts[i]
-      html += '<option value="' + opt + '"' + (defaultMode === opt ? ' selected' : '') + '>' + opt + '</option>'
-    }
-    html += '</select></div>'
-    html += '<div class="ace-card ace-mode-settings-card"><h3 class="ace-card-title">Mode Settings</h3>'
-    html += '<p class="ace-card-subtext">Choose what Assistants are visible to the user</p>'
-    html += '<div class="ace-two-col ace-mode-columns">'
-    html += '<div class="ace-mode-col"><h4 class="ace-mode-col-title">Simple</h4><div class="ace-checkbox-list" id="config-simpleModeIds-checkboxes">'
-    assistants.forEach(function (a) {
-      var checked = simpleSet.has(a.id)
-      html += '<label class="ace-checkbox-row"><input type="checkbox" class="config-simple-cb" data-id="' + escapeHtml(a.id) + '" ' + (checked ? 'checked' : '') + '> <span class="ace-checkbox-label">' + escapeHtml(a.label || a.id) + '</span></label>'
-    })
-    html += '</div></div>'
-    html += '<div class="ace-mode-col"><h4 class="ace-mode-col-title">Advanced</h4><div class="ace-checkbox-list" id="config-advancedModeIds-checkboxes">'
-    advancedOrdered.forEach(function (a) {
-      var checked = effectiveAdvancedIds.has(a.id)
-      html += '<label class="ace-checkbox-row"><input type="checkbox" class="config-advanced-cb" data-id="' + escapeHtml(a.id) + '" ' + (checked ? 'checked' : '') + '> <span class="ace-checkbox-label">' + escapeHtml(a.label || a.id) + '</span></label>'
-    })
-    html += '</div></div></div>'
-    html += '</div>'
-    html += '<div class="ace-card ace-llm-endpoint-card">'
-    html += '<h3 class="ace-card-title">AI API Endpoint</h3>'
-    html += '<p class="ace-card-subtext">Provide the LLM URL to enable AI features</p>'
-    html += '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>'
-    html += '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">'
-    html += '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>'
-    html += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>'
-    html += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-showTestConnection"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>'
-    html += '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>'
-    html += '</div>'
+    html += collapsibleSection('default-mode', 'Default Mode',
+      '<div class="ace-card">' +
+      '<p class="ace-card-subtext">Choose what level of complexity to show the user upon opening</p>' +
+      '<div class="ace-segmented-btns" role="group" aria-label="Default mode">' +
+      '<button type="button" class="ace-segmented-btn' + (defaultModeForSegmented === 'simple' ? ' is-active' : '') + '" data-default-mode="simple">Simple</button>' +
+      '<button type="button" class="ace-segmented-btn' + (defaultModeForSegmented === 'advanced' ? ' is-active' : '') + '" data-default-mode="advanced">Advanced</button>' +
+      '</div>' +
+      '<select id="config-defaultMode" class="visually-hidden" aria-hidden="true" tabindex="-1">' +
+      (function () {
+        var o = ''
+        for (var i = 0, opts = ['content-mvp', 'simple', 'advanced']; i < opts.length; i++) {
+          var opt = opts[i]
+          o += '<option value="' + opt + '"' + (defaultMode === opt ? ' selected' : '') + '>' + opt + '</option>'
+        }
+        return o
+      })() +
+      '</select></div>',
+      expandedMap['default-mode'])
+    html += collapsibleSection('mode-settings', 'Mode Settings',
+      '<div class="ace-card ace-mode-settings-card">' +
+      '<p class="ace-card-subtext">Choose what Assistants are visible to the user</p>' +
+      '<div class="ace-two-col ace-mode-columns">' +
+      '<div class="ace-mode-col"><h4 class="ace-mode-col-title">Simple</h4><div class="ace-checkbox-list" id="config-simpleModeIds-checkboxes">' +
+      (function () {
+        var o = ''
+        assistants.forEach(function (a) {
+          var checked = simpleSet.has(a.id)
+          o += '<label class="ace-checkbox-row"><input type="checkbox" class="config-simple-cb" data-id="' + escapeHtml(a.id) + '" ' + (checked ? 'checked' : '') + '> <span class="ace-checkbox-label">' + escapeHtml(a.label || a.id) + '</span></label>'
+        })
+        return o
+      })() +
+      '</div></div>' +
+      '<div class="ace-mode-col"><h4 class="ace-mode-col-title">Advanced</h4><div class="ace-checkbox-list" id="config-advancedModeIds-checkboxes">' +
+      (function () {
+        var o = ''
+        advancedOrdered.forEach(function (a) {
+          var checked = effectiveAdvancedIds.has(a.id)
+          o += '<label class="ace-checkbox-row"><input type="checkbox" class="config-advanced-cb" data-id="' + escapeHtml(a.id) + '" ' + (checked ? 'checked' : '') + '> <span class="ace-checkbox-label">' + escapeHtml(a.label || a.id) + '</span></label>'
+        })
+        return o
+      })() +
+      '</div></div></div></div>',
+      expandedMap['mode-settings'])
+    html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint',
+      '<div class="ace-card ace-llm-endpoint-card">' +
+      '<p class="ace-card-subtext">Provide the LLM URL to enable AI features</p>' +
+    '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>' +
+    '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">' +
+    '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>' +
+    '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>' +
+    '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-showTestConnection"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>' +
+    '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>' +
+    '</div>',
+      expandedMap['ai-api-endpoint'])
     var RESOURCE_LINK_KEYS = ['about', 'feedback', 'meetup']
     var RESOURCE_LINK_BUTTON_LABELS = ['Button 1', 'Button 2', 'Button 3']
     var resourcesLinks = (m.config.resources && m.config.resources.links) ? m.config.resources.links : {}
-    html += '<div class="ace-card ace-resource-links-card">'
-    html += '<h3 class="ace-card-title">Resource Links</h3>'
-    html += '<p class="ace-card-subtext">Include helpful links in the Resources &amp; Credits section. Leave fields blank to hide button.</p>'
-    for (var r = 0; r < RESOURCE_LINK_KEYS.length; r++) {
-      var linkKey = RESOURCE_LINK_KEYS[r]
-      var linkEntry = resourcesLinks[linkKey] || {}
-      var linkLabel = (typeof linkEntry.label === 'string' ? linkEntry.label : '') || ''
-      var linkUrl = (typeof linkEntry.url === 'string' ? linkEntry.url : '') || ''
-      html += '<div class="ace-resource-link-row" data-link-key="' + escapeHtml(linkKey) + '">'
-      html += '<h4 class="ace-resource-link-row-title">' + escapeHtml(RESOURCE_LINK_BUTTON_LABELS[r]) + '</h4>'
-      html += '<label for="config-resources-links-' + linkKey + '-label" class="ace-field-label">Label</label>'
-      html += '<input type="text" id="config-resources-links-' + linkKey + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(linkLabel) + '" data-link-key="' + escapeHtml(linkKey) + '">'
-      html += '<label for="config-resources-links-' + linkKey + '-url" class="ace-field-label">URL</label>'
-      html += '<input type="text" id="config-resources-links-' + linkKey + '-url" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(linkUrl) + '" data-link-key="' + escapeHtml(linkKey) + '">'
-      html += '</div>'
-    }
-    html += '</div>'
+    html += collapsibleSection('resource-links', 'Resource Links',
+      '<div class="ace-card ace-resource-links-card">' +
+      '<p class="ace-card-subtext">Include helpful links in the Resources &amp; Credits section. Leave fields blank to hide button.</p>' +
+      (function () {
+        var o = ''
+        for (var r = 0; r < RESOURCE_LINK_KEYS.length; r++) {
+          var linkKey = RESOURCE_LINK_KEYS[r]
+          var linkEntry = resourcesLinks[linkKey] || {}
+          var linkLabel = (typeof linkEntry.label === 'string' ? linkEntry.label : '') || ''
+          var linkUrl = (typeof linkEntry.url === 'string' ? linkEntry.url : '') || ''
+          o += '<div class="ace-resource-link-row" data-link-key="' + escapeHtml(linkKey) + '">'
+          o += '<h4 class="ace-resource-link-row-title">' + escapeHtml(RESOURCE_LINK_BUTTON_LABELS[r]) + '</h4>'
+          o += '<label for="config-resources-links-' + linkKey + '-label" class="ace-field-label">Label</label>'
+          o += '<input type="text" id="config-resources-links-' + linkKey + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(linkLabel) + '" data-link-key="' + escapeHtml(linkKey) + '">'
+          o += '<label for="config-resources-links-' + linkKey + '-url" class="ace-field-label">URL</label>'
+          o += '<input type="text" id="config-resources-links-' + linkKey + '-url" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(linkUrl) + '" data-link-key="' + escapeHtml(linkKey) + '">'
+          o += '</div>'
+        }
+        return o
+      })() +
+      '</div>',
+      expandedMap['resource-links'])
     var CREDITS_GROUP_KEYS = ['createdBy', 'apiTeam', 'llmInstruct']
     var CREDITS_GROUP_LABELS = { createdBy: 'Created By', apiTeam: 'API Team', llmInstruct: 'Content Team' }
     var creditsData = (m.config.resources && m.config.resources.credits) ? m.config.resources.credits : {}
-    html += '<div class="ace-card ace-credits-card" id="credits-card">'
-    html += '<h3 class="ace-card-title">Credits</h3>'
-    html += '<p class="ace-card-subtext">Share the love. Leave fields blank to hide slot.</p>'
-    for (var c = 0; c < CREDITS_GROUP_KEYS.length; c++) {
-      var groupKey = CREDITS_GROUP_KEYS[c]
-      var groupLabel = CREDITS_GROUP_LABELS[groupKey] || groupKey
-      var arr = Array.isArray(creditsData[groupKey]) ? creditsData[groupKey].slice() : []
-      while (arr.length < 3) arr.push({ label: '', url: '' })
-      arr = arr.slice(0, 3)
-      html += '<div class="ace-credits-subsection" data-credits-group="' + escapeHtml(groupKey) + '">'
-      for (var slot = 0; slot < 3; slot++) {
-        var entry = arr[slot] && typeof arr[slot] === 'object' ? arr[slot] : { label: '', url: '' }
-        var slotLabel = typeof entry.label === 'string' ? entry.label : ''
-        var slotUrl = typeof entry.url === 'string' ? entry.url : ''
-        html += '<div class="ace-credits-slot">'
-        html += '<h5 class="ace-credits-slot-title">' + escapeHtml(groupLabel) + ' Slot ' + (slot + 1) + '</h5>'
-        html += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-field-label">Label</label>'
-        html += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(slotLabel) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
-        html += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-field-label">URL</label>'
-        html += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(slotUrl) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
-        html += '</div>'
-      }
-      html += '</div>'
-    }
-    html += '</div>'
-    html += '<div class="ace-card danger-zone ace-raw-json-card">'
-    html += '<details class="ace-raw-json-details" open>'
-    html += '<summary class="ace-raw-json-header"><span class="ace-raw-json-title">Advanced: Raw JSON Config</span><span class="ace-raw-json-chevron-wrap" aria-hidden="true"><img src="assets/icons/ChevronDownIcon.svg" alt="" class="ace-raw-json-chevron ace-raw-json-chevron-down" width="20" height="20"><img src="assets/icons/ChevronUpIcon.svg" alt="" class="ace-raw-json-chevron ace-raw-json-chevron-up" width="20" height="20"></span></summary>'
-    html += '<p class="ace-raw-json-warning">Warning: Invalid JSON will fail validation</p>'
-    html += '<textarea class="raw large ace-field--full" id="config-raw" rows="12" aria-describedby="config-raw-error">' + escapeHtml(JSON.stringify(m.config, null, 2)) + '</textarea>'
-    html += '<span id="config-raw-error" class="inline-error" aria-live="polite"></span>'
-    html += '</details></div>'
+    html += collapsibleSection('credits', 'Credits',
+      '<div class="ace-card ace-credits-card" id="credits-card">' +
+      '<p class="ace-card-subtext">Share the love. Leave fields blank to hide slot.</p>' +
+      (function () {
+        var o = ''
+        for (var c = 0; c < CREDITS_GROUP_KEYS.length; c++) {
+          var groupKey = CREDITS_GROUP_KEYS[c]
+          var groupLabel = CREDITS_GROUP_LABELS[groupKey] || groupKey
+          var arr = Array.isArray(creditsData[groupKey]) ? creditsData[groupKey].slice() : []
+          while (arr.length < 3) arr.push({ label: '', url: '' })
+          arr = arr.slice(0, 3)
+          o += '<div class="ace-credits-subsection" data-credits-group="' + escapeHtml(groupKey) + '">'
+          for (var slot = 0; slot < 3; slot++) {
+            var entry = arr[slot] && typeof arr[slot] === 'object' ? arr[slot] : { label: '', url: '' }
+            var slotLabel = typeof entry.label === 'string' ? entry.label : ''
+            var slotUrl = typeof entry.url === 'string' ? entry.url : ''
+            o += '<div class="ace-credits-slot">'
+            o += '<h5 class="ace-credits-slot-title">' + escapeHtml(groupLabel) + ' Slot ' + (slot + 1) + '</h5>'
+            o += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-field-label">Label</label>'
+            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(slotLabel) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-field-label">URL</label>'
+            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(slotUrl) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '</div>'
+          }
+          o += '</div>'
+        }
+        return o
+      })() +
+      '</div>',
+      expandedMap['credits'])
+    html += collapsibleSection('advanced-raw-json', 'Advanced: Raw JSON Config',
+      '<div class="ace-card danger-zone ace-raw-json-card">' +
+      '<p class="ace-raw-json-warning">Warning: Invalid JSON will fail validation</p>' +
+      '<textarea class="raw large ace-field--full" id="config-raw" rows="12" aria-describedby="config-raw-error">' + escapeHtml(JSON.stringify(m.config, null, 2)) + '</textarea>' +
+      '<span id="config-raw-error" class="inline-error" aria-live="polite"></span>' +
+      '</div>',
+      expandedMap['advanced-raw-json'])
     html += '</div>'
     panel.innerHTML = html
+
+    panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
+      btn.onclick = function () {
+        var section = this.closest('.ace-collapsible')
+        if (!section) return
+        var sectionId = section.getAttribute('data-section')
+        if (!sectionId) return
+        var map = loadSectionExpandedState()
+        map[sectionId] = !map[sectionId]
+        saveSectionExpandedState(map)
+        var expanded = map[sectionId]
+        section.classList.toggle('is-collapsed', !expanded)
+        this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+        var img = this.querySelector('.ace-section-chevron')
+        if (img) img.src = expanded ? 'assets/icons/ChevronUpIcon.svg' : 'assets/icons/ChevronDownIcon.svg'
+      }
+    })
 
     panel.querySelectorAll('.ace-segmented-btn[data-default-mode]').forEach(function (btn) {
       btn.onclick = function () {
@@ -1339,12 +1427,17 @@
     })
     document.querySelectorAll('.ace-nav-item[data-action="server-status"]').forEach(function (btn) {
       btn.onclick = function () {
-        const lines = [
-          state.connected ? 'Server connected' : 'Server disconnected',
-          state.loadedAt ? 'Loaded: ' + state.loadedAt : 'Loaded: —',
-          state.meta && state.meta.repoRoot ? 'Repo: ' + state.meta.repoRoot : 'Repo: —'
-        ]
-        showActionModal({ state: 'success', title: 'Server status', message: lines.join('\n') })
+        const connected = state.connected
+        const loadedAt = state.loadedAt ? escapeHtml(state.loadedAt) : '—'
+        const repoPath = (state.meta && state.meta.repoRoot) ? escapeHtml(state.meta.repoRoot) : '—'
+        const statusClass = connected ? 'ace-server-state--connected' : 'ace-server-state--disconnected'
+        const statusText = connected ? 'Connected' : 'Disconnected'
+        const html = '<div class="ace-server-status">' +
+          '<div class="ace-server-line"><span class="ace-server-label">Server:</span><span class="ace-server-value ace-server-state ' + statusClass + '">' + statusText + '</span></div>' +
+          '<div class="ace-server-line"><span class="ace-server-label">Loaded:</span><span class="ace-server-value">' + loadedAt + '</span></div>' +
+          '<div class="ace-server-line"><span class="ace-server-label">Repo:</span><span class="ace-server-value ace-server-mono">' + repoPath + '</span></div>' +
+          '</div>'
+        showActionModal({ state: 'success', title: 'Server Status', htmlMessage: html })
       }
     })
     document.getElementById('reload-btn').onclick = function () { loadModel() }
