@@ -234,9 +234,16 @@ export class InternalApiProvider implements Provider {
             )
         }
 
+        const MAX_SELECTION_CHARS = 6000
+        const selectionText = (request.selectionSummary ?? '').trim()
+        const selectionInPayload = selectionText.length > 0
+        const message = selectionInPayload
+            ? userMessages + '\n\nSelection context (from Figma):\n' + selectionText.slice(0, MAX_SELECTION_CHARS)
+            : userMessages
+
         const payload: Record<string, string> = {
             type: 'generalChat',
-            message: userMessages
+            message
         }
         if (!request.minimalForContentFilter) {
             payload.kbName = 'figma'
@@ -248,8 +255,9 @@ export class InternalApiProvider implements Provider {
         providerDebug.log('request_route', { provider: 'internal-api', host: getHostForObservability(url) })
         providerDebug.log('Sending request', {
             provider: 'internal-api',
-            messageLength: userMessages.length,
-            hasSelectionSummary: !!request.selectionSummary
+            messageLength: message.length,
+            hasSelectionSummary: !!request.selectionSummary,
+            selectionInPayload: selectionInPayload ? 1 : 0
         })
 
         const maxRetries = 2
