@@ -75,9 +75,10 @@ export const customConfig: CustomConfig | null = {
     "hideContentMvpMode": false,
     "simpleModeIds": [
       "general",
+      "analytics_tagging",
       "content_table",
-      "design_critique",
-      "design_workshop"
+      "design_workshop",
+      "design_critique"
     ]
   },
   "llm": {

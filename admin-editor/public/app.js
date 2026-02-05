@@ -771,14 +771,10 @@
       return
     }
     const ui = m.config.ui || {}
-    const llm = m.config.llm || {}
-    const llmEndpoint = (typeof llm.endpoint === 'string' ? llm.endpoint : '') || ''
-    const llmHideModelSettings = !!llm.hideModelSettings
-    const llmUiModeConnectionOnly = llm.uiMode === 'connection-only'
-    const endpointEmpty = !llmEndpoint.trim()
     const assistants = state.editedModel?.assistantsManifest?.assistants || []
     const simpleSet = new Set(Array.isArray(ui.simpleModeIds) ? ui.simpleModeIds : [])
-    const advancedOrdered = getAdvancedOrderedAssistants(assistants)
+    /** Canonical order for both Simple and Advanced columns (Advanced design order first, then any others in manifest order). */
+    const canonicalOrder = getAdvancedOrderedAssistants(assistants)
     const effectiveAdvancedIds = new Set(getEffectiveAdvancedModeIds(ui, assistants))
 
     let html = '<div class="ace-section-header-row">'
@@ -814,7 +810,7 @@
       '<div class="ace-mode-col"><h4 class="ace-mode-col-title">Simple</h4><div class="ace-checkbox-list" id="config-simpleModeIds-checkboxes">' +
       (function () {
         var o = ''
-        assistants.forEach(function (a) {
+        canonicalOrder.forEach(function (a) {
           var checked = simpleSet.has(a.id)
           o += '<label class="ace-checkbox-row"><input type="checkbox" class="config-simple-cb" data-id="' + escapeHtml(a.id) + '" ' + (checked ? 'checked' : '') + '> <span class="ace-checkbox-label">' + escapeHtml(a.label || a.id) + '</span></label>'
         })
@@ -824,7 +820,7 @@
       '<div class="ace-mode-col"><h4 class="ace-mode-col-title">Advanced</h4><div class="ace-checkbox-list" id="config-advancedModeIds-checkboxes">' +
       (function () {
         var o = ''
-        advancedOrdered.forEach(function (a) {
+        canonicalOrder.forEach(function (a) {
           var checked = effectiveAdvancedIds.has(a.id)
           o += '<label class="ace-checkbox-row"><input type="checkbox" class="config-advanced-cb" data-id="' + escapeHtml(a.id) + '" ' + (checked ? 'checked' : '') + '> <span class="ace-checkbox-label">' + escapeHtml(a.label || a.id) + '</span></label>'
         })
@@ -832,17 +828,6 @@
       })() +
       '</div></div></div></div>',
       expandedMap['mode-settings'])
-    html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint',
-      '<div class="ace-card ace-llm-endpoint-card">' +
-      '<p class="ace-card-subtext">Provide the LLM URL to enable AI features</p>' +
-    '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>' +
-    '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">' +
-    '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>' +
-    '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>' +
-    '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-showTestConnection"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>' +
-    '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>' +
-    '</div>',
-      expandedMap['ai-api-endpoint'])
     var RESOURCE_LINK_KEYS = ['about', 'feedback', 'meetup']
     var RESOURCE_LINK_BUTTON_LABELS = ['Button 1', 'Button 2', 'Button 3']
     var resourcesLinks = (m.config.resources && m.config.resources.links) ? m.config.resources.links : {}
@@ -964,7 +949,8 @@
         const set = new Set(arr)
         if (this.checked) set.add(id)
         else set.delete(id)
-        const order = (state.editedModel?.assistantsManifest?.assistants || []).map(a => a.id).filter(i => set.has(i))
+        var canonicalOrder = getAdvancedOrderedAssistants(state.editedModel?.assistantsManifest?.assistants || [])
+        const order = canonicalOrder.map(function (a) { return a.id }).filter(function (i) { return set.has(i) })
         state.editedModel.config.ui.simpleModeIds = order
         syncSimpleModeIdsFromModel()
         showUnsavedBanner()
@@ -1008,52 +994,6 @@
       showUnsavedBanner()
       renderConfigTab()
       updateFooterButtons()
-    }
-
-    function updateLlmGuardrail () {
-      const endpointEl = document.getElementById('config-llm-endpoint')
-      const guardrailEl = document.getElementById('config-llm-endpoint-guardrail')
-      const hideCb = document.getElementById('config-llm-hideModelSettings')
-      const showTestCb = document.getElementById('config-llm-showTestConnection')
-      const endpointVal = endpointEl ? endpointEl.value : ''
-      const empty = !endpointVal.trim()
-      if (guardrailEl) {
-        guardrailEl.hidden = !empty
-      }
-      if (hideCb) hideCb.disabled = empty
-      if (showTestCb) showTestCb.disabled = empty
-    }
-
-    const endpointInput = document.getElementById('config-llm-endpoint')
-    if (endpointInput) {
-      endpointInput.oninput = endpointInput.onchange = function () {
-        if (!state.editedModel.config) return
-        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
-        state.editedModel.config.llm.endpoint = this.value
-        updateLlmGuardrail()
-        showUnsavedBanner()
-        updateFooterButtons()
-      }
-    }
-    const hideModelSettingsCb = document.getElementById('config-llm-hideModelSettings')
-    if (hideModelSettingsCb) {
-      hideModelSettingsCb.onchange = function () {
-        if (!state.editedModel.config) return
-        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
-        state.editedModel.config.llm.hideModelSettings = this.checked
-        showUnsavedBanner()
-        updateFooterButtons()
-      }
-    }
-    const showTestConnectionCb = document.getElementById('config-llm-showTestConnection')
-    if (showTestConnectionCb) {
-      showTestConnectionCb.onchange = function () {
-        if (!state.editedModel.config) return
-        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
-        state.editedModel.config.llm.uiMode = this.checked ? 'connection-only' : 'full'
-        showUnsavedBanner()
-        updateFooterButtons()
-      }
     }
 
     function syncResourceLinkToModel (linkKey) {
@@ -1124,6 +1064,114 @@
       errDiv.setAttribute('role', 'alert')
       errDiv.textContent = 'Missing DOM nodes: ' + missingIds.join(', ')
       panel.insertBefore(errDiv, panel.firstChild)
+    }
+  }
+
+  // ——— AI tab (AI API Endpoint section moved from General) ———
+  function renderAITab () {
+    const panel = document.getElementById('panel-ai')
+    const m = state.editedModel
+    if (!m || !m.config) {
+      panel.innerHTML = '<p>No config loaded.</p>'
+      return
+    }
+    const llm = m.config.llm || {}
+    const llmEndpoint = (typeof llm.endpoint === 'string' ? llm.endpoint : '') || ''
+    const llmHideModelSettings = !!llm.hideModelSettings
+    const llmUiModeConnectionOnly = llm.uiMode === 'connection-only'
+    const endpointEmpty = !llmEndpoint.trim()
+    var expandedMap = loadSectionExpandedState()
+    var html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">AI Settings</h2>'
+    html += '<button type="button" class="ace-section-header-btn" id="reset-ai-btn">RESET THIS SECTION ONLY</button>'
+    html += '</div>'
+    html += '<div class="ace-config-cards ace-cards">'
+    html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint',
+      '<div class="ace-card ace-llm-endpoint-card">' +
+      '<p class="ace-card-subtext">Provide the LLM URL to enable AI features</p>' +
+      '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>' +
+      '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">' +
+      '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>' +
+      '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>' +
+      '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-showTestConnection"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>' +
+      '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>' +
+      '</div>',
+      expandedMap['ai-api-endpoint'])
+    html += '</div>'
+    panel.innerHTML = html
+
+    panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
+      btn.onclick = function () {
+        var section = this.closest('.ace-collapsible')
+        if (!section) return
+        var sectionId = section.getAttribute('data-section')
+        if (!sectionId) return
+        var map = loadSectionExpandedState()
+        map[sectionId] = !map[sectionId]
+        saveSectionExpandedState(map)
+        var expanded = map[sectionId]
+        section.classList.toggle('is-collapsed', !expanded)
+        this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+        var img = this.querySelector('.ace-section-chevron')
+        if (img) img.src = expanded ? 'assets/icons/ChevronUpIcon.svg' : 'assets/icons/ChevronDownIcon.svg'
+      }
+    })
+
+    document.getElementById('reset-ai-btn').onclick = function () {
+      if (!state.originalModel) return
+      var origLlm = state.originalModel.config && state.originalModel.config.llm ? state.originalModel.config.llm : {}
+      var editLlm = state.editedModel.config && state.editedModel.config.llm ? state.editedModel.config.llm : {}
+      if (deepEqual(origLlm, editLlm)) return
+      if (!confirm('Reset changes for AI?')) return
+      if (!state.editedModel.config) state.editedModel.config = {}
+      state.editedModel.config.llm = state.originalModel.config && state.originalModel.config.llm ? deepClone(state.originalModel.config.llm) : {}
+      showUnsavedBanner()
+      renderAITab()
+      updateFooterButtons()
+    }
+
+    function updateLlmGuardrail () {
+      const endpointEl = document.getElementById('config-llm-endpoint')
+      const guardrailEl = document.getElementById('config-llm-endpoint-guardrail')
+      const hideCb = document.getElementById('config-llm-hideModelSettings')
+      const showTestCb = document.getElementById('config-llm-showTestConnection')
+      const endpointVal = endpointEl ? endpointEl.value : ''
+      const empty = !endpointVal.trim()
+      if (guardrailEl) guardrailEl.hidden = !empty
+      if (hideCb) hideCb.disabled = empty
+      if (showTestCb) showTestCb.disabled = empty
+    }
+
+    const endpointInput = document.getElementById('config-llm-endpoint')
+    if (endpointInput) {
+      endpointInput.oninput = endpointInput.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        state.editedModel.config.llm.endpoint = this.value
+        updateLlmGuardrail()
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const hideModelSettingsCb = document.getElementById('config-llm-hideModelSettings')
+    if (hideModelSettingsCb) {
+      hideModelSettingsCb.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        state.editedModel.config.llm.hideModelSettings = this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const showTestConnectionCb = document.getElementById('config-llm-showTestConnection')
+    if (showTestConnectionCb) {
+      showTestConnectionCb.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        state.editedModel.config.llm.uiMode = this.checked ? 'connection-only' : 'full'
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
     }
   }
 
@@ -1505,6 +1553,7 @@
       if (tabRegistries) tabRegistries.style.display = 'none'
     }
     renderConfigTab()
+    renderAITab()
     renderAssistantsTab()
     renderKnowledgeTab()
     if (m?.contentModelsRaw !== undefined) renderContentModelsTab()
@@ -1531,6 +1580,7 @@
 
   var TAB_SUBHEADERS = {
     config: 'General Plugin Settings',
+    ai: 'AI',
     assistants: 'Assistants — Definitions and prompts',
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
@@ -1550,7 +1600,7 @@
     })
     const subheaderEl = document.getElementById('tab-subheader')
     if (subheaderEl) {
-      if (tabId === 'config') {
+      if (tabId === 'config' || tabId === 'ai') {
         subheaderEl.textContent = ''
         subheaderEl.style.display = 'none'
       } else {
@@ -1558,8 +1608,8 @@
         subheaderEl.style.display = ''
       }
     }
-    const panelIds = ['panel-config', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries', 'panel-users']
-    const tabIds = ['config', 'assistants', 'knowledge', 'content-models', 'registries', 'users']
+    const panelIds = ['panel-config', 'panel-ai', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries', 'panel-users']
+    const tabIds = ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'users']
     panelIds.forEach((pid, i) => {
       const panel = document.getElementById(pid)
       if (!panel) return
@@ -1567,6 +1617,7 @@
       panel.setAttribute('aria-hidden', match ? 'false' : 'true')
       panel.style.display = match ? 'flex' : 'none'
     })
+    if (tabId === 'ai') renderAITab()
     if (tabId === 'users') renderUsersTab()
   }
 

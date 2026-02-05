@@ -40,7 +40,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     label: "Content Table",
     intro: "**Welcome to your Content Table Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.",
     hoverSummary: "Content table specialist",
-    tag: { isVisible: true, label: "Beta", variant: "beta" },
+    tag: { isVisible: true, label: "MVP", variant: "beta" },
     iconId: "ContentTableIcon",
     kind: "tool",
     quickActions: [

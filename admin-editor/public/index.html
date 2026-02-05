@@ -76,6 +76,10 @@
               <img src="assets/icons/ACEGeneralIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
               <span class="ace-nav-label">General</span>
             </button>
+            <button type="button" role="tab" class="ace-nav-item" data-tab="ai" aria-selected="false" aria-controls="panel-ai" tabindex="0">
+              <img src="assets/icons/ACEAIIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <span class="ace-nav-label">AI</span>
+            </button>
             <button type="button" role="tab" class="ace-nav-item" data-tab="assistants" aria-selected="false" aria-controls="panel-assistants" tabindex="0">
               <img src="assets/icons/ACEAssistantsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
               <span class="ace-nav-label">Assistants</span>
@@ -127,6 +131,7 @@
       <main class="main">
         <div id="tab-subheader" class="tab-subheader" aria-live="polite"></div>
         <section id="panel-config" role="tabpanel" class="panel" aria-hidden="false"></section>
+        <section id="panel-ai" role="tabpanel" class="panel" aria-hidden="true"></section>
         <section id="panel-assistants" role="tabpanel" class="panel" aria-hidden="true"></section>
         <section id="panel-knowledge" role="tabpanel" class="panel" aria-hidden="true"></section>
         <section id="panel-content-models" role="tabpanel" class="panel" aria-hidden="true" style="display: none;"></section>

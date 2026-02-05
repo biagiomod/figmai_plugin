@@ -58,14 +58,19 @@
 
 * { box-sizing: border-box; }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   font-family: var(--font-carbon);
   font-size: var(--ace-font-size-14);
   color: var(--ace-text);
   background: var(--ace-bg);
-  min-height: 100vh;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -79,6 +84,15 @@ body {
 }
 
 /* ========== Shell layout ========== */
+/* Fixed shell: app-shell fills viewport, topbar fixed, #app (ace-shell) + content-area get flex; only .ace-main scrolls. */
+#app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Row 1: .ace-topbar full-bleed. Row 2: .ace-shell (sidebar + main) below it. */
 .ace-topbar {
   position: sticky;
@@ -283,7 +297,9 @@ body {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 .ace-topbar-actions button {
   font-family: var(--font-protipo);
@@ -503,7 +519,8 @@ body {
 #app.ace-shell {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - var(--topbar-height));
+  flex: 1;
+  min-height: 0;
 }
 
 /* ========== Status (connection/loaded/repo) ========== */
