@@ -1629,6 +1629,7 @@ function Plugin() {
   }, [contentTable, debugLog])
 
   // Copy Analytics Tagging table to clipboard (no modal; fixed format)
+  // Uses same strategy chain as CT-A: ClipboardItem (HTML+plain) → execCommand contentEditable → writeText(TSV) → textarea execCommand
   const copyAnalyticsTableToClipboard = useCallback(async () => {
     const session = analyticsTaggingSessionRef.current
     if (!session || session.rows.length === 0) {
@@ -1638,21 +1639,105 @@ function Plugin() {
     const table = sessionToTable(session)
     const { html: htmlTable } = universalTableToHtml(table, 'analytics-tagging')
     const tsv = universalTableToTsv(table, 'analytics-tagging')
+
+    const onSuccess = (msg?: string) => {
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', msg || 'Successfully copied table to clipboard')
+    }
+    const onError = (msg: string) => {
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', msg)
+    }
+
     try {
+      // Strategy A: ClipboardItem with HTML + plain (same as CT-A)
       if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        const htmlBlob = new Blob([htmlTable], { type: 'text/html' })
-        const textBlob = new Blob([tsv], { type: 'text/plain' })
-        await navigator.clipboard.write([new ClipboardItem({ 'text/html': Promise.resolve(htmlBlob), 'text/plain': Promise.resolve(textBlob) })])
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(tsv)
-      } else {
-        emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'Clipboard not available.')
-        return
+        try {
+          const htmlBlob = new Blob([htmlTable], { type: 'text/html' })
+          const textBlob = new Blob([tsv], { type: 'text/plain' })
+          await navigator.clipboard.write([new ClipboardItem({ 'text/html': Promise.resolve(htmlBlob), 'text/plain': Promise.resolve(textBlob) })])
+          onSuccess()
+          return
+        } catch (_) {
+          // Fall through to B
+        }
       }
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+
+      // Strategy B: execCommand with contentEditable div (same as CT-A)
+      try {
+        const div = document.createElement('div')
+        div.contentEditable = 'true'
+        div.style.position = 'fixed'
+        div.style.left = '-9999px'
+        div.style.top = '0'
+        div.style.width = '1px'
+        div.style.height = '1px'
+        div.style.opacity = '0'
+        div.style.pointerEvents = 'none'
+        div.style.zIndex = '-1'
+        div.innerHTML = htmlTable
+        document.body.appendChild(div)
+        await new Promise(resolve => setTimeout(resolve, 10))
+        const range = document.createRange()
+        range.selectNodeContents(div)
+        const selection = window.getSelection()
+        if (selection) {
+          selection.removeAllRanges()
+          selection.addRange(range)
+        }
+        div.focus()
+        await new Promise(resolve => setTimeout(resolve, 10))
+        const successful = document.execCommand('copy')
+        if (selection) selection.removeAllRanges()
+        document.body.removeChild(div)
+        if (successful) {
+          onSuccess()
+          return
+        }
+      } catch (_) {
+        // Fall through to C
+      }
+
+      // Strategy C: writeText(TSV)
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(tsv)
+          onSuccess()
+          return
+        } catch (_) {
+          // Fall through to D
+        }
+      }
+
+      // Strategy D: textarea + execCommand (same as CT-A fallback)
+      try {
+        const textArea = document.createElement('textarea')
+        textArea.value = tsv
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-9999px'
+        textArea.style.top = '0'
+        textArea.style.width = '1px'
+        textArea.style.height = '1px'
+        textArea.style.opacity = '0'
+        textArea.style.pointerEvents = 'none'
+        textArea.style.zIndex = '-1'
+        document.body.appendChild(textArea)
+        await new Promise(resolve => setTimeout(resolve, 10))
+        textArea.focus()
+        textArea.select()
+        await new Promise(resolve => setTimeout(resolve, 10))
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        if (successful) {
+          onSuccess()
+          return
+        }
+      } catch (_) {
+        // Fall through to final error
+      }
+
+      onError('Failed to copy table. See console for details.')
     } catch (e) {
       const err = e as Error
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', err.message || 'Copy failed.')
+      onError(err.message || 'Copy failed.')
     }
   }, [])
   const copyAnalyticsTableToClipboardRef = useRef(copyAnalyticsTableToClipboard)
