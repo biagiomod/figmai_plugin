@@ -15,5 +15,6 @@
       "https://overobedient-buddy-leathern.ngrok-free.dev"
     ],
     "reasoning": "This plugin makes outbound requests to LLM and optional proxy endpoints configured via custom/config.json."
-  }
+  },
+  "enablePrivatePluginApi": true
 }

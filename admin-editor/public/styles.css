@@ -1189,3 +1189,166 @@ textarea.ace-field.large {
 .ace-server-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* ========== Auth views (login / bootstrap) ========== */
+.ace-auth-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--ace-bg);
+  padding: var(--ace-space-24);
+}
+.ace-auth-card {
+  background: var(--ace-surface);
+  border-radius: var(--ace-card-radius);
+  box-shadow: var(--ace-shadow-card);
+  padding: var(--ace-space-32);
+  max-width: 400px;
+  width: 100%;
+}
+.ace-auth-title {
+  margin: 0 0 var(--ace-space-8);
+  font-size: var(--ace-section-title-font-size);
+  font-weight: var(--ace-font-weight-bold);
+  color: var(--ace-text);
+}
+.ace-auth-subtitle {
+  margin: 0 0 var(--ace-space-24);
+  font-size: var(--ace-font-size-14);
+  color: var(--ace-text-muted);
+}
+.ace-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-16);
+}
+.ace-auth-form label.ace-auth-label {
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+}
+.ace-auth-input {
+  width: 100%;
+  padding: var(--ace-space-12) var(--ace-space-16);
+  font-size: var(--ace-font-size-14);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius);
+  font-family: inherit;
+}
+.ace-auth-input:focus {
+  outline: 2px solid var(--ace-accent);
+  outline-offset: 2px;
+}
+.ace-auth-error {
+  color: var(--error);
+  font-size: var(--ace-font-size-12);
+  margin: 0;
+}
+
+/* ========== Top bar user info & role badge ========== */
+.ace-user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ace-space-12);
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+}
+.ace-user-name {
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+}
+.ace-role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: var(--ace-font-weight-bold);
+  text-transform: uppercase;
+}
+.ace-role-badge--owner {
+  background: rgba(213, 12, 125, 0.15);
+  color: var(--ace-accent);
+}
+.ace-role-badge--editor {
+  background: rgba(0, 102, 204, 0.15);
+  color: #0066cc;
+}
+.ace-role-badge--reviewer {
+  background: rgba(102, 102, 102, 0.2);
+  color: var(--ace-text-muted);
+}
+
+/* ========== Users panel (owner only) ========== */
+.ace-users-loading {
+  color: var(--ace-text-muted);
+  padding: var(--ace-space-24);
+}
+.ace-users-section {
+  margin-bottom: var(--ace-space-32);
+}
+.ace-users-title {
+  margin: 0 0 var(--ace-space-16);
+  font-size: var(--ace-font-size-18);
+  font-weight: var(--ace-font-weight-bold);
+  color: var(--ace-text);
+}
+.ace-users-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ace-space-12);
+  margin-bottom: var(--ace-space-24);
+}
+.ace-users-form label {
+  display: block;
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  margin-bottom: 4px;
+}
+.ace-users-form .ace-auth-input,
+.ace-users-form select {
+  min-width: 140px;
+  padding: var(--ace-space-8) var(--ace-space-12);
+  font-size: var(--ace-font-size-14);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius);
+}
+.ace-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-8);
+}
+.ace-users-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ace-space-12);
+  padding: var(--ace-space-12) var(--ace-space-16);
+  background: var(--ace-surface);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius);
+}
+.ace-users-row--disabled {
+  opacity: 0.65;
+}
+.ace-users-username {
+  font-weight: var(--ace-font-weight-semibold);
+  min-width: 120px;
+}
+.ace-users-disabled {
+  color: var(--ace-text-muted);
+  font-size: var(--ace-font-size-12);
+}
+.ace-users-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  margin-left: auto;
+}
+.ace-users-role-select {
+  padding: 4px 8px;
+  font-size: var(--ace-font-size-12);
+  border: 1px solid var(--ace-border);
+  border-radius: 4px;
+}

@@ -113,6 +113,9 @@ function patchManifest(manifestPath: string, finalAllowedDomains: string[]): boo
     manifest.networkAccess.reasoning ||
     'This plugin makes outbound requests to LLM and optional proxy endpoints configured via custom/config.json.'
 
+  // Required for figma.fileKey (e.g. AT-A https links). Only has effect for private/internal plugins.
+  manifest.enablePrivatePluginApi = true
+
   try {
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
     console.log(

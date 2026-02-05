@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "users": [
+    {
+      "id": "u_ml8u9wwq_xt6g0j7f",
+      "username": "biagio",
+      "passwordHash": "$2a$10$eAsmxKRpzu98Iq5Gj5M7EeZ/dXqQGACEfMei0pKCzjQjo.4ZQVZ6u",
+      "role": "owner",
+      "disabled": false,
+      "createdAt": "2026-02-05T02:30:19.610Z",
+      "updatedAt": "2026-02-05T02:30:19.610Z"
+    }
+  ]
+}

@@ -5,9 +5,9 @@
  */
 
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
-import { validateEligibleScreenSelection, scanVisibleActionIds, actionIdFindingsToRows } from '../../analyticsTagging/selection'
+import { validateEligibleScreenSelections, scanVisibleActionIds, actionIdFindingsToRows } from '../../analyticsTagging/selection'
 import { loadSession, saveSession, createNewSession } from '../../analyticsTagging/storage'
-import type { Session } from '../../analyticsTagging/types'
+import type { Session, Row } from '../../analyticsTagging/types'
 
 export class AnalyticsTaggingHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
@@ -57,15 +57,29 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
     }
 
     if (actionId === 'get-analytics-tags') {
-      const validation = await validateEligibleScreenSelection(selection)
+      const validation = await validateEligibleScreenSelections(selection)
       if (!validation.ok) {
         replaceStatusMessage(validation.message, true)
-        figma.notify(validation.message)
+        const notifyDetail =
+          validation.invalidNames.length > 0
+            ? ` Invalid: ${validation.invalidNames.slice(0, 5).join(', ')}${validation.invalidNames.length > 5 ? '…' : ''}`
+            : ''
+        figma.notify(validation.message + notifyDetail)
         return { handled: true }
       }
-      const { screenNode, screenId } = validation
-      const findings = await scanVisibleActionIds(screenNode)
-      const rows = await actionIdFindingsToRows(screenId, screenNode.id, findings)
+      const allRows: Row[] = []
+      for (const { node, screenId } of validation.screens) {
+        const findings = await scanVisibleActionIds(node)
+        const screenRows = await actionIdFindingsToRows(screenId, node.id, findings)
+        allRows.push(...screenRows)
+      }
+      const seen = new Set<string>()
+      const rows = allRows.filter((row) => {
+        const key = `${row.screenId}::${row.actionId}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
 
       let session: Session | null = await loadSession()
       const page = figma.currentPage
@@ -86,7 +100,12 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
         figma.notify('No ActionID items found.')
         replaceStatusMessage('No ActionID items found in selection.', true)
       } else {
-        replaceStatusMessage(`${rows.length} row(s) added from scan.`)
+        const screenCount = validation.screens.length
+        replaceStatusMessage(
+          screenCount === 1
+            ? `${rows.length} row(s) added from scan.`
+            : `${rows.length} row(s) from ${screenCount} screen(s) (duplicates removed).`
+        )
       }
       return { handled: true }
     }

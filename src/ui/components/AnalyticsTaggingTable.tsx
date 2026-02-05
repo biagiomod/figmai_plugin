@@ -65,30 +65,30 @@ export function AnalyticsTaggingTable({
   }, [])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm)' }}>
-      {warning && (
-        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', padding: 'var(--spacing-xs)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)' }}>
-          {warning}
+    <div className="ata-root">
+      <div className="ata-instructions">
+        {warning && (
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', padding: 'var(--spacing-xs)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)' }}>
+            {warning}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
+          <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--muted)' }}>
+            {autosaveStatus === 'saved' && 'Saved'}
+            {autosaveStatus === 'saving' && 'Saving…'}
+            {autosaveStatus === 'failed' && 'Save failed'}
+          </span>
         </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
-        <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--muted)' }}>
-          {autosaveStatus === 'saved' && 'Saved'}
-          {autosaveStatus === 'saving' && 'Saving…'}
-          {autosaveStatus === 'failed' && 'Save failed'}
-        </span>
+        <div style={{ padding: 'var(--spacing-md)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+          <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--fg)' }}>
+            Select one or more frames or components with a <strong>ScreenID</strong> annotation, then run <strong>Get Analytics Tags</strong>.
+          </p>
+        </div>
       </div>
 
-      {/* Instruction block */}
-      <div style={{ padding: 'var(--spacing-md)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-        <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--fg)' }}>
-          Select a single frame or component with a <strong>ScreenID</strong> annotation, then run <strong>Get Analytics Tags</strong>.
-        </p>
-      </div>
-
-      {/* Table of rows — use var(--fg) so dark mode shows light text */}
-      <div style={{ overflowX: 'auto', color: 'var(--fg)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-xs)', color: 'var(--fg)' }}>
+      <div className="ata-tableY">
+        <div className="ata-tableX">
+          <table className="ata-table" style={{ borderCollapse: 'collapse', fontSize: 'var(--font-size-xs)', color: 'var(--fg)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
               <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Screen ID</th>
@@ -255,10 +255,11 @@ export function AnalyticsTaggingTable({
             })}
           </tbody>
         </table>
+        </div>
       </div>
       {session.rows.length === 0 && (
-        <div style={{ color: 'var(--muted)', fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-md)' }}>
-          No rows yet. Select a frame/component with ScreenID, then run Get Analytics Tags.
+        <div className="ata-empty" style={{ color: 'var(--muted)', fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-md)' }}>
+          No rows yet. Select one or more frames/components with ScreenID, then run Get Analytics Tags.
         </div>
       )}
     </div>

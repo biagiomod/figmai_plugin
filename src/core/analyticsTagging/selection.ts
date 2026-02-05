@@ -1,20 +1,33 @@
 /**
  * Analytics Tagging — selection-driven flow
- * Validate single ScreenID-annotated selection; scan visible descendants for ActionID; build rows (no screenshot).
+ * Validate one or more ScreenID-annotated selections; scan each screen's visible descendants for ActionID; build combined rows (no screenshot).
  * ActionID callouts may sit outside the screen frame bounds (e.g. right-side callouts); we include all descendants
  * that are visible (node.visible and no hidden ancestor), with no bounding-box filtering.
+ * Multi-screen: combine rows from all selected screens and de-dupe by (ScreenID, ActionID); first wins.
  */
 
 import { readScreenIdFromNode, readActionIdFromNode } from './annotations'
 import type { Row, ActionType } from './types'
 import { debug } from '../debug/logger'
 
-function buildFigmaNodeUrl(nodeId: string): string {
+/** Build web or deep link for a node. Prefers https://www.figma.com/design/{fileKey}?node-id=... when fileKey is available; otherwise figma:// fallback. */
+function buildFigmaWebNodeUrl(nodeId: string): string {
   try {
     const fileKey = (figma as { fileKey?: string }).fileKey
+    if (debug.isEnabled('subsystem:analytics_tagging')) {
+      if (fileKey) {
+        debug.scope('subsystem:analytics_tagging').log('fileKey available; using https link', { fileKey, nodeId })
+      } else {
+        debug.scope('subsystem:analytics_tagging').log('fileKey unavailable; using figma:// fallback', { nodeId })
+      }
+    }
     if (!fileKey) return `figma://node-id=${nodeId.replace(/:/g, '-')}`
-    return `https://www.figma.com/file/${fileKey}?node-id=${encodeURIComponent(nodeId)}`
+    const nodeIdParam = nodeId.replace(/:/g, '-')
+    return `https://www.figma.com/design/${fileKey}?node-id=${encodeURIComponent(nodeIdParam)}`
   } catch {
+    if (debug.isEnabled('subsystem:analytics_tagging')) {
+      debug.scope('subsystem:analytics_tagging').warn('buildFigmaWebNodeUrl threw; using figma:// fallback', { nodeId })
+    }
     return `figma://node-id=${nodeId.replace(/:/g, '-')}`
   }
 }
@@ -54,31 +67,56 @@ function isVisibleUnderRoot(node: SceneNode, root: SceneNode): boolean {
   return current === root
 }
 
-export type ValidateEligibleScreenSelectionResult =
-  | { ok: true; screenNode: SceneNode; screenId: string }
-  | { ok: false; message: string }
+export type ValidateEligibleScreenSelectionsResult =
+  | { ok: true; screens: Array<{ node: SceneNode; screenId: string }> }
+  | { ok: false; message: string; invalidCount: number; invalidNames: string[] }
 
 /**
- * Validate that selection is exactly one node with a ScreenID (annotation or layer name fallback).
- * Rejects PAGE and DOCUMENT.
+ * Validate that selection has at least one node and every node is an eligible screen (not PAGE/DOCUMENT, has ScreenID).
+ * Returns ok and list of { node, screenId } for each valid screen, or ok: false with invalidCount and invalidNames.
  */
-export async function validateEligibleScreenSelection(
+export async function validateEligibleScreenSelections(
   selection: readonly SceneNode[]
-): Promise<ValidateEligibleScreenSelectionResult> {
-  if (selection.length !== 1) {
-    return { ok: false, message: 'Select exactly one frame or component with a ScreenID annotation.' }
+): Promise<ValidateEligibleScreenSelectionsResult> {
+  if (selection.length < 1) {
+    return {
+      ok: false,
+      message: 'Select at least one frame or component with a ScreenID annotation.',
+      invalidCount: 0,
+      invalidNames: []
+    }
   }
-  const node = selection[0]
-  if ((node as BaseNode).type === 'DOCUMENT' || (node as BaseNode).type === 'PAGE') {
-    return { ok: false, message: 'Select a frame or component (not the page).' }
+  const invalidNames: string[] = []
+  const screens: Array<{ node: SceneNode; screenId: string }> = []
+
+  for (const node of selection) {
+    if ((node as BaseNode).type === 'DOCUMENT' || (node as BaseNode).type === 'PAGE') {
+      invalidNames.push('name' in node ? (node as SceneNode).name : 'Page/Document')
+      continue
+    }
+    const screenNode = node as SceneNode
+    const screenIdResult = await readScreenIdFromNode(screenNode, screenNode.name)
+    const screenId = (screenIdResult.value || '').trim()
+    if (!screenId) {
+      invalidNames.push(screenNode.name || 'Unnamed')
+      continue
+    }
+    screens.push({ node: screenNode, screenId })
   }
-  const screenNode = node as SceneNode
-  const screenIdResult = await readScreenIdFromNode(screenNode, screenNode.name)
-  return {
-    ok: true,
-    screenNode,
-    screenId: screenIdResult.value
+
+  if (invalidNames.length > 0) {
+    const total = selection.length
+    const message =
+      `${invalidNames.length} of ${total} selected node(s) are not valid screens (must have ScreenID annotation). Select only screens with ScreenID.`
+    return {
+      ok: false,
+      message,
+      invalidCount: invalidNames.length,
+      invalidNames
+    }
   }
+
+  return { ok: true, screens }
 }
 
 export type ActionIdFinding = {
@@ -120,7 +158,7 @@ export async function scanVisibleActionIds(screenNode: SceneNode): Promise<Actio
         actionId,
         actionName,
         component,
-        figmaElementLink: buildFigmaNodeUrl(n.id)
+        figmaElementLink: buildFigmaWebNodeUrl(n.id)
       })
     }
     if ('children' in n && n.children.length > 0) {

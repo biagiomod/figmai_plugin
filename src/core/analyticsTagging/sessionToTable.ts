@@ -6,11 +6,13 @@
 import type { UniversalContentTableV1, ContentItemV1, TableMetaV1 } from '../contentTable/types'
 import type { Session, Row } from './types'
 
-function buildFigmaNodeUrl(nodeId: string): string {
+/** Same as selection.ts: web link when fileKey exists, else figma:// fallback. Keeps export/copy URLs consistent with row links. */
+function buildFigmaWebNodeUrl(nodeId: string): string {
   try {
     const fileKey = (figma as { fileKey?: string }).fileKey
     if (!fileKey) return `figma://node-id=${nodeId.replace(/:/g, '-')}`
-    return `https://www.figma.com/file/${fileKey}?node-id=${encodeURIComponent(nodeId)}`
+    const nodeIdParam = nodeId.replace(/:/g, '-')
+    return `https://www.figma.com/design/${fileKey}?node-id=${encodeURIComponent(nodeIdParam)}`
   } catch {
     return `figma://node-id=${nodeId.replace(/:/g, '-')}`
   }
@@ -47,7 +49,7 @@ export function sessionToTable(session: Session): UniversalContentTableV1 {
   const now = new Date().toISOString()
   const firstRow = session.rows[0]
   const rootNodeId = firstRow?.meta?.rootScreenNodeId ?? firstRow?.screenshotRef?.rootNodeId ?? ''
-  const rootNodeUrl = rootNodeId ? buildFigmaNodeUrl(rootNodeId) : ''
+  const rootNodeUrl = rootNodeId ? buildFigmaWebNodeUrl(rootNodeId) : ''
 
   const meta: TableMetaV1 = {
     contentModel: 'Analytics Tagging',

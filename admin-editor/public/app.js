@@ -11,6 +11,7 @@
   const ACE_DEBUG = false // set true to log Save request/response (revision, status, conflict payload)
 
   const state = {
+    auth: { user: null, role: null },
     connected: false,
     meta: null,
     originalModel: null,
@@ -29,8 +30,11 @@
     registryParseErrors: {},
     lastDisplayError: null,
     actionModalRetry: null,
-    actionModalCopyText: ''
+    actionModalCopyText: '',
+    usersList: []
   }
+
+  const FETCH_OPTS = { credentials: 'include' }
 
   function deepClone (obj) {
     if (obj === null || typeof obj !== 'object') return obj
@@ -247,7 +251,7 @@
 
   // ——— API ———
   async function apiGetModel () {
-    const res = await fetch(API_BASE + '/api/model', { cache: 'no-store' })
+    const res = await fetch(API_BASE + '/api/model', { cache: 'no-store', ...FETCH_OPTS })
     if (!res.ok) throw new Error(res.statusText || 'Failed to load model')
     const data = await res.json()
     return data
@@ -257,7 +261,8 @@
     const res = await fetch(API_BASE + '/api/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      ...FETCH_OPTS
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.errors?.join(' ') || res.statusText || 'Validate failed')
@@ -279,7 +284,8 @@
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      ...FETCH_OPTS
     })
     const data = await res.json()
     if (ACE_DEBUG) {
@@ -298,6 +304,195 @@
       throw new Error(msg)
     }
     return data
+  }
+
+  async function apiAuthMe () {
+    const res = await fetch(API_BASE + '/api/auth/me', { ...FETCH_OPTS })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.user || null
+  }
+
+  async function apiAuthBootstrapAllowed () {
+    const res = await fetch(API_BASE + '/api/auth/bootstrap-allowed', { ...FETCH_OPTS })
+    if (!res.ok) return { allowed: false, reason: 'Request failed' }
+    const data = await res.json()
+    return { allowed: !!data.allowed, reason: data.reason }
+  }
+
+  async function apiAuthLogin (username, password) {
+    const res = await fetch(API_BASE + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      ...FETCH_OPTS
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Login failed')
+    return data.user
+  }
+
+  async function apiAuthBootstrap (username, password) {
+    const res = await fetch(API_BASE + '/api/auth/bootstrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      ...FETCH_OPTS
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Bootstrap failed')
+    return data.user
+  }
+
+  async function apiAuthLogout () {
+    await fetch(API_BASE + '/api/auth/logout', { method: 'POST', ...FETCH_OPTS })
+  }
+
+  async function apiUsersList () {
+    const res = await fetch(API_BASE + '/api/users', { ...FETCH_OPTS })
+    if (!res.ok) throw new Error(res.status === 403 ? 'Forbidden' : (await res.json().catch(() => ({}))).error || 'Failed to list users')
+    const data = await res.json()
+    return data.users || []
+  }
+
+  async function apiUsersCreate (username, password, role) {
+    const res = await fetch(API_BASE + '/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, role }),
+      ...FETCH_OPTS
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Create user failed')
+    return data.user
+  }
+
+  async function apiUsersUpdate (id, updates) {
+    const res = await fetch(API_BASE + '/api/users/' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+      ...FETCH_OPTS
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Update user failed')
+    return data.user
+  }
+
+  function showLoginView () {
+    const loginView = document.getElementById('login-view')
+    const bootstrapView = document.getElementById('bootstrap-view')
+    const appShell = document.getElementById('app-shell')
+    if (loginView) loginView.style.display = ''
+    if (bootstrapView) bootstrapView.style.display = 'none'
+    if (appShell) appShell.style.display = 'none'
+  }
+
+  function showBootstrapView () {
+    const loginView = document.getElementById('login-view')
+    const bootstrapView = document.getElementById('bootstrap-view')
+    const appShell = document.getElementById('app-shell')
+    if (loginView) loginView.style.display = 'none'
+    if (bootstrapView) bootstrapView.style.display = ''
+    if (appShell) appShell.style.display = 'none'
+  }
+
+  function showAppShell () {
+    const loginView = document.getElementById('login-view')
+    const bootstrapView = document.getElementById('bootstrap-view')
+    const appShell = document.getElementById('app-shell')
+    if (loginView) loginView.style.display = 'none'
+    if (bootstrapView) bootstrapView.style.display = 'none'
+    if (appShell) appShell.style.display = ''
+  }
+
+  function applyAuthUI () {
+    const user = state.auth.user
+    const role = state.auth.role
+    const userNameEl = document.getElementById('user-name')
+    const roleBadgeEl = document.getElementById('user-role-badge')
+    const tabUsers = document.getElementById('tab-users')
+    const validateBtn = document.getElementById('validate-btn')
+    const previewBtn = document.getElementById('preview-btn')
+    const saveBtn = document.getElementById('save-btn')
+    if (userNameEl) userNameEl.textContent = user ? escapeHtml(user.username) : ''
+    if (roleBadgeEl) {
+      roleBadgeEl.textContent = role || ''
+      roleBadgeEl.className = 'ace-role-badge ace-role-badge--' + (role || '')
+    }
+    if (tabUsers) tabUsers.style.display = role === 'owner' ? '' : 'none'
+    if (role === 'reviewer') {
+      if (validateBtn) validateBtn.style.display = 'none'
+      if (previewBtn) previewBtn.style.display = 'none'
+      if (saveBtn) saveBtn.style.display = 'none'
+    } else {
+      if (validateBtn) validateBtn.style.display = ''
+      if (previewBtn) previewBtn.style.display = ''
+      if (saveBtn) saveBtn.style.display = ''
+    }
+  }
+
+  function bindAuthForms () {
+    const loginForm = document.getElementById('login-form')
+    const loginError = document.getElementById('login-error')
+    const loginSubmit = document.getElementById('login-submit')
+    const bootstrapForm = document.getElementById('bootstrap-form')
+    const bootstrapError = document.getElementById('bootstrap-error')
+    const bootstrapSubmit = document.getElementById('bootstrap-submit')
+    if (loginForm) {
+      loginForm.onsubmit = async function (e) {
+        e.preventDefault()
+        const username = (document.getElementById('login-username') || {}).value
+        const password = (document.getElementById('login-password') || {}).value
+        if (!username || !password) return
+        if (loginError) { loginError.style.display = 'none'; loginError.textContent = '' }
+        if (loginSubmit) loginSubmit.disabled = true
+        try {
+          const user = await apiAuthLogin(username, password)
+          state.auth = { user, role: user.role }
+          showAppShell()
+          applyAuthUI()
+          bindEvents()
+          updateFooterButtons()
+          switchTab(state.selectedTab)
+          loadModel()
+        } catch (err) {
+          if (loginError) {
+            loginError.textContent = err.message || 'Login failed'
+            loginError.style.display = 'block'
+          }
+        } finally {
+          if (loginSubmit) loginSubmit.disabled = false
+        }
+      }
+    }
+    if (bootstrapForm) {
+      bootstrapForm.onsubmit = async function (e) {
+        e.preventDefault()
+        const username = (document.getElementById('bootstrap-username') || {}).value
+        const password = (document.getElementById('bootstrap-password') || {}).value
+        if (!username || !password) return
+        if (bootstrapError) { bootstrapError.style.display = 'none'; bootstrapError.textContent = '' }
+        if (bootstrapSubmit) bootstrapSubmit.disabled = true
+        try {
+          const user = await apiAuthBootstrap(username, password)
+          state.auth = { user, role: user.role }
+          showAppShell()
+          applyAuthUI()
+          bindEvents()
+          updateFooterButtons()
+          switchTab(state.selectedTab)
+          loadModel()
+        } catch (err) {
+          if (bootstrapError) {
+            bootstrapError.textContent = err.message || 'Create owner failed'
+            bootstrapError.style.display = 'block'
+          }
+        } finally {
+          if (bootstrapSubmit) bootstrapSubmit.disabled = false
+        }
+      }
+    }
   }
 
   async function loadModel () {
@@ -1195,6 +1390,102 @@
     }
   }
 
+  function renderUsersTab () {
+    const panel = document.getElementById('panel-users')
+    if (!panel) return
+    if (state.auth.role !== 'owner') {
+      panel.innerHTML = '<p>Only owners can manage users.</p>'
+      return
+    }
+    panel.innerHTML = '<div class="ace-users-loading">Loading users…</div>'
+    apiUsersList()
+      .then(function (users) {
+        state.usersList = users
+        let html = '<div class="ace-users-section"><h3 class="ace-users-title">Create user</h3>'
+        html += '<form id="users-create-form" class="ace-users-form">'
+        html += '<label for="users-create-username">Username</label><input type="text" id="users-create-username" class="ace-auth-input" required />'
+        html += '<label for="users-create-password">Password</label><input type="password" id="users-create-password" class="ace-auth-input" required minlength="8" />'
+        html += '<label for="users-create-role">Role</label><select id="users-create-role"><option value="reviewer">reviewer</option><option value="editor">editor</option><option value="owner">owner</option></select>'
+        html += '<button type="submit" class="btn btn-primary">Create</button>'
+        html += '</form></div>'
+        html += '<div class="ace-users-section"><h3 class="ace-users-title">Users</h3><div class="ace-users-list" id="ace-users-list"></div></div>'
+        panel.innerHTML = html
+        const listEl = document.getElementById('ace-users-list')
+        users.forEach(function (u) {
+          const row = document.createElement('div')
+          row.className = 'ace-users-row' + (u.disabled ? ' ace-users-row--disabled' : '')
+          row.setAttribute('data-user-id', u.id)
+          let rowHtml = '<span class="ace-users-username">' + escapeHtml(u.username) + '</span>'
+          rowHtml += ' <span class="ace-role-badge ace-role-badge--' + (u.role || '') + '">' + escapeHtml(u.role || '') + '</span>'
+          if (u.disabled) rowHtml += ' <span class="ace-users-disabled">(disabled)</span>'
+          rowHtml += ' <div class="ace-users-actions">'
+          rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-disable" data-id="' + escapeHtml(u.id) + '" data-disabled="' + (u.disabled ? 'true' : 'false') + '">' + (u.disabled ? 'Enable' : 'Disable') + '</button>'
+          rowHtml += ' <select class="ace-users-role-select" data-id="' + escapeHtml(u.id) + '"><option value="reviewer"' + (u.role === 'reviewer' ? ' selected' : '') + '>reviewer</option><option value="editor"' + (u.role === 'editor' ? ' selected' : '') + '>editor</option><option value="owner"' + (u.role === 'owner' ? ' selected' : '') + '>owner</option></select>'
+          rowHtml += ' <button type="button" class="btn btn-small btn-secondary ace-users-btn-reset-pw" data-id="' + escapeHtml(u.id) + '">Reset password</button>'
+          rowHtml += '</div>'
+          row.innerHTML = rowHtml
+          listEl.appendChild(row)
+        })
+        const createForm = document.getElementById('users-create-form')
+        if (createForm) {
+          createForm.onsubmit = async function (e) {
+            e.preventDefault()
+            const username = (document.getElementById('users-create-username') || {}).value
+            const password = (document.getElementById('users-create-password') || {}).value
+            const role = (document.getElementById('users-create-role') || {}).value
+            if (!username || !password) return
+            try {
+              await apiUsersCreate(username, password, role)
+              renderUsersTab()
+            } catch (err) {
+              showActionModal({ state: 'error', message: err.message || 'Create user failed' })
+            }
+          }
+        }
+        panel.querySelectorAll('.ace-users-btn-disable').forEach(function (btn) {
+          btn.onclick = async function () {
+            const id = this.getAttribute('data-id')
+            const currentlyDisabled = this.getAttribute('data-disabled') === 'true'
+            try {
+              await apiUsersUpdate(id, { disabled: !currentlyDisabled })
+              renderUsersTab()
+            } catch (err) {
+              showActionModal({ state: 'error', message: err.message || 'Update failed' })
+            }
+          }
+        })
+        panel.querySelectorAll('.ace-users-role-select').forEach(function (sel) {
+          sel.onchange = async function () {
+            const id = this.getAttribute('data-id')
+            const role = this.value
+            try {
+              await apiUsersUpdate(id, { role: role })
+              renderUsersTab()
+            } catch (err) {
+              showActionModal({ state: 'error', message: err.message || 'Update failed' })
+            }
+          }
+        })
+        panel.querySelectorAll('.ace-users-btn-reset-pw').forEach(function (btn) {
+          btn.onclick = async function () {
+            const id = this.getAttribute('data-id')
+            const newPassword = window.prompt('New password (min 8 characters):')
+            if (newPassword == null || newPassword.length < 8) return
+            try {
+              await apiUsersUpdate(id, { password: newPassword })
+              showActionModal({ state: 'success', message: 'Password updated.' })
+              renderUsersTab()
+            } catch (err) {
+              showActionModal({ state: 'error', message: err.message || 'Reset password failed' })
+            }
+          }
+        })
+      })
+      .catch(function (err) {
+        panel.innerHTML = '<p class="errors">' + escapeHtml(err.message || 'Failed to load users') + '</p>'
+      })
+  }
+
   function renderAllPanels () {
     const m = state.editedModel
     const tabContentModels = document.getElementById('tab-content-models')
@@ -1243,7 +1534,8 @@
     assistants: 'Assistants — Definitions and prompts',
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
-    registries: 'Design System Registries — Registry JSON per design system'
+    registries: 'Design System Registries — Registry JSON per design system',
+    users: 'Users — Manage accounts'
   }
 
   function switchTab (tabId) {
@@ -1266,8 +1558,8 @@
         subheaderEl.style.display = ''
       }
     }
-    const panelIds = ['panel-config', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries']
-    const tabIds = ['config', 'assistants', 'knowledge', 'content-models', 'registries']
+    const panelIds = ['panel-config', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries', 'panel-users']
+    const tabIds = ['config', 'assistants', 'knowledge', 'content-models', 'registries', 'users']
     panelIds.forEach((pid, i) => {
       const panel = document.getElementById(pid)
       if (!panel) return
@@ -1275,6 +1567,7 @@
       panel.setAttribute('aria-hidden', match ? 'false' : 'true')
       panel.style.display = match ? 'flex' : 'none'
     })
+    if (tabId === 'users') renderUsersTab()
   }
 
   async function runValidate () {
@@ -1458,8 +1751,21 @@
         showActionModal({ state: 'success', title: 'Server Status', htmlMessage: html })
       }
     })
+    const logoutBtn = document.getElementById('logout-btn')
+    if (logoutBtn) {
+      logoutBtn.onclick = async function () {
+        try { await apiAuthLogout() } catch (_) {}
+        state.auth = { user: null, role: null }
+        state.originalModel = null
+        state.editedModel = null
+        state.usersList = []
+        showLoginView()
+        bindAuthForms()
+      }
+    }
     document.getElementById('reload-btn').onclick = function () { loadModel() }
-    document.getElementById('validate-btn').onclick = function () { runValidate() }
+    const validateBtnEl = document.getElementById('validate-btn')
+    if (validateBtnEl) validateBtnEl.onclick = function () { runValidate() }
     document.getElementById('save-btn').onclick = function () { runSave() }
     document.getElementById('preview-btn').onclick = function () { runPreview() }
     document.getElementById('discard-all-btn').onclick = function () {
@@ -1498,15 +1804,45 @@
     }
   }
 
-  function init () {
-    bindEvents()
-    updateFooterButtons()
-    switchTab(state.selectedTab)
-    loadModel()
+  function setCreateFirstAccountLinkVisible (visible) {
+    const wrap = document.getElementById('login-create-first-wrap')
+    if (wrap) wrap.style.display = visible ? '' : 'none'
+  }
+
+  async function init () {
+    const user = await apiAuthMe()
+    if (user) {
+      state.auth = { user, role: user.role }
+      showAppShell()
+      applyAuthUI()
+      bindEvents()
+      updateFooterButtons()
+      switchTab(state.selectedTab)
+      loadModel()
+      return
+    }
+    const bootstrapStatus = await apiAuthBootstrapAllowed()
+    const allowed = bootstrapStatus.allowed
+    if (allowed) {
+      setCreateFirstAccountLinkVisible(true)
+      showBootstrapView()
+    } else {
+      setCreateFirstAccountLinkVisible(false)
+      showLoginView()
+    }
+    bindAuthForms()
+    const createFirstLink = document.getElementById('create-first-account-link')
+    if (createFirstLink) {
+      createFirstLink.onclick = function (e) {
+        e.preventDefault()
+        showBootstrapView()
+        bindAuthForms()
+      }
+    }
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init)
+    document.addEventListener('DOMContentLoaded', function () { init() })
   } else {
     init()
   }
