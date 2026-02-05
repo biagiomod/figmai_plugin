@@ -309,7 +309,7 @@
       "hoverSummary": "Analytics tagging from ScreenID and ActionID annotations",
       "iconId": "ContentTableIcon",
       "id": "analytics_tagging",
-      "intro": "**Welcome to Analytics Tagging**\n\nSelect a single frame or component with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** or **Export** when ready.",
+      "intro": "**Welcome to Analytics Tagging**\n\nSelect a single frame or component with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
       "kind": "tool",
       "label": "Analytics Tagging",
       "promptTemplate": "# Analytics Tagging Assistant\n\nYou are **FigmAI's Analytics Tagging Assistant**. You help document analytics tags. Select a frame/component with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations.",
@@ -324,11 +324,6 @@
           "id": "copy-table",
           "label": "Copy Table",
           "templateMessage": "Copy analytics table to clipboard."
-        },
-        {
-          "id": "export",
-          "label": "Export",
-          "templateMessage": "Export session to Confluence or copy table"
         },
         {
           "id": "new-session",

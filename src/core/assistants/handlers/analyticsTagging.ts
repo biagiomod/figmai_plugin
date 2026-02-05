@@ -1,6 +1,6 @@
 /**
  * Analytics Tagging Assistant Handler
- * Selection-driven flow: get-analytics-tags (scan ScreenID root + visible descendants for ActionID), copy-table, export, new-session.
+ * Selection-driven flow: get-analytics-tags (scan ScreenID root + visible descendants for ActionID), copy-table, new-session.
  * No screenshots in this flow.
  */
 
@@ -15,7 +15,6 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
     return (
       actionId === 'get-analytics-tags' ||
       actionId === 'copy-table' ||
-      actionId === 'export' ||
       actionId === 'new-session'
     )
   }
@@ -38,22 +37,6 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
         }
       })
       replaceStatusMessage('New session started.')
-      return { handled: true }
-    }
-
-    if (actionId === 'export') {
-      const session = await loadSession()
-      if (!session || session.rows.length === 0) {
-        replaceStatusMessage('No rows to export. Add at least one row first.', true)
-        return { handled: true }
-      }
-      figma.ui.postMessage({
-        pluginMessage: {
-          type: 'ANALYTICS_TAGGING_OPEN_EXPORT',
-          session
-        }
-      })
-      replaceStatusMessage('Export ready.')
       return { handled: true }
     }
 

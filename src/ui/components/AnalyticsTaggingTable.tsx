@@ -86,22 +86,22 @@ export function AnalyticsTaggingTable({
         </p>
       </div>
 
-      {/* Table of rows */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-xs)' }}>
+      {/* Table of rows — use var(--fg) so dark mode shows light text */}
+      <div style={{ overflowX: 'auto', color: 'var(--fg)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-xs)', color: 'var(--fg)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Screen ID</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Screenshot</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Description</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Action Type</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Component</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Action ID</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Action Name</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Figma link</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Population</th>
-              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)' }}>Note</th>
-              <th style={{ padding: 'var(--spacing-xs)' }} />
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Screen ID</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Screenshot</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Description</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Action Type</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Component</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Action ID</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Action Name</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Figma link</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Population</th>
+              <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Note</th>
+              <th style={{ padding: 'var(--spacing-xs)', color: 'var(--fg)' }} />
             </tr>
           </thead>
           <tbody>
@@ -111,18 +111,18 @@ export function AnalyticsTaggingTable({
               const preview = hasScreenshotRef && row.screenshotRef ? screenshotPreviews[row.screenshotRef.id] : null
               return (
                 <tr key={row.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {isEditing ? (
                       <input
                         value={editDraft.screenId ?? ''}
                         onInput={(e) => setEditDraft(d => ({ ...d, screenId: (e.target as HTMLInputElement).value }))}
-                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       />
                     ) : (
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.screenId}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {!hasScreenshotRef ? (
                       <span style={{ color: 'var(--muted)' }}>—</span>
                     ) : preview ? (
@@ -145,29 +145,29 @@ export function AnalyticsTaggingTable({
                       <button
                         type="button"
                         onClick={() => row.screenshotRef && handleRequestScreenshot(row.screenshotRef)}
-                        style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', cursor: 'pointer' }}
+                        style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       >
                         Generate preview
                       </button>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', maxWidth: 80 }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', maxWidth: 80, color: 'var(--fg)' }}>
                     {isEditing ? (
                       <input
                         value={editDraft.description ?? ''}
                         onInput={(e) => setEditDraft(d => ({ ...d, description: (e.target as HTMLInputElement).value }))}
-                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       />
                     ) : (
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.description || '—'}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {isEditing ? (
                       <select
                         value={editDraft.actionType ?? 'Action'}
                         onChange={(e) => setEditDraft(d => ({ ...d, actionType: (e.target as HTMLSelectElement).value as ActionType }))}
-                        style={{ fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       >
                         {ACTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -175,40 +175,40 @@ export function AnalyticsTaggingTable({
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.actionType}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {isEditing ? (
                       <input
                         value={editDraft.component ?? ''}
                         onInput={(e) => setEditDraft(d => ({ ...d, component: (e.target as HTMLInputElement).value }))}
-                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       />
                     ) : (
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.component}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {isEditing ? (
                       <input
                         value={editDraft.actionId ?? ''}
                         onInput={(e) => setEditDraft(d => ({ ...d, actionId: (e.target as HTMLInputElement).value }))}
-                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       />
                     ) : (
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.actionId}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {isEditing ? (
                       <input
                         value={editDraft.actionName ?? ''}
                         onInput={(e) => setEditDraft(d => ({ ...d, actionName: (e.target as HTMLInputElement).value }))}
-                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       />
                     ) : (
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.actionName ?? '—'}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     <span style={{ color: 'var(--muted)', fontSize: 'var(--font-size-xs)' }}>Link</span>
                     <button
                       type="button"
@@ -218,33 +218,33 @@ export function AnalyticsTaggingTable({
                       Copy
                     </button>
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {isEditing ? (
                       <input
                         value={editDraft.population ?? ''}
                         onInput={(e) => setEditDraft(d => ({ ...d, population: (e.target as HTMLInputElement).value }))}
-                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       />
                     ) : (
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.population || '—'}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', maxWidth: 80 }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', maxWidth: 80, color: 'var(--fg)' }}>
                     {isEditing ? (
                       <input
                         value={editDraft.note ?? ''}
                         onInput={(e) => setEditDraft(d => ({ ...d, note: (e.target as HTMLInputElement).value }))}
-                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}
+                        style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '2px 4px', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
                       />
                     ) : (
                       <span onClick={() => startEdit(row)} style={{ cursor: 'pointer' }}>{row.note || '—'}</span>
                     )}
                   </td>
-                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top' }}>
+                  <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
                     {isEditing ? (
                       <span style={{ display: 'flex', gap: 4 }}>
-                        <button type="button" onClick={saveEdit} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer' }}>Save</button>
-                        <button type="button" onClick={cancelEdit} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer' }}>Cancel</button>
+                        <button type="button" onClick={saveEdit} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>Save</button>
+                        <button type="button" onClick={cancelEdit} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>Cancel</button>
                       </span>
                     ) : (
                       <button type="button" onClick={() => startEdit(row)} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--accent)' }}>Edit</button>

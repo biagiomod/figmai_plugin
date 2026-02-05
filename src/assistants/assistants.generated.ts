@@ -166,7 +166,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
     id: "analytics_tagging",
     label: "Analytics Tagging",
-    intro: "**Welcome to Analytics Tagging**\n\nSelect a single frame or component with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** or **Export** when ready.",
+    intro: "**Welcome to Analytics Tagging**\n\nSelect a single frame or component with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
     hoverSummary: "Analytics tagging from ScreenID and ActionID annotations",
     tag: { isVisible: true, label: "Beta", variant: "beta" },
     iconId: "ContentTableIcon",
@@ -174,7 +174,6 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     quickActions: [
       { id: "get-analytics-tags", label: "Get Analytics Tags", templateMessage: "Scan selected screen for ActionID annotations and fill the table.", requiresSelection: true },
       { id: "copy-table", label: "Copy Table", templateMessage: "Copy analytics table to clipboard." },
-      { id: "export", label: "Export", templateMessage: "Export session to Confluence or copy table" },
       { id: "new-session", label: "New session", templateMessage: "Start a new analytics tagging session" },
     ],
     promptTemplate: "# Analytics Tagging Assistant\n\nYou are **FigmAI's Analytics Tagging Assistant**. You help document analytics tags. Select a frame/component with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations."

@@ -754,7 +754,7 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
         return
       }
     }
-    if (assistantId === 'analytics_tagging' && (actionId === 'get-analytics-tags' || actionId === 'copy-table' || actionId === 'export' || actionId === 'new-session')) {
+    if (assistantId === 'analytics_tagging' && (actionId === 'get-analytics-tags' || actionId === 'copy-table' || actionId === 'new-session')) {
       const providerForContext = currentProvider || await createProvider(currentProviderId)
       const handlerContext = {
         assistantId,
