@@ -362,6 +362,10 @@ function Plugin() {
   const [analyticsTaggingScreenshotPreviews, setAnalyticsTaggingScreenshotPreviews] = useState<Record<string, string>>({})
   const [analyticsTaggingWarning, setAnalyticsTaggingWarning] = useState<string | null>(null)
   const [analyticsTaggingExportSession, setAnalyticsTaggingExportSession] = useState<Session | null>(null)
+  const analyticsTaggingSessionRef = useRef<Session | null>(null)
+  useEffect(() => {
+    analyticsTaggingSessionRef.current = analyticsTaggingSession
+  }, [analyticsTaggingSession])
   // Clipboard debug state
   const [showPasteDebug, setShowPasteDebug] = useState(false)
   const [debugHtml, setDebugHtml] = useState('')
@@ -642,6 +646,9 @@ function Plugin() {
           break
         case 'ANALYTICS_TAGGING_SCREENSHOT_ERROR':
           // Optional: show toast or leave preview empty
+          break
+        case 'ANALYTICS_TAGGING_REQUEST_COPY_TABLE':
+          copyAnalyticsTableToClipboardRef.current?.()
           break
         case 'SCORECARD_PLACED':
           // Legacy handler - status messages are now managed in main thread via replaceStatusMessage
@@ -1620,6 +1627,36 @@ function Plugin() {
       setMessages(prev => [...prev, errorMessage])
     }
   }, [contentTable, debugLog])
+
+  // Copy Analytics Tagging table to clipboard (no modal; fixed format)
+  const copyAnalyticsTableToClipboard = useCallback(async () => {
+    const session = analyticsTaggingSessionRef.current
+    if (!session || session.rows.length === 0) {
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'No table to copy.')
+      return
+    }
+    const table = sessionToTable(session)
+    const { html: htmlTable } = universalTableToHtml(table, 'analytics-tagging')
+    const tsv = universalTableToTsv(table, 'analytics-tagging')
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        const htmlBlob = new Blob([htmlTable], { type: 'text/html' })
+        const textBlob = new Blob([tsv], { type: 'text/plain' })
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': Promise.resolve(htmlBlob), 'text/plain': Promise.resolve(textBlob) })])
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(tsv)
+      } else {
+        emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'Clipboard not available.')
+        return
+      }
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
+    } catch (e) {
+      const err = e as Error
+      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', err.message || 'Copy failed.')
+    }
+  }, [])
+  const copyAnalyticsTableToClipboardRef = useRef(copyAnalyticsTableToClipboard)
+  copyAnalyticsTableToClipboardRef.current = copyAnalyticsTableToClipboard
   
   // Handle Confluence modal success (add chat bubble)
   const handleConfluenceSuccess = useCallback(() => {
@@ -2571,8 +2608,8 @@ ${htmlTable}
             marginBottom: 'var(--spacing-xs)'
           }}>
             {quickActions.map((action: QuickAction) => {
-              const isDisabled = (action.requiresSelection && !selectionState.hasSelection) || (assistant.id === 'analytics_tagging' && action.id === 'capture-screenshot-add-row' && !analyticsTaggingSession?.draftRow)
-              const isPrimary = (assistant.id === 'design_critique' && action.id === 'give-critique') || (assistant.id === 'content_table' && action.id === 'generate-table') || (assistant.id === 'analytics_tagging' && ((!analyticsTaggingSession?.draftRow && action.id === 'capture-action-item') || (!!analyticsTaggingSession?.draftRow && action.id === 'capture-screenshot-add-row')))
+              const isDisabled = (action.requiresSelection && !selectionState.hasSelection) || (assistant.id === 'analytics_tagging' && action.id === 'copy-table' && (!analyticsTaggingSession || analyticsTaggingSession.rows.length === 0))
+              const isPrimary = (assistant.id === 'design_critique' && action.id === 'give-critique') || (assistant.id === 'content_table' && action.id === 'generate-table') || (assistant.id === 'analytics_tagging' && action.id === 'get-analytics-tags')
               
               return (
                 <button

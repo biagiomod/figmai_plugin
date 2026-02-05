@@ -166,17 +166,17 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
     id: "analytics_tagging",
     label: "Analytics Tagging",
-    intro: "**Welcome to Analytics Tagging**\n\nSelect one node (the action item, e.g. button/link), click **Capture Action Item**. Fill in the form, then select the section container and click **Capture Screenshot & Add Row**. Export to Confluence when ready.",
-    hoverSummary: "Analytics tagging and screenshot capture",
+    intro: "**Welcome to Analytics Tagging**\n\nSelect a single frame or component with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** or **Export** when ready.",
+    hoverSummary: "Analytics tagging from ScreenID and ActionID annotations",
     tag: { isVisible: true, label: "Beta", variant: "beta" },
     iconId: "ContentTableIcon",
     kind: "tool",
     quickActions: [
-      { id: "capture-action-item", label: "Capture Action Item", templateMessage: "Start row from selected action item (one node).", requiresSelection: true },
-      { id: "capture-screenshot-add-row", label: "Capture Screenshot & Add Row", templateMessage: "Select section container (one node), then capture screenshot and add row.", requiresSelection: true },
+      { id: "get-analytics-tags", label: "Get Analytics Tags", templateMessage: "Scan selected screen for ActionID annotations and fill the table.", requiresSelection: true },
+      { id: "copy-table", label: "Copy Table", templateMessage: "Copy analytics table to clipboard." },
       { id: "export", label: "Export", templateMessage: "Export session to Confluence or copy table" },
       { id: "new-session", label: "New session", templateMessage: "Start a new analytics tagging session" },
     ],
-    promptTemplate: "# Analytics Tagging Assistant\n\nYou are **FigmAI's Analytics Tagging Assistant**. You help tag interaction areas and targets for analytics documentation. Two-step workflow: (1) Select the action item (e.g. button/link) and capture it; (2) fill the form, select the section container, then capture screenshot and add row. Screen ID and Action ID are read from dev-mode annotations."
+    promptTemplate: "# Analytics Tagging Assistant\n\nYou are **FigmAI's Analytics Tagging Assistant**. You help document analytics tags. Select a frame/component with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations."
   }
 ]

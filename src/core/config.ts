@@ -50,8 +50,8 @@ export const CONFIG = {
         'subsystem:canvas': false,
         'subsystem:selection': false,
         'subsystem:clipboard': false,
+        'subsystem:analytics_tagging': false,
 
-        // ADD THIS LINE
         'subsystem:ui': true,
 
 

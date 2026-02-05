@@ -24,8 +24,8 @@ export interface ScreenshotRef {
 export interface Row {
   id: string
   screenId: string
-  /** Placeholder / "captured"; actual image from screenshotRef on demand */
-  screenshotRef: ScreenshotRef
+  /** Optional: present when row was created with screenshot capture; absent for scan-only rows */
+  screenshotRef?: ScreenshotRef
   description: string
   actionType: ActionType
   component: string

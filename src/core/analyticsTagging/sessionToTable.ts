@@ -18,7 +18,7 @@ function buildFigmaNodeUrl(nodeId: string): string {
 
 /** Map a single Row to a table item (ContentItemV1 shape + analytics columns for preset extract) */
 function rowToItem(row: Row): ContentItemV1 & Record<string, unknown> {
-  const targetId = row.meta?.targetNodeId ?? row.screenshotRef.targetNodeId
+  const targetId = row.meta?.targetNodeId ?? row.screenshotRef?.targetNodeId ?? ''
   const item: ContentItemV1 & Record<string, unknown> = {
     id: row.id,
     nodeId: targetId,
@@ -28,9 +28,9 @@ function rowToItem(row: Row): ContentItemV1 & Record<string, unknown> {
     content: { type: 'text', value: row.description },
     meta: { visible: true, locked: false },
     notes: row.note,
-    // Analytics columns (preset extract reads these)
+    // Analytics columns (preset extract reads these); no screenshot for scan-only rows
     screenId: row.screenId,
-    screenshot: 'captured',
+    screenshot: row.screenshotRef ? 'captured' : '—',
     description: row.description,
     actionType: row.actionType,
     actionId: row.actionId,
