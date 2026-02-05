@@ -117,10 +117,13 @@ import type {
   RunScorecardV2PlaceholderHandler,
   RequestAnalyticsTaggingSessionHandler,
   AnalyticsTaggingUpdateRowHandler,
-  RequestAnalyticsTaggingScreenshotHandler
+  RequestAnalyticsTaggingScreenshotHandler,
+  RequestAnalyticsTaggingScreenshotByMetaHandler,
+  ExportAnalyticsTaggingScreenshotsHandler,
+  ExportAnalyticsTaggingOneRowHandler
 } from './core/types'
 import { loadSession, saveSession } from './core/analyticsTagging/storage'
-import { captureVisibleInArea } from './core/analyticsTagging/screenshot'
+import { captureVisibleInArea, exportNodeThumbnailPngBytes } from './core/analyticsTagging/screenshot'
 import type { Row, Session, ScreenshotRef } from './core/analyticsTagging/types'
 import { scanContentTable } from './core/contentTable/scanner'
 import { normalizeDesignCritique, fromDesignCritiqueJson, parseScorecardJson } from './core/output/normalize'
@@ -1221,6 +1224,235 @@ on<RequestAnalyticsTaggingScreenshotHandler>('REQUEST_ANALYTICS_TAGGING_SCREENSH
         type: 'ANALYTICS_TAGGING_SCREENSHOT_ERROR',
         refId,
         message: e instanceof Error ? e.message : 'Screenshot failed.'
+      }
+    })
+  }
+})
+
+const AT_A_THUMB_WIDTH = 280
+const AT_A_EXPORT_WIDTH = 600
+
+// Capture screenshot by meta (container/target/root node ids); response keyed by refId=rowId
+on<RequestAnalyticsTaggingScreenshotByMetaHandler>('REQUEST_ANALYTICS_TAGGING_SCREENSHOT_BY_META', async function (payload: {
+  rowId: string
+  containerNodeId: string
+  targetNodeId: string
+  rootNodeId: string
+}) {
+  const refId = payload.rowId
+  try {
+    const container = await figma.getNodeByIdAsync(payload.containerNodeId)
+    const target = await figma.getNodeByIdAsync(payload.targetNodeId)
+    if (!container || !target || container.type === 'DOCUMENT' || container.type === 'PAGE' || target.type === 'DOCUMENT' || target.type === 'PAGE') {
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'ANALYTICS_TAGGING_SCREENSHOT_ERROR',
+          refId,
+          message: 'Nodes no longer available.'
+        }
+      })
+      return
+    }
+    const targetNode = target as SceneNode
+    const containerNode = container as SceneNode
+    let bytes: Uint8Array
+    try {
+      bytes = await exportNodeThumbnailPngBytes(targetNode, AT_A_THUMB_WIDTH)
+    } catch (_) {
+      const result = await captureVisibleInArea({
+        container: containerNode,
+        target: targetNode,
+        rootNodeId: payload.rootNodeId,
+        screenshotRefId: refId
+      })
+      bytes = result.bytes
+    }
+    const base64 = figma.base64Encode(bytes)
+    const dataUrl = `data:image/png;base64,${base64}`
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SCREENSHOT_READY',
+        refId,
+        dataUrl
+      }
+    })
+  } catch (e) {
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SCREENSHOT_ERROR',
+        refId,
+        message: e instanceof Error ? e.message : 'Screenshot failed.'
+      }
+    })
+  }
+})
+
+// Export screenshots: accept compact rows, stream EXPORT_ITEM then EXPORT_DONE
+on<ExportAnalyticsTaggingScreenshotsHandler>('EXPORT_ANALYTICS_TAGGING_SCREENSHOTS', async function (payload: { rows: Array<{
+  rowId: string
+  screenId: string
+  actionId: string
+  meta?: { containerNodeId: string; targetNodeId: string; rootScreenNodeId: string }
+  screenshotRef?: { containerNodeId: string; targetNodeId: string; rootNodeId: string }
+}> }) {
+  const rows = payload.rows ?? []
+  let total = 0
+  for (const row of rows) {
+    const containerId = row.screenshotRef?.containerNodeId ?? row.meta?.containerNodeId
+    const targetId = row.screenshotRef?.targetNodeId ?? row.meta?.targetNodeId
+    const rootId = row.screenshotRef?.rootNodeId ?? row.meta?.rootScreenNodeId
+    if (!containerId || !targetId || !rootId) {
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+          rowId: row.rowId,
+          screenId: row.screenId,
+          actionId: row.actionId,
+          base64: '',
+          error: 'Row missing container/target/root node ids.'
+        }
+      })
+      total++
+      continue
+    }
+    try {
+      const container = await figma.getNodeByIdAsync(containerId)
+      const target = await figma.getNodeByIdAsync(targetId)
+      if (!container || !target || container.type === 'DOCUMENT' || container.type === 'PAGE' || target.type === 'DOCUMENT' || target.type === 'PAGE') {
+        figma.ui.postMessage({
+          pluginMessage: {
+            type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+            rowId: row.rowId,
+            screenId: row.screenId,
+            actionId: row.actionId,
+            base64: '',
+            error: 'Nodes no longer available.'
+          }
+        })
+        total++
+        continue
+      }
+      const targetNode = target as SceneNode
+      const containerNode = container as SceneNode
+      let bytes: Uint8Array
+      try {
+        bytes = await exportNodeThumbnailPngBytes(targetNode, AT_A_EXPORT_WIDTH)
+      } catch (_) {
+        const result = await captureVisibleInArea({
+          container: containerNode,
+          target: targetNode,
+          rootNodeId: rootId,
+          screenshotRefId: row.rowId
+        })
+        bytes = result.bytes
+      }
+      const base64 = figma.base64Encode(bytes)
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+          rowId: row.rowId,
+          screenId: row.screenId,
+          actionId: row.actionId,
+          base64
+        }
+      })
+      total++
+    } catch (e) {
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+          rowId: row.rowId,
+          screenId: row.screenId,
+          actionId: row.actionId,
+          base64: '',
+          error: e instanceof Error ? e.message : 'Screenshot failed.'
+        }
+      })
+      total++
+    }
+  }
+  figma.ui.postMessage({
+    pluginMessage: {
+      type: 'ANALYTICS_TAGGING_EXPORT_DONE',
+      total
+    }
+  })
+})
+
+// Export one row screenshot; same logic as bulk, emits single EXPORT_ITEM
+on<ExportAnalyticsTaggingOneRowHandler>('EXPORT_ANALYTICS_TAGGING_ONE_ROW', async function (payload: { row: {
+  rowId: string
+  screenId: string
+  actionId: string
+  meta?: { containerNodeId: string; targetNodeId: string; rootScreenNodeId: string }
+  screenshotRef?: { containerNodeId: string; targetNodeId: string; rootNodeId: string }
+} }) {
+  const row = payload.row
+  const containerId = row.screenshotRef?.containerNodeId ?? row.meta?.containerNodeId
+  const targetId = row.screenshotRef?.targetNodeId ?? row.meta?.targetNodeId
+  const rootId = row.screenshotRef?.rootNodeId ?? row.meta?.rootScreenNodeId
+  if (!containerId || !targetId || !rootId) {
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+        rowId: row.rowId,
+        screenId: row.screenId,
+        actionId: row.actionId,
+        base64: '',
+        error: 'Row missing container/target/root node ids.'
+      }
+    })
+    return
+  }
+  try {
+    const container = await figma.getNodeByIdAsync(containerId)
+    const target = await figma.getNodeByIdAsync(targetId)
+    if (!container || !target || container.type === 'DOCUMENT' || container.type === 'PAGE' || target.type === 'DOCUMENT' || target.type === 'PAGE') {
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+          rowId: row.rowId,
+          screenId: row.screenId,
+          actionId: row.actionId,
+          base64: '',
+          error: 'Nodes no longer available.'
+        }
+      })
+      return
+    }
+    const targetNode = target as SceneNode
+    const containerNode = container as SceneNode
+    let bytes: Uint8Array
+    try {
+      bytes = await exportNodeThumbnailPngBytes(targetNode, AT_A_EXPORT_WIDTH)
+    } catch (_) {
+      const result = await captureVisibleInArea({
+        container: containerNode,
+        target: targetNode,
+        rootNodeId: rootId,
+        screenshotRefId: row.rowId
+      })
+      bytes = result.bytes
+    }
+    const base64 = figma.base64Encode(bytes)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+        rowId: row.rowId,
+        screenId: row.screenId,
+        actionId: row.actionId,
+        base64
+      }
+    })
+  } catch (e) {
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_EXPORT_ITEM',
+        rowId: row.rowId,
+        screenId: row.screenId,
+        actionId: row.actionId,
+        base64: '',
+        error: e instanceof Error ? e.message : 'Screenshot failed.'
       }
     })
   }

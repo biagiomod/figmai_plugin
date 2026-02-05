@@ -30,9 +30,9 @@ function rowToItem(row: Row): ContentItemV1 & Record<string, unknown> {
     content: { type: 'text', value: row.description },
     meta: { visible: true, locked: false },
     notes: row.note,
-    // Analytics columns (preset extract reads these); no screenshot for scan-only rows
+    // Analytics columns (preset extract reads these); always placeholder for Confluence paste
     screenId: row.screenId,
-    screenshot: row.screenshotRef ? 'captured' : '—',
+    screenshot: '— / Attach image',
     description: row.description,
     actionType: row.actionType,
     actionId: row.actionId,

@@ -143,44 +143,32 @@
 
 /* Dark theme variables are defined in skins/dark.css */
 
-/* AT-A (Analytics Tagging Assistant): nested scroll wrappers so horizontal scroll stays available when vertical scroll is active */
+/* AT-A (Analytics Tagging Assistant): single scroller for both axes so horizontal scrollbar stays visible when vertical scroll is present */
 
 .ata-root {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   gap: var(--spacing-md);
   padding: var(--spacing-sm);
 }
 
 .ata-instructions {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-/* Outer: vertical scroll only; padding-bottom gives room for inner horizontal scrollbar */
-.ata-tableY {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-bottom: 6px;
-}
-
-/* Inner: width-constrained so it overflows horizontally; horizontal scroll only */
-.ata-tableX {
-  display: block;
-  width: 100%;
-  max-width: 100%;
+  flex: 0 0 auto;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
 }
 
-/* Table: content-sized width so horizontal overflow occurs; no wrapping so columns don't collapse */
+.ata-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding-bottom: 12px;
+  scrollbar-gutter: stable;
+}
+
 .ata-table {
   width: max-content;
   min-width: 100%;

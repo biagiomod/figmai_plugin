@@ -121,12 +121,14 @@ import type {
   ExportContentTableRefImageHandler,
   RequestAnalyticsTaggingSessionHandler,
   AnalyticsTaggingUpdateRowHandler,
+  ExportAnalyticsTaggingScreenshotsHandler
 } from './core/types'
+import type { AnalyticsTaggingExportCompactRow } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { PRESET_INFO } from './core/contentTable/presets.generated'
 import { sessionToTable } from './core/analyticsTagging/sessionToTable'
-import type { Session } from './core/analyticsTagging/types'
+import type { Session, Row } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
 import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits, isPromptDiagnosticsEnabled } from './custom/config'
 import { BUILD_VERSION } from './core/build'
@@ -360,9 +362,17 @@ function Plugin() {
   const [analyticsTaggingSession, setAnalyticsTaggingSession] = useState<Session | null>(null)
   const [analyticsTaggingAutosaveStatus, setAnalyticsTaggingAutosaveStatus] = useState<'saved' | 'saving' | 'failed'>('saved')
   const [analyticsTaggingScreenshotPreviews, setAnalyticsTaggingScreenshotPreviews] = useState<Record<string, string>>({})
+  const [analyticsTaggingScreenshotErrors, setAnalyticsTaggingScreenshotErrors] = useState<Record<string, string>>({})
+  const [analyticsTaggingExportInProgress, setAnalyticsTaggingExportInProgress] = useState(false)
+  const [analyticsTaggingExportProgress, setAnalyticsTaggingExportProgress] = useState<{ done: number; total: number; failed: number } | null>(null)
   const [analyticsTaggingWarning, setAnalyticsTaggingWarning] = useState<string | null>(null)
   const [analyticsTaggingExportSession, setAnalyticsTaggingExportSession] = useState<Session | null>(null)
   const analyticsTaggingSessionRef = useRef<Session | null>(null)
+  const analyticsTaggingExportDirHandleRef = useRef<FileSystemDirectoryHandle | null>(null)
+  const analyticsTaggingExportBaseNamesRef = useRef<Map<string, number>>(new Map())
+  const analyticsTaggingExportItemsRef = useRef<Array<{ rowId: string; screenId: string; actionId: string; base64?: string; error?: string }>>([])
+  const analyticsTaggingExportInProgressRef = useRef(false)
+  const analyticsTaggingExportProgressRef = useRef<{ done: number; total: number; failed: number } | null>(null)
   useEffect(() => {
     analyticsTaggingSessionRef.current = analyticsTaggingSession
   }, [analyticsTaggingSession])
@@ -642,11 +652,114 @@ function Plugin() {
         case 'ANALYTICS_TAGGING_SCREENSHOT_READY':
           if (message.refId && message.dataUrl) {
             setAnalyticsTaggingScreenshotPreviews(prev => ({ ...prev, [message.refId as string]: message.dataUrl as string }))
+            setAnalyticsTaggingScreenshotErrors(prev => {
+              const next = { ...prev }
+              delete next[message.refId as string]
+              return next
+            })
           }
           break
         case 'ANALYTICS_TAGGING_SCREENSHOT_ERROR':
-          // Optional: show toast or leave preview empty
+          if (message.refId) {
+            setAnalyticsTaggingScreenshotErrors(prev => ({ ...prev, [message.refId as string]: (message.message as string) || 'Failed' }))
+          }
           break
+        case 'ANALYTICS_TAGGING_EXPORT_ITEM': {
+          const rowId = message.rowId as string
+          const screenId = message.screenId as string
+          const actionId = message.actionId as string
+          const base64 = message.base64 as string | undefined
+          const error = message.error as string | undefined
+          const item = { rowId, screenId, actionId, base64, error }
+          const isBulk = analyticsTaggingExportInProgressRef.current
+          if (isBulk) {
+            const prev = analyticsTaggingExportProgressRef.current
+            if (prev) {
+              const next = { ...prev, done: prev.done + 1, failed: prev.failed + (error ? 1 : 0) }
+              analyticsTaggingExportProgressRef.current = next
+              setAnalyticsTaggingExportProgress(next)
+            }
+            if (base64 && analyticsTaggingExportItemsRef.current.length < 500) {
+              analyticsTaggingExportItemsRef.current.push(item)
+            }
+          }
+          if (!isBulk && base64) {
+            const sanitize = (s: string) => String(s).replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 80) || 'row'
+            const name = `${sanitize(screenId)}_${sanitize(actionId)}.png`
+            const a = document.createElement('a')
+            a.href = `data:image/png;base64,${base64}`
+            a.download = name
+            a.click()
+          }
+          break
+        }
+        case 'ANALYTICS_TAGGING_EXPORT_DONE': {
+          const total = (message.total as number) ?? 0
+          analyticsTaggingExportInProgressRef.current = false
+          setAnalyticsTaggingExportInProgress(false)
+          const items = analyticsTaggingExportItemsRef.current.slice()
+          analyticsTaggingExportItemsRef.current = []
+          setAnalyticsTaggingExportProgress(null)
+          const dirHandle = analyticsTaggingExportDirHandleRef.current
+          const failedCount = (analyticsTaggingExportProgressRef.current?.failed ?? 0)
+          analyticsTaggingExportProgressRef.current = null
+          ;(async () => {
+            const sanitize = (s: string) => String(s).replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 80) || 'row'
+            const baseNames = new Map<string, number>()
+            const getUniqueFilename = (screenId: string, actionId: string) => {
+              const base = `${sanitize(screenId)}__${sanitize(actionId)}`
+              const count = (baseNames.get(base) ?? 0) + 1
+              baseNames.set(base, count)
+              return count === 1 ? `${base}.png` : `${base}_${count}.png`
+            }
+            if (CONFIG.dev?.debug?.enabled && (CONFIG.dev.debug.scopes as Record<string, boolean>)?.['subsystem:analytics_tagging']) {
+              console.log('[ATA-export] path:', dirHandle ? 'dir-export' : 'download-fallback', { total, itemsWithBase64: items.filter(i => i.base64).length })
+            }
+            let writtenCount = 0
+            if (dirHandle) {
+              for (const item of items) {
+                if (!item.base64) continue
+                const name = getUniqueFilename(item.screenId, item.actionId)
+                try {
+                  const fileHandle = await dirHandle.getFileHandle(name, { create: true })
+                  const writable = await fileHandle.createWritable()
+                  const blob = await fetch(`data:image/png;base64,${item.base64}`).then(r => r.blob())
+                  await writable.write(blob)
+                  await writable.close()
+                  writtenCount++
+                } catch (e) {
+                  console.warn('[ATA-export] write to dir failed', name, e)
+                }
+              }
+              const msg = `Exported ${writtenCount} of ${total} to folder.${failedCount > 0 ? ` ${failedCount} failed.` : ''}`
+              setCopyStatus({ success: failedCount === 0, message: msg })
+            } else {
+              const delayMs = 250
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i]
+                if (!item.base64) continue
+                try {
+                  const name = getUniqueFilename(item.screenId, item.actionId)
+                  const bin = Uint8Array.from(atob(item.base64), c => c.charCodeAt(0))
+                  const blob = new Blob([bin], { type: 'image/png' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = name
+                  a.click()
+                  URL.revokeObjectURL(url)
+                  writtenCount++
+                } catch (_) {}
+                if (i < items.length - 1) await new Promise(r => setTimeout(r, delayMs))
+              }
+              let msg = `Exported ${writtenCount} of ${total} (downloads).`
+              if (failedCount > 0) msg += ` ${failedCount} failed.`
+              setCopyStatus({ success: failedCount === 0, message: msg })
+            }
+            setTimeout(() => setCopyStatus(null), 4000)
+          })()
+          break
+        }
         case 'ANALYTICS_TAGGING_REQUEST_COPY_TABLE':
           copyAnalyticsTableToClipboardRef.current?.()
           break
@@ -1081,6 +1194,47 @@ function Plugin() {
       setScorecardError(null)
     }
     
+    // Export Screenshots: directory picker first (if available), then emit; main streams EXPORT_ITEM/DONE; we write one file per row on DONE
+    if (assistant.id === 'analytics_tagging' && actionId === 'export-screenshots') {
+      const session = analyticsTaggingSessionRef.current
+      if (!session || session.rows.length === 0) {
+        return
+      }
+      const total = session.rows.length
+      const doExport = async () => {
+        analyticsTaggingExportDirHandleRef.current = null
+        const hasDirPicker = typeof (window as unknown as { showDirectoryPicker?: (opts?: { mode?: string }) => Promise<unknown> }).showDirectoryPicker === 'function'
+        if (CONFIG.dev?.debug?.enabled && (CONFIG.dev.debug.scopes as Record<string, boolean>)?.['subsystem:analytics_tagging']) {
+          console.log('[ATA-export] showDirectoryPicker exists:', hasDirPicker)
+        }
+        if (hasDirPicker) {
+          try {
+            const dir = await (window as unknown as { showDirectoryPicker: (opts: { mode: string }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'readwrite' })
+            analyticsTaggingExportDirHandleRef.current = dir
+          } catch (_) {
+            analyticsTaggingExportDirHandleRef.current = null
+          }
+        }
+        analyticsTaggingExportBaseNamesRef.current = new Map()
+        analyticsTaggingExportItemsRef.current = []
+        analyticsTaggingExportProgressRef.current = { done: 0, total, failed: 0 }
+        setAnalyticsTaggingExportProgress({ done: 0, total, failed: 0 })
+        analyticsTaggingExportInProgressRef.current = true
+        setAnalyticsTaggingExportInProgress(true)
+        const rows: AnalyticsTaggingExportCompactRow[] = session.rows.map(row => ({
+          rowId: row.id,
+          screenId: row.screenId,
+          actionId: row.actionId,
+          meta: row.meta ? { containerNodeId: row.meta.containerNodeId, targetNodeId: row.meta.targetNodeId, rootScreenNodeId: row.meta.rootScreenNodeId } : undefined,
+          screenshotRef: row.screenshotRef ? { containerNodeId: row.screenshotRef.containerNodeId, targetNodeId: row.screenshotRef.targetNodeId, rootNodeId: row.screenshotRef.rootNodeId } : undefined
+        }))
+        emit<ExportAnalyticsTaggingScreenshotsHandler>('EXPORT_ANALYTICS_TAGGING_SCREENSHOTS', { rows })
+      }
+      doExport()
+      setSelectionRequired(false)
+      return
+    }
+    
     // Send quick action to main thread
     // Main thread will:
     // - Create user message and send it back (single source of truth)
@@ -1159,6 +1313,23 @@ function Plugin() {
     setAnalyticsTaggingAutosaveStatus('saving')
     emit<AnalyticsTaggingUpdateRowHandler>('ANALYTICS_TAGGING_UPDATE_ROW', rowId, updates)
   }, [])
+
+  const downloadPngDataUrl = useCallback((filename: string, dataUrl: string) => {
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = filename.endsWith('.png') ? filename : filename + '.png'
+    a.click()
+  }, [])
+
+  const handleExportRowThumbnail = useCallback((row: Row, dataUrl: string) => {
+    const sanitize = (s: string) => String(s).replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 80) || 'row'
+    const screenId = (row.screenId || '').trim()
+    const actionId = (row.actionId || '').trim()
+    const filename = screenId && actionId
+      ? `${sanitize(screenId)}__${sanitize(actionId)}.png`
+      : `row_${row.id}.png`
+    downloadPngDataUrl(filename, dataUrl)
+  }, [downloadPngDataUrl])
 
   const handleCopyRefImage = useCallback(() => {
     if (!contentTable || !contentTable.meta?.rootNodeId) {
@@ -2150,7 +2321,7 @@ ${htmlTable}
         <div style={{
           flex: 1,
           overflowY: 'auto',
-          overflowX: 'hidden',
+          overflowX: assistant.id === 'analytics_tagging' ? 'auto' : 'hidden',
           padding: 'var(--spacing-md)',
           paddingTop: (assistant.id === 'analytics_tagging' || messages.length > 0) ? 'calc(var(--spacing-md) + 32px)' : 'var(--spacing-md)',
           display: 'flex',
@@ -2163,6 +2334,8 @@ ${htmlTable}
             session={analyticsTaggingSession ?? { id: '', rows: [], draftRow: null, createdAtISO: '', updatedAtISO: '' }}
             onUpdateRow={handleAnalyticsTaggingUpdateRow}
             screenshotPreviews={analyticsTaggingScreenshotPreviews}
+            screenshotErrors={analyticsTaggingScreenshotErrors}
+            onExportRowThumbnail={handleExportRowThumbnail}
             autosaveStatus={analyticsTaggingAutosaveStatus}
             warning={analyticsTaggingWarning ?? undefined}
           />

@@ -308,6 +308,33 @@ export interface RequestAnalyticsTaggingScreenshotHandler extends EventHandler {
   handler: (screenshotRef: unknown) => void
 }
 
+/** UI→main: capture screenshot by node ids (meta-based); response READY/ERROR keyed by refId=rowId */
+export interface RequestAnalyticsTaggingScreenshotByMetaHandler extends EventHandler {
+  name: 'REQUEST_ANALYTICS_TAGGING_SCREENSHOT_BY_META'
+  handler: (payload: { rowId: string; containerNodeId: string; targetNodeId: string; rootNodeId: string }) => void
+}
+
+/** Compact row for export (no full session); main resolves nodes from meta or screenshotRef */
+export type AnalyticsTaggingExportCompactRow = {
+  rowId: string
+  screenId: string
+  actionId: string
+  meta?: { containerNodeId: string; targetNodeId: string; rootScreenNodeId: string }
+  screenshotRef?: { containerNodeId: string; targetNodeId: string; rootNodeId: string }
+}
+
+/** UI→main: export screenshots; main streams EXPORT_ITEM then EXPORT_DONE */
+export interface ExportAnalyticsTaggingScreenshotsHandler extends EventHandler {
+  name: 'EXPORT_ANALYTICS_TAGGING_SCREENSHOTS'
+  handler: (payload: { rows: AnalyticsTaggingExportCompactRow[] }) => void
+}
+
+/** UI→main: export one row screenshot; main emits single ANALYTICS_TAGGING_EXPORT_ITEM */
+export interface ExportAnalyticsTaggingOneRowHandler extends EventHandler {
+  name: 'EXPORT_ANALYTICS_TAGGING_ONE_ROW'
+  handler: (payload: { row: AnalyticsTaggingExportCompactRow }) => void
+}
+
 export interface AnalyticsTaggingScreenshotReadyHandler extends EventHandler {
   name: 'ANALYTICS_TAGGING_SCREENSHOT_READY'
   handler: (refId: string, dataUrl: string) => void

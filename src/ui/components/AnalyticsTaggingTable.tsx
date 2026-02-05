@@ -4,9 +4,10 @@
  */
 
 import { h } from 'preact'
-import { useCallback, useState } from 'preact/hooks'
+import { useCallback, useState, useEffect } from 'preact/hooks'
 import type { Session, Row, ActionType } from '../../core/analyticsTagging/types'
-import type { RequestAnalyticsTaggingScreenshotHandler } from '../../core/types'
+import type { RequestAnalyticsTaggingScreenshotHandler, RequestAnalyticsTaggingScreenshotByMetaHandler, ExportAnalyticsTaggingOneRowHandler } from '../../core/types'
+import type { AnalyticsTaggingExportCompactRow } from '../../core/types'
 import { emit } from '@create-figma-plugin/utilities'
 
 const ACTION_TYPES: ActionType[] = ['Action', 'Interaction', 'Screen Event', 'Personalization Event']
@@ -15,6 +16,8 @@ interface AnalyticsTaggingTableProps {
   session: Session
   onUpdateRow: (rowId: string, updates: Record<string, unknown>) => void
   screenshotPreviews: Record<string, string>
+  screenshotErrors: Record<string, string>
+  onExportRowThumbnail?: (row: Row, dataUrl: string) => void
   autosaveStatus: 'saved' | 'saving' | 'failed'
   warning?: string
 }
@@ -23,11 +26,14 @@ export function AnalyticsTaggingTable({
   session,
   onUpdateRow,
   screenshotPreviews,
+  screenshotErrors = {},
+  onExportRowThumbnail,
   autosaveStatus,
   warning
 }: AnalyticsTaggingTableProps) {
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<Partial<Row>>({})
+  const [loadingRefIds, setLoadingRefIds] = useState<Set<string>>(new Set())
 
   const handleCopyLink = useCallback((url: string) => {
     if (!url) return
@@ -37,6 +43,45 @@ export function AnalyticsTaggingTable({
   const handleRequestScreenshot = useCallback((ref: NonNullable<Row['screenshotRef']>) => {
     emit<RequestAnalyticsTaggingScreenshotHandler>('REQUEST_ANALYTICS_TAGGING_SCREENSHOT', ref)
   }, [])
+
+  const handleRequestScreenshotByMeta = useCallback((row: Row) => {
+    const meta = row.meta
+    if (!meta?.containerNodeId || !meta?.targetNodeId || !meta?.rootScreenNodeId) return
+    const refId = row.id
+    setLoadingRefIds(prev => new Set(prev).add(refId))
+    emit<RequestAnalyticsTaggingScreenshotByMetaHandler>('REQUEST_ANALYTICS_TAGGING_SCREENSHOT_BY_META', {
+      rowId: row.id,
+      containerNodeId: meta.containerNodeId,
+      targetNodeId: meta.targetNodeId,
+      rootNodeId: meta.rootScreenNodeId
+    })
+  }, [])
+
+  const handleExportRow = useCallback((row: Row) => {
+    const compact: AnalyticsTaggingExportCompactRow = {
+      rowId: row.id,
+      screenId: row.screenId,
+      actionId: row.actionId,
+      meta: row.meta ? { containerNodeId: row.meta.containerNodeId, targetNodeId: row.meta.targetNodeId, rootScreenNodeId: row.meta.rootScreenNodeId } : undefined,
+      screenshotRef: row.screenshotRef ? { containerNodeId: row.screenshotRef.containerNodeId, targetNodeId: row.screenshotRef.targetNodeId, rootNodeId: row.screenshotRef.rootNodeId } : undefined
+    }
+    emit<ExportAnalyticsTaggingOneRowHandler>('EXPORT_ANALYTICS_TAGGING_ONE_ROW', { row: compact })
+  }, [])
+
+  useEffect(() => {
+    setLoadingRefIds(prev => {
+      let changed = false
+      const next = new Set(prev)
+      for (const row of session.rows) {
+        const key = row.screenshotRef?.id ?? row.id
+        if ((screenshotPreviews[key] || screenshotErrors[key]) && next.has(key)) {
+          next.delete(key)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [session.rows, screenshotPreviews, screenshotErrors])
 
   const startEdit = useCallback((row: Row) => {
     setEditingRowId(row.id)
@@ -86,9 +131,8 @@ export function AnalyticsTaggingTable({
         </div>
       </div>
 
-      <div className="ata-tableY">
-        <div className="ata-tableX">
-          <table className="ata-table" style={{ borderCollapse: 'collapse', fontSize: 'var(--font-size-xs)', color: 'var(--fg)' }}>
+      <div className="ata-scroll">
+        <table className="ata-table" style={{ borderCollapse: 'collapse', fontSize: 'var(--font-size-xs)', color: 'var(--fg)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
               <th style={{ textAlign: 'left', padding: 'var(--spacing-xs)', color: 'var(--fg)' }}>Screen ID</th>
@@ -107,8 +151,11 @@ export function AnalyticsTaggingTable({
           <tbody>
             {session.rows.map((row) => {
               const isEditing = editingRowId === row.id
-              const hasScreenshotRef = !!row.screenshotRef
-              const preview = hasScreenshotRef && row.screenshotRef ? screenshotPreviews[row.screenshotRef.id] : null
+              const previewKey = row.screenshotRef?.id ?? row.id
+              const preview = screenshotPreviews[previewKey]
+              const errorMsg = screenshotErrors[previewKey]
+              const loading = loadingRefIds.has(previewKey)
+              const canLoadByMeta = row.meta?.containerNodeId && row.meta?.targetNodeId && row.meta?.rootScreenNodeId
               return (
                 <tr key={row.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
@@ -123,33 +170,71 @@ export function AnalyticsTaggingTable({
                     )}
                   </td>
                   <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', color: 'var(--fg)' }}>
-                    {!hasScreenshotRef ? (
-                      <span style={{ color: 'var(--muted)' }}>—</span>
-                    ) : preview ? (
-                      <div style={{ position: 'relative', width: 60, height: 40 }}>
-                        <img src={preview} alt="" style={{ width: 60, height: 40, objectFit: 'cover' }} />
-                        <span
-                          style={{
-                            position: 'absolute',
-                            left: `${((row.screenshotRef!.hotspotRatioX) * 60) - 4}px`,
-                            top: `${((row.screenshotRef!.hotspotRatioY) * 40) - 4}px`,
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: 'red',
-                            border: '1px solid white'
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => row.screenshotRef && handleRequestScreenshot(row.screenshotRef)}
-                        style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-                      >
-                        Generate preview
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                      {preview ? (
+                        <div style={{ position: 'relative', width: 60, height: 40 }}>
+                          <img src={preview} alt="" style={{ width: 60, height: 40, objectFit: 'cover' }} />
+                          {row.screenshotRef && (
+                            <span
+                              style={{
+                                position: 'absolute',
+                                left: `${((row.screenshotRef.hotspotRatioX) * 60) - 4}px`,
+                                top: `${((row.screenshotRef.hotspotRatioY) * 40) - 4}px`,
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: 'red',
+                                border: '1px solid white'
+                              }}
+                            />
+                          )}
+                        </div>
+                      ) : loading ? (
+                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>Loading…</span>
+                      ) : errorMsg ? (
+                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--error)' }}>Failed</span>
+                      ) : canLoadByMeta ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRequestScreenshotByMeta(row)}
+                          style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+                        >
+                          Load thumbnail
+                        </button>
+                      ) : row.screenshotRef ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRequestScreenshot(row.screenshotRef!)}
+                          style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+                        >
+                          Load thumbnail
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--muted)' }}>—</span>
+                      )}
+                      {onExportRowThumbnail ? (
+                        preview ? (
+                          <button
+                            type="button"
+                            onClick={() => onExportRowThumbnail(row, preview)}
+                            style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+                          >
+                            Export
+                          </button>
+                        ) : (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <button
+                              type="button"
+                              disabled
+                              style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', cursor: 'not-allowed', color: 'var(--muted)', background: 'var(--bg-secondary)', border: '1px solid var(--border)', opacity: 0.7 }}
+                            >
+                              Export
+                            </button>
+                            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>Load thumbnail first</span>
+                          </span>
+                        )
+                      ) : null}
+                    </div>
                   </td>
                   <td style={{ padding: 'var(--spacing-xs)', verticalAlign: 'top', maxWidth: 80, color: 'var(--fg)' }}>
                     {isEditing ? (
@@ -247,7 +332,10 @@ export function AnalyticsTaggingTable({
                         <button type="button" onClick={cancelEdit} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>Cancel</button>
                       </span>
                     ) : (
-                      <button type="button" onClick={() => startEdit(row)} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--accent)' }}>Edit</button>
+                      <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => startEdit(row)} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--accent)' }}>Edit</button>
+                        <button type="button" onClick={() => handleExportRow(row)} style={{ fontSize: 'var(--font-size-xs)', cursor: 'pointer', color: 'var(--fg)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>Export image</button>
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -255,7 +343,6 @@ export function AnalyticsTaggingTable({
             })}
           </tbody>
         </table>
-        </div>
       </div>
       {session.rows.length === 0 && (
         <div className="ata-empty" style={{ color: 'var(--muted)', fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-md)' }}>

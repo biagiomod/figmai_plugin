@@ -1,8 +1,8 @@
 /**
- * Analytics Tagging — visible-in-area screenshot capture
- * Crop rect = container absolute bounds; collect intersecting nodes (page children + subtrees);
- * temp frame "__figmai_tmp_capture__" off-canvas; clone with offsets; export PNG 2x; always delete frame in finally.
- * No persistent screenshot bytes; caller stores only ScreenshotRef (crop metrics + hotspot ratios).
+ * Analytics Tagging — screenshot capture
+ * Primary: export target node via node.exportAsync (ActionID element only).
+ * Fallback: captureVisibleInArea crops to target bounds (with padding), not container.
+ * Temp frame "__figmai_tmp_capture__" off-canvas; clone intersecting nodes; export PNG; always delete in finally.
  */
 
 import { getAbsoluteBounds } from '../stage/anchor'
@@ -10,6 +10,16 @@ import type { ScreenshotRef } from './types'
 
 const TMP_FRAME_NAME = '__figmai_tmp_capture__'
 const EXPORT_SCALE = 2
+const TARGET_CROP_PADDING = 8
+
+/** Export a single node as PNG (width constraint). Use for thumbnails and export. */
+export async function exportNodeThumbnailPngBytes(node: SceneNode, widthPx: number): Promise<Uint8Array> {
+  const bytes = await (node as { exportAsync: (opts: { format: string; constraint: { type: string; value: number } }) => Promise<Uint8Array> }).exportAsync({
+    format: 'PNG',
+    constraint: { type: 'WIDTH', value: widthPx }
+  })
+  return new Uint8Array(bytes)
+}
 
 function rectsIntersect(
   a: { x: number; y: number; width: number; height: number },
@@ -41,15 +51,15 @@ function collectIntersectingNodes(
   return result
 }
 
-/** Place temp frame off-canvas (e.g. far left) so it doesn't affect viewport */
+/** Place temp frame off-canvas so it doesn't affect viewport */
 function getOffCanvasPosition(): { x: number; y: number } {
   return { x: -20000, y: 0 }
 }
 
 /**
- * Capture visible-in-area screenshot and compute hotspot ratios.
- * Returns PNG bytes (for preview/export only; do not store in clientStorage) and ScreenshotRef.
- * Temp frame is always deleted in a finally block.
+ * Capture visible-in-area screenshot cropped to the **target** node bounds (with optional padding), not the container.
+ * Used as fallback when exportAsync(target) is not possible.
+ * Returns PNG bytes and ScreenshotRef. Temp frame is always deleted in finally.
  */
 export async function captureVisibleInArea(args: {
   container: SceneNode
@@ -62,13 +72,26 @@ export async function captureVisibleInArea(args: {
   if (!page || page.type !== 'PAGE') {
     throw new Error('Container has no page')
   }
-  const cropRect = getAbsoluteBounds(container)
-  if (!cropRect || cropRect.width <= 0 || cropRect.height <= 0) {
+  const containerBounds = getAbsoluteBounds(container)
+  if (!containerBounds || containerBounds.width <= 0 || containerBounds.height <= 0) {
     throw new Error('Invalid container bounds')
   }
   const targetBounds = getAbsoluteBounds(target)
   if (!targetBounds) {
     throw new Error('Invalid target bounds')
+  }
+
+  // Crop rect = target bounds + padding, clamped to container
+  const pad = TARGET_CROP_PADDING
+  const cropX = Math.max(containerBounds.x, targetBounds.x - pad)
+  const cropY = Math.max(containerBounds.y, targetBounds.y - pad)
+  const cropRight = Math.min(containerBounds.x + containerBounds.width, targetBounds.x + targetBounds.width + pad)
+  const cropBottom = Math.min(containerBounds.y + containerBounds.height, targetBounds.y + targetBounds.height + pad)
+  const cropRect = {
+    x: cropX,
+    y: cropY,
+    width: Math.max(1, cropRight - cropX),
+    height: Math.max(1, cropBottom - cropY)
   }
 
   const hotspotRatioX = (targetBounds.x + targetBounds.width / 2 - cropRect.x) / cropRect.width
@@ -115,7 +138,7 @@ export async function captureVisibleInArea(args: {
       constraint: { type: 'SCALE', value: EXPORT_SCALE }
     })
 
-    return { bytes, ref }
+    return { bytes: new Uint8Array(bytes), ref }
   } finally {
     if (frame.parent) {
       frame.remove()
