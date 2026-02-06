@@ -23,6 +23,17 @@ interface CustomConfig {
     endpoint?: string
     hideModelSettings?: boolean
     uiMode?: 'full' | 'connection-only'
+    provider?: 'internal-api' | 'proxy'
+    showTestConnection?: boolean
+    hideInternalApiSettings?: boolean
+    hideProxySettings?: boolean
+    hideTestConnectionButton?: boolean
+    proxy?: {
+      baseUrl?: string
+      defaultModel?: string
+      authMode?: 'shared_token' | 'session_token'
+      sharedToken?: string
+    }
     promptDiagnostics?: {
       enabled?: boolean
       level?: 'off' | 'compact' | 'details'
@@ -212,6 +223,17 @@ export interface CustomConfig {
     endpoint?: string
     hideModelSettings?: boolean
     uiMode?: 'full' | 'connection-only'
+    provider?: 'internal-api' | 'proxy'
+    showTestConnection?: boolean
+    hideInternalApiSettings?: boolean
+    hideProxySettings?: boolean
+    hideTestConnectionButton?: boolean
+    proxy?: {
+      baseUrl?: string
+      defaultModel?: string
+      authMode?: 'shared_token' | 'session_token'
+      sharedToken?: string
+    }
     promptDiagnostics?: {
       enabled?: boolean
       level?: 'off' | 'compact' | 'details'

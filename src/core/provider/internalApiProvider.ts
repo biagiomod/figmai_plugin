@@ -6,7 +6,7 @@
 
 import type { Provider, ChatRequest, ProviderCapabilities, TestConnectionOptions } from './provider'
 import { ProviderError, ProviderErrorType, errorToString } from './provider'
-import { getSettings } from '../settings'
+import { getEffectiveSettings } from '../settings'
 import { CONFIG } from '../config'
 import { debug } from '../debug/logger'
 import { getHostForObservability } from './observability'
@@ -209,7 +209,7 @@ export class InternalApiProvider implements Provider {
      * Send chat request to Internal API
      */
     async sendChat(request: ChatRequest): Promise<string> {
-        const settings = await getSettings()
+        const settings = await getEffectiveSettings()
 
         if (!settings.internalApiUrl) {
             throw new ProviderError(
@@ -457,7 +457,7 @@ export class InternalApiProvider implements Provider {
             errorMessage?: string
         }
     }> {
-        const urlToTest = options?.internalApiUrl || (await getSettings()).internalApiUrl
+        const urlToTest = options?.internalApiUrl || (await getEffectiveSettings()).internalApiUrl
 
         if (!urlToTest) {
             return {
@@ -477,7 +477,7 @@ export class InternalApiProvider implements Provider {
         }
 
         // Get settings for timeout (always needed)
-        const settings = await getSettings()
+        const settings = await getEffectiveSettings()
 
         const requestOptions: RequestInit = {
             method: 'POST',

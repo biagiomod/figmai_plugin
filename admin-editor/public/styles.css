@@ -291,6 +291,46 @@ body {
   color: var(--ace-text-muted);
 }
 
+/* Left nav user card (above Users tab): icon + username (ellipsis) + role badge. Not a nav tab. */
+.ace-nav-user-card {
+  margin-top: var(--ace-space-16);
+  padding: var(--ace-space-12) var(--ace-space-8);
+  background: transparent;
+  border: none;
+  border-radius: var(--ace-radius);
+  min-width: 0;
+}
+.ace-nav-user-card-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-12);
+  min-width: 0;
+}
+.ace-nav-user-card-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--ace-text);
+  opacity: 0.9;
+}
+.ace-nav-user-card-body {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
+}
+.ace-nav-user-card-name {
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .ace-main {
   flex: 1;
   display: flex;
@@ -365,6 +405,53 @@ body {
   outline-offset: 2px;
 }
 
+.ace-build-info {
+  font-size: var(--ace-font-size-12);
+  margin: 0 0 var(--ace-space-16) 0;
+}
+
+/* AI page: tighter title → build line and section header → description */
+#panel-ai {
+  gap: var(--ace-space-12);
+}
+#panel-ai .ace-section-header-row {
+  padding-bottom: var(--ace-space-12);
+}
+#panel-ai .ace-build-info {
+  margin-top: 0;
+  margin-bottom: var(--ace-space-12);
+}
+#panel-ai .ace-collapsible .ace-section-body {
+  padding-top: var(--ace-space-8);
+}
+
+.ace-ai-save-note {
+  font-size: var(--ace-font-size-12);
+  margin: 0 0 var(--ace-space-16) 0;
+  color: var(--ace-text-muted);
+}
+.ace-ai-save-note code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.95em;
+}
+
+.ace-llm-endpoint-card .ace-segmented-btns {
+  margin-bottom: var(--ace-space-16);
+}
+.ace-llm-endpoint-card #config-llm-proxy-authMode,
+.ace-llm-endpoint-card select.ace-field {
+  max-width: 360px;
+}
+
+.ace-llm-provider-block {
+  margin-top: var(--ace-space-16);
+}
+
+.ace-llm-provider-block .ace-field-label + .ace-text-input,
+.ace-llm-provider-block .ace-field-label + .ace-field {
+  margin-top: var(--ace-space-8);
+}
+
 .ace-cards {
   display: flex;
   flex-direction: column;
@@ -430,6 +517,23 @@ body {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+}
+.ace-section-header-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.ace-section-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.ace-section-description {
+  margin-top: var(--ace-space-4);
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+  line-height: 1.4;
 }
 .ace-collapsible .ace-section-body {
   padding: var(--ace-card-padding);
@@ -1263,18 +1367,7 @@ textarea.ace-field.large {
   margin: 0;
 }
 
-/* ========== Top bar user info & role badge ========== */
-.ace-user-info {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ace-space-12);
-  font-size: var(--ace-font-size-12);
-  color: var(--ace-text-muted);
-}
-.ace-user-name {
-  font-weight: var(--ace-font-weight-semibold);
-  color: var(--ace-text);
-}
+/* ========== Role badges (ADMIN, MANAGER, EDITOR, REVIEWER) ========== */
 .ace-role-badge {
   display: inline-block;
   padding: 2px 8px;
@@ -1283,54 +1376,143 @@ textarea.ace-field.large {
   font-weight: var(--ace-font-weight-bold);
   text-transform: uppercase;
 }
-.ace-role-badge--owner {
+.ace-role-badge--admin {
   background: rgba(213, 12, 125, 0.15);
   color: var(--ace-accent);
 }
-.ace-role-badge--editor {
+.ace-role-badge--manager {
   background: rgba(0, 102, 204, 0.15);
   color: #0066cc;
+}
+.ace-role-badge--editor {
+  background: rgba(0, 120, 80, 0.15);
+  color: #007850;
 }
 .ace-role-badge--reviewer {
   background: rgba(102, 102, 102, 0.2);
   color: var(--ace-text-muted);
 }
 
-/* ========== Users panel (owner only) ========== */
-.ace-users-loading {
+/* ========== Users panel (same header pattern as General/AI) ========== */
+#panel-users {
+  gap: var(--ace-space-24);
+}
+
+/* Nav profile widget (all roles): below Users tab, at bottom of nav. Not a tab; transparent, border only. */
+.ace-nav-profile-widget {
+  margin-top: var(--ace-space-16);
+  padding: var(--ace-space-12) var(--ace-space-8);
+  background: transparent;
+  border: 1px solid #666666;
+  border-radius: var(--ace-radius);
+  min-width: 0;
+  pointer-events: none;
+}
+.ace-nav-profile-widget-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ace-space-8);
+  min-width: 0;
+}
+.ace-nav-profile-widget-logout {
+  pointer-events: auto;
+}
+.ace-nav-profile-widget-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  opacity: 0.8;
+}
+.ace-nav-profile-widget-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ace-space-4);
+  min-width: 0;
+  flex: 1;
+}
+.ace-nav-profile-widget-name {
+  font-weight: var(--ace-font-weight-semibold);
+  font-size: var(--ace-font-size-14);
+  color: var(--ace-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.ace-nav-profile-widget .ace-nav-profile-widget-logout {
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-accent);
+  text-decoration: none;
+}
+.ace-nav-profile-widget .ace-nav-profile-widget-logout:hover {
+  text-decoration: underline;
+}
+
+/* Users page: not authorized (non-admin lands here only if redirected) */
+.ace-users-unauthorized {
   color: var(--ace-text-muted);
-  padding: var(--ace-space-24);
+  margin: var(--ace-space-24) 0 0;
 }
-.ace-users-section {
-  margin-bottom: var(--ace-space-32);
+
+/* Manage accounts (admin only) */
+.ace-users-manage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-32);
+  max-width: 720px;
 }
-.ace-users-title {
+.ace-users-section-title {
   margin: 0 0 var(--ace-space-16);
   font-size: var(--ace-font-size-18);
   font-weight: var(--ace-font-weight-bold);
   color: var(--ace-text);
 }
+.ace-users-create-card,
+.ace-users-list-card {
+  padding: var(--ace-card-padding);
+}
+.ace-users-subtitle {
+  margin: 0 0 var(--ace-space-16);
+  font-size: var(--ace-font-size-16);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+}
 .ace-users-form {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--ace-space-12);
-  margin-bottom: var(--ace-space-24);
+  flex-direction: column;
+  gap: var(--ace-space-16);
+  max-width: 360px;
 }
-.ace-users-form label {
-  display: block;
+.ace-users-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-8);
+}
+.ace-users-form-row .ace-field-label {
   font-size: var(--ace-font-size-12);
   font-weight: var(--ace-font-weight-semibold);
-  margin-bottom: 4px;
+  color: var(--ace-text);
 }
-.ace-users-form .ace-auth-input,
-.ace-users-form select {
-  min-width: 140px;
+.ace-users-form-row .ace-field {
+  max-width: 280px;
   padding: var(--ace-space-8) var(--ace-space-12);
   font-size: var(--ace-font-size-14);
   border: 1px solid var(--ace-border);
   border-radius: var(--ace-radius);
 }
+.ace-users-form-actions {
+  margin-top: var(--ace-space-8);
+}
+.ace-users-error {
+  margin: var(--ace-space-16) 0 0;
+}
+.ace-users-loading {
+  color: var(--ace-text-muted);
+  padding: var(--ace-space-24) 0;
+}
+
+/* Users list rows */
 .ace-users-list {
   display: flex;
   flex-direction: column;
@@ -1349,9 +1531,20 @@ textarea.ace-field.large {
 .ace-users-row--disabled {
   opacity: 0.65;
 }
-.ace-users-username {
+.ace-users-row-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-12);
+  min-width: 0;
+  flex: 1;
+}
+.ace-users-row .ace-users-username {
   font-weight: var(--ace-font-weight-semibold);
-  min-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+  min-width: 0;
 }
 .ace-users-disabled {
   color: var(--ace-text-muted);
@@ -1361,11 +1554,113 @@ textarea.ace-field.large {
   display: inline-flex;
   align-items: center;
   gap: var(--ace-space-8);
-  margin-left: auto;
+  flex-shrink: 0;
+  min-height: 32px;
 }
-.ace-users-role-select {
-  padding: 4px 8px;
+.ace-users-actions .btn,
+.ace-users-actions .ace-users-role-select {
+  min-height: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+.ace-users-actions .ace-users-role-select {
+  padding: 0 var(--ace-space-8);
   font-size: var(--ace-font-size-12);
+  line-height: 1;
   border: 1px solid var(--ace-border);
-  border-radius: 4px;
+  border-radius: var(--ace-radius);
+  max-width: 140px;
+  vertical-align: middle;
+}
+.ace-users-btn-label {
+  white-space: nowrap;
+}
+.ace-users-actions .btn {
+  white-space: nowrap;
+}
+
+/* Row wrapper (row + optional expanded panel) */
+.ace-users-row-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.ace-users-row-expanded {
+  padding: var(--ace-space-12) var(--ace-space-16);
+  margin-top: -var(--ace-space-8);
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: var(--ace-space-8);
+  background: var(--ace-surface-alt, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--ace-border);
+  border-top: none;
+  border-radius: 0 0 var(--ace-radius) var(--ace-radius);
+}
+.ace-users-set-access-title {
+  margin: 0 0 var(--ace-space-8) 0;
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+}
+.ace-users-set-access-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ace-space-12) var(--ace-space-24);
+  margin-bottom: var(--ace-space-12);
+}
+.ace-users-set-access-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ace-space-6);
+  font-size: var(--ace-font-size-12);
+  cursor: pointer;
+}
+.ace-users-set-access-check input {
+  margin: 0;
+}
+.ace-users-set-access-actions {
+  margin-top: var(--ace-space-8);
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+}
+.ace-users-set-access-feedback {
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+}
+.ace-users-set-access-feedback--error {
+  color: var(--error);
+}
+/* Save access: primary small button must stay white text (override .btn-small color) */
+.btn-small.btn-primary {
+  background: var(--ace-accent);
+  border-color: var(--ace-accent);
+  color: #fff;
+}
+.btn-small.btn-primary:hover:not(:disabled) {
+  background: var(--ace-accent-hover);
+  border-color: var(--ace-accent-hover);
+  color: #fff;
+}
+.ace-users-chevron-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius);
+  background: transparent;
+  color: var(--ace-text);
+  cursor: pointer;
+}
+.ace-users-chevron-btn:hover {
+  background: var(--ace-surface-hover, rgba(255, 255, 255, 0.06));
+}
+.ace-users-chevron-btn img {
+  display: block;
+  pointer-events: none;
 }

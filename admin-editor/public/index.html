@@ -27,18 +27,18 @@
     </div>
   </div>
 
-  <!-- Bootstrap: create first owner (shown when no users exist) -->
+  <!-- Bootstrap: create first admin (shown when no users exist) -->
   <div id="bootstrap-view" class="ace-auth-view" style="display: none;">
     <div class="ace-auth-card">
       <h1 class="ace-auth-title">ACE — Create first account</h1>
-      <p class="ace-auth-subtitle">Create an owner account to get started</p>
+      <p class="ace-auth-subtitle">Create an admin account to get started</p>
       <form id="bootstrap-form" class="ace-auth-form">
         <label for="bootstrap-username" class="ace-auth-label">Username</label>
         <input type="text" id="bootstrap-username" name="username" class="ace-auth-input" required autocomplete="username" />
         <label for="bootstrap-password" class="ace-auth-label">Password</label>
         <input type="password" id="bootstrap-password" name="password" class="ace-auth-input" required autocomplete="new-password" minlength="8" />
         <p id="bootstrap-error" class="ace-auth-error" style="display: none;"></p>
-        <button type="submit" id="bootstrap-submit" class="btn btn-primary">Create owner</button>
+        <button type="submit" id="bootstrap-submit" class="btn btn-primary">Create admin</button>
       </form>
     </div>
   </div>
@@ -50,13 +50,6 @@
       <div class="ace-topbar-brand">
         <img src="assets/logo-figmai.svg" alt="" class="ace-logo" width="117" height="36" />
         <span class="ace-topbar-label" id="ace-label">ACE (Admin Config Editor)</span>
-      </div>
-      <div class="ace-topbar-actions ace-topbar-actions-left">
-        <span id="user-info" class="ace-user-info">
-          <span id="user-name" class="ace-user-name"></span>
-          <span id="user-role-badge" class="ace-role-badge"></span>
-          <button type="button" id="logout-btn" class="btn btn-secondary btn-small">Logout</button>
-        </span>
       </div>
       <div class="ace-topbar-actions ace-topbar-actions-editor">
         <button type="button" id="reload-btn">Reset</button>
@@ -70,7 +63,7 @@
   <div id="app" class="ace-shell">
     <div class="ace-content-area ace-container">
       <aside class="ace-sidebar" aria-label="Editor sections">
-        <nav class="tabs ace-leftnav" role="tablist" aria-label="Editor sections">
+        <nav id="ace-nav" class="tabs ace-leftnav" role="tablist" aria-label="Editor sections">
           <div class="ace-nav-group ace-nav-group-primary">
             <button type="button" role="tab" class="ace-nav-item" data-tab="config" aria-selected="true" aria-controls="panel-config" tabindex="0">
               <img src="assets/icons/ACEGeneralIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
@@ -92,7 +85,7 @@
               <img src="assets/icons/ACEContentTablesIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
               <span class="ace-nav-label">Content Tables</span>
             </button>
-            <button type="button" class="ace-nav-item" data-action="coming-soon" aria-label="Analytics – coming soon">
+            <button type="button" role="tab" class="ace-nav-item" id="tab-analytics" data-tab="analytics" aria-selected="false" aria-controls="panel-analytics" tabindex="-1" style="display: none;">
               <img src="assets/icons/ACEAnalyticsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
               <span class="ace-nav-label">Analytics</span>
             </button>
@@ -111,10 +104,11 @@
               <span id="status-loaded">—</span>
               <span id="status-repo">—</span>
             </div>
-            <button type="button" class="ace-nav-item" id="tab-users" data-tab="users" aria-selected="false" aria-controls="panel-users" tabindex="-1" style="display: none;">
-              <img src="assets/icons/ACEUserIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+            <button type="button" role="tab" class="ace-nav-item" id="tab-users" data-tab="users" aria-selected="false" aria-controls="panel-users" tabindex="-1" style="display: none;">
+              <img src="assets/icons/ACEUsersIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
               <span class="ace-nav-label">Users</span>
             </button>
+            <div id="ace-nav-profile-widget" class="ace-nav-profile-widget" aria-live="polite"></div>
           </div>
         </nav>
         <div class="visually-hidden" aria-hidden="true">
@@ -136,6 +130,7 @@
         <section id="panel-knowledge" role="tabpanel" class="panel" aria-hidden="true"></section>
         <section id="panel-content-models" role="tabpanel" class="panel" aria-hidden="true" style="display: none;"></section>
         <section id="panel-registries" role="tabpanel" class="panel" aria-hidden="true" style="display: none;"></section>
+        <section id="panel-analytics" role="tabpanel" class="panel" aria-hidden="true" style="display: none;"></section>
         <section id="panel-users" role="tabpanel" class="panel" aria-hidden="true" style="display: none;"></section>
       </main>
 

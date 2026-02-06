@@ -6,11 +6,13 @@ import type { Request, Response } from 'express'
 import { SESSION_COOKIE_NAME, createSessionId, setSession, deleteSession, getCookieOptions } from './auth-session'
 import {
   findUserByUsername,
+  findUserById,
   verifyPassword,
-  bootstrapOwner,
+  bootstrapAdmin,
   isBootstrapAllowed,
   getBootstrapAllowedStatus
 } from './auth-users'
+import { normalizeRole, getEffectiveAllowedTabs } from './permissions'
 import type { AuthLocals } from './auth-middleware'
 
 function isSecure(req: Request): boolean {
@@ -42,11 +44,12 @@ export async function handleLogin(
     res.status(401).json({ error: 'Invalid username or password' })
     return
   }
+  const role = normalizeRole(user.role)
   const sid = createSessionId()
   setSession(sid, {
     userId: user.id,
     username: user.username,
-    role: user.role,
+    role,
     createdAt: Date.now()
   })
   const opts = getCookieOptions(isSecure(req))
@@ -55,7 +58,7 @@ export async function handleLogin(
     user: {
       id: user.id,
       username: user.username,
-      role: user.role
+      role
     }
   })
 }
@@ -73,20 +76,25 @@ export function handleLogout(req: Request, res: Response): void {
 
 /**
  * GET /api/auth/me
- * Returns current user or 401. Used after requireAuth so locals.auth is set.
+ * Returns current user and effective allowedTabs (per-user overrides role default).
  */
-export function handleMe(_req: Request, res: Response): void {
+export function handleMe(_req: Request, res: Response, dataDir: string): void {
   const auth = res.locals.auth as AuthLocals | undefined
   if (!auth) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
+  const user = findUserById(dataDir, auth.userId)
+  const allowedTabs = user
+    ? getEffectiveAllowedTabs(auth.role, user.allowedTabs)
+    : getEffectiveAllowedTabs(auth.role, null)
   res.json({
     user: {
       id: auth.userId,
       username: auth.username,
       role: auth.role
-    }
+    },
+    allowedTabs
   })
 }
 
@@ -109,7 +117,7 @@ export function handleBootstrapAllowed(_req: Request, res: Response, dataDir: st
 
 /**
  * POST /api/auth/bootstrap
- * Body: { username, password }. Creates first owner. Only when bootstrap-allowed.
+ * Body: { username, password }. Creates first admin. Only when bootstrap-allowed.
  */
 export async function handleBootstrap(
   req: Request,
@@ -125,16 +133,17 @@ export async function handleBootstrap(
     res.status(400).json({ error: 'Username and password required' })
     return
   }
-  const result = await bootstrapOwner(dataDir, username, password)
+  const result = await bootstrapAdmin(dataDir, username, password)
   if (!result.ok) {
     res.status(400).json({ error: result.error })
     return
   }
+  const role = normalizeRole(result.user.role)
   const sid = createSessionId()
   setSession(sid, {
     userId: result.user.id,
     username: result.user.username,
-    role: result.user.role,
+    role,
     createdAt: Date.now()
   })
   const opts = getCookieOptions(isSecure(req))
@@ -143,7 +152,7 @@ export async function handleBootstrap(
     user: {
       id: result.user.id,
       username: result.user.username,
-      role: result.user.role
+      role
     }
   })
 }

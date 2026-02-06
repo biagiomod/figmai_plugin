@@ -19,6 +19,17 @@ export interface CustomConfig {
     endpoint?: string
     hideModelSettings?: boolean
     uiMode?: 'full' | 'connection-only'
+    provider?: 'internal-api' | 'proxy'
+    showTestConnection?: boolean
+    hideInternalApiSettings?: boolean
+    hideProxySettings?: boolean
+    hideTestConnectionButton?: boolean
+    proxy?: {
+      baseUrl?: string
+      defaultModel?: string
+      authMode?: 'shared_token' | 'session_token'
+      sharedToken?: string
+    }
     promptDiagnostics?: {
       enabled?: boolean
       level?: 'off' | 'compact' | 'details'
@@ -83,16 +94,25 @@ export const customConfig: CustomConfig | null = {
   },
   "llm": {
     "endpoint": "",
+    "hideInternalApiSettings": false,
     "hideModelSettings": false,
+    "hideProxySettings": false,
     "promptDiagnostics": {
       "enabled": false,
       "level": "compact"
+    },
+    "provider": "proxy",
+    "proxy": {
+      "baseUrl": "https://overobedient-buddy-leathern.ngrok-free.dev",
+      "defaultModel": "gpt-4.1-mini",
+      "sharedToken": "some-long-random-token"
     },
     "safety": {
       "forceNoImages": true,
       "forceNoKbName": false,
       "forceNoSelectionSummary": false
     },
+    "showTestConnection": true,
     "uiMode": "full"
   },
   "knowledgeBases": {},

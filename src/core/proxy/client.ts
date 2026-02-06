@@ -3,7 +3,7 @@
  * Centralized HTTP client for proxy communication
  */
 
-import { getSettings } from '../settings'
+import { getEffectiveSettings } from '../settings'
 import { ProviderError, ProviderErrorType, errorToString } from '../provider/provider'
 import { isContentFilterResponse } from '../contentSafety'
 import { extractResponseText } from '../provider/normalize'
@@ -158,7 +158,7 @@ export class ProxyClient {
    * Get auth headers
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const settings = await getSettings()
+    const settings = await getEffectiveSettings()
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
@@ -180,7 +180,7 @@ export class ProxyClient {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:148',message:'healthCheck entry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
     // #endregion
-    const settings = await getSettings()
+    const settings = await getEffectiveSettings()
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'proxy/client.ts:150',message:'settings loaded',data:{proxyBaseUrl:settings.proxyBaseUrl,connectionType:settings.connectionType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
     // #endregion
@@ -270,7 +270,7 @@ export class ProxyClient {
       images?: Array<{ dataUrl: string; name?: string; width?: number; height?: number }>
     } = {}
   ): Promise<string> {
-    const settings = await getSettings()
+    const settings = await getEffectiveSettings()
     
     if (!settings.proxyBaseUrl) {
       throw new ProxyError('Proxy base URL not configured. Please set it in Settings.')

@@ -1,11 +1,12 @@
 /**
- * ACE auth middleware: requireAuth, requireRole (editor+), requireOwner.
+ * ACE auth middleware: requireAuth, requireAdmin, requireRoleValidateSave (admin/manager/editor).
  */
 
 import type { Request, Response, NextFunction } from 'express'
 import { SESSION_COOKIE_NAME, getSession } from './auth-session'
 import { findUserById } from './auth-users'
 import type { Role } from './auth-users'
+import { normalizeRole, canManageUsers, canValidateAndSave } from './permissions'
 
 export interface AuthLocals {
   userId: string
@@ -44,54 +45,42 @@ export function requireAuth(dataDir: string) {
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
+    const role = normalizeRole(user.role) as Role
     res.locals.auth = {
       userId: user.id,
       username: user.username,
-      role: user.role as Role
-    }
-    next()
-  }
-}
-
-const ROLE_ORDER: Record<Role, number> = {
-  reviewer: 1,
-  editor: 2,
-  owner: 3
-}
-
-function hasRoleAtLeast(role: Role, required: 'editor' | 'owner'): boolean {
-  if (required === 'owner') return role === 'owner'
-  return ROLE_ORDER[role] >= ROLE_ORDER.editor
-}
-
-/**
- * Require editor or owner. Use after requireAuth.
- */
-export function requireRole(required: 'editor' | 'owner') {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const auth = res.locals.auth as AuthLocals | undefined
-    if (!auth) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
-    }
-    if (!hasRoleAtLeast(auth.role, required)) {
-      res.status(403).json({ error: 'Forbidden' })
-      return
+      role
     }
     next()
   }
 }
 
 /**
- * Require owner only. Use after requireAuth.
+ * Require admin only. Use after requireAuth. For users CRUD.
  */
-export function requireOwner(_req: Request, res: Response, next: NextFunction): void {
+export function requireAdmin(_req: Request, res: Response, next: NextFunction): void {
   const auth = res.locals.auth as AuthLocals | undefined
   if (!auth) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
-  if (auth.role !== 'owner') {
+  if (!canManageUsers(auth.role)) {
+    res.status(403).json({ error: 'Forbidden' })
+    return
+  }
+  next()
+}
+
+/**
+ * Require admin, manager, or editor (validate/preview/save). Reviewer returns 403.
+ */
+export function requireRoleValidateSave(_req: Request, res: Response, next: NextFunction): void {
+  const auth = res.locals.auth as AuthLocals | undefined
+  if (!auth) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+  if (!canValidateAndSave(auth.role)) {
     res.status(403).json({ error: 'Forbidden' })
     return
   }

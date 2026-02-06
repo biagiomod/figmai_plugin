@@ -32,6 +32,66 @@ export function getCustomLlmEndpoint(): string | null {
 }
 
 /**
+ * Get LLM provider from config ('internal-api' | 'proxy').
+ * When undefined, plugin falls back to clientStorage settings (current behavior).
+ */
+export function getLlmProvider(): 'internal-api' | 'proxy' | undefined {
+  return customConfig?.llm?.provider
+}
+
+/**
+ * Get proxy settings from config when provider is 'proxy'.
+ * Returns undefined when config.llm.proxy is not set.
+ */
+export function getConfigProxySettings(): {
+  baseUrl: string
+  defaultModel?: string
+  authMode?: 'shared_token' | 'session_token'
+  sharedToken?: string
+} | undefined {
+  const proxy = customConfig?.llm?.proxy
+  if (!proxy || typeof proxy.baseUrl !== 'string') return undefined
+  return {
+    baseUrl: proxy.baseUrl,
+    defaultModel: typeof proxy.defaultModel === 'string' ? proxy.defaultModel : undefined,
+    authMode: proxy.authMode === 'session_token' ? 'session_token' : proxy.authMode === 'shared_token' ? 'shared_token' : undefined,
+    sharedToken: typeof proxy.sharedToken === 'string' ? proxy.sharedToken : undefined
+  }
+}
+
+/**
+ * Whether to hide Internal API settings in the plugin Settings modal.
+ * When new keys absent and showTestConnection === false: hide (true).
+ * When new key present: use it. Otherwise: show (false).
+ */
+export function getHideInternalApiSettings(): boolean {
+  if (customConfig?.llm?.hideInternalApiSettings === true) return true
+  if (customConfig?.llm?.hideInternalApiSettings === false) return false
+  if (customConfig?.llm?.showTestConnection === false) return true
+  return false
+}
+
+/**
+ * Whether to hide Proxy settings in the plugin Settings modal.
+ */
+export function getHideProxySettings(): boolean {
+  if (customConfig?.llm?.hideProxySettings === true) return true
+  if (customConfig?.llm?.hideProxySettings === false) return false
+  if (customConfig?.llm?.showTestConnection === false) return true
+  return false
+}
+
+/**
+ * Whether to hide the Test Connection button in the plugin Settings modal.
+ */
+export function getHideTestConnectionButton(): boolean {
+  if (customConfig?.llm?.hideTestConnectionButton === true) return true
+  if (customConfig?.llm?.hideTestConnectionButton === false) return false
+  if (customConfig?.llm?.showTestConnection === false) return true
+  return false
+}
+
+/**
  * Check if LLM Model Settings should be hidden (when custom endpoint is provided)
  */
 export function shouldHideLlmModelSettings(): boolean {

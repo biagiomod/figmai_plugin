@@ -13,16 +13,25 @@
   },
   "llm": {
     "endpoint": "",
+    "hideInternalApiSettings": false,
     "hideModelSettings": false,
+    "hideProxySettings": false,
     "promptDiagnostics": {
       "enabled": false,
       "level": "compact"
+    },
+    "provider": "proxy",
+    "proxy": {
+      "baseUrl": "https://overobedient-buddy-leathern.ngrok-free.dev",
+      "defaultModel": "gpt-4.1-mini",
+      "sharedToken": "some-long-random-token"
     },
     "safety": {
       "forceNoImages": true,
       "forceNoKbName": false,
       "forceNoSelectionSummary": false
     },
+    "showTestConnection": true,
     "uiMode": "full"
   },
   "knowledgeBases": {},

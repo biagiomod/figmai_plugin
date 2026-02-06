@@ -49,7 +49,7 @@ export interface SaveDryRunSummary {
 }
 
 const NEXT_STEPS =
-  'Ask the plugin owner to run `npm run build` and then publish via the normal process.'
+  'Ask an admin to run `npm run build` and then publish via the normal process.'
 
 const NO_CHANGES_MESSAGE =
   'No changes detected. Nothing to build or publish.'

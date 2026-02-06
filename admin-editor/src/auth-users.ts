@@ -1,13 +1,17 @@
 /**
  * ACE user store: file-backed users at data/users.json with atomic writes.
- * Roles: owner, editor, reviewer (reviewer < editor < owner).
+ * Roles: admin, manager, editor, reviewer. Legacy "owner" is migrated to "admin".
  */
 
 import * as fs from 'fs'
 import * as path from 'path'
 import { hash, compare } from 'bcryptjs'
+import { normalizeRole, type AceRole } from './permissions'
 
-export type Role = 'owner' | 'editor' | 'reviewer'
+export type Role = AceRole
+
+/** Tab ids for per-user allowedTabs (must be subset of permissions.ALL_TAB_IDS). */
+export type AllowedTabs = string[]
 
 export interface UserRecord {
   id: string
@@ -15,6 +19,8 @@ export interface UserRecord {
   passwordHash: string
   role: Role
   disabled?: boolean
+  /** Per-user nav tabs; when set, overrides role default. */
+  allowedTabs?: AllowedTabs
   createdAt: string
   updatedAt: string
 }
@@ -31,12 +37,29 @@ function getUsersPath(dataDir: string): string {
   return path.join(dataDir, USERS_FILENAME)
 }
 
+/** Migrate role "owner" -> "admin" in memory; optionally write back once. */
+function migrateOwnerToAdmin(data: UsersFile): { data: UsersFile; didMigrate: boolean } {
+  let didMigrate = false
+  const users = data.users.map((u) => {
+    const role = (u.role || '').trim().toLowerCase()
+    if (role === 'owner') {
+      didMigrate = true
+      return { ...u, role: 'admin' as Role }
+    }
+    return { ...u, role: normalizeRole(u.role) as Role }
+  })
+  if (!didMigrate) return { data, didMigrate: false }
+  return { data: { ...data, users }, didMigrate: true }
+}
+
 function readUsersFile(dataDir: string): UsersFile | null {
   const filePath = getUsersPath(dataDir)
   try {
     const raw = fs.readFileSync(filePath, 'utf-8')
-    const data = JSON.parse(raw) as UsersFile
-    if (data.version !== 1 || !Array.isArray(data.users)) return null
+    const parsed = JSON.parse(raw) as UsersFile
+    if (parsed.version !== 1 || !Array.isArray(parsed.users)) return null
+    const { data, didMigrate } = migrateOwnerToAdmin(parsed)
+    if (didMigrate) writeUsersFile(dataDir, data)
     return data
   } catch {
     return null
@@ -95,9 +118,9 @@ export async function verifyPassword(plain: string, hashStr: string): Promise<bo
 }
 
 /**
- * Create first owner (bootstrap). Fails if any active (enabled) user exists.
+ * Create first admin (bootstrap). Fails if any active (enabled) user exists.
  */
-export async function bootstrapOwner(
+export async function bootstrapAdmin(
   dataDir: string,
   username: string,
   password: string
@@ -116,7 +139,7 @@ export async function bootstrapOwner(
     id: generateId(),
     username: trimmed,
     passwordHash,
-    role: 'owner',
+    role: 'admin',
     disabled: false,
     createdAt: now,
     updatedAt: now
@@ -130,7 +153,7 @@ export async function bootstrapOwner(
 }
 
 /**
- * Create a new user (owner only). Username must be unique.
+ * Create a new user (admin only). Username must be unique.
  */
 export async function createUser(
   dataDir: string,
@@ -143,7 +166,7 @@ export async function createUser(
   if (!password || password.length < 8) {
     return { ok: false, error: 'Password must be at least 8 characters.' }
   }
-  const allowedRoles: Role[] = ['owner', 'editor', 'reviewer']
+  const allowedRoles: Role[] = ['admin', 'manager', 'editor', 'reviewer']
   if (!allowedRoles.includes(role)) return { ok: false, error: 'Invalid role.' }
   const file = readUsersFile(dataDir)
   const users = file ? [...file.users] : []
@@ -167,13 +190,16 @@ export async function createUser(
   return { ok: true, user }
 }
 
+/** Valid tab ids for allowedTabs (must match permissions.ALL_TAB_IDS). */
+const VALID_TAB_IDS = new Set(['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics', 'users'])
+
 /**
- * Update user: disable, change role, or reset password.
+ * Update user: disable, change role, reset password, or set allowedTabs.
  */
 export async function updateUser(
   dataDir: string,
   id: string,
-  updates: { disabled?: boolean; role?: Role; password?: string }
+  updates: { disabled?: boolean; role?: Role; password?: string; allowedTabs?: AllowedTabs }
 ): Promise<{ ok: true; user: UserRecord } | { ok: false; error: string }> {
   const file = readUsersFile(dataDir)
   if (!file) return { ok: false, error: 'No users file.' }
@@ -184,13 +210,18 @@ export async function updateUser(
   user.updatedAt = now
   if (typeof updates.disabled === 'boolean') user.disabled = updates.disabled
   if (updates.role !== undefined) {
-    const allowed: Role[] = ['owner', 'editor', 'reviewer']
+    const allowed: Role[] = ['admin', 'manager', 'editor', 'reviewer']
     if (!allowed.includes(updates.role)) return { ok: false, error: 'Invalid role.' }
     user.role = updates.role
   }
   if (typeof updates.password === 'string') {
     if (updates.password.length < 8) return { ok: false, error: 'Password must be at least 8 characters.' }
     user.passwordHash = await hash(updates.password, SALT_ROUNDS)
+  }
+  if (updates.allowedTabs !== undefined) {
+    if (!Array.isArray(updates.allowedTabs)) return { ok: false, error: 'allowedTabs must be an array.' }
+    const filtered = updates.allowedTabs.filter((t): t is string => typeof t === 'string' && VALID_TAB_IDS.has(t))
+    user.allowedTabs = filtered.length > 0 ? filtered : undefined
   }
   const users = [...file.users]
   users[index] = user

@@ -25,7 +25,21 @@ export const configSchema = z
       .object({
         endpoint: z.string().optional(),
         hideModelSettings: z.boolean().optional(),
-        uiMode: z.enum(['full', 'connection-only']).optional()
+        uiMode: z.enum(['full', 'connection-only']).optional(),
+        provider: z.enum(['internal-api', 'proxy']).optional(),
+        showTestConnection: z.boolean().optional(),
+        hideInternalApiSettings: z.boolean().optional(),
+        hideProxySettings: z.boolean().optional(),
+        hideTestConnectionButton: z.boolean().optional(),
+        proxy: z
+          .object({
+            baseUrl: z.string().optional(),
+            defaultModel: z.string().optional(),
+            authMode: z.enum(['shared_token', 'session_token']).optional(),
+            sharedToken: z.string().optional()
+          })
+          .passthrough()
+          .optional()
       })
       .passthrough()
       .optional(),
@@ -176,6 +190,17 @@ export function validateModel(model: unknown): ValidationResult {
   const contentMvpId = m.config.ui?.contentMvpAssistantId
   if (contentMvpId && !idSet.has(contentMvpId)) {
     result.warnings.push(`config.ui.contentMvpAssistantId references unknown assistant id: ${contentMvpId}`)
+  }
+
+  // LLM URL-ish validation (permissive: require http(s) and non-empty host-ish)
+  const urlLike = (s: string) => /^https?:\/\/[^\s]+$/i.test(s.trim())
+  const endpoint = m.config.llm?.endpoint
+  if (typeof endpoint === 'string' && endpoint.trim() && !urlLike(endpoint)) {
+    result.warnings.push('config.llm.endpoint should be a valid URL (e.g. https://...)')
+  }
+  const proxyBaseUrl = m.config.llm?.proxy?.baseUrl
+  if (typeof proxyBaseUrl === 'string' && proxyBaseUrl.trim() && !urlLike(proxyBaseUrl)) {
+    result.warnings.push('config.llm.proxy.baseUrl should be a valid URL (e.g. https://...)')
   }
 
   return result

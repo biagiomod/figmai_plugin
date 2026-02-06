@@ -8,10 +8,10 @@
   'use strict'
 
   const API_BASE = ''
-  const ACE_DEBUG = false // set true to log Save request/response (revision, status, conflict payload)
+  const ACE_DEBUG = typeof window !== 'undefined' && window.location && window.location.search.indexOf('ace_debug=1') !== -1
 
   const state = {
-    auth: { user: null, role: null },
+    auth: { user: null, role: null, allowedTabs: [] },
     connected: false,
     meta: null,
     originalModel: null,
@@ -35,6 +35,8 @@
   }
 
   const FETCH_OPTS = { credentials: 'include' }
+  /** Single label for "reset this section only" buttons (Config, AI, etc.) */
+  const RESET_SECTION_BTN_LABEL = 'Reset this section only'
 
   function deepClone (obj) {
     if (obj === null || typeof obj !== 'object') return obj
@@ -310,7 +312,7 @@
     const res = await fetch(API_BASE + '/api/auth/me', { ...FETCH_OPTS })
     if (!res.ok) return null
     const data = await res.json()
-    return data.user || null
+    return data
   }
 
   async function apiAuthBootstrapAllowed () {
@@ -367,14 +369,45 @@
     return data.user
   }
 
-  async function apiUsersUpdate (id, updates) {
-    const res = await fetch(API_BASE + '/api/users/' + encodeURIComponent(id), {
+  // #region agent log (gated by ?ace_debug=1)
+  function debugLog (location, message, data) {
+    if (!ACE_DEBUG) return
+    var payload = { location: location, message: message, data: data || {}, timestamp: Date.now(), sessionId: 'debug-session', requestId: data && data.requestId }
+    console.log('[ACE debug]', message, data)
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(function () {})
+    }
+  }
+  // #endregion
+  async function apiUsersUpdate (id, updates, requestId) {
+    const url = API_BASE + '/api/users/' + encodeURIComponent(id)
+    const headers = { 'Content-Type': 'application/json' }
+    if (requestId) headers['X-ACE-Request-Id'] = requestId
+    const bodyStr = JSON.stringify(updates)
+    // #region agent log
+    if (ACE_DEBUG) {
+      debugLog('app.js:apiUsersUpdate:request', 'PATCH request', { requestId: requestId, url: url, method: 'PATCH', headers: headers, payload: updates, bodyStr: bodyStr })
+      console.log('[apiUsersUpdate] request:', { requestId: requestId, url: url, method: 'PATCH', headers: headers, payload: updates, bodyStr: bodyStr })
+    }
+    // #endregion
+    const res = await fetch(url, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
+      headers: headers,
+      body: bodyStr,
       ...FETCH_OPTS
     })
-    const data = await res.json().catch(() => ({}))
+    const text = await res.text()
+    let data = {}
+    try {
+      data = text ? JSON.parse(text) : {}
+    } catch (_) {}
+    const resHeaders = ACE_DEBUG ? (function () { var o = {}; try { res.headers.forEach(function (v, k) { o[k] = v }) } catch (_) {} return o }()) : {}
+    // #region agent log
+    if (ACE_DEBUG) {
+      debugLog('app.js:apiUsersUpdate:response', 'PATCH response', { requestId: requestId, status: res.status, responseHeaders: resHeaders, responseText: text, parsed: data })
+      console.log('[apiUsersUpdate] response:', { requestId: requestId, status: res.status, responseHeaders: resHeaders, responseText: text, parsed: data })
+    }
+    // #endregion
     if (!res.ok) throw new Error(data.error || 'Update user failed')
     return data.user
   }
@@ -406,30 +439,83 @@
     if (appShell) appShell.style.display = ''
   }
 
-  function applyAuthUI () {
+  function roleBadgeLabel (role) {
+    if (!role) return ''
+    const r = (role || '').toLowerCase()
+    if (r === 'admin') return 'ADMIN'
+    if (r === 'manager') return 'MANAGER'
+    if (r === 'editor') return 'EDITOR'
+    if (r === 'reviewer') return 'REVIEWER'
+    return (role || '').toUpperCase()
+  }
+
+  function allowedTabsFromRole (role) {
+    const r = (role || '').toLowerCase()
+    if (r === 'admin') {
+      return ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics', 'users']
+    }
+    if (r === 'manager' || r === 'editor') {
+      return ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics']
+    }
+    return ['config', 'ai']
+  }
+
+  function renderNavProfileWidget () {
+    const container = document.getElementById('ace-nav-profile-widget')
+    if (!container) return
     const user = state.auth.user
     const role = state.auth.role
-    const userNameEl = document.getElementById('user-name')
-    const roleBadgeEl = document.getElementById('user-role-badge')
-    const tabUsers = document.getElementById('tab-users')
+    if (!user || !role) {
+      container.innerHTML = ''
+      container.style.display = 'none'
+      return
+    }
+    const name = (user.username || '').trim() || '—'
+    container.innerHTML = '<div class="ace-nav-profile-widget-inner">' +
+      '<img src="assets/icons/ACEUserIcon.svg" alt="" class="ace-nav-profile-widget-icon" width="24" height="24" aria-hidden="true" />' +
+      '<div class="ace-nav-profile-widget-body">' +
+      '<span class="ace-nav-profile-widget-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
+      '<span class="ace-role-badge ace-role-badge--' + (role || '') + '">' + escapeHtml(roleBadgeLabel(role)) + '</span>' +
+      '<a href="#" id="ace-nav-profile-logout" class="ace-nav-profile-widget-logout">Logout</a>' +
+      '</div>' +
+      '</div>'
+    container.style.display = ''
+    const logoutEl = document.getElementById('ace-nav-profile-logout')
+    if (logoutEl) {
+      logoutEl.onclick = function (e) {
+        e.preventDefault()
+        doLogout()
+      }
+    }
+  }
+
+  function applyAuthUI () {
+    const role = state.auth.role
+    const allowedTabs = state.auth.allowedTabs || []
     const validateBtn = document.getElementById('validate-btn')
     const previewBtn = document.getElementById('preview-btn')
     const saveBtn = document.getElementById('save-btn')
-    if (userNameEl) userNameEl.textContent = user ? escapeHtml(user.username) : ''
-    if (roleBadgeEl) {
-      roleBadgeEl.textContent = role || ''
-      roleBadgeEl.className = 'ace-role-badge ace-role-badge--' + (role || '')
+    const visibleTabIds = []
+    const tabButtons = document.querySelectorAll('.tabs button[role="tab"][data-tab]')
+    if (!tabButtons || !tabButtons.length) {
+      if (ACE_DEBUG) console.warn('[ACE] applyAuthUI: no tab buttons found')
     }
-    if (tabUsers) tabUsers.style.display = role === 'owner' ? '' : 'none'
-    if (role === 'reviewer') {
-      if (validateBtn) validateBtn.style.display = 'none'
-      if (previewBtn) previewBtn.style.display = 'none'
-      if (saveBtn) saveBtn.style.display = 'none'
-    } else {
-      if (validateBtn) validateBtn.style.display = ''
-      if (previewBtn) previewBtn.style.display = ''
-      if (saveBtn) saveBtn.style.display = ''
+    tabButtons.forEach(function (btn) {
+      const tabId = btn.getAttribute('data-tab')
+      let show = false
+      if (tabId === 'users') show = role === 'admin'
+      else show = allowedTabs.indexOf(tabId) !== -1
+      btn.style.display = show ? '' : 'none'
+      if (show) visibleTabIds.push(tabId)
+    })
+    if (ACE_DEBUG) {
+      debugLog('app.js:applyAuthUI', 'nav visibility', { allowedTabs: allowedTabs, role: role, visibleTabIds: visibleTabIds })
     }
+    const canValidateSave = role && role !== 'reviewer'
+    if (validateBtn) validateBtn.style.display = canValidateSave ? '' : 'none'
+    if (previewBtn) previewBtn.style.display = canValidateSave ? '' : 'none'
+    if (saveBtn) saveBtn.style.display = canValidateSave ? '' : 'none'
+    renderNavProfileWidget()
   }
 
   function bindAuthForms () {
@@ -448,8 +534,14 @@
         if (loginError) { loginError.style.display = 'none'; loginError.textContent = '' }
         if (loginSubmit) loginSubmit.disabled = true
         try {
-          const user = await apiAuthLogin(username, password)
-          state.auth = { user, role: user.role }
+          await apiAuthLogin(username, password)
+          const me = await apiAuthMe()
+          if (!me || !me.user) throw new Error('Session not established')
+          state.auth = {
+            user: me.user,
+            role: me.user.role,
+            allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role)
+          }
           showAppShell()
           applyAuthUI()
           bindEvents()
@@ -475,8 +567,14 @@
         if (bootstrapError) { bootstrapError.style.display = 'none'; bootstrapError.textContent = '' }
         if (bootstrapSubmit) bootstrapSubmit.disabled = true
         try {
-          const user = await apiAuthBootstrap(username, password)
-          state.auth = { user, role: user.role }
+          await apiAuthBootstrap(username, password)
+          const me = await apiAuthMe()
+          if (!me || !me.user) throw new Error('Session not established')
+          state.auth = {
+            user: me.user,
+            role: me.user.role,
+            allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role)
+          }
           showAppShell()
           applyAuthUI()
           bindEvents()
@@ -485,7 +583,7 @@
           loadModel()
         } catch (err) {
           if (bootstrapError) {
-            bootstrapError.textContent = err.message || 'Create owner failed'
+            bootstrapError.textContent = err.message || 'Create admin failed'
             bootstrapError.style.display = 'block'
           }
         } finally {
@@ -582,13 +680,25 @@
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SECTION_STATE_KEY, JSON.stringify(map))
     } catch (_) {}
   }
-  function collapsibleSection (sectionId, title, bodyHtml, expanded) {
+  function collapsibleSection (sectionId, title, bodyHtml, expanded, descriptionText) {
     var isExpanded = expanded === true
     var chevron = isExpanded ? 'ChevronUpIcon.svg' : 'ChevronDownIcon.svg'
+    var headerContent
+    if (descriptionText) {
+      headerContent = '<div class="ace-section-header-inner">' +
+        '<div class="ace-section-header-top">' +
+        '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
+        '<img class="ace-section-chevron" src="assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />' +
+        '</div>' +
+        '<div class="ace-section-description">' + escapeHtml(descriptionText) + '</div>' +
+        '</div>'
+    } else {
+      headerContent = '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
+        '<img class="ace-section-chevron" src="assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />'
+    }
     return '<section class="ace-section ace-collapsible' + (isExpanded ? '' : ' is-collapsed') + '" data-section="' + escapeHtml(sectionId) + '">' +
       '<button type="button" class="ace-section-header" aria-expanded="' + (isExpanded ? 'true' : 'false') + '" aria-controls="section-' + escapeHtml(sectionId) + '-body">' +
-      '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
-      '<img class="ace-section-chevron" src="assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />' +
+      headerContent +
       '</button>' +
       '<div id="section-' + escapeHtml(sectionId) + '-body" class="ace-section-body">' + bodyHtml + '</div>' +
       '</section>'
@@ -765,6 +875,7 @@
   // ——— Config tab (General Plugin Settings — card layout) ———
   function renderConfigTab () {
     const panel = document.getElementById('panel-config')
+    if (!panel) return
     const m = state.editedModel
     if (!m || !m.config) {
       panel.innerHTML = '<p>No config loaded.</p>'
@@ -779,7 +890,7 @@
 
     let html = '<div class="ace-section-header-row">'
     html += '<h2 class="ace-section-title">General Plugin Settings</h2>'
-    html += '<button type="button" class="ace-section-header-btn" id="reset-config-btn">RESET THIS SECTION ONLY</button>'
+    html += '<button type="button" class="ace-section-header-btn" id="reset-config-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
     html += '<div class="ace-config-cards ace-cards">'
     var expandedMap = loadSectionExpandedState()
@@ -1076,29 +1187,77 @@
       return
     }
     const llm = m.config.llm || {}
+    const llmProvider = llm.provider === 'proxy' ? 'proxy' : 'internal-api'
     const llmEndpoint = (typeof llm.endpoint === 'string' ? llm.endpoint : '') || ''
     const llmHideModelSettings = !!llm.hideModelSettings
     const llmUiModeConnectionOnly = llm.uiMode === 'connection-only'
+    const llmHideInternalApi = !!llm.hideInternalApiSettings
+    const llmHideProxy = !!llm.hideProxySettings
+    const llmHideTestBtn = !!llm.hideTestConnectionButton
     const endpointEmpty = !llmEndpoint.trim()
+    const proxy = llm.proxy || {}
+    const proxyBaseUrl = (typeof proxy.baseUrl === 'string' ? proxy.baseUrl : '') || ''
+    const proxyDefaultModel = (typeof proxy.defaultModel === 'string' ? proxy.defaultModel : '') || ''
+    const proxyAuthMode = proxy.authMode === 'session_token' ? 'session_token' : 'shared_token'
+    const proxySharedToken = (typeof proxy.sharedToken === 'string' ? proxy.sharedToken : '') || ''
     var expandedMap = loadSectionExpandedState()
     var html = '<div class="ace-section-header-row">'
     html += '<h2 class="ace-section-title">AI Settings</h2>'
-    html += '<button type="button" class="ace-section-header-btn" id="reset-ai-btn">RESET THIS SECTION ONLY</button>'
+    html += '<button type="button" class="ace-section-header-btn" id="reset-ai-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
+    html += '<p id="ai-build-info" class="ace-build-info ace-text-muted" aria-live="polite">Build —</p>'
     html += '<div class="ace-config-cards ace-cards">'
-    html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint',
-      '<div class="ace-card ace-llm-endpoint-card">' +
-      '<p class="ace-card-subtext">Provide the LLM URL to enable AI features</p>' +
-      '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>' +
-      '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">' +
-      '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>' +
-      '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>' +
-      '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-showTestConnection"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>' +
-      '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>' +
-      '</div>',
-      expandedMap['ai-api-endpoint'])
+    var cardInner = '<div class="ace-segmented-btns" role="group" aria-label="Provider">'
+    cardInner += '<button type="button" class="ace-segmented-btn' + (llmProvider === 'internal-api' ? ' is-active' : '') + '" data-llm-provider="internal-api">Internal API</button>'
+    cardInner += '<button type="button" class="ace-segmented-btn' + (llmProvider === 'proxy' ? ' is-active' : '') + '" data-llm-provider="proxy">Proxy</button>'
+    cardInner += '</div>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideInternalApiSettings"' + (llmHideInternalApi ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Internal API settings in plugin Settings</span></label>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideProxySettings"' + (llmHideProxy ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Proxy settings in plugin Settings</span></label>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideTestConnectionButton"' + (llmHideTestBtn ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Test Connection button in plugin Settings</span></label>'
+    cardInner += '<div id="ai-internal-api-block" class="ace-llm-provider-block"' + (llmProvider === 'proxy' ? ' style="display:none"' : '') + '>'
+    cardInner += '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>'
+    cardInner += '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">'
+    cardInner += '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-uiMode"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>'
+    cardInner += '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>'
+    cardInner += '</div>'
+    cardInner += '<div id="ai-proxy-block" class="ace-llm-provider-block"' + (llmProvider === 'internal-api' ? ' style="display:none"' : '') + '>'
+    cardInner += '<label for="config-llm-proxy-baseUrl" class="ace-field-label">Proxy Base URL</label>'
+    cardInner += '<input type="text" id="config-llm-proxy-baseUrl" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(proxyBaseUrl) + '">'
+    cardInner += '<label for="config-llm-proxy-defaultModel" class="ace-field-label">Default Model</label>'
+    cardInner += '<input type="text" id="config-llm-proxy-defaultModel" class="ace-text-input ace-field ace-field--lg" placeholder="model name" value="' + escapeHtml(proxyDefaultModel) + '">'
+    cardInner += '<label for="config-llm-proxy-authMode" class="ace-field-label">Authentication Mode</label>'
+    cardInner += '<select id="config-llm-proxy-authMode" class="ace-text-input ace-field">'
+    cardInner += '<option value="shared_token"' + (proxyAuthMode === 'shared_token' ? ' selected' : '') + '>shared_token</option>'
+    cardInner += '<option value="session_token"' + (proxyAuthMode === 'session_token' ? ' selected' : '') + '>session_token</option>'
+    cardInner += '</select>'
+    cardInner += '<label for="config-llm-proxy-sharedToken" class="ace-field-label">Shared Token</label>'
+    cardInner += '<input type="password" id="config-llm-proxy-sharedToken" class="ace-text-input ace-field ace-field--lg" placeholder="(optional)" value="' + escapeHtml(proxySharedToken) + '" autocomplete="off">'
+    cardInner += '</div>'
+    html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint', '<div class="ace-card ace-llm-endpoint-card">' + cardInner + '</div>', expandedMap['ai-api-endpoint'], 'Configure how the plugin connects to AI services')
     html += '</div>'
     panel.innerHTML = html
+
+    fetch(API_BASE + '/api/build-info', { credentials: 'include' })
+      .then(function (r) { return r.ok ? r.json() : null })
+      .then(function (data) {
+        var version = (data && typeof data.version === 'string') ? data.version : ''
+        var buildId = (data && typeof data.buildId === 'string') ? data.buildId : undefined
+        var el = document.getElementById('ai-build-info')
+        if (!el) return
+        if (version && buildId) {
+          el.textContent = 'Build ' + version + ' (' + buildId + ')'
+        } else if (version) {
+          el.textContent = 'Build ' + version
+        } else {
+          el.textContent = 'Build unavailable'
+        }
+      })
+      .catch(function () {
+        var el = document.getElementById('ai-build-info')
+        if (el) el.textContent = 'Build unavailable'
+      })
 
     panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
       btn.onclick = function () {
@@ -1114,6 +1273,20 @@
         this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
         var img = this.querySelector('.ace-section-chevron')
         if (img) img.src = expanded ? 'assets/icons/ChevronUpIcon.svg' : 'assets/icons/ChevronDownIcon.svg'
+      }
+    })
+
+    panel.querySelectorAll('.ace-segmented-btn[data-llm-provider]').forEach(function (btn) {
+      btn.onclick = function () {
+        var provider = this.getAttribute('data-llm-provider')
+        if (!state.editedModel.config) state.editedModel.config = {}
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        state.editedModel.config.llm.provider = provider === 'proxy' ? 'proxy' : 'internal-api'
+        panel.querySelectorAll('.ace-segmented-btn[data-llm-provider]').forEach(function (b) { b.classList.toggle('is-active', b === btn) })
+        document.getElementById('ai-internal-api-block').style.display = provider === 'proxy' ? 'none' : ''
+        document.getElementById('ai-proxy-block').style.display = provider === 'proxy' ? '' : 'none'
+        showUnsavedBanner()
+        updateFooterButtons()
       }
     })
 
@@ -1134,12 +1307,12 @@
       const endpointEl = document.getElementById('config-llm-endpoint')
       const guardrailEl = document.getElementById('config-llm-endpoint-guardrail')
       const hideCb = document.getElementById('config-llm-hideModelSettings')
-      const showTestCb = document.getElementById('config-llm-showTestConnection')
+      const uiModeCb = document.getElementById('config-llm-uiMode')
       const endpointVal = endpointEl ? endpointEl.value : ''
       const empty = !endpointVal.trim()
       if (guardrailEl) guardrailEl.hidden = !empty
       if (hideCb) hideCb.disabled = empty
-      if (showTestCb) showTestCb.disabled = empty
+      if (uiModeCb) uiModeCb.disabled = empty
     }
 
     const endpointInput = document.getElementById('config-llm-endpoint')
@@ -1163,12 +1336,86 @@
         updateFooterButtons()
       }
     }
-    const showTestConnectionCb = document.getElementById('config-llm-showTestConnection')
-    if (showTestConnectionCb) {
-      showTestConnectionCb.onchange = function () {
+    const uiModeCb = document.getElementById('config-llm-uiMode')
+    if (uiModeCb) {
+      uiModeCb.onchange = function () {
         if (!state.editedModel.config) return
         if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
         state.editedModel.config.llm.uiMode = this.checked ? 'connection-only' : 'full'
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const hideInternalApiCb = document.getElementById('config-llm-hideInternalApiSettings')
+    if (hideInternalApiCb) {
+      hideInternalApiCb.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        state.editedModel.config.llm.hideInternalApiSettings = this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const hideProxyCb = document.getElementById('config-llm-hideProxySettings')
+    if (hideProxyCb) {
+      hideProxyCb.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        state.editedModel.config.llm.hideProxySettings = this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const hideTestBtnCb = document.getElementById('config-llm-hideTestConnectionButton')
+    if (hideTestBtnCb) {
+      hideTestBtnCb.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        state.editedModel.config.llm.hideTestConnectionButton = this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const proxyBaseUrlInput = document.getElementById('config-llm-proxy-baseUrl')
+    if (proxyBaseUrlInput) {
+      proxyBaseUrlInput.oninput = proxyBaseUrlInput.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        if (!state.editedModel.config.llm.proxy) state.editedModel.config.llm.proxy = {}
+        state.editedModel.config.llm.proxy.baseUrl = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const proxyDefaultModelInput = document.getElementById('config-llm-proxy-defaultModel')
+    if (proxyDefaultModelInput) {
+      proxyDefaultModelInput.oninput = proxyDefaultModelInput.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        if (!state.editedModel.config.llm.proxy) state.editedModel.config.llm.proxy = {}
+        state.editedModel.config.llm.proxy.defaultModel = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const proxyAuthModeSelect = document.getElementById('config-llm-proxy-authMode')
+    if (proxyAuthModeSelect) {
+      proxyAuthModeSelect.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        if (!state.editedModel.config.llm.proxy) state.editedModel.config.llm.proxy = {}
+        state.editedModel.config.llm.proxy.authMode = this.value === 'session_token' ? 'session_token' : 'shared_token'
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    const proxySharedTokenInput = document.getElementById('config-llm-proxy-sharedToken')
+    if (proxySharedTokenInput) {
+      proxySharedTokenInput.oninput = proxySharedTokenInput.onchange = function () {
+        if (!state.editedModel.config) return
+        if (!state.editedModel.config.llm) state.editedModel.config.llm = {}
+        if (!state.editedModel.config.llm.proxy) state.editedModel.config.llm.proxy = {}
+        state.editedModel.config.llm.proxy.sharedToken = this.value
         showUnsavedBanner()
         updateFooterButtons()
       }
@@ -1438,41 +1685,115 @@
     }
   }
 
+  function doLogout () {
+    return (async function () {
+      try { await apiAuthLogout() } catch (_) {}
+      state.auth = { user: null, role: null, allowedTabs: [] }
+      state.originalModel = null
+      state.editedModel = null
+      state.usersList = []
+      showLoginView()
+      bindAuthForms()
+    })()
+  }
+
+  /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; excludes knowledge – not a visible nav tab). */
+  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'content-models', 'registries', 'analytics', 'users']
+  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'content-models': 'Content Tables', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
+  function getRoleDefaultTabs (role) {
+    if (role === 'admin' || role === 'manager' || role === 'editor') return USERS_SET_ACCESS_TAB_IDS.slice()
+    return ['config', 'users']
+  }
+  function getEffectiveTabsForUser (u) {
+    if (u.allowedTabs && u.allowedTabs.length > 0) return u.allowedTabs
+    return getRoleDefaultTabs(u.role)
+  }
+
   function renderUsersTab () {
     const panel = document.getElementById('panel-users')
     if (!panel) return
-    if (state.auth.role !== 'owner') {
-      panel.innerHTML = '<p>Only owners can manage users.</p>'
+    if (state.auth.role !== 'admin') {
+      panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Users</h2></div><p class="ace-users-unauthorized">Not authorized to view this section.</p>'
       return
     }
-    panel.innerHTML = '<div class="ace-users-loading">Loading users…</div>'
+    function buildUsersHeader () {
+      return '<div class="ace-section-header-row">' +
+        '<h2 class="ace-section-title">Users</h2>' +
+        '<button type="button" class="ace-section-header-btn" id="reset-users-btn">' + RESET_SECTION_BTN_LABEL + '</button>' +
+        '</div>'
+    }
+    panel.innerHTML = buildUsersHeader() + '<div class="ace-users-loading">Loading users…</div>'
     apiUsersList()
       .then(function (users) {
         state.usersList = users
-        let html = '<div class="ace-users-section"><h3 class="ace-users-title">Create user</h3>'
+        let html = buildUsersHeader()
+        html += '<div class="ace-users-manage">'
+        html += '<div class="ace-users-create-card ace-card">'
+        html += '<h4 class="ace-users-subtitle">Create user</h4>'
         html += '<form id="users-create-form" class="ace-users-form">'
-        html += '<label for="users-create-username">Username</label><input type="text" id="users-create-username" class="ace-auth-input" required />'
-        html += '<label for="users-create-password">Password</label><input type="password" id="users-create-password" class="ace-auth-input" required minlength="8" />'
-        html += '<label for="users-create-role">Role</label><select id="users-create-role"><option value="reviewer">reviewer</option><option value="editor">editor</option><option value="owner">owner</option></select>'
-        html += '<button type="submit" class="btn btn-primary">Create</button>'
+        html += '<div class="ace-users-form-row"><label for="users-create-username" class="ace-field-label">Username</label><input type="text" id="users-create-username" class="ace-text-input ace-field" required /></div>'
+        html += '<div class="ace-users-form-row"><label for="users-create-password" class="ace-field-label">Password</label><input type="password" id="users-create-password" class="ace-text-input ace-field" required minlength="8" /></div>'
+        html += '<div class="ace-users-form-row"><label for="users-create-role" class="ace-field-label">Role</label><select id="users-create-role" class="ace-text-input ace-field">'
+        html += '<option value="reviewer">Reviewer</option><option value="editor">Editor</option><option value="manager">Manager</option><option value="admin">Admin</option></select></div>'
+        html += '<div class="ace-users-form-row ace-users-form-actions"><button type="submit" class="btn btn-primary">Create</button></div>'
         html += '</form></div>'
-        html += '<div class="ace-users-section"><h3 class="ace-users-title">Users</h3><div class="ace-users-list" id="ace-users-list"></div></div>'
+        html += '<div class="ace-users-list-card ace-card">'
+        html += '<h4 class="ace-users-subtitle">Users</h4>'
+        html += '<div class="ace-users-list" id="ace-users-list"></div></div>'
+        html += '</div>'
         panel.innerHTML = html
+        const resetUsersBtn = document.getElementById('reset-users-btn')
+        if (resetUsersBtn) resetUsersBtn.onclick = function () { renderUsersTab() }
         const listEl = document.getElementById('ace-users-list')
         users.forEach(function (u) {
+          const isAdminRow = u.role === 'admin'
+          const wrapper = document.createElement('div')
+          wrapper.className = 'ace-users-row-wrapper'
+          wrapper.setAttribute('data-user-id', u.id)
           const row = document.createElement('div')
           row.className = 'ace-users-row' + (u.disabled ? ' ace-users-row--disabled' : '')
           row.setAttribute('data-user-id', u.id)
-          let rowHtml = '<span class="ace-users-username">' + escapeHtml(u.username) + '</span>'
-          rowHtml += ' <span class="ace-role-badge ace-role-badge--' + (u.role || '') + '">' + escapeHtml(u.role || '') + '</span>'
+          let rowHtml = '<div class="ace-users-row-identity">'
+          rowHtml += '<span class="ace-users-username" title="' + escapeHtml(u.username) + '">' + escapeHtml(u.username) + '</span>'
+          rowHtml += '<span class="ace-role-badge ace-role-badge--' + (u.role || '') + '">' + escapeHtml(roleBadgeLabel(u.role)) + '</span>'
           if (u.disabled) rowHtml += ' <span class="ace-users-disabled">(disabled)</span>'
-          rowHtml += ' <div class="ace-users-actions">'
-          rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-disable" data-id="' + escapeHtml(u.id) + '" data-disabled="' + (u.disabled ? 'true' : 'false') + '">' + (u.disabled ? 'Enable' : 'Disable') + '</button>'
-          rowHtml += ' <select class="ace-users-role-select" data-id="' + escapeHtml(u.id) + '"><option value="reviewer"' + (u.role === 'reviewer' ? ' selected' : '') + '>reviewer</option><option value="editor"' + (u.role === 'editor' ? ' selected' : '') + '>editor</option><option value="owner"' + (u.role === 'owner' ? ' selected' : '') + '>owner</option></select>'
-          rowHtml += ' <button type="button" class="btn btn-small btn-secondary ace-users-btn-reset-pw" data-id="' + escapeHtml(u.id) + '">Reset password</button>'
+          rowHtml += '</div>'
+          rowHtml += '<div class="ace-users-actions">'
+          if (isAdminRow) {
+            rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-reset-pw" data-id="' + escapeHtml(u.id) + '"><span class="ace-users-btn-label">Reset password</span></button>'
+          } else {
+            rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-disable" data-id="' + escapeHtml(u.id) + '" data-disabled="' + (u.disabled ? 'true' : 'false') + '">' + (u.disabled ? 'Enable' : 'Disable') + '</button>'
+            rowHtml += '<select class="ace-users-role-select" data-id="' + escapeHtml(u.id) + '"><option value="reviewer"' + (u.role === 'reviewer' ? ' selected' : '') + '>Reviewer</option><option value="editor"' + (u.role === 'editor' ? ' selected' : '') + '>Editor</option><option value="manager"' + (u.role === 'manager' ? ' selected' : '') + '>Manager</option><option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Admin</option></select>'
+            rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-reset-pw" data-id="' + escapeHtml(u.id) + '"><span class="ace-users-btn-label">Reset password</span></button>'
+            rowHtml += '<button type="button" class="ace-users-chevron-btn ace-users-chevron-down" data-id="' + escapeHtml(u.id) + '" aria-label="Set access">'
+            rowHtml += '<img src="assets/icons/ChevronDownIcon.svg" alt="" width="20" height="20" aria-hidden="true" />'
+            rowHtml += '</button>'
+          }
           rowHtml += '</div>'
           row.innerHTML = rowHtml
-          listEl.appendChild(row)
+          wrapper.appendChild(row)
+          if (!isAdminRow) {
+            const effectiveTabs = getEffectiveTabsForUser(u)
+            let setAccessHtml = '<div class="ace-users-set-access">'
+            setAccessHtml += '<h5 class="ace-users-set-access-title">Set Access</h5>'
+            setAccessHtml += '<div class="ace-users-set-access-tabs">'
+            USERS_SET_ACCESS_TAB_IDS.forEach(function (tabId) {
+              const label = USERS_SET_ACCESS_LABELS[tabId] || tabId
+              const checked = effectiveTabs.indexOf(tabId) !== -1
+              setAccessHtml += '<label class="ace-users-set-access-check"><input type="checkbox" class="ace-users-tab-cb" data-tab-id="' + escapeHtml(tabId) + '" ' + (checked ? 'checked' : '') + ' /><span>' + escapeHtml(label) + '</span></label>'
+            })
+            setAccessHtml += '</div><div class="ace-users-set-access-actions">'
+            setAccessHtml += '<button type="button" class="btn btn-small btn-primary ace-users-save-access-btn" data-id="' + escapeHtml(u.id) + '" data-saved-tabs="' + escapeHtml(JSON.stringify(effectiveTabs)) + '">Save access</button>'
+            setAccessHtml += '<span class="ace-users-set-access-feedback" aria-live="polite"></span>'
+            setAccessHtml += '</div></div>'
+            const expanded = document.createElement('div')
+            expanded.className = 'ace-users-row-expanded'
+            expanded.setAttribute('data-user-id', u.id)
+            expanded.innerHTML = setAccessHtml
+            expanded.style.display = 'none'
+            wrapper.appendChild(expanded)
+          }
+          listEl.appendChild(wrapper)
         })
         const createForm = document.getElementById('users-create-form')
         if (createForm) {
@@ -1528,9 +1849,108 @@
             }
           }
         })
+        panel.querySelectorAll('.ace-users-chevron-btn').forEach(function (btn) {
+          btn.onclick = function () {
+            const id = this.getAttribute('data-id')
+            const wrapper = this.closest('.ace-users-row-wrapper')
+            if (!wrapper) return
+            const expanded = wrapper.querySelector('.ace-users-row-expanded')
+            if (!expanded) return
+            const isOpen = expanded.style.display !== 'none'
+            expanded.style.display = isOpen ? 'none' : 'block'
+            const img = this.querySelector('img')
+            if (img) img.src = isOpen ? 'assets/icons/ChevronDownIcon.svg' : 'assets/icons/ChevronUpIcon.svg'
+            this.classList.toggle('ace-users-chevron-down', isOpen)
+            this.classList.toggle('ace-users-chevron-up', !isOpen)
+          }
+        })
+        function getCheckedTabs (expanded) {
+          const checked = []
+          if (!expanded) return checked
+          expanded.querySelectorAll('.ace-users-tab-cb:checked').forEach(function (cb) {
+            const tabId = cb.getAttribute('data-tab-id')
+            if (tabId) checked.push(tabId)
+          })
+          return checked
+        }
+        function getSavedTabsFromBtn (saveBtn) {
+          try {
+            const raw = saveBtn.getAttribute('data-saved-tabs')
+            return raw ? JSON.parse(raw) : []
+          } catch (_) { return [] }
+        }
+        function arraysEqual (a, b) {
+          if (a.length !== b.length) return false
+          const as = a.slice().sort()
+          const bs = b.slice().sort()
+          return as.every(function (v, i) { return v === bs[i] })
+        }
+        function updateSaveAccessButtonState (expanded) {
+          const saveBtn = expanded.querySelector('.ace-users-save-access-btn')
+          const feedback = expanded.querySelector('.ace-users-set-access-feedback')
+          if (!saveBtn) return
+          const checked = getCheckedTabs(expanded)
+          const saved = getSavedTabsFromBtn(saveBtn)
+          const dirty = !arraysEqual(checked, saved)
+          saveBtn.disabled = !dirty
+          if (feedback) feedback.textContent = ''
+        }
+        panel.querySelectorAll('.ace-users-row-expanded').forEach(function (expanded) {
+          expanded.querySelectorAll('.ace-users-tab-cb').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+              // #region agent log
+              if (ACE_DEBUG) console.log('[Save access] checkbox changed (no PATCH yet)')
+              // #endregion
+              updateSaveAccessButtonState(expanded)
+            })
+          })
+          updateSaveAccessButtonState(expanded)
+        })
+        panel.querySelectorAll('.ace-users-save-access-btn').forEach(function (btn) {
+          btn.onclick = async function () {
+            const id = this.getAttribute('data-id')
+            const expanded = this.closest('.ace-users-row-expanded')
+            if (!expanded) return
+            const checked = getCheckedTabs(expanded)
+            const saved = getSavedTabsFromBtn(this)
+            if (arraysEqual(checked, saved)) {
+              const feedback = expanded.querySelector('.ace-users-set-access-feedback')
+              if (feedback) feedback.textContent = 'No changes to save.'
+              return
+            }
+            const requestId = 'saveAccess:' + id + ':' + Date.now()
+            // #region agent log
+            if (ACE_DEBUG) {
+              debugLog('app.js:SaveAccess:click', 'Save access click (one PATCH per click)', { requestId: requestId, userId: id, checked: checked, payload: { allowedTabs: checked }, url: API_BASE + '/api/users/' + encodeURIComponent(id), method: 'PATCH' })
+              console.log('[Save access] requestId:', requestId, 'userId:', id, 'checked:', checked, 'payload:', { allowedTabs: checked }, 'URL:', API_BASE + '/api/users/' + encodeURIComponent(id), 'method: PATCH', 'headers: Content-Type: application/json, X-ACE-Request-Id:', requestId)
+            }
+            // #endregion
+            const feedback = expanded.querySelector('.ace-users-set-access-feedback')
+            if (feedback) feedback.textContent = ''
+            const payload = { allowedTabs: checked }
+            try {
+              await apiUsersUpdate(id, payload, requestId)
+              this.setAttribute('data-saved-tabs', JSON.stringify(checked))
+              this.disabled = true
+              if (feedback) {
+                feedback.textContent = 'Access saved.'
+                feedback.classList.remove('ace-users-set-access-feedback--error')
+              }
+              var u = state.usersList.find(function (x) { return x.id === id })
+              if (u) u.allowedTabs = checked
+            } catch (err) {
+              if (feedback) {
+                feedback.textContent = err.message || 'Save access failed'
+                feedback.classList.add('ace-users-set-access-feedback--error')
+              } else {
+                showActionModal({ state: 'error', message: err.message || 'Save access failed' })
+              }
+            }
+          }
+        })
       })
       .catch(function (err) {
-        panel.innerHTML = '<p class="errors">' + escapeHtml(err.message || 'Failed to load users') + '</p>'
+        panel.innerHTML = buildUsersHeader() + '<p class="errors ace-users-error">' + escapeHtml(err.message || 'Failed to load users') + '</p>'
       })
   }
 
@@ -1585,11 +2005,34 @@
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
     registries: 'Design System Registries — Registry JSON per design system',
-    users: 'Users — Manage accounts'
+    analytics: 'Analytics',
+    users: 'Users'
   }
 
   function switchTab (tabId) {
-    state.selectedTab = tabId
+    const panelIds = ['panel-config', 'panel-ai', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries', 'panel-analytics', 'panel-users']
+    const tabIds = ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics', 'users']
+    const allowedTabs = state.auth.allowedTabs || []
+    const role = state.auth.role
+    const firstAllowed = allowedTabs[0] || 'config'
+    if (tabId === 'users' && role !== 'admin') {
+      tabId = firstAllowed
+      state.selectedTab = tabId
+      showActionModal({ state: 'success', title: 'Not authorized', message: 'You do not have access to User Management.' })
+    } else if (allowedTabs.length && allowedTabs.indexOf(tabId) === -1) {
+      state.selectedTab = firstAllowed
+      showActionModal({ state: 'success', title: 'Not authorized', message: 'You do not have access to that section.' })
+      tabId = firstAllowed
+    } else {
+      state.selectedTab = tabId
+    }
+    var tabIndex = tabIds.indexOf(tabId)
+    if (tabIndex === -1) {
+      tabId = tabIds.indexOf(firstAllowed) !== -1 ? firstAllowed : (tabIds.indexOf('config') !== -1 ? 'config' : tabIds[0])
+      state.selectedTab = tabId
+      tabIndex = tabIds.indexOf(tabId)
+      if (ACE_DEBUG) console.warn('[ACE] switchTab: unknown tabId, fell back to', tabId)
+    }
     const tabButtons = document.querySelectorAll('.tabs button[role="tab"][data-tab]')
     tabButtons.forEach(function (btn) {
       const sel = btn.getAttribute('data-tab') === tabId
@@ -1600,7 +2043,7 @@
     })
     const subheaderEl = document.getElementById('tab-subheader')
     if (subheaderEl) {
-      if (tabId === 'config' || tabId === 'ai') {
+      if (tabId === 'config' || tabId === 'ai' || tabId === 'users' || tabId === 'analytics') {
         subheaderEl.textContent = ''
         subheaderEl.style.display = 'none'
       } else {
@@ -1608,8 +2051,6 @@
         subheaderEl.style.display = ''
       }
     }
-    const panelIds = ['panel-config', 'panel-ai', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries', 'panel-users']
-    const tabIds = ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'users']
     panelIds.forEach((pid, i) => {
       const panel = document.getElementById(pid)
       if (!panel) return
@@ -1618,7 +2059,14 @@
       panel.style.display = match ? 'flex' : 'none'
     })
     if (tabId === 'ai') renderAITab()
+    if (tabId === 'analytics') renderAnalyticsTab()
     if (tabId === 'users') renderUsersTab()
+  }
+
+  function renderAnalyticsTab () {
+    const panel = document.getElementById('panel-analytics')
+    if (!panel) return
+    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Analytics</h2></div><p class="ace-users-unauthorized" style="margin-top:0">Coming soon.</p>'
   }
 
   async function runValidate () {
@@ -1755,7 +2203,7 @@
   }
 
   function bindEvents () {
-    const tablist = document.querySelector('.tabs[role="tablist"]')
+    const tablist = document.getElementById('ace-nav') || document.querySelector('.tabs[role="tablist"]')
     if (tablist) {
       tablist.addEventListener('keydown', function (e) {
         const visible = getVisibleTabButtons()
@@ -1776,12 +2224,16 @@
           switchTab(current.getAttribute('data-tab'))
         }
       })
-    }
-    document.querySelectorAll('.tabs button[role="tab"][data-tab]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        switchTab(this.getAttribute('data-tab'))
+      tablist.addEventListener('click', function (e) {
+        var btn = e.target && e.target.closest && e.target.closest('button[role="tab"][data-tab]')
+        if (btn) {
+          e.preventDefault()
+          switchTab(btn.getAttribute('data-tab'))
+        }
       })
-    })
+    } else if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[ACE] Tab list not found; tab switching may not work.')
+    }
     document.querySelectorAll('.ace-nav-item[data-action="coming-soon"]').forEach(function (btn) {
       btn.onclick = function () {
         showActionModal({ state: 'success', title: 'Coming soon', message: 'This section is not available yet.' })
@@ -1802,28 +2254,23 @@
         showActionModal({ state: 'success', title: 'Server Status', htmlMessage: html })
       }
     })
-    const logoutBtn = document.getElementById('logout-btn')
-    if (logoutBtn) {
-      logoutBtn.onclick = async function () {
-        try { await apiAuthLogout() } catch (_) {}
-        state.auth = { user: null, role: null }
-        state.originalModel = null
-        state.editedModel = null
-        state.usersList = []
-        showLoginView()
-        bindAuthForms()
-      }
-    }
-    document.getElementById('reload-btn').onclick = function () { loadModel() }
+    // Logout is bound in Users panel (users-logout-btn) via bindUsersLogout()
+    const reloadBtn = document.getElementById('reload-btn')
+    if (reloadBtn) reloadBtn.onclick = function () { loadModel() }
     const validateBtnEl = document.getElementById('validate-btn')
     if (validateBtnEl) validateBtnEl.onclick = function () { runValidate() }
-    document.getElementById('save-btn').onclick = function () { runSave() }
-    document.getElementById('preview-btn').onclick = function () { runPreview() }
-    document.getElementById('discard-all-btn').onclick = function () {
-      if (!state.originalModel) return
-      state.editedModel = deepClone(state.originalModel)
-      showUnsavedBanner()
-      renderAllPanels()
+    const saveBtnEl = document.getElementById('save-btn')
+    if (saveBtnEl) saveBtnEl.onclick = function () { runSave() }
+    const previewBtnEl = document.getElementById('preview-btn')
+    if (previewBtnEl) previewBtnEl.onclick = function () { runPreview() }
+    const discardBtn = document.getElementById('discard-all-btn')
+    if (discardBtn) {
+      discardBtn.onclick = function () {
+        if (!state.originalModel) return
+        state.editedModel = deepClone(state.originalModel)
+        showUnsavedBanner()
+        renderAllPanels()
+      }
     }
     const reloadConflictBtn = document.getElementById('reload-after-conflict-btn')
     if (reloadConflictBtn) {
@@ -1860,35 +2307,93 @@
     if (wrap) wrap.style.display = visible ? '' : 'none'
   }
 
-  async function init () {
-    const user = await apiAuthMe()
-    if (user) {
-      state.auth = { user, role: user.role }
-      showAppShell()
-      applyAuthUI()
-      bindEvents()
-      updateFooterButtons()
-      switchTab(state.selectedTab)
-      loadModel()
-      return
-    }
-    const bootstrapStatus = await apiAuthBootstrapAllowed()
-    const allowed = bootstrapStatus.allowed
-    if (allowed) {
-      setCreateFirstAccountLinkVisible(true)
-      showBootstrapView()
+  /** Renders a visible error box so we never fail with a blank screen. */
+  function showFatalError (err) {
+    const msg = (err && err.message) ? String(err.message) : String(err)
+    const stack = (err && err.stack) ? String(err.stack) : ''
+    const showStack = ACE_DEBUG && stack
+    const appEl = document.getElementById('app')
+    const root = appEl || document.body
+    const box = document.createElement('div')
+    box.setAttribute('role', 'alert')
+    box.className = 'ace-fatal-error'
+    box.style.cssText = 'max-width:600px;margin:2rem auto;padding:1.5rem;border:2px solid #c00;background:#fff5f5;color:#333;font-family:sans-serif;'
+    box.innerHTML = '<h2 style="margin:0 0 0.5rem 0;color:#c00;">ACE failed to load</h2>' +
+      '<p style="margin:0 0 0.5rem 0;">' + escapeHtml(msg) + '</p>' +
+      '<p style="margin:0;font-size:0.9em;color:#666;">Open the browser Console (F12) for details.</p>' +
+      (showStack ? '<pre style="margin:1rem 0 0 0;padding:0.75rem;background:#f0f0f0;font-size:0.8em;overflow:auto;max-height:200px;">' + escapeHtml(stack) + '</pre>' : '')
+    if (appEl) {
+      appEl.innerHTML = ''
+      appEl.appendChild(box)
     } else {
+      root.appendChild(box)
+    }
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('[ACE] Fatal:', err && err.message ? err.message : err, err && err.stack ? err.stack : '')
+    }
+  }
+
+  async function init () {
+    try {
+      const loginView = document.getElementById('login-view')
+      if (loginView) {
+        loginView.style.display = ''
+        loginView.setAttribute('aria-busy', 'true')
+        var loadingEl = document.getElementById('login-error')
+        if (loadingEl) { loadingEl.style.display = 'none'; loadingEl.textContent = '' }
+      }
+      const me = await apiAuthMe()
+      if (loginView) loginView.removeAttribute('aria-busy')
+      if (me && me.user) {
+        state.auth = {
+          user: me.user,
+          role: me.user.role,
+          allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role)
+        }
+        const appShell = document.getElementById('app-shell')
+        if (!appShell) {
+          if (ACE_DEBUG) console.warn('[ACE] #app-shell not found; boot may be incomplete.')
+        }
+        showAppShell()
+        applyAuthUI()
+        bindEvents()
+        updateFooterButtons()
+        var targetTab = state.selectedTab
+        const allowedTabs = state.auth.allowedTabs || []
+        if ((targetTab === 'users' && state.auth.role !== 'admin') || (allowedTabs.length && allowedTabs.indexOf(targetTab) === -1)) {
+          targetTab = allowedTabs[0] || 'config'
+          state.selectedTab = targetTab
+        }
+        switchTab(targetTab)
+        loadModel().catch(function (loadErr) {
+          if (typeof console !== 'undefined' && console.error) console.error('[ACE] loadModel failed:', loadErr)
+          showFatalError(loadErr)
+        })
+        return
+      }
+      const bootstrapStatus = await apiAuthBootstrapAllowed()
+      const allowed = bootstrapStatus.allowed
+      if (allowed) {
+        setCreateFirstAccountLinkVisible(true)
+        showBootstrapView()
+      } else {
+        setCreateFirstAccountLinkVisible(false)
+        showLoginView()
+      }
+      bindAuthForms()
+      const createFirstLink = document.getElementById('create-first-account-link')
+      if (createFirstLink) {
+        createFirstLink.onclick = function (e) {
+          e.preventDefault()
+          showBootstrapView()
+          bindAuthForms()
+        }
+      }
+    } catch (err) {
+      showFatalError(err)
       setCreateFirstAccountLinkVisible(false)
       showLoginView()
-    }
-    bindAuthForms()
-    const createFirstLink = document.getElementById('create-first-account-link')
-    if (createFirstLink) {
-      createFirstLink.onclick = function (e) {
-        e.preventDefault()
-        showBootstrapView()
-        bindAuthForms()
-      }
+      bindAuthForms()
     }
   }
 

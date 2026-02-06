@@ -5,10 +5,24 @@
       "id": "u_ml8u9wwq_xt6g0j7f",
       "username": "biagio",
       "passwordHash": "$2a$10$eAsmxKRpzu98Iq5Gj5M7EeZ/dXqQGACEfMei0pKCzjQjo.4ZQVZ6u",
-      "role": "owner",
+      "role": "admin",
       "disabled": false,
       "createdAt": "2026-02-05T02:30:19.610Z",
       "updatedAt": "2026-02-05T02:30:19.610Z"
+    },
+    {
+      "id": "u_mlacu0h6_mn6t94qo",
+      "username": "Test",
+      "passwordHash": "$2a$10$FNvrs20Xe.0huK2nUQTYNeQdLl.fcADpse9kJx6xvh7o65X5OQaOS",
+      "role": "reviewer",
+      "disabled": false,
+      "createdAt": "2026-02-06T03:57:36.618Z",
+      "updatedAt": "2026-02-06T18:33:55.691Z",
+      "allowedTabs": [
+        "assistants",
+        "content-models",
+        "registries"
+      ]
     }
   ]
 }

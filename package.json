@@ -31,7 +31,7 @@
     "generate-presets": "tsx scripts/generate-presets.ts",
     "generate-custom-overlay": "tsx scripts/generate-custom-overlay.ts",
     "generate-dark-demo-cards": "tsx scripts/generate-dark-demo-cards.ts",
-    "prebuild": "npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && npm run generate-dark-demo-cards",
+    "prebuild": "npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && npm run generate-dark-demo-cards && tsx scripts/generate-build-info.ts",
     "build": "build-figma-plugin --typecheck --minify",
     "postbuild": "node scripts/check-sync-api.js && node scripts/check-banned-phrases.js && tsx scripts/update-manifest-network-access.ts",
     "assert-prompt-pipeline": "tsx scripts/assert-prompt-pipeline.ts",

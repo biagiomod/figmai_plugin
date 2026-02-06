@@ -9,7 +9,8 @@ import type {
 } from '../../core/types'
 import type { Settings } from '../../core/settings'
 import type { Mode } from '../../core/types'
-import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings, getCustomConfig, getLlmUiMode } from '../../custom/config'
+import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings, getCustomConfig, getLlmUiMode, getHideInternalApiSettings, getHideProxySettings, getHideTestConnectionButton } from '../../custom/config'
+import { BUILD_VERSION, BUILD_ID } from '../../core/build'
 import { debugLog } from '../utils/debug'
 import { getInitialMode } from '../utils/mode'
 
@@ -26,6 +27,11 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
   const hideModelSettings = shouldHideLlmModelSettings()
   const llmUiMode = getLlmUiMode()
   
+  // Granular visibility: hide Internal API / Proxy blocks and Test Connection button per config
+  const hideInternalApi = getHideInternalApiSettings()
+  const hideProxy = getHideProxySettings()
+  const hideTestBtn = getHideTestConnectionButton()
+  const showConnectionUI = !hideInternalApi || !hideProxy
   // Determine LLM settings visibility:
   // - hideModelSettings=true takes precedence (existing behavior)
   // - If endpoint set AND uiMode='connection-only': show only connection + test
@@ -539,8 +545,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           width: '100%'
         }} />
         
-        {/* LLM Connection / Model Settings Section */}
-        {(hideModelSettings || showConnectionOnly) ? (
+        {/* LLM Connection / Model Settings — visibility per hideInternalApiSettings, hideProxySettings, hideTestConnectionButton */}
+        {showConnectionUI && ((hideModelSettings || showConnectionOnly) ? (
           /* LLM Connection Section (when custom endpoint provided OR uiMode='connection-only') */
           <div>
             <div style={{
@@ -572,7 +578,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
               />
             </div>
             
-            {/* Test Connection Button */}
+            {!hideTestBtn && (
             <div style={{ marginTop: 'var(--spacing-md)' }}>
               <Button
                 onClick={handleTest}
@@ -584,6 +590,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
                 {isTesting ? 'Testing...' : 'Test Connection'}
               </Button>
             </div>
+            )}
           </div>
         ) : showFullLlmSettings ? (
           /* LLM Model Settings Section (default) */
@@ -607,6 +614,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             width: '100%',
             backgroundColor: 'var(--surface-modal)'
           }}>
+            {!hideInternalApi && (
             <button
               onClick={() => setConnectionType('internal-api')}
               onKeyDown={(e) => {
@@ -652,6 +660,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             >
               Internal API
             </button>
+            )}
+            {!hideProxy && (
             <button
               onClick={() => setConnectionType('proxy')}
               onKeyDown={(e) => {
@@ -696,10 +706,11 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             >
               Proxy
             </button>
+            )}
           </div>
         </div>
 
-        {connectionType === 'internal-api' && proxyBaseUrl.trim() !== '' && (
+        {!hideInternalApi && connectionType === 'internal-api' && proxyBaseUrl.trim() !== '' && (
           <div style={{
             marginTop: 'var(--spacing-sm)',
             padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -713,7 +724,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         )}
         
         {/* Proxy Mode Fields */}
-        {connectionType === 'proxy' && (
+        {!hideProxy && connectionType === 'proxy' && (
           <div>
             {/* Proxy Base URL */}
             <div>
@@ -853,7 +864,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         )}
         
         {/* Internal API Mode Fields */}
-        {connectionType === 'internal-api' && (
+        {!hideInternalApi && connectionType === 'internal-api' && (
           <div>
             <label style={{
               display: 'block',
@@ -899,7 +910,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           </div>
         )}
         
-            {/* Test Connection Button */}
+            {!hideTestBtn && (
             <div style={{ marginTop: 'var(--spacing-md)' }}>
               <Button
                 onClick={handleTest}
@@ -915,11 +926,12 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
                 {isTesting ? 'Testing...' : 'Test Connection'}
               </Button>
             </div>
+            )}
           </div>
-        ) : null}
+        ) : null)}
         
-        {/* Test Status */}
-        {testStatus && (
+        {/* Test Status — only when connection UI is shown */}
+        {showConnectionUI && testStatus && (
           <div>
             <div style={{
               padding: 'var(--spacing-sm)',
@@ -1110,6 +1122,14 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           >
             Save
           </Button>
+        </div>
+        {/* Build version (read-only) */}
+        <div style={{
+          fontSize: 'var(--font-size-xs)',
+          color: 'var(--fg-secondary)',
+          marginTop: 'var(--spacing-md)'
+        }}>
+          Build {BUILD_VERSION}{BUILD_ID ? ` (${BUILD_ID})` : ''}
         </div>
       </div>
     </div>

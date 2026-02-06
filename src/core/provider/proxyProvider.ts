@@ -1,6 +1,6 @@
 import type { Provider, ChatRequest, ProviderCapabilities, TestConnectionOptions } from './provider'
 import { proxyClient } from '../proxy/client'
-import { getSettings } from '../settings'
+import { getEffectiveSettings } from '../settings'
 import { prepareRequest } from './normalize'
 
 /**
@@ -26,7 +26,7 @@ export class ProxyProvider implements Provider {
   }
 
   async sendChat(request: ChatRequest): Promise<string> {
-    const settings = await getSettings()
+    const settings = await getEffectiveSettings()
     
     // Normalize request based on capabilities
     const normalizedRequest = prepareRequest(request, this.capabilities)

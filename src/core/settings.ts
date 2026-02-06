@@ -1,7 +1,13 @@
 /**
  * Settings Module
  * Centralized configuration and storage management
+ *
+ * Precedence: When config.llm.provider is set (via ACE), effective settings use config
+ * for provider and connection params; clientStorage is ignored for those fields.
+ * When config.llm.provider is undefined, effective settings = clientStorage (current behavior).
  */
+
+import { getLlmProvider, getCustomLlmEndpoint, getConfigProxySettings } from '../custom/config'
 
 export interface Settings {
   /**
@@ -28,6 +34,16 @@ const DEFAULT_SETTINGS: Settings = {
   authMode: 'shared_token',
   defaultModel: 'gpt-4.1-mini',
   requestTimeoutMs: 30000
+}
+
+/** Safe fallback for SETTINGS_RESPONSE when getEffectiveSettings() fails (e.g. storage error). */
+export function getDefaultSettingsForResponse(): Settings {
+  return {
+    ...DEFAULT_SETTINGS,
+    internalApiUrl: '',
+    sharedToken: '',
+    sessionToken: ''
+  }
 }
 
 /**
@@ -73,6 +89,41 @@ export async function getSettings(): Promise<Settings> {
   }
   
   return { ...DEFAULT_SETTINGS }
+}
+
+/**
+ * Get effective settings: config wins when config.llm.provider is set;
+ * otherwise clientStorage (getSettings) is used.
+ */
+export async function getEffectiveSettings(): Promise<Settings> {
+  const base = await getSettings()
+  const provider = getLlmProvider()
+  if (!provider) return base
+
+  if (provider === 'internal-api') {
+    const endpoint = getCustomLlmEndpoint()
+    return {
+      ...base,
+      connectionType: 'internal-api',
+      internalApiUrl: endpoint || base.internalApiUrl || ''
+    }
+  }
+
+  if (provider === 'proxy') {
+    const proxy = getConfigProxySettings()
+    if (!proxy) return { ...base, connectionType: 'proxy' }
+    // When config supplies proxy, use config values; omit => show blank in modal (no clientStorage fallback)
+    return {
+      ...base,
+      connectionType: 'proxy',
+      proxyBaseUrl: proxy.baseUrl ?? base.proxyBaseUrl,
+      defaultModel: proxy.defaultModel ?? '',
+      authMode: proxy.authMode ?? base.authMode,
+      sharedToken: proxy.sharedToken ?? ''
+    }
+  }
+
+  return base
 }
 
 /**

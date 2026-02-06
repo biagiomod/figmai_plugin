@@ -7,7 +7,7 @@ import { InternalApiProvider } from './internalApiProvider'
 import { ClaudeProvider } from './claudeProvider'
 import { CopilotProvider } from './copilotProvider'
 import { CONFIG } from '../config'
-import { getSettings } from '../settings'
+import { getEffectiveSettings } from '../settings'
 
 /**
  * Active connection type for observability and UI only.
@@ -44,7 +44,7 @@ export function getActiveConnectionType(settings: Settings): ActiveConnectionTyp
  */
 export async function createProvider(providerId?: LlmProviderId): Promise<Provider> {
   const id = providerId || CONFIG.provider
-  const settings = await getSettings()
+  const settings = await getEffectiveSettings()
 
   // Internal API first: when enabled, all requests use InternalApiProvider; proxy/providerId ignored
   if (settings.connectionType === 'internal-api' && settings.internalApiUrl) {

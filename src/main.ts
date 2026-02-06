@@ -84,7 +84,7 @@ import { sendChatWithRecovery } from './core/contentSafety'
 import { routeToolCall } from './core/tools/toolRouter'
 import { summarizeSelection } from './core/context/selection'
 import { buildSelectionContext } from './core/context/selectionContext'
-import { saveSettings, getSettings } from './core/settings'
+import { saveSettings, getSettings, getEffectiveSettings, getDefaultSettingsForResponse } from './core/settings'
 import { ProxyError } from './core/proxy/client'
 import { ProviderError, ProviderErrorType, errorToString } from './core/provider/provider'
 import type {
@@ -157,6 +157,23 @@ const SESSION_HEADER_SAFE =
 async function initializeProvider() {
   try {
     currentProvider = await createProvider(currentProviderId)
+    // Optional: one-time background health check when effective provider is internal-api with endpoint
+    const effective = await getEffectiveSettings()
+    if (effective.connectionType === 'internal-api' && effective.internalApiUrl?.trim()) {
+      const provider = currentProvider
+      if (provider && typeof provider.testConnection === 'function') {
+        provider.testConnection({ internalApiUrl: effective.internalApiUrl }).then(
+          (result) => {
+            if (!result.success) {
+              figma.notify('Connection check failed. Check Settings if AI actions do not work.', { timeout: 5000 })
+            }
+          },
+          () => {
+            figma.notify('Connection check failed. Check Settings if AI actions do not work.', { timeout: 5000 })
+          }
+        )
+      }
+    }
   } catch (error) {
     console.error('[Main] Failed to initialize provider:', error)
     // Fallback to stub provider
@@ -1111,25 +1128,36 @@ on<SaveSettingsHandler>('SAVE_SETTINGS', async function (settings: Record<string
   }
 })
 
-// Handle request settings
+// Handle request settings — use effective settings so modal matches what provider/runtime uses
 on<RequestSettingsHandler>('REQUEST_SETTINGS', async function (requestId?: string) {
   try {
-    const settings = await getSettings()
-    figma.ui.postMessage({ 
-      pluginMessage: { 
-        type: 'SETTINGS_RESPONSE', 
+    const settings = await getEffectiveSettings()
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'SETTINGS_RESPONSE',
         settings,
-        requestId // Include requestId in response for correlation
-      } 
+        requestId
+      }
     })
-  } catch (error) {
-    figma.ui.postMessage({ 
-      pluginMessage: { 
-        type: 'SETTINGS_RESPONSE', 
-        settings: await getSettings(), // Return defaults on error
-        requestId // Include requestId even on error
-      } 
-    })
+  } catch (_) {
+    try {
+      const settings = await getEffectiveSettings()
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'SETTINGS_RESPONSE',
+          settings,
+          requestId
+        }
+      })
+    } catch (__) {
+      figma.ui.postMessage({
+        pluginMessage: {
+          type: 'SETTINGS_RESPONSE',
+          settings: getDefaultSettingsForResponse(),
+          requestId
+        }
+      })
+    }
   }
 })
 
