@@ -21,6 +21,39 @@ This file is the canonical backlog. All work items must be tracked here before i
 
 ---
 
+## Index (by category)
+
+Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figma side). **ACE** = Admin Config Editor (local web app). **Shared** = both or infrastructure.
+
+| Category | ID | Title | Link |
+|----------|-----|-------|------|
+| **A — Architecture audit** | A1 | Full Plugin + LLM interaction audit | [BL-020](#bl-020) |
+| **B — Assistant configuration** | B1 | Editor-friendly assistant configuration model | [BL-021](#bl-021) |
+| | B2 | Assistant query structure definition | [BL-022](#bl-022) |
+| **C — Knowledge base** | C1 | KB structure standard | [BL-023](#bl-023) |
+| | C2 | KB builder template | [BL-024](#bl-024) |
+| | C3 | External KB import/parsing | [BL-025](#bl-025) |
+| **D — Design system** | D1 | Design system KB (first-class type) | [BL-026](#bl-026) |
+| | D2 | Component library import | [BL-027](#bl-027) |
+| | D3 | Multi-design-system switching | [BL-028](#bl-028) |
+| **E — ACE config safety & versioning** | E1–E3 | Backups, build-linked snapshots, user attribution | [BL-016](#bl-016-expanded) (merged) |
+| **F — LLM accuracy testing** | F1 | Assistant test harness | [BL-029](#bl-029) |
+| | F2 | Automated evaluation metrics | [BL-030](#bl-030) |
+| **G — Hosting & deployment** | G1 | ACE local → intranet hosting | [BL-017](#bl-017-expanded) (merged) |
+| | G2 | Source control workflow | [BL-031](#bl-031) |
+| | G3 | Config isolation outside code dir | [BL-032](#bl-032) |
+| **H — Built-in analytics** | H1 | First-party analytics | [BL-033](#bl-033) |
+| | H2 | ACE analytics dashboard | [BL-034](#bl-034) |
+| **I — Assistant contribution** | I1 | Submission intake | [BL-035](#bl-035) |
+| | I2 | Validation pipeline | [BL-036](#bl-036) |
+| **J — Content & analytics tables admin** | J1 | Content table manager | [BL-037](#bl-037) |
+| | J2 | Analytics tag table manager | [BL-038](#bl-038) |
+| | J3 | Multi-format export | [BL-039](#bl-039) |
+| | J4 | DB-level versioning | [BL-040](#bl-040) |
+| **K — Continuous improvement** | K1 | External architecture review agent | [BL-041](#bl-041) |
+
+---
+
 ## Backlog Governance
 
 ### Modification Rules
@@ -180,10 +213,206 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | BL-013 | ACE: Assistants wizard UX + "How Assistants work" documentation | P2 | Proposed | Unassigned | Wizard UX is improved; "How Assistants work" doc exists and is discoverable. | |
 | BL-014 | ACE: Apply same UX improvements to Design Systems section | P2 | Proposed | Unassigned | Design Systems section has UX improvements aligned with other ACE sections. | |
 | BL-015 | ACE: Roles/permissions (Owner/Editor/Reviewer) | P2 | Proposed | Unassigned | ACE supports Owner, Editor, and Reviewer roles with appropriate permissions. | |
-| BL-016 | ACE: Versioning, backup, and revert | P2 | Proposed | Unassigned | Users can create backups, view version history, and revert where applicable. | |
-| BL-017 | ACE: Internal hosting guidance (local → internal work environment) | P2 | Proposed | Unassigned | Documentation or guidance exists for hosting ACE from local to internal work environment. | |
+| BL-016 | ACE: Versioning, backup, and revert | P2 | Backlog | Unassigned | Backups/snapshots (build #, timestamp, user, summary, diff); build-linked snapshots; user attribution (change set, before/after). Users can create backups, view version history, and revert. | Merged: E1, E2, E3. See [details](#bl-016-expanded). |
+| BL-017 | ACE: Internal hosting guidance (local → intranet) | P2 | Backlog | Unassigned | Secure intranet hosting: multi-user, auth, roles. Documentation or tooling for local → internal work environment. | Merged: G1. See [details](#bl-017-expanded). |
 | BL-018 | ACE: Upgrade strategy + visible ACE build/version number in ACE UI | P2 | Proposed | Unassigned | Upgrade strategy is documented; ACE UI displays build/version number. | |
 | BL-019 | ACE: Simple backlog page viewer/editor | P2 | Proposed | Unassigned | ACE has a dedicated page that views backlog.md; editing limited to Owner/Editor when roles exist (viewer-only acceptable initially). Scope limited to backlog.md only. | |
+| BL-020 | Full Plugin + LLM interaction audit | P1 | Backlog | Unassigned | Sequence diagram, file/module map, prompt + response pipeline breakdown; audit request packaging, KB attachment, parsing, errors, retry, token limits. | Source: A1. See [details](#bl-020). |
+| BL-021 | Editor-friendly assistant configuration model | P2 | Backlog | Unassigned | Structured fields, presets, advanced mode, inline examples for non-technical editors. | Source: B1. See [details](#bl-021). |
+| BL-022 | Assistant query structure definition | P2 | Backlog | Unassigned | Canonical JSON prompt schema: system/task/context/KB/schema/validation. | Source: B2. See [details](#bl-022). |
+| BL-023 | KB structure standard | P2 | Backlog | Unassigned | Standard sections: purpose, scope, definitions, rules, do/don't, examples, edge, accessibility, dark-mode, compliance. | Source: C1. See [details](#bl-023). |
+| BL-024 | KB builder template | P2 | Backlog | Unassigned | ACE guided builder → markdown/JSON output. | Source: C2. See [details](#bl-024). |
+| BL-025 | External KB import/parsing | P2 | Backlog | Unassigned | Upload, preview, normalize, approval, save for external KBs. | Source: C3. See [details](#bl-025). |
+| BL-026 | Design system KB (first-class type) | P2 | Backlog | Unassigned | Design system as first-class KB type in ACE. | Source: D1. See [details](#bl-026). |
+| BL-027 | Component library import | P2 | Backlog | Unassigned | Scrape libraries; JSON import; bulk import; manual fallback. | Source: D2. See [details](#bl-027). |
+| BL-028 | Multi-design-system switching | P2 | Backlog | Unassigned | Profiles; active selector; DS-scoped KB/registry/rules. | Source: D3. See [details](#bl-028). |
+| BL-029 | Assistant test harness | P2 | Backlog | Unassigned | Prompt sets, expected patterns, schema validation, scorecards, regression. | Source: F1. See [details](#bl-029). |
+| BL-030 | Automated LLM evaluation metrics | P2 | Backlog | Unassigned | Format/rule compliance, KB citation use, hallucination flags, missing fields. | Source: F2. See [details](#bl-030). |
+| BL-031 | Source control workflow | P2 | Backlog | Unassigned | OSS repo + internal fork/mirror; safe update flow. | Source: G2. See [details](#bl-031). |
+| BL-032 | Config isolation outside code dir | P2 | Backlog | Unassigned | Separate /plugin-code, /ace-config, /design-system-data, /kb-data. | Source: G3. See [details](#bl-032). |
+| BL-033 | First-party analytics | P2 | Backlog | Unassigned | Usage, errors, latency, outcomes (no third-party tools). | Source: H1. See [details](#bl-033). |
+| BL-034 | ACE analytics dashboard | P2 | Backlog | Unassigned | Charts, logs, assistant performance, adoption. | Source: H2. See [details](#bl-034). |
+| BL-035 | Assistant contribution intake | P2 | Backlog | Unassigned | Submission intake: assistant config, KB, schema, tests. | Source: I1. See [details](#bl-035). |
+| BL-036 | Contribution validation pipeline | P2 | Backlog | Unassigned | Automated tests, schema checks, safety checks, manual approval. | Source: I2. See [details](#bl-036). |
+| BL-037 | Content table manager | P2 | Backlog | Unassigned | Sync from plugin, editable, export. | Source: J1. See [details](#bl-037). |
+| BL-038 | Analytics tag table manager | P2 | Backlog | Unassigned | Registry, rules, sync. | Source: J2. See [details](#bl-038). |
+| BL-039 | Multi-format export (content/analytics) | P2 | Backlog | Unassigned | JSON/XML/mobile/CMS export. | Source: J3. See [details](#bl-039). |
+| BL-040 | DB-level versioning (content/analytics) | P2 | Backlog | Unassigned | History, diff, rollback, attribution, locking/conflicts. | Source: J4. See [details](#bl-040). |
+| BL-041 | External architecture review agent | P2 | Backlog | Unassigned | Tooling/scalability/safety/UX/automation review; run at major releases/quarterly/milestones. | Source: K1. See [details](#bl-041). |
+
+#### Merged & new item details
+
+Standard fields for merged and newly added items: **Problem/Goal**, **Scope**, **Deliverables**, **Dependencies**, **Owner**, **Status**.
+
+##### BL-016 (expanded) {#bl-016-expanded}
+
+- **Problem / Goal:** ACE config changes need safety and traceability: backups, version history, and user attribution so teams can revert and audit.
+- **Scope:** ACE only. Backups/snapshots; build-linked snapshots; user attribution on change sets.
+- **Deliverables:** (E1) Backups/snapshots with build #, timestamp, user, summary, diff. (E2) Build-linked snapshots tied to last successful compile/install. (E3) User attribution: change set + before/after.
+- **Dependencies:** ACE save/load pipeline; optional build-info integration.
+- **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-017 (expanded) {#bl-017-expanded}
+
+- **Problem / Goal:** Teams need to host ACE on intranet with secure access, multi-user, auth, and roles—not just local.
+- **Scope:** ACE hosting and deployment. Documentation and/or tooling.
+- **Deliverables:** Guidance or implementation for secure intranet hosting: multi-user, auth, roles. Clear path from local → internal work environment.
+- **Dependencies:** ACE auth/RBAC; deployment docs.
+- **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-020 {#bl-020}
+
+- **Problem / Goal:** Document and audit the full Plugin + LLM interaction so the pipeline is understandable and improvable.
+- **Scope:** Plugin: UI → assistant layer → prompt builder → LLM → parser → renderer. Shared: request/response contracts.
+- **Deliverables:** Sequence diagram; file/module responsibility map; prompt construction pipeline breakdown; response parsing pipeline breakdown. Audit: request packaging, instruction injection, response format requirements, KB attachment/ref, metadata, parsing/rendering, error handling, retry, token/size limits.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-021 {#bl-021}
+
+- **Problem / Goal:** Non-technical editors need to configure assistants without editing raw JSON.
+- **Scope:** ACE assistant configuration UI. Plugin may consume the resulting config.
+- **Deliverables:** Editor-friendly model: structured fields, presets, advanced mode, inline examples.
+- **Dependencies:** Assistant schema and ACE config model. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-022 {#bl-022}
+
+- **Problem / Goal:** Standardize how assistant prompts are structured for consistency and tooling.
+- **Scope:** Canonical prompt schema used by Plugin and optionally ACE.
+- **Deliverables:** Assistant query structure definition: canonical JSON prompt schema (system/task/context/KB/schema/validation).
+- **Dependencies:** BL-020 (audit) helps inform schema. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-023 {#bl-023}
+
+- **Problem / Goal:** Knowledge bases need a consistent structure for quality and tooling.
+- **Scope:** KB content standard (Plugin + ACE).
+- **Deliverables:** KB structure standard: purpose, scope, definitions, rules, do/don't, examples, edge cases, accessibility, dark-mode, compliance.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-024 {#bl-024}
+
+- **Problem / Goal:** Enable guided creation of KBs in ACE.
+- **Scope:** ACE. Output: markdown/JSON compatible with Plugin.
+- **Deliverables:** KB builder template: ACE guided builder → markdown/JSON.
+- **Dependencies:** BL-023 (structure standard). **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-025 {#bl-025}
+
+- **Problem / Goal:** Support importing external KBs into ACE with validation.
+- **Scope:** ACE: upload, preview, normalize, approval, save.
+- **Deliverables:** External KB import/parsing: upload, preview, normalize, approval, save.
+- **Dependencies:** BL-023. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-026 {#bl-026}
+
+- **Problem / Goal:** Treat design system as a first-class KB type.
+- **Scope:** ACE + Plugin. Design system KB type with same rigor as other KBs.
+- **Deliverables:** Design system KB as first-class KB type in ACE and Plugin.
+- **Dependencies:** Design system registry and KB structure. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-027 {#bl-027}
+
+- **Problem / Goal:** Ingest component libraries into the design system layer.
+- **Scope:** Plugin/ACE. Multiple ingestion paths.
+- **Deliverables:** Component library import: scrape libraries; JSON import; bulk import; manual fallback.
+- **Dependencies:** BL-026; design system registry. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-028 {#bl-028}
+
+- **Problem / Goal:** Support multiple design systems with clear active context.
+- **Scope:** Plugin + ACE. Profiles and scoping.
+- **Deliverables:** Multi-design-system switching: profiles; active selector; DS-scoped KB/registry/rules.
+- **Dependencies:** BL-026; registry model. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-029 {#bl-029}
+
+- **Problem / Goal:** Regress and validate assistant behavior with repeatable tests.
+- **Scope:** Shared/Plugin. Test harness for assistants.
+- **Deliverables:** Assistant test harness: prompt sets, expected patterns, schema validation, scorecards, regression.
+- **Dependencies:** BL-022 (query structure). **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-030 {#bl-030}
+
+- **Problem / Goal:** Measure assistant output quality automatically.
+- **Scope:** Shared. Metrics and tooling.
+- **Deliverables:** Automated evaluation metrics: format/rule compliance, KB citation use, hallucination flags, missing fields.
+- **Dependencies:** BL-029 (harness). **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-031 {#bl-031}
+
+- **Problem / Goal:** Safe source control for OSS + internal use.
+- **Scope:** Repo and deployment workflow.
+- **Deliverables:** Source control workflow: OSS repo + internal fork/mirror; safe update flow.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-032 {#bl-032}
+
+- **Problem / Goal:** Keep config and data outside plugin code dir for security and portability.
+- **Scope:** Deployment and directory layout.
+- **Deliverables:** Config isolation: /plugin-code, /ace-config, /design-system-data, /kb-data (or equivalent).
+- **Dependencies:** BL-017; deployment docs. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-033 {#bl-033}
+
+- **Problem / Goal:** First-party analytics only—no third-party tools.
+- **Scope:** Plugin + ACE. Usage, errors, latency, outcomes.
+- **Deliverables:** First-party analytics: usage, errors, latency, outcomes.
+- **Dependencies:** Analytics endpoint and schema. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-034 {#bl-034}
+
+- **Problem / Goal:** Give operators a single place to see ACE analytics.
+- **Scope:** ACE. Dashboard UI.
+- **Deliverables:** ACE analytics dashboard: charts, logs, assistant performance, adoption.
+- **Dependencies:** BL-033. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-035 {#bl-035}
+
+- **Problem / Goal:** Accept assistant contributions in a structured way.
+- **Scope:** Intake system (ACE or standalone).
+- **Deliverables:** Submission intake: assistant config, KB, schema, tests.
+- **Dependencies:** Assistant schema; BL-021/BL-022. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-036 {#bl-036}
+
+- **Problem / Goal:** Validate contributions before adoption.
+- **Scope:** Pipeline after intake.
+- **Deliverables:** Validation pipeline: automated tests, schema checks, safety checks, manual approval.
+- **Dependencies:** BL-029; BL-035. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-037 {#bl-037}
+
+- **Problem / Goal:** Manage content tables in ACE with sync from plugin.
+- **Scope:** ACE. Content table manager.
+- **Deliverables:** Content table manager: sync from plugin, editable, export.
+- **Dependencies:** Content models and plugin sync. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-038 {#bl-038}
+
+- **Problem / Goal:** Manage analytics tag tables (registry, rules, sync).
+- **Scope:** ACE. Analytics tag table manager.
+- **Deliverables:** Analytics tag table manager: registry, rules, sync.
+- **Dependencies:** Analytics tagging spec. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-039 {#bl-039}
+
+- **Problem / Goal:** Export content and analytics data in multiple formats.
+- **Scope:** ACE (and plugin export if applicable).
+- **Deliverables:** Multi-format export: JSON/XML/mobile/CMS.
+- **Dependencies:** BL-037; BL-038. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-040 {#bl-040}
+
+- **Problem / Goal:** Version content/analytics tables with history, rollback, attribution.
+- **Scope:** ACE (and storage layer). DB-level versioning.
+- **Deliverables:** DB-level versioning: history, diff, rollback, attribution, locking/conflicts.
+- **Dependencies:** BL-037; BL-038. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-041 {#bl-041}
+
+- **Problem / Goal:** Periodic external review of architecture for tooling, scalability, safety, UX, automation.
+- **Scope:** Process. No code ownership in backlog.
+- **Deliverables:** External architecture review agent (or process): tooling, scalability, safety, UX, automation; run at major releases/quarterly/milestones.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
 
 ---
 
@@ -481,6 +710,21 @@ Each backlog item should have:
 
 ---
 
+## Merge notes (backlog merge 2026-01-21)
+
+Summary of dedup and structure decisions when merging the new categorized backlog (A1–K1) into this SSOT:
+
+- **Canonical backlog:** This file (`docs/backlog.md`) remains the single source of truth. No other backlog files were created; no other docs were deprecated.
+- **ID mapping:** New items use BL-020 through BL-041. Category IDs (A1, B1, … K1) are preserved in the "Source" column and Index for traceability.
+- **Merged items (no new BL-XXX):**
+  - **E1, E2, E3 → BL-016.** ACE versioning/backup/revert already existed; E1 (backups/snapshots), E2 (build-linked snapshots), E3 (user attribution) were merged into BL-016. Acceptance criteria and details expanded; BL-016 row and a "BL-016 (expanded)" details subsection added.
+  - **G1 → BL-017.** ACE internal hosting guidance already existed; G1 (ACE local → intranet hosting: secure access, multi-user, auth, roles) was merged into BL-017. Wording strengthened; "BL-017 (expanded)" details subsection added.
+- **New items:** All other category items (A1, B1, B2, C1–C3, D1–D3, F1, F2, G2, G3, H1, H2, I1, I2, J1–J4, K1) added as new rows BL-020–BL-041 with standard fields (Problem/Goal, Scope, Deliverables, Dependencies, Owner, Status).
+- **Index:** New "Index (by category)" section at top groups items by category (A–K) with quick links to BL-XXX and to merged BL-016/BL-017.
+- **Separation:** Index and item details clarify scope where relevant: **Plugin** (Figma side), **ACE** (admin-editor), **Shared** (both or infrastructure).
+
+---
+
 ## Changelog
 
 This section tracks significant changes to the backlog structure itself.
@@ -489,6 +733,7 @@ This section tracks significant changes to the backlog structure itself.
 |------|--------|--------|
 | 2026-01-26 | Initial backlog structure created | Establish canonical backlog system |
 | 2026-01-21 | Governance rule updated (Editor → Backlog Maintainer); BL-002 updated (deprioritized, partially addressed); new items added (AT-A placeholder, ACE roadmap including backlog viewer/editor, Tech Debt) | Apply approved Backlog Update execution plan |
+| 2026-01-21 | Index (by category) added; E1–E3 merged into BL-016, G1 merged into BL-017; BL-020–BL-041 added (A1–K1); merged & new item details section; Merge notes added | Merge categorized backlog (Architect mode); preserve traceability A1–K1 ↔ BL-020–BL-041 |
 
 ---
 
