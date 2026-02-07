@@ -1,0 +1,89 @@
+{
+    "id": "content-design",
+    "title": "Content Design",
+    "source": "Starter KB compiled from trusted UX writing and accessibility guidance (NN/g, GOV.UK content design guidance, Material Design text-field guidance, WCAG Understanding docs).",
+    "updatedAt": "2026-02-07T00:00:00.000Z",
+    "version": "1.0",
+    "tags": [
+        "ux-writing",
+        "content-design",
+        "microcopy",
+        "plain-language",
+        "labels",
+        "forms",
+        "empty-states",
+        "error-messages",
+        "accessibility",
+        "product-copy"
+    ],
+    "purpose": "Provide reference knowledge for writing and validating product UI copy (microcopy, labels, helper text, error messages, empty states, and system messaging). Supports consistent, clear, accessible, user-centered content that reduces friction and builds trust.",
+    "scope": "Applies to user-facing interface content across web and mobile: labels, buttons, helper text, validation/errors, empty and loading states, confirmations, notifications, and informational guidance. Excludes assistant behavior, tone control, output formatting rules, schema syntax, and runtime tool/DS enforcement.",
+    "definitions": [
+        "### Content Design",
+        "Designing the words in an experience to help users accomplish their goals; grounded in user needs, clarity, and accessibility. Content is treated as part of the interface, not a final layer. :contentReference[oaicite:1]{index=1}",
+        "### Microcopy",
+        "Short UI text that guides users through an interaction (e.g., field labels, helper text, error messages, button text). :contentReference[oaicite:2]{index=2}",
+        "### Label",
+        "The primary descriptor for a control or piece of information (e.g., input label, button label). Labels must be clear, specific, and scannable.",
+        "### Helper Text",
+        "Supporting text that clarifies expected input or how information will be used; often shown near a field. Material guidance commonly swaps helper text with error text when needed. :contentReference[oaicite:3]{index=3}",
+        "### Empty State",
+        "A screen or region with no content yet (e.g., zero results, no messages). Should explain why it’s empty and what to do next.",
+        "### Error Message",
+        "A message shown when an error occurs that explains what happened and how to recover; should be visible, constructive, and efficient. :contentReference[oaicite:4]{index=4}"
+    ],
+    "rulesConstraints": [
+        "Write for user needs and tasks first; content should help users understand and complete what they came to do. :contentReference[oaicite:5]{index=5}",
+        "Use plain language: prefer common words, short sentences, and active voice; avoid internal jargon, acronyms, and legalese unless required. :contentReference[oaicite:6]{index=6}",
+        "Be specific and concrete: reference the object/action (what, where, which) rather than generic statements.",
+        "Optimize for scanning: front-load the most important words (especially in headings, labels, and buttons). :contentReference[oaicite:7]{index=7}",
+        "Prefer recognition over recall: show users what’s needed (formats, examples, constraints) near the point of action.",
+        "Do not blame or shame the user. Use neutral, respectful language (especially for errors). :contentReference[oaicite:8]{index=8}",
+        "Error accessibility: when an input error is detected, identify the item in error and describe it in text; provide suggestions when possible. :contentReference[oaicite:9]{index=9}",
+        "Time errors and validation feedback after interaction when possible (e.g., on blur or submit), not before the user has acted. :contentReference[oaicite:10]{index=10}",
+        "Minimize copy while preserving clarity: remove redundant text; keep helper text only when it reduces errors or increases confidence. :contentReference[oaicite:11]{index=11}",
+        "Maintain consistency in terminology: use one term for the same concept everywhere (UI labels, help, errors, confirmations)."
+    ],
+    "doDont": {
+        "do": [
+            "Use action-led button labels that describe outcomes (e.g., “Save changes”, “Create account”) rather than vague verbs (e.g., “Submit”).",
+            "Use explicit field labels; avoid relying on placeholder text as the only label (placeholders disappear).",
+            "For helper text, explain constraints and intent: format examples, character limits, how data is used (when it reduces uncertainty). :contentReference[oaicite:12]{index=12}",
+            "For errors, include: (1) what went wrong, (2) where it happened, (3) how to fix/recover. :contentReference[oaicite:13]{index=13}",
+            "Use consistent voice and terminology across the product; keep microcopy short and skimmable. :contentReference[oaicite:14]{index=14}",
+            "For empty states, explain why it’s empty and provide a primary next action; if it’s a ‘zero results’ state, suggest how to broaden the query.",
+            "For confirmations, match the level of interruption to the risk (quiet confirmation for safe actions; stronger confirmation for destructive/irreversible actions).",
+            "Make system status clear (saving, syncing, offline, retrying) using concise, user-meaningful language."
+        ],
+        "dont": [
+            "Don’t use vague messages like “Something went wrong” without actionable next steps. :contentReference[oaicite:15]{index=15}",
+            "Don’t use jargon, stack traces, internal codes, or blameful phrasing in user-facing messages. :contentReference[oaicite:16]{index=16}",
+            "Don’t use double negatives or trick phrasing in consent/opt-out copy (increases mistakes).",
+            "Don’t overuse helper text or tooltips; if many fields need explanation, the form/flow likely needs simplification.",
+            "Don’t hide critical information (fees, consequences, cancellation) behind ambiguous microcopy or low-salience UI (trust and compliance risk).",
+            "Don’t rely on color alone to communicate meaning (errors, warnings, status). :contentReference[oaicite:17]{index=17}"
+        ]
+    },
+    "examples": [
+        "### Buttons",
+        "Good: “Save changes” (clear outcome). Poor: “Submit” (ambiguous).",
+        "### Labels and helper text",
+        "Label: “Work email”. Helper: “We’ll use this to send account updates.” (clarifies intent).",
+        "### Validation error (field-level)",
+        "Good: “Enter a valid email address (for example, name@example.com).” (what + how to fix). :contentReference[oaicite:18]{index=18}",
+        "### System error (recoverable)",
+        "Good: “We couldn’t save your changes. Check your connection and try again.” (status + recovery). :contentReference[oaicite:19]{index=19}",
+        "### Empty state (no items yet)",
+        "Good: “No invoices yet. Create an invoice to get paid faster.” Primary action: “Create invoice”.",
+        "### Zero results",
+        "Good: “No results for ‘knee brace’. Try removing filters or searching for a broader term.”"
+    ],
+    "edgeCases": [
+        "When users are under stress (payments, security, account access), prioritize clarity and recovery over friendliness; keep language calm and direct.",
+        "When multiple errors can occur, show the most important errors first; if feasible, show all field-level errors at once to avoid repeated submit-fail cycles. :contentReference[oaicite:20]{index=20}",
+        "When a system action partially succeeds, clearly distinguish what succeeded vs what failed and what the user must do next (avoid ambiguous mixed states).",
+        "When offline/degraded, acknowledge the state, preserve user input, and clarify whether actions are queued or must be retried.",
+        "When content must include legal/compliance language, present a short plain-language summary first, then provide details via progressive disclosure.",
+        "When localization is expected, avoid idioms, culture-specific metaphors, and humor; keep strings short and structurally simple for translation."
+    ]
+}

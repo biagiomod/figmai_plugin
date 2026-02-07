@@ -1,0 +1,101 @@
+{
+    "id": "business-review",
+    "title": "Business Review",
+    "source": "Starter KB grounded in widely used strategy and goal-setting frameworks and UX strategy guidance. Key references: Google re:Work OKRs guide; NN/g UX strategy and UX roadmaps; HBR strategy frameworks (e.g., Porter Five Forces; SWOT usage guidance).",
+    "updatedAt": "2026-02-07T00:00:00.000Z",
+    "version": "1.0",
+    "tags": [
+        "business-strategy",
+        "okrs",
+        "north-star",
+        "kpis",
+        "roadmap",
+        "decision-log",
+        "assumptions",
+        "risks",
+        "stakeholders",
+        "governance"
+    ],
+    "purpose": "Provide reference knowledge for capturing, reviewing, and applying business context to product and design work: organizational intent (why), goals (OKRs), measures (KPIs), plans (roadmaps), and decision governance. Designed so teams can validate design decisions against strategy and avoid context switching.",
+    "scope": "Applies to product/business context used to guide design and development: why statement/vision, strategy pillars, OKRs, KPIs, initiatives, roadmap, risks, assumptions, and decision history. This starter KB defines structure and best practices. It does not contain any org-specific confidential content; those should be added later via private KBs.",
+    "definitions": [
+        "### Why Statement (Purpose)",
+        "A concise statement of the organization's reason for existing and the human or customer value it aims to create (distinct from revenue goals).",
+        "### Vision",
+        "A description of the desired future state the organization is working toward; long-term and directional.",
+        "### Strategy",
+        "A set of choices about where to play and how to win, expressed as priorities and tradeoffs, not a list of projects.",
+        "### Strategy Pillar",
+        "A major theme that focuses investment and clarifies priorities (e.g., “Trust & reliability”, “Self-serve growth”).",
+        "### Objective (OKR)",
+        "A qualitative, outcome-oriented goal describing what impact is desired (not a task list). (Google re:Work OKRs) (https://rework.withgoogle.com/intl/en/guides/set-goals-with-okrs/)",
+        "### Key Result (OKR)",
+        "A measurable outcome that indicates progress toward an objective; should be specific and verifiable.",
+        "### KPI",
+        "A metric used to measure performance over time (health of a product or business outcome). KPIs can inform OKRs but are not the same as OKRs.",
+        "### Initiative",
+        "A coordinated set of work that contributes to one or more OKRs; initiatives are how goals are achieved (projects, programs, releases).",
+        "### North Star Metric",
+        "A primary metric that best represents the value delivered to customers (context-dependent); used to align teams on value creation.",
+        "### Assumption",
+        "A belief taken as true for planning that should be validated (e.g., user behavior, market conditions).",
+        "### Risk",
+        "A potential event or condition that could harm outcomes (delivery, adoption, compliance, trust).",
+        "### Decision Log",
+        "A record of key decisions, including context, alternatives, and rationale, to prevent re-litigating and to preserve institutional memory."
+    ],
+    "rulesConstraints": [
+        "Treat OKRs as outcomes, not task lists; define impact first and allow teams to choose methods. (Google re:Work OKRs) (https://rework.withgoogle.com/intl/en/guides/set-goals-with-okrs/)",
+        "Each Objective should have 2-5 Key Results; each Key Result must be measurable and time-bound.",
+        "Key Results should measure outcomes (behavior, success, quality), not outputs (shipping features) unless an output is the only verifiable proxy.",
+        "Avoid metric overload: identify a small set of decision-driving KPIs and clearly define each metric (formula, data source, cadence).",
+        "Always capture tradeoffs: what will not be done, what will be deprioritized, and why.",
+        "Tie initiatives and roadmap items to objectives and key results; if work cannot be traced to strategy or operational necessity, challenge it.",
+        "Document assumptions explicitly and define validation plans (signals, experiments, research) before large investments.",
+        "Maintain a decision log for major product/design decisions: context, options considered, decision, and rationale.",
+        "Keep strategy artifacts current: include dates, owners, and review cadence; stale strategy is worse than no strategy.",
+        "Privacy and confidentiality: do not store sensitive customer or employee personal data in public/shared business-review KBs; use redaction and private KBs where needed."
+    ],
+    "doDont": {
+        "do": [
+            "Write a crisp Why/Vision statement that is stable and can be used to evaluate decisions.",
+            "Define 3-6 strategy pillars that clearly guide prioritization and tradeoffs.",
+            "Use OKRs to align on outcomes and focus; use initiatives/roadmap to describe the work planned to pursue those outcomes. (Google re:Work OKRs) (https://rework.withgoogle.com/intl/en/guides/set-goals-with-okrs/)",
+            "Define each KPI with a one-line meaning, formula, data source, and owner to prevent metric confusion.",
+            "Create a simple mapping: Pillar → Objective → Key Results → Initiatives → UX/Engineering deliverables.",
+            "Maintain an assumptions list and validate the highest-risk assumptions early (research, prototype tests, experiments).",
+            "Maintain a decision log to reduce churn and preserve rationale; include links to evidence when available.",
+            "Include leading indicators (early signals) and lagging indicators (business outcomes) in measurement plans.",
+            "Use a regular review cadence (monthly/quarterly) to track OKR progress and update priorities."
+        ],
+        "dont": [
+            "Don't treat OKRs as a backlog or checklist of tasks. (Google re:Work OKRs) (https://rework.withgoogle.com/intl/en/guides/set-goals-with-okrs/)",
+            "Don't use vague objectives (e.g., “Improve UX”) without defining what improvement means and how it will be measured.",
+            "Don't optimize for one metric at the expense of trust, quality, or accessibility; document counter-metrics when needed.",
+            "Don't ship initiatives without a clear link to strategy or to operational requirements (security, compliance, reliability).",
+            "Don't overwrite or delete history; maintain versioning (updatedAt) and keep prior decisions accessible.",
+            "Don't mix confidential org strategy into a public starter KB; keep org-specific content in private KBs with governance."
+        ]
+    },
+    "examples": [
+        "### Why statement (example)",
+        "“Help people accomplish complex work with clarity, confidence, and control.”",
+        "### Strategy pillars (example)",
+        "Pillar 1: Time-to-value, Pillar 2: Trust & reliability, Pillar 3: Collaboration, Pillar 4: Self-serve scalability.",
+        "### OKR (good example)",
+        "Objective: “Reduce friction for first-time users completing their first project.” Key Results: “Increase first-project completion rate from 35% to 50%”; “Reduce median time-to-first-success from 12 min to 7 min”; “Reduce onboarding-related support contacts by 20%.” (OKRs as outcomes) (https://rework.withgoogle.com/intl/en/guides/set-goals-with-okrs/)",
+        "### KPI definition (example)",
+        "Activation rate = % of new users who complete the first success action within 7 days. Source: event analytics. Cadence: weekly. Owner: Growth PM.",
+        "### Decision log entry (example)",
+        "Decision: Use a multi-step onboarding flow rather than a single long form. Rationale: reduces cognitive load; supports progressive disclosure; aligns with time-to-value pillar. Evidence: usability sessions (n=8) showed fewer completion errors and higher confidence."
+    ],
+    "edgeCases": [
+        "Conflicting goals: when an OKR conflicts with a quality/safety constraint (e.g., growth vs trust), define explicit counter-metrics and guardrails.",
+        "Ambiguous ownership: if a KPI or OKR has no clear owner, it will drift; assign owners and review cadence before relying on it.",
+        "Data gaps: if metrics are not instrumented or are unreliable, define temporary proxies and an instrumentation initiative; document uncertainty.",
+        "Multi-product organizations: use a top-level strategy + product-level OKRs; avoid forcing one North Star across unrelated products.",
+        "Volatile markets: treat competitive/trend insights as time-bound; include updatedAt and a refresh cadence; document assumptions that may change.",
+        "Regulated environments: incorporate compliance, accessibility, and security as non-negotiable constraints; reflect them in decision logs and counter-metrics.",
+        "Strategy churn: if leadership changes direction frequently, preserve history via decision logs and explicitly note what changed and why."
+    ]
+}

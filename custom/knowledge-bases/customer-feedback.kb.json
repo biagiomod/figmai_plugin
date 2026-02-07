@@ -1,0 +1,91 @@
+{
+    "id": "customer-feedback",
+    "title": "Customer Feedback",
+    "source": "Starter KB compiled from trusted UX research and VoC practices (NN/g on user feedback collection + thematic analysis + affinity diagramming; JTBD framing references; HEART metrics framing).",
+    "updatedAt": "2026-02-07T00:00:00.000Z",
+    "version": "1.0",
+    "tags": [
+        "voice-of-customer",
+        "customer-feedback",
+        "ux-research",
+        "qualitative",
+        "quantitative",
+        "insights",
+        "prioritization",
+        "jobs-to-be-done",
+        "product-discovery"
+    ],
+    "purpose": "Provide reference knowledge for turning customer feedback into actionable product and design decisions. Includes collection principles, synthesis methods, insight framing, and prioritization heuristics so teams can validate designs against real user goals and pain points and reduce “papercuts.”",
+    "scope": "Applies to collecting, analyzing, and applying customer feedback to UX/product decisions: surveys, in-product feedback, interviews, support tickets, reviews, and usability findings. Includes guidance on synthesis (thematic analysis, affinity mapping), insight statements, JTBD framing, and prioritization. Excludes company-specific customer data; this KB defines how to structure and use feedback, not any proprietary insights.",
+    "definitions": [
+        "### Voice of Customer (VoC)",
+        "A programmatic view of customer needs and perceptions derived from multiple feedback channels (in-product feedback, surveys, interviews, support, analytics).",
+        "### Feedback Item",
+        "A single piece of user-reported input (quote, ticket, comment, survey response) that may indicate a need, pain point, bug, or expectation.",
+        "### Theme",
+        "A meaningful pattern across multiple feedback items identified through coding and synthesis (e.g., “confusing pricing,” “can’t find export”). (NN/g thematic analysis) :contentReference[oaicite:1]{index=1}",
+        "### Thematic Analysis",
+        "A systematic approach to organizing qualitative data by tagging observations with codes to discover themes. :contentReference[oaicite:2]{index=2}",
+        "### Affinity Diagramming",
+        "A collaborative method for clustering research findings into groups to reveal patterns and inform decisions. :contentReference[oaicite:3]{index=3}",
+        "### Jobs To Be Done (JTBD)",
+        "A way to describe what users are trying to accomplish (the “job”) and the outcome they want, independent of any specific solution. :contentReference[oaicite:4]{index=4}",
+        "### Insight Statement",
+        "A decision-ready statement that links evidence to a user need and its impact (often: observation + evidence + implication).",
+        "### Signal vs Metric (HEART framing)",
+        "A signal is an observable indicator of success; a metric is how you quantify it (HEART: Happiness, Engagement, Adoption, Retention, Task Success). :contentReference[oaicite:5]{index=5}"
+    ],
+    "rulesConstraints": [
+        "Collect feedback after meaningful user activity (“task, then ask”); avoid interrupting users before they can form an opinion. :contentReference[oaicite:6]{index=6}",
+        "Treat qualitative feedback as directional, not statistically representative unless sampled appropriately; avoid over-generalizing from a few comments.",
+        "Always preserve evidence: retain the original quote/snippet and context (who/where/when) when creating themes. :contentReference[oaicite:7]{index=7}",
+        "Use a consistent synthesis method (coding → themes → insights → actions). Thematic analysis and affinity mapping are acceptable defaults. :contentReference[oaicite:8]{index=8}",
+        "Separate user needs from proposed solutions: capture what users are trying to do and what blocks them before deciding features.",
+        "Prioritize by impact on task success and frequency, not intensity of wording alone (loud complaints can be outliers).",
+        "When feedback conflicts, document the segments/contexts where each is true; do not average away meaningful differences.",
+        "Convert themes into decision-ready outputs: design requirements, backlog items, experiment hypotheses, or usability acceptance criteria.",
+        "Respect privacy and consent: avoid storing sensitive personal data in design artifacts; redact where needed; minimize collection to what is necessary."
+    ],
+    "doDont": {
+        "do": [
+            "Capture each feedback item with: channel, user segment (if known), task/context, severity, and evidence (quote/snippet).",
+            "Use thematic analysis to code feedback items and identify recurring themes. :contentReference[oaicite:9]{index=9}",
+            "Use affinity diagramming to cluster findings and align teams on patterns. :contentReference[oaicite:10]{index=10}",
+            "Frame insights as: user goal → obstacle/pain → impact → evidence → opportunity.",
+            "Use JTBD-style phrasing to keep needs solution-agnostic (what users want to accomplish and why). :contentReference[oaicite:11]{index=11}",
+            "Tie feedback to design validation checks (e.g., ‘Users can find export in <10s’).",
+            "Quantify where possible: pair themes with a signal/metric (task success, drop-off, ticket volume). :contentReference[oaicite:12]{index=12}",
+            "Close the loop: if you ask for feedback, acknowledge it and share outcomes when feasible (builds trust). :contentReference[oaicite:13]{index=13}"
+        ],
+        "dont": [
+            "Don’t treat a single anecdote as a universal truth without corroboration.",
+            "Don’t rewrite feedback into a solution prematurely (‘Add feature X’) without clarifying the underlying need.",
+            "Don’t ignore context: the same comment can mean different things in different flows, segments, or devices.",
+            "Don’t mix bugs, usability issues, and feature requests into one bucket; classify them distinctly.",
+            "Don’t prioritize solely by the loudest stakeholder or the most emotional feedback phrasing.",
+            "Don’t store raw sensitive data (account numbers, personal identifiers) in design files or KBs."
+        ]
+    },
+    "examples": [
+        "### Feedback item (raw)",
+        "“I keep getting logged out while I’m filling this form.” Channel: support ticket. Context: long form. Device: mobile.",
+        "### Theme (coded)",
+        "Session expiration interrupts long tasks.",
+        "### Insight statement (decision-ready)",
+        "Users attempting long tasks lose progress due to session timeouts, causing frustration and repeat work. Evidence: multiple tickets referencing logout during form completion. Impact: task abandonment and support load.",
+        "### JTBD framing",
+        "Job: “Complete a multi-step form without losing progress.” Outcome: “Finish confidently, even if I’m interrupted.” :contentReference[oaicite:14]{index=14}",
+        "### Validation criterion derived from feedback",
+        "If a session expires mid-form, preserve inputs and provide a re-auth flow that returns users to the same step.",
+        "### Prioritization example",
+        "High priority if: blocks task success (cannot submit), occurs frequently (many tickets), and has high business impact (conversion drop)."
+    ],
+    "edgeCases": [
+        "Conflicting feedback: segment it (new vs expert users, mobile vs desktop, region, plan tier) and design for the dominant task while providing escape hatches for edge workflows.",
+        "Low-frequency/high-severity issues: prioritize even if rare when the consequence is major (security, payment failures, data loss).",
+        "Feedback driven by misunderstanding: treat as a clarity/usability problem first (labels, affordances, onboarding), not necessarily a feature gap.",
+        "Biased collection channels: support tickets skew toward problems; reviews skew toward extremes; in-product prompts skew toward engaged users. Account for channel bias.",
+        "“Solution requests” from users: translate to the underlying need; keep the request as a candidate solution, not the requirement.",
+        "Regulated/sensitive domains: redact and minimize data; store only what’s needed to make a design decision; document consent boundaries."
+    ]
+}

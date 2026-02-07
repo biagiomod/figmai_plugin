@@ -1,0 +1,75 @@
+{
+    "id": "design-heuristics",
+    "title": "Design Heuristics",
+    "source": "Compiled from widely used UX heuristics and standards (NN/g heuristics; ISO 9241-110 interaction principles; WCAG 2.2; Material Design usability/accessibility guidance).",
+    "updatedAt": "2026-02-07T00:00:00.000Z",
+    "version": "1.0",
+    "tags": [
+        "ux",
+        "ui",
+        "heuristics",
+        "usability",
+        "design-review",
+        "accessibility",
+        "information-architecture",
+        "interaction-design"
+    ],
+    "purpose": "Provide reference knowledge for evaluating and improving UI/UX quality using established heuristics and standards. Intended for design critique, QA reviews, discovery, and inspiration across product, design, engineering, and content workflows.",
+    "scope": "Applies to user-facing interfaces across web and mobile: interaction design, layout, navigation, forms, feedback, states, accessibility, and content clarity. Excludes assistant behavior, tone control, output formatting, JSON/schema enforcement, and runtime execution rules.",
+    "definitions": [
+        "### Usability Heuristic",
+        "A general design principle used to evaluate interface usability and identify likely issues (especially effective for quick expert reviews).",
+        "### Nielsen’s 10 Usability Heuristics",
+        "A widely used set of 10 principles for interface design evaluation (e.g., visibility of system status, consistency and standards, error prevention).",
+        "### ISO 9241-110 Interaction (Dialogue) Principles",
+        "International standard principles describing qualities of usable interactive systems (e.g., suitability for the task, self-descriptiveness, controllability, conformity with user expectations).",
+        "### WCAG (POUR)",
+        "Accessibility principles: Perceivable, Operable, Understandable, Robust; used to evaluate whether experiences work for people with disabilities and assistive tech."
+    ],
+    "rulesConstraints": [
+        "Prefer evidence-based critique: tie findings to observed UI elements, user goals, and a specific heuristic or principle.",
+        "Prioritize by user impact and frequency: address blockers (task failure), then high-friction issues, then polish.",
+        "Recommend fixes as concrete design changes (what to change, where, and how), not vague advice.",
+        "Always evaluate key states where applicable: empty, loading, error, success, disabled, focus, hover, offline, and partial success.",
+        "Assume constraints: optimize for clarity and recoverability rather than perfect completeness when context is limited.",
+        "Accessibility baseline: evaluate against WCAG principles and common AA expectations (e.g., contrast, keyboard, focus visibility, labels).",
+        "Avoid conflicting guidance: when two heuristics trade off (e.g., minimalist design vs discoverability), choose the option that best supports the user’s task and reduces critical errors."
+    ],
+    "doDont": {
+        "do": [
+            "Map each finding to a heuristic (Nielsen/ISO/WCAG) to make critiques consistent and teachable.",
+            "Check navigation and wayfinding: users should always know where they are, what happened, and what to do next.",
+            "Check recognition over recall: reduce memory load with visible options, previews, defaults, and sensible constraints.",
+            "Check control and freedom: provide undo/back/cancel, safe exits, and reversible actions for risky steps.",
+            "Check consistency: patterns, components, spacing, terminology, and behaviors should match within the product and platform conventions.",
+            "Check feedback loops: show system status, progress, and confirmations promptly and proportionately.",
+            "Check error prevention + recovery: prevent mistakes; when failures happen, explain what happened and how to recover.",
+            "Check accessibility early: labels, focus order, keyboard access, contrast, and error announcement patterns."
+        ],
+        "dont": [
+            "Don’t give generic feedback like “improve hierarchy” without pointing to specific elements and changes.",
+            "Don’t optimize aesthetics at the expense of comprehension, task success, and accessibility.",
+            "Don’t hide critical actions, costs, or consequences behind ambiguous UI or copy.",
+            "Don’t require users to remember information between steps when it can be shown or inferred.",
+            "Don’t rely on color alone to communicate meaning (errors, selected states, statuses).",
+            "Don’t introduce new interaction patterns without a clear user benefit and consistent application."
+        ]
+    },
+    "examples": [
+        "### Example: Visibility of system status (Nielsen)",
+        "Finding: A Save action provides no feedback; users are unsure if it worked. Fix: Add inline ‘Saved’ confirmation and/or a toast; for long operations show progress and disable repeated submission.",
+        "### Example: Recognition rather than recall (Nielsen)",
+        "Finding: Users must remember filter criteria after navigating back. Fix: Persist filter chips and show active filters above results with clear reset controls.",
+        "### Example: Controllability + undo (ISO / Nielsen User control & freedom)",
+        "Finding: Deleting an item is immediate with no undo. Fix: Provide an undo snackbar/toast for a short window; for destructive actions require confirmation with clear consequences.",
+        "### Example: WCAG Understandable",
+        "Finding: Form errors are only shown in a red banner at top; screen reader users don’t hear field-level guidance. Fix: Add field-level messages bound to inputs, focus the first invalid field on submit, and ensure errors are announced."
+    ],
+    "edgeCases": [
+        "When selection context is missing, provide general heuristics and ask for the specific screen, flow, or element to evaluate.",
+        "When reviewing a single component inside a larger screen, evaluate local usability first, then note likely upstream/downstream dependencies (validation, empty states, permissions).",
+        "When designs are wireframes, prioritize structure, flow, and clarity over visual polish.",
+        "When there is a trade-off between speed and safety (e.g., confirmation dialogs), choose the least-friction option that still prevents high-impact errors (undo often beats confirmation).",
+        "When platform conventions differ (iOS vs Android vs web), prefer the target platform’s norms for navigation patterns, affordances, and system feedback."
+    ]
+}
