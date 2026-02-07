@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # LLM Prompt Assembly Audit
 
 **Purpose:** Identify all outbound LLM call paths, what each provider sends on the wire, sanitization gaps, and why Azure content filtering can trigger even for "Hello?" in General Assistant.

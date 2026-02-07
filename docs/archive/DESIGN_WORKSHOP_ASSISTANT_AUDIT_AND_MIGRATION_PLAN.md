@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Design Workshop Assistant — Audit and Migration Plan
 
 This document audits the Design Workshop Assistant (DW-A) and plans its migration to the new KB architecture (KB externalized and attached via `knowledgeBaseRefs`), with behavior parity, the requested intro change, optional low-risk robustness improvements, and a design-system–ready extension point (plan only). **No code changes in this run.**

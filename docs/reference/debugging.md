@@ -247,5 +247,5 @@ When migrating existing code to use the new logger:
 
 ## See Also
 
-- [Configuration Reference](configuration.md) - Full configuration documentation
-- [Getting Started](01-getting-started.md) - Architecture overview
+- [Configuration Reference](../configuration.md) - Full configuration documentation
+- [Getting Started](../01-getting-started.md) - Architecture overview

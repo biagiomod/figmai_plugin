@@ -247,4 +247,4 @@ When disabled, analytics is a complete no-op:
 
 - [Endpoint Specification](endpoint-spec.md) - API specification for backend implementation
 - [Metrics Guide](metrics-guide.md) - Event types and metrics reference
-- [Custom Overlay Guide](../custom/README.md) - General custom configuration
+- [Custom Overlay Guide](../../custom/README.md) - General custom configuration

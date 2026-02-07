@@ -1,7 +1,7 @@
 # Admin Config Editor – Plan V3
 
 **Status:** Audit + planning only. No implementation yet.  
-**Supersedes:** [Admin Config Editor – Revised Plan (V2)](ADMIN_CONFIG_EDITOR_PLAN_V2.md). V2 remains as reference with a superseded banner.  
+**Supersedes:** [Admin Config Editor – Revised Plan (V2)](archive/ADMIN_CONFIG_EDITOR_PLAN_V2.md). V2 remains in archive as reference.  
 **Audience:** Contributors (including non-technical editors) and plugin owners.
 
 This document confirms sources of truth, classifies what is editable vs out of scope, refines Phases 0–3, states Go/No-Go criteria, risks and mitigations, and a **doc hygiene policy**. The Admin Config Editor is a **local-only, browser-based, file-backed** tool so contributors can safely edit plugin customizations **without editing TypeScript**. The editor **runs generators after save** and **never compiles or publishes** the plugin; it tells the owner to build and publish.
@@ -25,11 +25,12 @@ This document confirms sources of truth, classifies what is editable vs out of s
 
 | Source | Path | Editable by editor? |
 |--------|------|---------------------|
-| Assistant registry | `src/assistants/index.ts` | **No** (today). Single source of truth: ASSISTANTS array, inline prompts, listAssistantsByMode with hardcoded simpleModeIds and content_table filter. |
+| **Assistants manifest (SSOT)** | `custom/assistants.manifest.json` | **Yes** (ACE or by hand). Single source of truth for assistant list, promptTemplate, quickActions, knowledgeBaseRefs, etc. |
+| Generated assistants | `src/assistants/assistants.generated.ts` | No (generator only). Produced by `generate-assistants-from-manifest.ts`; runtime imports this, never the manifest directly. |
 | Custom KB overlay | `custom/knowledge/*.md` | **Yes** (direct). generate-custom-overlay → customKnowledge.ts; mergeKnowledgeBase() at runtime. |
 | Generated knowledge | `src/custom/generated/customKnowledge.ts` | No (generator only). |
 
-For editor safety, Phase 0 proposes a file-based manifest (`custom/assistants.manifest.json`) + generator so the editor never edits TypeScript.
+ACE edits the manifest only; the editor never edits TypeScript. After save, the editor runs the generator so the plugin build uses updated generated TS.
 
 ### 1.3 Content models and design system registries
 

@@ -10,7 +10,7 @@
   - Optional `KB_GENERATOR_ROOT` env var for tests (temp dir).
 - **tests/generate-knowledge-bases.test.ts**
   - Two cases: (1) registry points to missing file → exit 1 and stderr contains "Missing KB files"; (2) registry points to file with invalid schema → exit 1 and stderr contains "Invalid KB document".
-- **docs/PR11c1-QA-evidence.md**
+- **docs/archive/PR11c1-QA-evidence.md**
   - Short QA checklist and results; commands for generate/prebuild/build/test.
 
 ### B) PR11c2 (ACE usability)

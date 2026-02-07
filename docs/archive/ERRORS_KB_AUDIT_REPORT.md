@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Errors Knowledge Base — Audit Report
 
 **Target:** `figmai_plugin/custom/knowledge-bases/errors.kb.json`  

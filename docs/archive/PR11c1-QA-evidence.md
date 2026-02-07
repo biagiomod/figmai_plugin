@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # PR11c1 QA evidence
 
 ## Build pipeline

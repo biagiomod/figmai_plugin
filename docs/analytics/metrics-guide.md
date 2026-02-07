@@ -194,4 +194,4 @@ Analytics data retention and processing policies are determined by the endpoint 
 ## See Also
 
 - [Endpoint Specification](endpoint-spec.md) - API specification for backend implementation
-- [Custom Overlay Guide](../custom/README.md) - Configuration setup
+- [Custom Overlay Guide](../../custom/README.md) - Configuration setup

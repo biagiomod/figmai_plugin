@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # LLM Prompt Pipeline — Diagnostic Report
 
 **Purpose:** Pinpoint why Azure CONTENT_FILTER can trigger even for "Hello?" in the work environment; document exact wire payloads, risky-content sources, and safe defaults.

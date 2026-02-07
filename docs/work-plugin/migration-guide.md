@@ -297,7 +297,7 @@ Implement custom LLM provider for custom-specific LLM endpoints.
 
 For configuration details, see:
 - **[Custom Overlay Guide](../../custom/README.md)** [AUTHORITATIVE] - Custom configuration and knowledge bases
-- **[Configuration](configuration.md)** [REFERENCE] - Full configuration schema reference
+- **[Configuration](../configuration.md)** [REFERENCE] - Full configuration schema reference
 
 ---
 

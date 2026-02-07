@@ -2,6 +2,8 @@
 
 Welcome to the FigmAI plugin documentation. This is the **single entry point** for all documentation.
 
+**Canonical stack (SSOT):** [SSOT.md](SSOT.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [RUNBOOK.md](RUNBOOK.md) → [DECISIONS.md](DECISIONS.md). Start here for orientation, data flow, build/run, and key decisions. **Admin Config Editor (ACE) supersession:** current plan is [ADMIN_CONFIG_EDITOR_PLAN_V3.md](ADMIN_CONFIG_EDITOR_PLAN_V3.md) [AUTHORITATIVE]; supersedes [V2](archive/ADMIN_CONFIG_EDITOR_PLAN_V2.md) [SUPERSEDED REFERENCE], which supersedes [IMPLEMENTATION_PLAN](archive/ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md) [HISTORICAL].
+
 ---
 
 ## Quick Start
@@ -70,12 +72,12 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 #### Custom / Admin Config Editor
 - **[Admin Config Editor – Plan V3](ADMIN_CONFIG_EDITOR_PLAN_V3.md)** [AUTHORITATIVE] - Current plan: sources of truth, classification, Phases 0–3, Go/No-Go, risks, doc hygiene policy
 - **[Admin Config Editor – Run the server](../admin-editor/README.md)** [REFERENCE] - How to run the local admin editor (Phase 1 server), what is editable, backups, troubleshooting
-- **[Admin Config Editor – Revised Plan (V2)](ADMIN_CONFIG_EDITOR_PLAN_V2.md)** [SUPERSEDED REFERENCE] - Superseded by V3; kept for reference
+- **[Admin Config Editor – Revised Plan (V2)](archive/ADMIN_CONFIG_EDITOR_PLAN_V2.md)** [SUPERSEDED REFERENCE] - Superseded by V3; in archive
 - **[Admin Config Editor – Audit](ADMIN_CONFIG_EDITOR_AUDIT.md)** [REFERENCE] - Config and assistant sources, read/write flow
 - **[Admin Config Editor – Architecture](ADMIN_CONFIG_EDITOR_ARCHITECTURE.md)** [REFERENCE] - Single editable model, write targets, validation
 
 #### Other plans and summaries
-- **[Admin Config Editor – Implementation Plan](ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md)** [HISTORICAL] - Superseded by Plan V2; kept for reference
+- **[Admin Config Editor – Implementation Plan](archive/ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md)** [HISTORICAL] - Superseded by Plan V2; in archive
 - **[Analytics Tagging – Assistant Plan](ANALYTICS_TAGGING_ASSISTANT_PLAN.md)** [REFERENCE] - Analytics Tagging assistant design
 - **[Analytics Tagging – Two-Step Workflow Plan](ANALYTICS_TAGGING_TWO_STEP_WORKFLOW_PLAN.md)** [REFERENCE] - Two-step single-selection workflow
 - **[Analytics Tagging – Verification](ANALYTICS_TAGGING_VERIFICATION.md)** [REFERENCE] - Verification notes
@@ -92,16 +94,17 @@ Welcome to the FigmAI plugin documentation. This is the **single entry point** f
 - **[Health Report](health-report.md)** [REFERENCE] - Codebase health status and migration readiness assessment
 - **[AI Task Brief](ai-task-brief.md)** [REFERENCE] - Quick reference for common migration tasks
 - **[Backlog](backlog.md)** [REFERENCE] - Canonical backlog for planned work and technical debt
+- **[Documentation Governance](documentation-governance.md)** [REFERENCE] - Doc hygiene, link/case audit, supersession and naming rules
 
 #### Migration Documentation
 - **[Migration Index](migration/README.md)** [REFERENCE] - Migration documentation overview
 - **[Portability Analysis](migration/portability-analysis.md)** [REFERENCE] - Risk assessment and portability findings
 
-#### Archived (Historical/Strategic)
-- **[Archive](archive/)** [HISTORICAL] - Historical audits, completed refactors, strategic planning
-  - [archive/phases/](archive/phases/) - Phase 0/1/2 and UI stabilization summaries
-  - [archive/verification/](archive/verification/) - Verification reports
-  - See [archive/README.md](archive/README.md) for details if present
+#### Archived / Historical
+- **[Archive index](archive/README.md)** — All archived docs (historical only; not authoritative).
+- **Root-level archive:** ACE V2/Implementation Plan, Design Critique/Workshop migration plans, Errors audits, LLM prompt audits, ARCHITECTURE_AUDIT_ASSISTANTS, ANALYTICS_TAGGING_ACTIONID_AUDIT, PROJECT_CONTEXT_FROM_CHATGPT, PR11c1 hardening/QA evidence. Filenames preserved (including ALL_CAPS).
+- **Subfolders:** [archive/phases/](archive/phases/) (Phase 0/1/2, UI stabilization), [archive/verification/](archive/verification/) (verification reports), [archive/qa/](archive/qa/), [archive/strategic/](archive/strategic/), [archive/refactor-tickets/](archive/refactor-tickets/).
+- For **current** docs use the sections above; for **historical** context only, use archive.
 
 ---
 

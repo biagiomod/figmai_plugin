@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Admin Config Editor (ACE) – UX Audit Report
 
 **Scope:** `admin-editor/public/` (index.html, styles.css, app.js)  

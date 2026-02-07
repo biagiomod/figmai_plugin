@@ -15,12 +15,13 @@
 
 ## 2. Structure
 
+- **Root-level (this directory):** Archived plans, audits, and reports moved from `docs/` with original filenames preserved (including ALL_CAPS). Examples: ADMIN_CONFIG_EDITOR_PLAN_V2.md, ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md, DESIGN_CRITIQUE_ASSISTANT_AUDIT_AND_MIGRATION_PLAN.md, DESIGN_WORKSHOP_ASSISTANT_AUDIT_AND_MIGRATION_PLAN.md, ERRORS_* audits, LLM_PROMPT_* audits, ARCHITECTURE_AUDIT_ASSISTANTS.md, ANALYTICS_TAGGING_ACTIONID_AUDIT.md, PROJECT_CONTEXT_FROM_CHATGPT.md, PR11c1-hardening-and-PR11c2-plan.md, PR11c1-QA-evidence.md. Each has an "Status: Archived" banner at the top.
 - **phases/:** Summaries and reports for completed development phases.
 - **verification/:** Detailed verification reports for completed features.
 - **qa/:** Historical QA plans and test commands.
 - **refactor-tickets/:** Documentation related to past refactoring efforts.
 - **strategic/:** Older strategic planning documents.
-- Other root-level `.md` files (e.g., CODEBASE_AUDIT.md) are also historical.
+- Other root-level `.md` files (e.g., CODEBASE_AUDIT.md, REFACTOR_AUDIT.md) are also historical.
 
 ---
 

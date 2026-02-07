@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Errors Assistant — Complete Instruction Sources Audit
 
 Read-only audit of all instruction sources that influence the **Errors** assistant at runtime, for migration to a normalized KB (ACE) with behavior parity.

@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # LLM Prompt Pipeline — Verification Report
 
 **Purpose:** Confirm pipeline wiring, payload shapes after buildMessages/applySafetyAssertions, fallback behavior, and that diagnostics never leak raw prompt/base64/URL lists.

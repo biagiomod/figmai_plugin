@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # AT-A ActionID Audit Report
 
 **Issue:** Analytic Tagging Assistant (AT-A) produces rows where ActionID equals layer names (e.g. "Heading 2", "Card", "Button") instead of ActionID annotation values (e.g. "LoseWeightCard", "BuildMuscleCard", "ContinueButton").

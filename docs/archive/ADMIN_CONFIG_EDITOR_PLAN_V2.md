@@ -1,6 +1,10 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Admin Config Editor – Revised Plan (V2)
 
-**Superseded by:** [Admin Config Editor – Plan V3](ADMIN_CONFIG_EDITOR_PLAN_V3.md). Use the V3 plan for the current authoritative scope, classification, phases, Go/No-Go, and doc hygiene policy. This V2 document is kept as reference.
+**Superseded by:** [Admin Config Editor – Plan V3](../ADMIN_CONFIG_EDITOR_PLAN_V3.md). Use the V3 plan for the current authoritative scope, classification, phases, Go/No-Go, and doc hygiene policy. This V2 document is kept as reference.
 
 ---
 

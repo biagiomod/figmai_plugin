@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Admin Config Editor – Implementation Plan
 
 **Superseded by:** [Admin Config Editor – Revised Plan (V2)](ADMIN_CONFIG_EDITOR_PLAN_V2.md). Use the V2 plan for scope, classification, phases, and Go/No-Go. This file is kept for historical reference.

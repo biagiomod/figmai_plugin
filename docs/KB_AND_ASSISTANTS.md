@@ -27,7 +27,7 @@
 | `custom/assistants.manifest.json` | **SSOT** for assistant list, quick actions, promptTemplate, instructionBlocks, knowledgeBaseRefs. Edited via ACE or by hand. |
 | `src/assistants/assistants.generated.ts` | Generated; do not edit. Exports ASSISTANTS_MANIFEST. |
 | `src/assistants/index.ts` | Builds ASSISTANTS from manifest: promptMarkdown = mergeKnowledgeBase(id, promptTemplate) + appendDesignSystemKnowledge(). Re-exports getAssistant, listAssistants, listAssistantsByMode, getHandler. |
-| `src/assistants/*.md` | Legacy long-form prompts (e.g. contentTable.md, designCritique.md); referenced in promptTemplate text, not as structured KB. |
+| `src/assistants/*.md` | Legacy long-form prompts (e.g. contentTable.md, designCritique.md); some assistants may reference them in promptTemplate text. Runtime instruction assembly uses **knowledgeBaseRefs** and KB_DOCS for the preamble; Design Critique and others use knowledgeBaseRefs + structured KBs where configured (legacy .md files may still exist for other assistants). |
 | `src/core/assistants/handlers/*.ts` | Per-assistant/action handlers (contentTable, designCritique, designWorkshop, discovery, analyticsTagging). Registered in `handlers/index.ts` via getHandler(assistantId, actionId). |
 | `src/core/assistants/instructionAssembly.ts` | buildAssistantInstructionSegments(assistantEntry, legacyInstructionsSource, kbDocs?) → instructionPreambleText + metadata; appends "Knowledge Base" segment when kbDocs provided. |
 
@@ -92,4 +92,4 @@ Use this when planning a migration (e.g. moving assistants, renaming KBs, or cha
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — data flow and runtime.
 - [PR11c1-deliverable.md](PR11c1-deliverable.md) — runtime consumption of structured KBs (no runtime file read).
-- [docs/audits/refactor-plan-runtime-assistants-kb-rfc.md](audits/refactor-plan-runtime-assistants-kb-rfc.md) — refactor context for assistants/KB.
+- [audits/refactor-plan-runtime-assistants-kb-rfc.md](audits/refactor-plan-runtime-assistants-kb-rfc.md) — refactor context for assistants/KB.

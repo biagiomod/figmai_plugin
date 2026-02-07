@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # FigmAI + ACE — Assistants Architecture Audit (Pre-Refactor)
 
 **Scope:** Plugin + admin-editor (ACE) + custom config + assistants + KBs + schemas.  

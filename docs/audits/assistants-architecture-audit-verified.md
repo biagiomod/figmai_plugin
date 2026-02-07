@@ -1,6 +1,6 @@
 # Assistants Architecture Audit — Verified (Pre-Refactor)
 
-**Reference:** `docs/ARCHITECTURE_AUDIT_ASSISTANTS.md`  
+**Reference:** [ARCHITECTURE_AUDIT_ASSISTANTS.md](../archive/ARCHITECTURE_AUDIT_ASSISTANTS.md) (archived)  
 **Goal:** Implementation-grounded map of the Assistants system (plugin + ACE) to safely refactor Categories A (runtime contract), B (assistant config standardization), C (KB normalization).  
 **Constraints:** Audit-only. No refactors, no behavior/naming/routing/schema changes.
 

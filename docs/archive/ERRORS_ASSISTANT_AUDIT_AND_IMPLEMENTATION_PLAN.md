@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Errors Assistant — End-to-End Audit and Implementation Plan
 
 **Agent:** Architect | **Mode:** Agent (read-only audit + plan; no code changes this run)

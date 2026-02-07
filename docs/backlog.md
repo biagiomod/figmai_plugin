@@ -701,7 +701,7 @@ Add feature X to enable Y capability for users.
 
 ## Links
 - Related: BL-002 (UI polish)
-- References: docs/architecture.md
+- References: [ARCHITECTURE.md](ARCHITECTURE.md)
 ```
 
 ---

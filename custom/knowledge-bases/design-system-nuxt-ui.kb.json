@@ -1,0 +1,97 @@
+{
+    "id": "design-system-nuxt-ui",
+    "title": "Design System: Nuxt UI (v4)",
+    "source": "Primary refs: Nuxt UI docs on design system (Tailwind v4 tokens, semantic colors, runtime config), CSS variables (semantic color utilities + light/dark), and component docs (Button, Input, Form validation events, Modal, Toast), plus Nuxt UI Figma kit page. https://ui.nuxt.com/docs/getting-started/theme/design-system ; https://ui.nuxt.com/docs/getting-started/theme/css-variables ; https://ui.nuxt.com/docs/components ; https://ui.nuxt.com/docs/components/button ; https://ui.nuxt.com/docs/components/input ; https://ui.nuxt.com/docs/components/form ; https://ui.nuxt.com/docs/components/modal ; https://ui.nuxt.com/docs/components/toast ; https://ui.nuxt.com/figma",
+    "updatedAt": "2026-02-07T00:00:00.000Z",
+    "version": "1.0",
+    "tags": [
+        "design-system",
+        "nuxt-ui",
+        "tailwindcss",
+        "tokens",
+        "semantic-colors",
+        "variables",
+        "components",
+        "figma-library",
+        "theming",
+        "light-dark"
+    ],
+    "purpose": "Reference knowledge for using the Nuxt UI v4 design system in design reviews and canvas mutation: component intent, semantic color usage, token-first theming, and consistent states (success, warning, error, disabled, loading). Intended to be paired with a Nuxt UI Figma kit/library and extended with component keys and org-specific rules.",
+    "scope": "Applies to (1) design evaluation: validate that designs use Nuxt UI patterns, semantic colors, and states consistently; (2) design generation: guide selection of Nuxt UI components and tokens when producing screens; (3) theming: ensure token/variable-driven theming supports light/dark. Excludes assistant behavior, output formatting rules, and any project-specific implementation constraints unless provided separately. This KB does not include component keys; add them from the Nuxt UI Figma kit/library when available.",
+    "definitions": [
+        "### Design tokens (Tailwind v4 @theme)",
+        "Nuxt UI uses Tailwind CSS v4 token customization via the @theme directive in CSS. Tokens can define fonts, colors, breakpoints, and other theme variables. (Nuxt UI design system docs)",
+        "### Semantic colors",
+        "A semantic color names intent/purpose rather than a specific value. Nuxt UI defines semantic aliases like primary, secondary, success, info, warning, error, neutral. These map to Tailwind palette colors or custom colors defined in @theme. (Nuxt UI design system docs)",
+        "### CSS variables as tokens",
+        "Nuxt UI uses CSS variables as design tokens to support consistent theming with built-in light and dark mode behavior. (Nuxt UI CSS variables docs)",
+        "### Utility classes for semantic colors",
+        "Nuxt UI provides utility classes like text-error and bg-success, backed by CSS variables (for light/dark). (Nuxt UI CSS variables docs)",
+        "### Runtime color configuration",
+        "Nuxt UI allows mapping semantic colors (e.g., primary, secondary, neutral) to theme colors at runtime via ui.colors (app.config.ts) and equivalent Vite config. (Nuxt UI design system docs)",
+        "### Component props for semantic color",
+        "Many Nuxt UI components expose a color prop that maps to semantic colors (e.g., UButton color=\"primary\"). (Nuxt UI design system docs; Button docs)",
+        "### Nuxt UI Figma kit",
+        "Nuxt UI provides an official Figma design kit with components, variants, and local variables/tokens designed to match development props and tokens. (Nuxt UI Figma page)",
+        "### Form validation events",
+        "Nuxt UI Form triggers validation when inputs emit input, change, or blur, and always validates on submit; validate-on controls timing. (Form component docs)"
+    ],
+    "rulesConstraints": [
+        "Prefer semantic colors over hard-coded values: use primary/secondary/success/info/warning/error/neutral to express intent. (Nuxt UI design system docs)",
+        "If defining custom colors via Tailwind theme variables, define the full shade range 50 through 950 for each color. (Nuxt UI design system docs)",
+        "Only map semantic colors to colors that exist in the theme (Tailwind default palette or custom colors defined via @theme). (Nuxt UI design system docs)",
+        "Nuxt UI semantic color utilities (e.g., text-primary, bg-error) are implemented via CSS variables that change between light and dark. Designs should validate both modes. (Nuxt UI CSS variables docs)",
+        "If a semantic color needs to be solid black/white, set it directly via CSS variables (not via a named palette color lacking shades). (Nuxt UI CSS variables docs)",
+        "Use component-level color props when supported (e.g., UButton color) to align design and development semantics. (Nuxt UI design system docs; Button docs)",
+        "For forms, expect validation to run on input/change/blur depending on validate-on and always on submit. Designs should include corresponding error messaging and states. (Form docs)",
+        "Modal content should be structured via slots (content, header/body/footer patterns). Designs should account for focus and dismiss behavior. (Modal docs)",
+        "Toast patterns may include actions; designs should reserve space for action affordances and avoid critical flows that rely solely on transient toasts. (Toast docs)",
+        "When using the Nuxt UI Figma kit, prefer using its variables/tokens rather than overriding styles per-instance; token edits should propagate across the system. (Nuxt UI Figma page)",
+        "If the Nuxt UI library is unavailable in a file, fall back to primitives but keep semantic intent (component intent + token roles). This is required for resilient canvas mutation."
+    ],
+    "doDont": {
+        "do": [
+            "Use semantic colors to communicate meaning (error for validation/destructive, warning for attention, success for confirmation, neutral for backgrounds/borders). (Nuxt UI design system docs)",
+            "Validate designs in both light and dark modes because Nuxt UI swaps semantic variable shades between modes. (Nuxt UI CSS variables docs)",
+            "Use component variants and props consistently with the system (e.g., Button as primary action; secondary actions use secondary/neutral and appropriate variant). (Button docs; design system docs)",
+            "For forms, show error states aligned to when validation occurs (input/change/blur/submit) and avoid surprising early error spam. (Form docs)",
+            "When generating designs from specs, prefer Nuxt UI components from the Figma kit and apply tokens via variables so global theming works. (Nuxt UI Figma page)",
+            "Document mapping from semantic intent to component choices (e.g., primary CTA -> Button primary; destructive -> Button color=error) to keep reviews consistent."
+        ],
+        "dont": [
+            "Do not hard-code hex colors for semantic meaning when Nuxt UI semantic colors exist (unless explicitly required by a brand constraint). (Nuxt UI design system docs)",
+            "Do not define partial custom palettes (missing shades). Nuxt UI expects complete shade sets for custom colors. (Nuxt UI design system docs)",
+            "Do not map semantic colors to palette names that do not support multiple shades when configuration requires shades; use CSS variable direct assignment for solid black/white. (Nuxt UI CSS variables docs)",
+            "Do not rely on a single global error message when field-level errors are possible; align to validation triggers and provide recoverable guidance. (Form docs + general UX best practice)",
+            "Do not design critical confirmations only as toasts with no persistent acknowledgement when users may miss transient feedback. (Toast docs + general UX best practice)"
+        ]
+    },
+    "examples": [
+        "### Semantic color usage (design intent)",
+        "Use error for validation and destructive actions, warning for attention-needed states, success for confirmation states, and neutral for non-emphasis UI. (Nuxt UI design system docs)",
+        "### Component color prop (Button)",
+        "Use semantic mapping for CTAs such as UButton color=\"primary\" for main actions and error/warning where supported for destructive/attention states. (Nuxt UI design system docs; Button docs)",
+        "### Form validation timing",
+        "If validate-on includes blur, show field-level error after focus leaves the input; always validate on submit and show unresolved errors together. (Form docs)",
+        "### Modal structure",
+        "Modal should have a clear trigger, and content should be placed in a dedicated content slot; header/body/footer sections can be used for consistent layout. (Modal docs)",
+        "### Toast actions",
+        "Toasts can include actions (e.g., Undo). If included, design the toast to accommodate a button action without truncation. (Toast docs)",
+        "### Token-first theming in Figma",
+        "When using the Nuxt UI Figma kit, update local variables/tokens to theme the system rather than overriding local instances. (Nuxt UI Figma page)"
+    ],
+    "edgeCases": [
+        "### Missing Nuxt UI library access",
+        "If the Figma library is not enabled or not accessible, fall back to primitives while preserving semantic intent (component type + semantic color roles). Provide a user hint to enable the Nuxt UI library for full fidelity.",
+        "### Custom palette gaps",
+        "Custom colors must include all shades 50-950; missing shades can break consistent theming and semantic mappings. (Nuxt UI design system docs)",
+        "### Solid black/white as primary",
+        "Semantic mapping to black/white should be done via direct CSS variable assignment (not via a palette name without shades). (Nuxt UI CSS variables docs)",
+        "### Validation noise",
+        "If validation is configured to run on input, error copy may appear while the user is typing; prefer blur/submit for many inputs unless inline constraints are essential. (Form docs)",
+        "### Dark mode contrast",
+        "Because semantic variables can map to different shades in dark mode, validate contrast and readability in both modes. (Nuxt UI CSS variables docs)",
+        "### Component key mapping (required for automation)",
+        "To instantiate components via plugin automation from a shared library, you must capture the published component or component set keys from the Nuxt UI Figma kit/library. Node IDs are not portable across files; keys are used for importing components in plugins."
+    ]
+}

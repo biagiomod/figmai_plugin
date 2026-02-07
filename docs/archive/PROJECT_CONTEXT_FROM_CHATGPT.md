@@ -1,3 +1,7 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # FigmAI Plugin + ACE — Project Context (ChatGPT Synthesis)
 
 ## Purpose of this File

@@ -1,4 +1,10 @@
+> Status: Archived
+> Reason: Historical reference / superseded; see docs/README.md for current docs.
+> Date: 2026-01-21
+
 # Design Critique Assistant — Audit and Migration Plan
+
+**Status: Implemented (2026-01-21).** [HISTORICAL] — Migration completed; Design Critique uses knowledgeBaseRefs and structured KBs. Kept for reference.
 
 This document audits the Design Critique assistant and plans its migration to the new KB architecture (KB externalized and attached via `knowledgeBaseRefs`), with behavior parity and safety for deceptive-related actions. **No code changes in this run.**
 
