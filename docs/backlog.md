@@ -51,6 +51,8 @@ Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figm
 | | J3 | Multi-format export | [BL-039](#bl-039) |
 | | J4 | DB-level versioning | [BL-040](#bl-040) |
 | **K — Continuous improvement** | K1 | External architecture review agent | [BL-041](#bl-041) |
+| **L — Errors assistant (post-demo bugs)** | L1 | GROUP selection → sub-screen duplication | [BL-042](#bl-042) |
+| | L2 | Intermittent "not a function" on Quick Action | [BL-043](#bl-043) |
 
 ---
 
@@ -425,6 +427,8 @@ Known issues and defects that need to be addressed.
 | BL-001 | DCA does not invoke DESIGN_SYSTEM_QUERY for DS availability questions | P1 | Blocked | Unassigned | See details below | DS enforcement implementation session |
 | BL-002 | Plugin-generated elements are not placed at intended canvas locations | P2 | Approved | Unassigned | Generated elements appear in predictable, user-intended positions (substantially improved). Remaining edge-case testing and refinements deferred. | Partially addressed; placement now working much better. Remaining testing/refinements deferred; deprioritized for now. |
 | BL-003 | Processing animation donut does not animate | P2 | Proposed | Unassigned | Processing indicator animates smoothly while async operations are running | |
+| BL-042 | Errors: GROUP selection causes sub-screen duplication (post-demo) | P2 | Proposed | Unassigned | See details below | Post-demo; selection resolution |
+| BL-043 | Errors: Intermittent "Error: not a function" on Quick Action click (post-demo) | P2 | Proposed | Unassigned | See details below | Post-demo; handler init/guard |
 
 #### BL-001: DCA does not invoke DESIGN_SYSTEM_QUERY for DS availability questions
 
@@ -463,6 +467,99 @@ Assistant orchestration or message preparation path is not correctly forcing too
 - Console logs confirm DESIGN_SYSTEM_QUERY execution with action "list"
 - Response lists only real active registries/components (no generic suggestions)
 - No hallucinated or invented component lists
+
+#### BL-042: Errors — GROUP selection causes sub-screen duplication (post-demo) {#bl-042}
+
+**Priority:** P2 (post-demo). **Impact:** When the user selects a GROUP that visually represents a screen, Generate Error Screens may duplicate only a subsection (e.g. a small sub-frame like an icon row) instead of the intended full screen. Converting the GROUP to a FRAME makes it work. Not a demo blocker but causes confusion.
+
+**Repro steps:**
+
+1. In Figma, create or open a design where a "screen" is represented by a **GROUP** (e.g. a GROUP containing a FRAME and other elements, or a GROUP that wraps the whole screen).
+2. Select that GROUP (single selection).
+3. Run **Errors → Generate Error Screens**.
+4. Observe: duplicated content is only a subsection (e.g. one small FRAME inside the GROUP) rather than the full screen.
+5. Optional: Convert the GROUP to a FRAME (right-click → Frame selection). Run Generate Error Screens again on the new FRAME. Observe: full screen is duplicated correctly.
+
+**Expected behavior:**
+
+- User can select a screen in any form (Frame, Group, Section, Instance) or select an element *within* a screen (e.g. one text field).
+- Plugin analyzes errors in the context of the full screen.
+- Plugin duplicates the correct screen container deterministically (full screen, not a subsection).
+- Optionally, recommendations can be scoped to the selected element (e.g. "Applies to: Email input").
+
+**Actual behavior:**
+
+- Selecting a GROUP that represents a screen leads to duplication of a subsection (e.g. largest-area FRAME inside the GROUP, which may be a small sub-frame like an icon row).
+- Selecting a nested element (e.g. TextNode) can work if resolution finds the right ancestor; GROUP at top level triggers descendant search and can pick the wrong node.
+
+**Notes / suspected root cause:**
+
+- Prior resolution order and use of placement target: when selection is a GROUP (or SECTION) that is a direct child of PAGE, the code falls back to *descendant* search and picks the largest-area FRAME/COMPONENT/INSTANCE. That can be a small sub-frame inside the GROUP rather than the "screen" the user sees.
+- Missing explicit "screen container" selection policy: no clear rule that "screen" = page-level visual container or that GROUP should never be treated as the duplication source without further heuristics (e.g. prefer the single direct FRAME child of the GROUP when it represents the full layout).
+
+**Proposed direction (not implementation):**
+
+- Screen container resolution should prefer the page-level visual container (e.g. direct child of PAGE that is FRAME/COMPONENT/INSTANCE). When selection is a GROUP, do not use GROUP as the duplication source; either walk up past GROUP to find a cloneable ancestor, or when GROUP is top-level, prefer a single "primary" frame (e.g. largest direct child FRAME, or the frame that covers the group bounds).
+- Add an explicit UX affordance for "duplicate selection only" vs "duplicate screen" so power users can force subsection duplication when intended.
+
+**Acceptance criteria (testable):**
+
+- Select a GROUP that visually represents a full screen → Generate Error Screens duplicates the full screen (or the intended primary frame), not a subsection.
+- Select a nested element (e.g. TextNode) inside a screen → full screen is duplicated; annotations can reference the selected element where the LLM scopes recommendations.
+- Select a SECTION containing multiple screens → duplicated node is the intended screen (e.g. largest frame or user-discoverable rule); no regression for direct FRAME/COMPONENT/INSTANCE selection.
+
+**Relevant code (paths only):**
+
+- `figmai_plugin/src/core/assistants/handlers/errors.ts` — `getDuplicationSourceNode`, selection resolution, clone/placement flow.
+- `figmai_plugin/src/core/figma/placement.ts` — `getPlacementTarget`, `getTopLevelContainerNode` (via anchor).
+- `figmai_plugin/src/core/stage/anchor.ts` — `getTopLevelContainerNode`.
+
+---
+
+#### BL-043: Errors — Intermittent "Error: not a function" on Quick Action click (post-demo) {#bl-043}
+
+**Priority:** P2 (post-demo). **Impact:** Occasionally, clicking **Generate Error Screens** (or possibly other Quick Actions) produces "Error: not a function" on the first attempt; retry succeeds. Not a demo blocker but undermines confidence and suggests a race or initialization issue.
+
+**Repro steps:**
+
+1. Open the Figma plugin and ensure a frame or component is selected.
+2. Switch to the **Errors** assistant and click **Generate Error Screens** (or another LLM quick action).
+3. Observe: sometimes the first click results in a toast or status message "Error: not a function"; no clones or rationale frame are created.
+4. Click **Generate Error Screens** again (no change to selection). Observe: the second attempt often succeeds (clones and annotation cards appear).
+5. Repeat steps 2–4 multiple times (e.g. 5–10 runs) to capture intermittency.
+
+**Expected behavior:**
+
+- Every click on Generate Error Screens (with valid selection and provider) runs the handler and either completes successfully or fails with a clear, actionable error (e.g. network, parsing, or selection error).
+
+**Actual behavior:**
+
+- Intermittently, the first click yields "Error: not a function"; retry succeeds. No consistent pattern (may depend on load, timing, or first-run vs subsequent run).
+
+**Notes / suspected root cause:**
+
+- Handler registration appears synchronous in `handlers/index.ts` (array of `new ErrorsHandler()`, etc.); no conditional exports or dynamic imports for handlers. So the handler object and `handleResponse` method should be present at call time.
+- Likely causes: (1) transient runtime state (e.g. handler reference or prototype not yet fully initialized in some code path), (2) stale bundle (old build where handler shape differed), (3) handler shape mismatch (e.g. a code path that receives a different object than the registered handler), (4) race/initialization (e.g. quick action firing before handlers or provider is ready).
+- A guard was added in main to throw a clearer internal error if `typeof handler.handleResponse !== 'function'` (with assistantId/actionId). If the intermittent failure persists, the new message should indicate exactly which handler and call site are involved.
+- Next steps: add instrumentation to capture the exact missing function and call site when the error occurs; ensure robust error reporting; consider debouncing or disabling the quick action button until handlers (and provider) are ready.
+
+**Proposed direction (not implementation):**
+
+- Instrument: when "not a function" (or the new guard) fires, log assistantId, actionId, and `typeof handler.handleResponse` (and handler constructor name if available) so the root cause can be pinned down.
+- Ensure robust error reporting: surface the internal error message in development or in a way that can be captured (e.g. console + optional telemetry).
+- Consider: debounce quick action click or disable the button until handler and provider are confirmed ready (e.g. after first successful handler lookup or after plugin init completes).
+
+**Acceptance criteria (testable):**
+
+- Run Generate Error Screens 10 times in a row (with valid selection and provider). Zero "Error: not a function" (or equivalent) occurrences.
+- If any handler call fails, the error message includes assistantId and actionId so the failing handler and action are identifiable.
+- No regression: direct FRAME/COMPONENT/INSTANCE selection and Check Errors still work as before.
+
+**Relevant code (paths only):**
+
+- `figmai_plugin/src/main.ts` — RUN_QUICK_ACTION handler, `getHandler(assistantId, actionId)`, `handler.handleResponse(handlerContext)` call sites, guard `typeof handler.handleResponse !== 'function'`.
+- `figmai_plugin/src/core/assistants/handlers/index.ts` — handler registry, `getHandler`, `ErrorsHandler` import and registration.
+- `figmai_plugin/src/core/assistants/handlers/errors.ts` — `ErrorsHandler.handleResponse`, `handleGenerateErrorScreens`.
 
 ---
 
@@ -734,6 +831,7 @@ This section tracks significant changes to the backlog structure itself.
 | 2026-01-26 | Initial backlog structure created | Establish canonical backlog system |
 | 2026-01-21 | Governance rule updated (Editor → Backlog Maintainer); BL-002 updated (deprioritized, partially addressed); new items added (AT-A placeholder, ACE roadmap including backlog viewer/editor, Tech Debt) | Apply approved Backlog Update execution plan |
 | 2026-01-21 | Index (by category) added; E1–E3 merged into BL-016, G1 merged into BL-017; BL-020–BL-041 added (A1–K1); merged & new item details section; Merge notes added | Merge categorized backlog (Architect mode); preserve traceability A1–K1 ↔ BL-020–BL-041 |
+| 2026-01-21 | BL-042, BL-043 added (Errors assistant post-demo bugs); Index L1/L2 added | Architect: GROUP selection sub-screen duplication; intermittent "not a function" on Quick Action |
 
 ---
 

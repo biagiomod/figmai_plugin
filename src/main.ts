@@ -637,6 +637,9 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
         requestId
       }
       
+      if (typeof handler.handleResponse !== 'function') {
+        throw new Error(`[Handlers] Handler for ${currentAssistant.id}/undefined has no handleResponse function`)
+      }
       const result = await handler.handleResponse(handlerContext)
       if (result.handled) {
         // Handler should have called replaceStatusMessage itself
@@ -756,6 +759,9 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
           replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
           requestId
         }
+        if (typeof handler.handleResponse !== 'function') {
+          throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
+        }
         const result = await handler.handleResponse(handlerContext)
         if (result.handled) {
           const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
@@ -786,6 +792,9 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
           replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
           requestId
         }
+        if (typeof handler.handleResponse !== 'function') {
+          throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
+        }
         const result = await handler.handleResponse(handlerContext)
         if (result.handled) {
           const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
@@ -815,6 +824,9 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
           sendAssistantMessage,
           replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
           requestId
+        }
+        if (typeof handler.handleResponse !== 'function') {
+          throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
         }
         const result = await handler.handleResponse(handlerContext)
         if (result.handled) {
@@ -1049,6 +1061,9 @@ Use SEND JSON to import or GET JSON to export your designs.`
         requestId
       }
       
+      if (typeof handler.handleResponse !== 'function') {
+        throw new Error(`[Handlers] Handler for ${assistant.id}/${action.id} has no handleResponse function`)
+      }
       const result = await handler.handleResponse(handlerContext)
       if (result.handled) {
         responseHandled = true

@@ -156,7 +156,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     ],
     promptTemplate: "# Errors Assistant\n\nYou are **FigmAI's Errors Assistant**, a design quality assurance specialist embedded inside a Figma plugin.\nYou identify design errors, inconsistencies, and quality issues that could cause problems in implementation or user experience."
     , instructionBlocks: [
-      { id: "errors-output-generate", kind: "format", content: "Generate Error Screens: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"generateErrorScreens\", \"version\": 1, \"meta\": { \"title\": \"string?\", \"sourceName\": \"string?\" }, \"variants\": [ { \"id\": \"string\", \"label\": \"string\", \"rationale\": \"string\", \"copy\": { \"inlineMessage\"?, \"bannerTitle\"?, \"toastMessage\"?, \"helperText\"? } } ] }. Cap 4–6 variants." },
+      { id: "errors-output-generate", kind: "format", content: "Generate Error Screens: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"generateErrorScreens\", \"version\": 1, \"meta\": { \"title\"?, \"sourceName\"? }, \"variants\": [ { \"id\": \"string\", \"label\": \"string\", \"rationale\": \"string\", \"required\": boolean, \"trigger\": \"string\", \"placementTarget\"?, \"userImpact\": \"string\", \"recommendedUI\": \"string\", \"message\"?, \"copy\"? } ] }. required=true for core UX (validation, auth, submit failures); false for optional/edge. Cap 4–6 variants." },
       { id: "errors-output-check", kind: "format", content: "Check Errors: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"checkErrors\", \"version\": 1, \"result\": \"PASS\" | \"FAIL\", \"summary\": \"string\", \"items\": [ { \"severity\": \"critical\"|\"high\"|\"medium\"|\"low\", \"title\": \"string\", \"fix\": \"string\" } ] }. Cap 10 items." },
     ]
     , knowledgeBaseRefs: ["errors"]
@@ -164,7 +164,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
     id: "design_workshop",
     label: "Design Workshop",
-    intro: "**Welcome to your Design Workshop Assistant!**\n\nI generate 1-5 Figma screens from a JSON specification. Describe the screens you want, and I'll create them on the canvas.",
+    intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
     hoverSummary: "Screen generator specialist",
     tag: { isVisible: true, label: "Alpha", variant: "alpha" },
     iconId: "LightBulbRaysIcon",
@@ -172,7 +172,11 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     quickActions: [
       { id: "generate-screens", label: "Demo: Generate Screens", templateMessage: "Generating demo screen/s using medium fidelity.", executionType: "llm" },
     ],
-    promptTemplate: "# Design Workshop Assistant\n\n**CRITICAL**: Return ONLY valid JSON. Do not wrap in ``` fences. Do not include any other text.\n\nYou are **FigmAI's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images.\n\n## Output Format (STRICT)\n\nYou MUST respond with valid JSON in this exact format (NO markdown fences, NO other text):\n\n{\n  \"type\": \"designScreens\",\n  \"version\": 1,\n  \"meta\": { \"title\": \"Screen set name\" },\n  \"canvas\": {\n    \"device\": {\n      \"kind\": \"mobile\" | \"tablet\" | \"desktop\",\n      \"width\": number,\n      \"height\": number\n    }\n  },\n  \"render\": {\n    \"intent\": {\n      \"fidelity\": \"wireframe\" | \"medium\" | \"hi\" | \"creative\"\n    }\n  },\n  \"screens\": [\n    {\n      \"name\": \"Screen name\",\n      \"layout\": {\n        \"direction\": \"vertical\" | \"horizontal\",\n        \"padding\": number,\n        \"gap\": number\n      },\n      \"blocks\": [\n        { \"type\": \"heading\", \"text\": \"...\", \"level\": 1 | 2 | 3 },\n        { \"type\": \"bodyText\", \"text\": \"...\" },\n        { \"type\": \"button\", \"text\": \"...\", \"variant\": \"primary\" | \"secondary\" | \"tertiary\" },\n        { \"type\": \"input\", \"label\": \"...\", \"placeholder\": \"...\", \"type\": \"text\" | \"email\" | \"password\" },\n        { \"type\": \"card\", \"title\": \"...\", \"content\": \"...\" },\n        { \"type\": \"spacer\", \"height\": number },\n        { \"type\": \"image\", \"width\": number, \"height\": number }\n      ]\n    }\n  ]\n}\n\n**Rules**:\n- NO markdown code fences (```json or ```)\n- NO leading or trailing text\n- NO commentary or explanations\n- Generate 1-5 screens only (if more requested, generate exactly 5 and include meta.truncationNotice)\n- ONLY the raw JSON object\n\n**CRITICAL**: Return ONLY valid JSON. Do not wrap in ``` fences. Do not include any other text."
+    promptTemplate: "# Design Workshop Assistant\n\nYou are **FigmAI's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images."
+    , instructionBlocks: [
+      { id: "design_workshop-output", kind: "format", content: "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape." },
+    ]
+    , knowledgeBaseRefs: ["design-workshop"]
   },
   {
     id: "discovery_copilot",

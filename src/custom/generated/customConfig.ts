@@ -89,7 +89,8 @@ export const customConfig: CustomConfig | null = {
       "analytics_tagging",
       "content_table",
       "design_workshop",
-      "design_critique"
+      "design_critique",
+      "errors"
     ]
   },
   "llm": {

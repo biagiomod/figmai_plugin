@@ -174,7 +174,12 @@ export async function renderDesignSpecToSection(
     screens.push(screenFrame)
   }
 
-  placeBatchBelowPageContent(section, { marginTop: 24 })
+  try {
+    placeBatchBelowPageContent(section, { marginTop: 24 })
+  } catch (e) {
+    section.x = 0
+    section.y = 100
+  }
   return { section, screens, report }
 }
 
