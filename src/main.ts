@@ -76,6 +76,8 @@ import { categorizeError } from './core/analytics/errorCodes'
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
 import { getDefaultAssistant, getAssistant, getWelcomeMessage, listAssistants, getShortInstructions } from './assistants'
+import { buildAssistantInstructionSegments } from './core/assistants/instructionAssembly'
+import { resolveKnowledgeBaseDocs } from './core/knowledgeBases/resolveKb'
 import type { Assistant } from './assistants'
 import { createProvider } from './core/provider/providerFactory'
 import type { Provider, ChatRequest } from './core/provider/provider'
@@ -134,6 +136,7 @@ import { renderScorecard, renderScorecardV2, type ScorecardData } from './core/f
 import { getHandler } from './core/assistants/handlers'
 import { getTopLevelContainerNode } from './core/stage/anchor'
 import { BUILD_VERSION } from './core/build'
+import type { ExecutionType } from './core/types'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -539,6 +542,7 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   // Apply preamble injection for providers that support it (Internal API only)
   let finalChatMessages = chatMessages
   let assistantPreambleForRecovery: string | undefined
+  let allowImagesForRecovery: boolean | undefined
   if (currentProvider && currentProvider.capabilities.supportsPreambleInjection) {
     // Check if this is the first user message in the segment
     const isFirstUserMessage = segmentMessages.length > 0 &&
@@ -546,12 +550,19 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       preambleSentForSegment !== currentAssistant.id
 
     if (isFirstUserMessage && finalChatMessages.length > 0 && finalChatMessages[0].role === 'user') {
-      // Prepend safe session header + assistant context (no instruction-override language)
+      const kbDocs = resolveKnowledgeBaseDocs(currentAssistant.knowledgeBaseRefs ?? [])
+      const built = buildAssistantInstructionSegments({
+        assistantEntry: currentAssistant,
+        actionId: undefined,
+        legacyInstructionsSource: getShortInstructions(currentAssistant),
+        kbDocs
+      })
       const preamble =
         SESSION_HEADER_SAFE +
         '\n\n' +
-        `${currentAssistant.label} context: ${getShortInstructions(currentAssistant)}\n\n`
+        `${currentAssistant.label} context: ${built.instructionPreambleText}\n\n`
       assistantPreambleForRecovery = preamble
+      if (built.allowImagesOverride === true) allowImagesForRecovery = true
       finalChatMessages[0] = {
         ...finalChatMessages[0],
         content: preamble + finalChatMessages[0].content
@@ -595,7 +606,8 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       selectionSummary: selectionContext?.selectionSummary,
       assistantId: currentAssistant.id,
       quickActionId: undefined,
-      assistantPreamble: assistantPreambleForRecovery
+      assistantPreamble: assistantPreambleForRecovery,
+      allowImages: allowImagesForRecovery
     })
     if (recoveryResult.diagnostics) {
       figma.ui.postMessage({ pluginMessage: { type: 'PROMPT_DIAG', diagnostics: recoveryResult.diagnostics } })
@@ -665,162 +677,166 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
 })
 
 
+/**
+ * Resolve executionType from quick action metadata for RUN_QUICK_ACTION routing.
+ * Returns 'unknown' if executionType missing (legacy fallback).
+ */
+function resolveExecutionType (action: { executionType?: string }): ExecutionType | 'unknown' {
+  const t = action.executionType
+  if (t === 'ui-only' || t === 'tool-only' || t === 'llm' || t === 'hybrid') return t as ExecutionType
+  return 'unknown'
+}
+
 // Handle quick action
 on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, assistantId: string) {
   console.log('[Main] onmessage RUN_QUICK_ACTION', { actionId, assistantId })
-  
+
   // Generate request ID for this request
   const requestId = generateRequestId()
-  
-  try {
-  const assistant = getAssistant(assistantId)
-  if (!assistant) {
-      console.error('[Main] Assistant not found:', assistantId)
-      // No status message created yet, send error directly
-      sendAssistantMessage(`Error: Assistant "${assistantId}" not found`)
-    return
-  }
-  
-  const action = assistant.quickActions.find((a: import('./assistants').QuickAction) => a.id === actionId)
-  if (!action) {
-      console.error('[Main] Action not found:', actionId, 'for assistant:', assistantId)
-      // No status message created yet, send error directly
-      sendAssistantMessage(`Error: Action "${actionId}" not found`)
-    return
-    }
-  
-  // Track assistant run (after validation)
-  getAnalytics().track('assistant_run', {
-    assistantId: assistant.id,
-    actionId: action.id
-  })
-  
-  // Check if handler exists for this assistant/action (handles actions that don't need LLM)
-  const handler = getHandler(assistantId, actionId)
-  if (handler) {
-    // Check if handler can handle the action without LLM call (e.g., Content Table scanning)
-    // For now, we'll let handler.handleResponse decide, but we need to check if it needs selection context
-    // Content Table handler needs to run before LLM call, so we check it here
-    if (assistantId === 'design_critique' && actionId === 'temp-place-forced-action-card') {
-      // Add user message and status so Chat Dialog shows the action and a loading indicator while cards are placed
-      const userMessage: Message = {
-        id: generateMessageId(),
-        role: 'user',
-        content: action.templateMessage,
-        timestamp: Date.now()
-      }
-      messageHistory.push(userMessage)
-      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
-      sendStatusMessage(requestId, 'Placing demo cards on stage…')
 
-      const providerForContext = currentProvider || await createProvider(currentProviderId)
-      const handlerContext = {
-        assistantId,
-        actionId,
-        response: '',
-        selectionOrder,
-        selection: summarizeSelection(selectionOrder),
-        provider: providerForContext,
-        sendChatWithRecovery: async (req: ChatRequest) => {
-          const r = await sendChatWithRecovery(providerForContext, req, {
-            selectionSummary: req.selectionSummary,
-            assistantId,
-            quickActionId: actionId
-          })
-          return r.response
-        },
-        sendAssistantMessage,
-        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-        requestId
-      }
-      const result = await handler.handleResponse(handlerContext)
-      if (result.handled) {
-        const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-        if (statusIndex !== -1) {
-          replaceStatusMessage(requestId, result.message || 'Deceptive demo cards placed on stage')
-        }
-        return
-      }
-    }
-    if (assistantId === 'content_table' && actionId === 'generate-table') {
-      const providerForContext = currentProvider || await createProvider(currentProviderId)
-      const handlerContext = {
-        assistantId,
-        actionId,
-        response: '', // Not used for Content Table
-        selectionOrder,
-        selection: summarizeSelection(selectionOrder),
-        provider: providerForContext,
-        sendChatWithRecovery: async (req: ChatRequest) => {
-          const r = await sendChatWithRecovery(providerForContext, req, {
-            selectionSummary: req.selectionSummary,
-            assistantId,
-            quickActionId: actionId
-          })
-          return r.response
-        },
-        sendAssistantMessage,
-        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-        requestId
-      }
-      const result = await handler.handleResponse(handlerContext)
-      if (result.handled) {
-        // Handler should have called replaceStatusMessage itself
-        // If not, replace with default completion message
-        const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-        if (statusIndex !== -1) {
-          replaceStatusMessage(requestId, result.message || 'Table generated')
-        }
-        return
-      }
-    }
-    if (assistantId === 'analytics_tagging' && (actionId === 'get-analytics-tags' || actionId === 'copy-table' || actionId === 'new-session')) {
-      const providerForContext = currentProvider || await createProvider(currentProviderId)
-      const handlerContext = {
-        assistantId,
-        actionId,
-        response: '',
-        selectionOrder,
-        selection: summarizeSelection(selectionOrder),
-        provider: providerForContext,
-        sendChatWithRecovery: async (req: ChatRequest) => {
-          const r = await sendChatWithRecovery(providerForContext, req, {
-            selectionSummary: req.selectionSummary,
-            assistantId,
-            quickActionId: actionId
-          })
-          return r.response
-        },
-        sendAssistantMessage,
-        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-        requestId
-      }
-      const result = await handler.handleResponse(handlerContext)
-      if (result.handled) {
-        const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-        if (statusIndex !== -1) {
-          replaceStatusMessage(requestId, result.message || 'Done')
-        }
-        return
-      }
-    }
-  }
-  
-  // Special handling for Code2Design quick actions
-  if (assistantId === 'code2design') {
-    if (actionId === 'send-json') {
-      // This action receives JSON input from UI and renders it to stage
-      // The JSON input comes via a separate message handler (to be implemented in UI)
-      // For now, this is a placeholder that shows the architecture is ready
+  try {
+    const assistant = getAssistant(assistantId)
+    if (!assistant) {
+      console.error('[Main] Assistant not found:', assistantId)
+      sendAssistantMessage(`Error: Assistant "${assistantId}" not found`)
       return
     }
-    if (actionId === 'get-json') {
-      // This action exports selection as JSON (to be implemented)
+
+    const action = assistant.quickActions.find((a: import('./assistants').QuickAction) => a.id === actionId)
+    if (!action) {
+      console.error('[Main] Action not found:', actionId, 'for assistant:', assistantId)
+      sendAssistantMessage(`Error: Action "${actionId}" not found`)
       return
     }
-    if (actionId === 'json-format-help') {
-      // Send canned help message
-      const helpMessage = `**FigmAI Template JSON Format**
+
+    // Track assistant run (after validation)
+    getAnalytics().track('assistant_run', {
+      assistantId: assistant.id,
+      actionId: action.id
+    })
+
+    // Route by executionType (from manifest / PR2–PR3). Legacy fallback: 'unknown' uses same tool-only branches.
+    const executionType = resolveExecutionType(action)
+    const handler = getHandler(assistantId, actionId)
+
+    // ——— ui-only: defensive no-op (UI should not send these to main) ———
+    if (executionType === 'ui-only') {
+      return
+    }
+
+    // ——— tool-only (and legacy unknown for same actions): handler only, no provider.sendChat ———
+    if ((executionType === 'tool-only' || executionType === 'unknown') && handler) {
+      if (assistantId === 'design_critique' && actionId === 'temp-place-forced-action-card') {
+        const userMessage: Message = {
+          id: generateMessageId(),
+          role: 'user',
+          content: action.templateMessage,
+          timestamp: Date.now()
+        }
+        messageHistory.push(userMessage)
+        figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
+        sendStatusMessage(requestId, 'Placing demo cards on stage…')
+        const providerForContext = currentProvider || await createProvider(currentProviderId)
+        const handlerContext = {
+          assistantId,
+          actionId,
+          response: '',
+          selectionOrder,
+          selection: summarizeSelection(selectionOrder),
+          provider: providerForContext,
+          sendChatWithRecovery: async (req: ChatRequest) => {
+            const r = await sendChatWithRecovery(providerForContext, req, {
+              selectionSummary: req.selectionSummary,
+              assistantId,
+              quickActionId: actionId
+            })
+            return r.response
+          },
+          sendAssistantMessage,
+          replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+          requestId
+        }
+        const result = await handler.handleResponse(handlerContext)
+        if (result.handled) {
+          const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
+          if (statusIndex !== -1) {
+            replaceStatusMessage(requestId, result.message || 'Deceptive demo cards placed on stage')
+          }
+          return
+        }
+      }
+      if (assistantId === 'content_table' && actionId === 'generate-table') {
+        const providerForContext = currentProvider || await createProvider(currentProviderId)
+        const handlerContext = {
+          assistantId,
+          actionId,
+          response: '',
+          selectionOrder,
+          selection: summarizeSelection(selectionOrder),
+          provider: providerForContext,
+          sendChatWithRecovery: async (req: ChatRequest) => {
+            const r = await sendChatWithRecovery(providerForContext, req, {
+              selectionSummary: req.selectionSummary,
+              assistantId,
+              quickActionId: actionId
+            })
+            return r.response
+          },
+          sendAssistantMessage,
+          replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+          requestId
+        }
+        const result = await handler.handleResponse(handlerContext)
+        if (result.handled) {
+          const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
+          if (statusIndex !== -1) {
+            replaceStatusMessage(requestId, result.message || 'Table generated')
+          }
+          return
+        }
+      }
+      if (assistantId === 'analytics_tagging' && (actionId === 'get-analytics-tags' || actionId === 'copy-table' || actionId === 'new-session')) {
+        const providerForContext = currentProvider || await createProvider(currentProviderId)
+        const handlerContext = {
+          assistantId,
+          actionId,
+          response: '',
+          selectionOrder,
+          selection: summarizeSelection(selectionOrder),
+          provider: providerForContext,
+          sendChatWithRecovery: async (req: ChatRequest) => {
+            const r = await sendChatWithRecovery(providerForContext, req, {
+              selectionSummary: req.selectionSummary,
+              assistantId,
+              quickActionId: actionId
+            })
+            return r.response
+          },
+          sendAssistantMessage,
+          replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+          requestId
+        }
+        const result = await handler.handleResponse(handlerContext)
+        if (result.handled) {
+          const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
+          if (statusIndex !== -1) {
+            replaceStatusMessage(requestId, result.message || 'Done')
+          }
+          return
+        }
+      }
+    }
+
+    // ——— code2design (hybrid / legacy): main no-op or canned message ———
+    if (assistantId === 'code2design') {
+      if (actionId === 'send-json') {
+        return
+      }
+      if (actionId === 'get-json') {
+        return
+      }
+      if (actionId === 'json-format-help') {
+        const helpMessage = `**FigmAI Template JSON Format**
 
 **Schema Version:** 1.0
 
@@ -853,12 +869,13 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
 \`\`\`
 
 Use SEND JSON to import or GET JSON to export your designs.`
-      replaceStatusMessage(requestId, helpMessage)
-      return
+        replaceStatusMessage(requestId, helpMessage)
+        return
+      }
     }
-  }
-  
-  // Check selection requirement (need to check before building context)
+
+    // ——— llm (and any fallthrough): sendChatWithRecovery + handler hooks ———
+    // Check selection requirement (need to check before building context)
   const selection = summarizeSelection(selectionOrder)
   if (action.requiresSelection && !selection.hasSelection) {
     replaceStatusMessage(requestId, `Error: This action requires a selection. Please select one or more nodes first.`, true)
@@ -908,17 +925,26 @@ Use SEND JSON to import or GET JSON to export your designs.`
   )
   
   let assistantPreambleForQuickAction: string | undefined
+  let allowImagesForQuickAction: boolean | undefined
   if (currentProvider && currentProvider.capabilities.supportsPreambleInjection) {
     const isFirstUserMessage = segmentMessages.length > 0 &&
       segmentMessages[0].role === 'user' &&
       preambleSentForSegment !== assistant.id
 
     if (isFirstUserMessage && chatMessages.length > 0 && chatMessages[0].role === 'user') {
+      const kbDocs = resolveKnowledgeBaseDocs(assistant.knowledgeBaseRefs ?? [])
+      const built = buildAssistantInstructionSegments({
+        assistantEntry: assistant,
+        actionId: action.id,
+        legacyInstructionsSource: getShortInstructions(assistant),
+        kbDocs
+      })
       const preamble =
         SESSION_HEADER_SAFE +
         '\n\n' +
-        `${assistant.label} context: ${getShortInstructions(assistant)}\n\n`
+        `${assistant.label} context: ${built.instructionPreambleText}\n\n`
       assistantPreambleForQuickAction = preamble
+      if (built.allowImagesOverride === true) allowImagesForQuickAction = true
       chatMessages[0] = {
         ...chatMessages[0],
         content: preamble + chatMessages[0].content
@@ -991,7 +1017,8 @@ Use SEND JSON to import or GET JSON to export your designs.`
       selectionSummary: selectionContext.selectionSummary,
       assistantId: assistant.id,
       quickActionId: action.id,
-      assistantPreamble: assistantPreambleForQuickAction
+      assistantPreamble: assistantPreambleForQuickAction,
+      allowImages: allowImagesForQuickAction
     })
     if (recoveryResult.diagnostics) {
       figma.ui.postMessage({ pluginMessage: { type: 'PROMPT_DIAG', diagnostics: recoveryResult.diagnostics } })

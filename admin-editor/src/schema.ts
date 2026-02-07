@@ -93,11 +93,14 @@ export const configSchema = z
 export type Config = z.infer<typeof configSchema>
 
 // --- Assistants manifest ---
+const executionTypeEnum = z.enum(['ui-only', 'tool-only', 'llm', 'hybrid'])
 const quickActionSchema = z
   .object({
     id: z.string(),
     label: z.string(),
     templateMessage: z.string(),
+    /** Required. Routing and handler selection depend on this. */
+    executionType: executionTypeEnum,
     requiresSelection: z.boolean().optional(),
     requiresVision: z.boolean().optional(),
     maxImages: z.number().optional(),
@@ -113,6 +116,26 @@ const tagSchema = z
   })
   .passthrough()
 
+// --- Optional structured assistant config (PR7; no runtime behavior change) ---
+const instructionBlockKindEnum = z.enum(['system', 'behavior', 'rules', 'examples', 'format', 'context'])
+const instructionBlockSchema = z
+  .object({
+    id: z.string(),
+    label: z.string().optional(),
+    kind: instructionBlockKindEnum,
+    content: z.string(),
+    enabled: z.boolean().optional()
+  })
+  .passthrough()
+
+const safetyOverridesSchema = z
+  .object({
+    allowImages: z.boolean().optional(),
+    safetyToggles: z.record(z.boolean()).optional()
+  })
+  .passthrough()
+  .optional()
+
 const assistantEntrySchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -123,7 +146,13 @@ const assistantEntrySchema = z.object({
   iconId: z.string(),
   kind: z.enum(['ai', 'tool', 'hybrid']),
   quickActions: z.array(quickActionSchema),
-  promptTemplate: z.string()
+  promptTemplate: z.string(),
+  // Optional structured config (editor-friendly; not wired to runtime in this PR)
+  instructionBlocks: z.array(instructionBlockSchema).optional(),
+  toneStylePreset: z.string().optional(),
+  outputSchemaId: z.string().optional(),
+  safetyOverrides: safetyOverridesSchema,
+  knowledgeBaseRefs: z.array(z.string()).optional()
 })
 
 export const assistantsManifestSchema = z.object({

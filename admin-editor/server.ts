@@ -26,6 +26,7 @@ import {
   handleCreateUser,
   handleUpdateUser
 } from './src/users-routes'
+import { createKbRouter } from './src/kb-routes'
 import { appendAuditLine } from './src/audit'
 import type { AuthLocals } from './src/auth-middleware'
 
@@ -103,6 +104,9 @@ app.patch('/api/users/:id', requireAuth(dataDir), requireAdmin, (req, res, next)
   handleUpdateUser(req, res, dataDir).catch(next)
 })
 
+// ——— KB: registry + CRUD (admin/manager/editor) ———
+app.use('/api/kb', requireAuth(dataDir), requireRoleValidateSave, createKbRouter(repoRoot))
+
 // ——— Model: GET requires auth ———
 app.get('/api/model', requireAuth(dataDir), (_req, res) => {
   res.set('Cache-Control', 'no-store')
@@ -128,12 +132,44 @@ app.get('/api/model', requireAuth(dataDir), (_req, res) => {
   }
 })
 
+/** Format Zod errors for ACE UX: resolve assistantsManifest.assistants[i].quickActions[j].* to assistantId/actionId. */
+function formatSchemaErrorsForACE (body: unknown, zodError: { errors: Array<{ path: (string | number)[]; message: string }> }): string[] {
+  const model = body && typeof body === 'object' && 'model' in body ? (body as { model: unknown }).model : body
+  const assistants = model && typeof model === 'object' && model !== null && 'assistantsManifest' in model
+    ? (model as { assistantsManifest?: { assistants?: Array<{ id?: string; quickActions?: Array<{ id?: string }> }> } }).assistantsManifest?.assistants
+    : undefined
+  const pathPrefix = body && typeof body === 'object' && 'model' in body ? ['model'] : []
+  return zodError.errors.map((e) => {
+    const path = e.path
+    const rel = pathPrefix.length && path[0] === 'model' ? path.slice(1) : path
+    if (Array.isArray(assistants) && rel[0] === 'assistantsManifest' && rel[1] === 'assistants' && typeof rel[2] === 'number') {
+      const i = rel[2]
+      const asst = assistants[i]
+      const assistantId = asst?.id ?? String(i)
+      if (rel[3] === 'quickActions' && typeof rel[4] === 'number') {
+        const j = rel[4]
+        const actionId = asst?.quickActions?.[j]?.id ?? `quickActions[${j}]`
+        const field = rel[5] !== undefined ? String(rel[5]) : ''
+        const msg = field ? `${field}: ${e.message}` : e.message
+        return `${assistantId}/${actionId}: ${msg}`
+      }
+      if (rel[3] === 'instructionBlocks' && typeof rel[4] === 'number') {
+        const blockIdx = rel[4]
+        const field = rel[5] !== undefined ? String(rel[5]) : ''
+        const msg = field ? `${field}: ${e.message}` : e.message
+        return `${assistantId}/instructionBlocks[${blockIdx}]: ${msg}`
+      }
+    }
+    return `${path.join('.')}: ${e.message}`
+  })
+}
+
 // ——— Validate: admin/manager/editor (reviewer 403) ———
 app.post('/api/validate', requireAuth(dataDir), requireRoleValidateSave, (req, res) => {
   try {
     const parsed = adminEditableModelSchema.safeParse(req.body)
     if (!parsed.success) {
-      const errors = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
+      const errors = formatSchemaErrorsForACE(req.body, parsed.error)
       return res.status(400).json({ errors, warnings: [] })
     }
     const result = validateModel(parsed.data)
@@ -150,7 +186,7 @@ app.post('/api/save', requireAuth(dataDir), requireRoleValidateSave, (req, res) 
   try {
     const parsed = saveRequestBodySchema.safeParse(req.body)
     if (!parsed.success) {
-      const errors = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
+      const errors = formatSchemaErrorsForACE(req.body, parsed.error)
       return res.status(400).json({ errors, success: false })
     }
     const { meta: currentMeta } = loadModel(repoRoot)

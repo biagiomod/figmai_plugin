@@ -31,10 +31,14 @@ export interface SelectionState {
 // Assistant Types
 // ============================================================================
 
+/** Required. Drives routing and handler selection (see docs/audits/refactor-kickoff-runtime-assistants-kb.md). */
+export type ExecutionType = 'ui-only' | 'tool-only' | 'llm' | 'hybrid'
+
 export interface QuickAction {
   id: string
   label: string
   templateMessage: string
+  executionType: ExecutionType
   requiresSelection?: boolean
   requiresVision?: boolean
   maxImages?: number
@@ -45,6 +49,21 @@ export interface AssistantTag {
   isVisible?: boolean
   label?: string
   variant?: 'new' | 'beta' | 'alpha'
+}
+
+/** Optional instruction block (manifest/ACE only; not wired to runtime in initial PR). */
+export interface InstructionBlock {
+  id: string
+  label?: string
+  kind: 'system' | 'behavior' | 'rules' | 'examples' | 'format' | 'context'
+  content: string
+  enabled?: boolean
+}
+
+/** Optional safety overrides (manifest/ACE only; not wired to runtime in initial PR). */
+export interface SafetyOverrides {
+  allowImages?: boolean
+  safetyToggles?: Record<string, boolean>
 }
 
 export interface Assistant {
@@ -61,6 +80,16 @@ export interface Assistant {
   iconId: string
   kind: AssistantKind
   quickActions: QuickAction[]
+  /** Optional structured instructions (from manifest; not used by runtime in initial PR). */
+  instructionBlocks?: InstructionBlock[]
+  /** Optional tone/style preset (from manifest; not used by runtime in initial PR). */
+  toneStylePreset?: string
+  /** Optional output schema id (from manifest; not used by runtime in initial PR). */
+  outputSchemaId?: string
+  /** Optional safety overrides (from manifest; not used by runtime in initial PR). */
+  safetyOverrides?: SafetyOverrides
+  /** Optional KB refs by id (from manifest; not used by runtime in initial PR). */
+  knowledgeBaseRefs?: string[]
 }
 
 // ============================================================================

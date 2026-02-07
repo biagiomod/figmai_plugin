@@ -1104,56 +1104,82 @@ function Plugin() {
   
   const handleQuickAction = useCallback((actionId: string) => {
     console.log('[UI] handleQuickAction called', { actionId, hasContentTable: !!contentTable, assistantId: assistant.id })
-    
-    // Handle copy-ref-image directly in UI (doesn't need main thread processing)
-    if (actionId === 'copy-ref-image') {
-      handleCopyRefImage()
-      return
-    }
-    
-    // Handle Content Table dynamic actions (these are UI-only, don't send to main thread)
-    if (assistant.id === 'content_table' && contentTable) {
-      if (actionId === 'send-to-confluence') {
-        console.log('[UI] Handling send-to-confluence action')
-        setPendingAction('confluence')
-        setShowFormatModal(true)
-        return
-      }
-      if (actionId === 'copy-table') {
-        console.log('[UI] Handling copy-table action')
-        // Show "Copy as" format chooser modal
-        setShowCopyFormatModal(true)
-        return
-      }
-      if (actionId === 'view-table') {
-        console.log('[UI] Handling view-table action')
-        setPendingAction('view')
-        setShowFormatModal(true)
-        return
-      }
-      if (actionId === 'generate-new-table') {
-        console.log('[UI] Handling generate-new-table action - clearing table')
-        setContentTable(null)
-        setShowTableView(false)
-        setSelectedFormat('universal')
-        // Don't return - let it fall through to trigger the generate-table action
-        // Actually, we should trigger the generate-table action here
-        // But first check if there's a selection
-        if (!selectionState.hasSelection) {
-          setSelectionRequired(true)
-          return
-        }
-        // Trigger the generate-table action
-        actionId = 'generate-table'
-      }
-    }
-    
+
     const action = assistant.quickActions.find((a: QuickAction) => a.id === actionId)
     if (!action) {
       console.warn('[UI] Action not found:', actionId, 'for assistant:', assistant.id)
       return
     }
-    
+
+    // UI-only: handle entirely in UI, do NOT emit RUN_QUICK_ACTION (manifest is SSOT; executionType from manifest)
+    if (action.executionType === 'ui-only') {
+      if (actionId === 'copy-ref-image') {
+        handleCopyRefImage()
+        return
+      }
+      if (assistant.id === 'content_table' && contentTable) {
+        if (actionId === 'copy-table') {
+          setShowCopyFormatModal(true)
+          return
+        }
+        if (actionId === 'view-table') {
+          setPendingAction('view')
+          setShowFormatModal(true)
+          return
+        }
+        if (actionId === 'generate-new-table') {
+          setContentTable(null)
+          setShowTableView(false)
+          setSelectedFormat('universal')
+          if (!selectionState.hasSelection) {
+            setSelectionRequired(true)
+            return
+          }
+          emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'generate-table', assistant.id)
+          setSelectionRequired(false)
+          return
+        }
+      }
+      if (assistant.id === 'analytics_tagging' && actionId === 'export-screenshots') {
+        const session = analyticsTaggingSessionRef.current
+        if (!session || session.rows.length === 0) return
+        const total = session.rows.length
+        const doExport = async () => {
+          analyticsTaggingExportDirHandleRef.current = null
+          const hasDirPicker = typeof (window as unknown as { showDirectoryPicker?: (opts?: { mode?: string }) => Promise<unknown> }).showDirectoryPicker === 'function'
+          if (CONFIG.dev?.debug?.enabled && (CONFIG.dev.debug.scopes as Record<string, boolean>)?.['subsystem:analytics_tagging']) {
+            console.log('[ATA-export] showDirectoryPicker exists:', hasDirPicker)
+          }
+          if (hasDirPicker) {
+            try {
+              const dir = await (window as unknown as { showDirectoryPicker: (opts: { mode: string }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'readwrite' })
+              analyticsTaggingExportDirHandleRef.current = dir
+            } catch (_) {
+              analyticsTaggingExportDirHandleRef.current = null
+            }
+          }
+          analyticsTaggingExportBaseNamesRef.current = new Map()
+          analyticsTaggingExportItemsRef.current = []
+          analyticsTaggingExportProgressRef.current = { done: 0, total, failed: 0 }
+          setAnalyticsTaggingExportProgress({ done: 0, total, failed: 0 })
+          analyticsTaggingExportInProgressRef.current = true
+          setAnalyticsTaggingExportInProgress(true)
+          const rows: AnalyticsTaggingExportCompactRow[] = session.rows.map(row => ({
+            rowId: row.id,
+            screenId: row.screenId,
+            actionId: row.actionId,
+            meta: row.meta ? { containerNodeId: row.meta.containerNodeId, targetNodeId: row.meta.targetNodeId, rootScreenNodeId: row.meta.rootScreenNodeId } : undefined,
+            screenshotRef: row.screenshotRef ? { containerNodeId: row.screenshotRef.containerNodeId, targetNodeId: row.screenshotRef.targetNodeId, rootNodeId: row.screenshotRef.rootNodeId } : undefined
+          }))
+          emit<ExportAnalyticsTaggingScreenshotsHandler>('EXPORT_ANALYTICS_TAGGING_SCREENSHOTS', { rows })
+        }
+        doExport()
+        setSelectionRequired(false)
+        return
+      }
+      return
+    }
+
     // Code2Design special handling
     if (assistant.id === 'code2design') {
       if (actionId === 'send-json') {
@@ -1193,48 +1219,7 @@ function Plugin() {
       setScorecard(null)
       setScorecardError(null)
     }
-    
-    // Export Screenshots: directory picker first (if available), then emit; main streams EXPORT_ITEM/DONE; we write one file per row on DONE
-    if (assistant.id === 'analytics_tagging' && actionId === 'export-screenshots') {
-      const session = analyticsTaggingSessionRef.current
-      if (!session || session.rows.length === 0) {
-        return
-      }
-      const total = session.rows.length
-      const doExport = async () => {
-        analyticsTaggingExportDirHandleRef.current = null
-        const hasDirPicker = typeof (window as unknown as { showDirectoryPicker?: (opts?: { mode?: string }) => Promise<unknown> }).showDirectoryPicker === 'function'
-        if (CONFIG.dev?.debug?.enabled && (CONFIG.dev.debug.scopes as Record<string, boolean>)?.['subsystem:analytics_tagging']) {
-          console.log('[ATA-export] showDirectoryPicker exists:', hasDirPicker)
-        }
-        if (hasDirPicker) {
-          try {
-            const dir = await (window as unknown as { showDirectoryPicker: (opts: { mode: string }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'readwrite' })
-            analyticsTaggingExportDirHandleRef.current = dir
-          } catch (_) {
-            analyticsTaggingExportDirHandleRef.current = null
-          }
-        }
-        analyticsTaggingExportBaseNamesRef.current = new Map()
-        analyticsTaggingExportItemsRef.current = []
-        analyticsTaggingExportProgressRef.current = { done: 0, total, failed: 0 }
-        setAnalyticsTaggingExportProgress({ done: 0, total, failed: 0 })
-        analyticsTaggingExportInProgressRef.current = true
-        setAnalyticsTaggingExportInProgress(true)
-        const rows: AnalyticsTaggingExportCompactRow[] = session.rows.map(row => ({
-          rowId: row.id,
-          screenId: row.screenId,
-          actionId: row.actionId,
-          meta: row.meta ? { containerNodeId: row.meta.containerNodeId, targetNodeId: row.meta.targetNodeId, rootScreenNodeId: row.meta.rootScreenNodeId } : undefined,
-          screenshotRef: row.screenshotRef ? { containerNodeId: row.screenshotRef.containerNodeId, targetNodeId: row.screenshotRef.targetNodeId, rootNodeId: row.screenshotRef.rootNodeId } : undefined
-        }))
-        emit<ExportAnalyticsTaggingScreenshotsHandler>('EXPORT_ANALYTICS_TAGGING_SCREENSHOTS', { rows })
-      }
-      doExport()
-      setSelectionRequired(false)
-      return
-    }
-    
+
     // Send quick action to main thread
     // Main thread will:
     // - Create user message and send it back (single source of truth)
@@ -2126,44 +2111,20 @@ ${htmlTable}
     .filter(m => m.role === 'assistant')
     .pop()
   
-  // Content Table: Add dynamic quick actions when table is generated
-  const contentTableQuickActions: QuickAction[] = contentTable && assistant.id === 'content_table' ? [
-    // "Send to Confluence" quick action disabled for all modes
-    {
-      id: 'copy-table',
-      label: 'Copy Table',
-      templateMessage: 'Copy table to clipboard',
-      requiresSelection: false
-    },
-    {
-      id: 'view-table',
-      label: 'View Table',
-      templateMessage: 'View table in plugin',
-      requiresSelection: false
-    },
-    {
-      id: 'copy-ref-image',
-      label: 'Get Ref Image',
-      templateMessage: 'Get reference image',
-      requiresSelection: false
-    },
-    {
-      id: 'generate-new-table',
-      label: 'Generate New Table',
-      templateMessage: 'Generate a new content table',
-      requiresSelection: true
-    }
-  ] : []
-  
-  // Code2Design: Show all quick actions prominently, not just after assistant message
-  const isCode2Design = assistant.id === 'code2design'
-  const quickActions = (contentTable && assistant.id === 'content_table' ? contentTableQuickActions : assistant.quickActions).filter((action: QuickAction) => {
-    // Filter based on selection requirements
-    if (action.requiresSelection && !selectionState.hasSelection) {
-      return false
-    }
+  // Quick actions: single source of truth from manifest (assistant.quickActions).
+  // Content Table: when table exists show UI-only actions; when no table show only generate-table.
+  const quickActionsSource =
+    assistant.id === 'content_table'
+      ? contentTable
+        ? assistant.quickActions.filter((a: QuickAction) => a.executionType === 'ui-only')
+        : assistant.quickActions.filter((a: QuickAction) => a.id === 'generate-table')
+      : assistant.quickActions
+  const quickActions = quickActionsSource.filter((action: QuickAction) => {
+    if (action.requiresSelection && !selectionState.hasSelection) return false
     return true
   })
+
+  const isCode2Design = assistant.id === 'code2design'
 
   
   return (

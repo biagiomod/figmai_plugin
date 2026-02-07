@@ -1,0 +1,28 @@
+{
+  "id": "test-kb",
+  "title": "Test Knowledge Base",
+  "source": "",
+  "updatedAt": "2026-02-07T00:25:31.744Z",
+  "tags": [],
+  "purpose": "This is a test knowledge base used to validate the KB system.",
+  "scope": "Used only for testing ACE normalization and plugin wiring.",
+  "definitions": [],
+  "rulesConstraints": [
+    "Always respond clearly.",
+    "Do not hallucinate missing information."
+  ],
+  "doDont": {
+    "do": [
+      "Follow instructions exactly."
+    ],
+    "dont": [
+      "Make assumptions."
+    ]
+  },
+  "examples": [
+    "If asked “What is this?”, respond “This is a test.”"
+  ],
+  "edgeCases": [
+    "Empty input."
+  ]
+}

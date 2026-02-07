@@ -11,6 +11,7 @@ export const ALL_TAB_IDS = [
   'ai',
   'assistants',
   'knowledge',
+  'knowledge-bases',
   'content-models',
   'registries',
   'analytics',

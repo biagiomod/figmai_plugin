@@ -80,11 +80,6 @@ export async function handleUpdateUser(
       typeofBody: typeof req.body
     }
     console.log('[PATCH /api/users/:id] received', logPayload)
-    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ location: 'users-routes.ts:handleUpdateUser', message: 'PATCH received', data: logPayload, timestamp: Date.now(), sessionId: 'debug-session' })
-    }).catch(() => {})
   }
   // #endregion
   if (!id) {
@@ -115,11 +110,6 @@ export async function handleUpdateUser(
     if (process.env.ACE_DEBUG === '1') {
       const noUpdatesPayload = { requestId, status: 400, message: 'No updates provided', aboutToSend: true }
       console.log('[PATCH /api/users/:id] returning error', noUpdatesPayload)
-      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location: 'users-routes.ts:handleUpdateUser', message: 'No updates provided response', data: noUpdatesPayload, timestamp: Date.now(), sessionId: 'debug-session' })
-      }).catch(() => {})
     }
     // #endregion
     res.status(400).json({ error: 'No updates provided' })

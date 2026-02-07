@@ -726,6 +726,8 @@ body {
 .validation-message { font-size: 0.9rem; min-height: 1.2em; }
 .error-block { margin-bottom: var(--ace-space-8); }
 .validation-message .errors { color: var(--error); }
+.validation-message .validation-errors-list { margin: 0; padding-left: 1.2em; list-style: disc; }
+.validation-message .validation-errors-list li { margin: 2px 0; }
 .validation-message .warnings { color: var(--warning); margin-top: 4px; }
 
 /* ========== Banners ========== */
@@ -1019,12 +1021,36 @@ textarea.ace-field.large {
 .list-panel .editor.empty { display: flex; align-items: center; justify-content: center; color: var(--ace-text-muted); }
 
 .banner-warning { background: #fffbe6; border: 1px solid var(--warning); padding: var(--ace-space-16); border-radius: var(--ace-radius); margin-bottom: var(--ace-space-16); }
+.ace-qa-execution-type-helper { font-size: var(--ace-font-size-12); margin: 0 0 var(--ace-space-8) 0; max-width: 720px; }
 .quick-actions-list { list-style: none; padding: 0; margin: 0; }
-.quick-actions-list li { display: flex; align-items: center; gap: var(--ace-space-8); margin-bottom: var(--ace-space-8); padding: var(--ace-space-12); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); }
+.quick-actions-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ace-space-8); margin-bottom: var(--ace-space-8); padding: var(--ace-space-12); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); }
+.quick-actions-list li.quick-action-row .ae-qa-id { min-width: 100px; max-width: 140px; }
+.quick-actions-list li.quick-action-row .ae-qa-label { flex: 1; min-width: 100px; }
+.quick-actions-list li .ae-qa-exec-label { font-size: var(--ace-font-size-12); color: var(--ace-text-muted); margin: 0; white-space: nowrap; }
+.quick-actions-list li .ae-qa-exec-select { min-width: 110px; max-width: 120px; padding: var(--ace-space-8); font-size: var(--ace-font-size-12); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); }
 .quick-actions-list input { flex: 1; max-width: none; margin: 0; }
 .quick-actions-list button { padding: var(--ace-space-8); cursor: pointer; }
 .add-btn { margin-top: var(--ace-space-8); }
 
+/* Structured instructions (PR7) */
+.instruction-blocks-list { list-style: none; margin: 0; padding: 0; }
+.instruction-block-row { margin-bottom: var(--ace-space-16); padding: var(--ace-space-12); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); background: var(--ace-surface); }
+.instruction-block-row label { display: block; font-size: var(--ace-font-size-12); font-weight: var(--ace-font-weight-semibold); margin: var(--ace-space-8) 0 var(--ace-space-4) 0; }
+.instruction-block-row .ae-ib-kind { min-width: 120px; padding: var(--ace-space-8); font-size: var(--ace-font-size-12); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); }
+.instruction-block-row .ae-ib-content { width: 100%; min-height: 60px; margin-bottom: var(--ace-space-8); }
+.instruction-block-actions { display: flex; gap: var(--ace-space-8); margin-top: var(--ace-space-8); }
+.instruction-block-actions .btn-small { cursor: pointer; }
+
+/* Knowledge Bases tab (PR11b) */
+#panel-knowledge-bases .list .item { padding: var(--ace-space-8); cursor: pointer; }
+#panel-knowledge-bases .kb-row-actions { display: flex; flex-wrap: wrap; gap: var(--ace-space-4); margin-top: var(--ace-space-4); }
+#panel-knowledge-bases .kb-row-actions .btn-small { cursor: pointer; }
+#panel-knowledge-bases .kb-preview-block { margin-top: var(--ace-space-12); padding: var(--ace-space-12); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); background: var(--ace-sidebar-bg); overflow: auto; max-height: 320px; }
+#panel-knowledge-bases .kb-preview-block pre { margin: 0; font-size: var(--ace-font-size-12); white-space: pre-wrap; }
+#panel-knowledge-bases .kb-import-form label,
+#panel-knowledge-bases .kb-edit-form label { display: block; margin-top: var(--ace-space-8); font-weight: var(--ace-font-weight-semibold); }
+#panel-knowledge-bases .kb-import-form .ace-field,
+#panel-knowledge-bases .kb-edit-form .ace-field { margin-top: var(--ace-space-4); }
 #panel-knowledge .preview-toggle { margin-bottom: var(--ace-space-8); }
 #panel-knowledge .preview { margin-top: var(--ace-space-8); padding: var(--ace-space-16); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); background: var(--ace-sidebar-bg); white-space: pre-wrap; }
 

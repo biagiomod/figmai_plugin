@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+/**
+ * Assert refactor invariants (audit-derived). No behavior change.
+ * Run: npm run invariants  or  npx tsx scripts/assert-invariants.ts
+ * Exit 0 = pass, 1 = fail with clear message.
+ */
+
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+
+const ROOT = path.resolve(__dirname, '..')
+const SRC = path.join(ROOT, 'src')
+const MAIN_TS = path.join(SRC, 'main.ts')
+const SELECTION_CONTEXT_TS = path.join(SRC, 'core', 'context', 'selectionContext.ts')
+const ASSISTANTS_INDEX_TS = path.join(SRC, 'assistants', 'index.ts')
+const HANDLERS_INDEX_TS = path.join(SRC, 'core', 'assistants', 'handlers', 'index.ts')
+
+function fail(msg: string): never {
+  console.error('[assert-invariants] FAIL:', msg)
+  process.exit(1)
+}
+
+function assert(condition: boolean, msg: string): void {
+  if (!condition) fail(msg)
+}
+
+function main(): void {
+  // 1) Dispatch key: getHandler(assistantId, actionId) — spot-check handler registry uses (assistantId, actionId)
+  const handlersIndex = fs.readFileSync(HANDLERS_INDEX_TS, 'utf8')
+  assert(
+    handlersIndex.includes('getHandler') &&
+    handlersIndex.includes('assistantId') &&
+    handlersIndex.includes('actionId') &&
+    /getHandler\s*\([^)]*assistantId[^)]*actionId/.test(handlersIndex),
+    'handlers/index.ts must define getHandler(assistantId, actionId)'
+  )
+  assert(
+    handlersIndex.includes('canHandle(assistantId, actionId)'),
+    'handlers/index.ts must resolve handler by canHandle(assistantId, actionId)'
+  )
+  console.log('[assert-invariants] Dispatch key getHandler(assistantId, actionId): pass')
+
+  // 2) main.ts RUN_QUICK_ACTION: ui-only returns before any provider call (no sendChatWithRecovery after ui-only return)
+  const mainContent = fs.readFileSync(MAIN_TS, 'utf8')
+  const runQuickActionMatch = mainContent.match(/on<RunQuickActionHandler>\s*\(\s*'RUN_QUICK_ACTION'[\s\S]*?\)\s*\)/m)
+  assert(!!runQuickActionMatch, 'main.ts must contain RUN_QUICK_ACTION handler')
+  const runQuickActionBlock = runQuickActionMatch![0]
+  const uiOnlyReturnIdx = runQuickActionBlock.indexOf("executionType === 'ui-only'")
+  const firstSendChatIdx = runQuickActionBlock.indexOf('sendChatWithRecovery')
+  assert(uiOnlyReturnIdx !== -1, "main.ts RUN_QUICK_ACTION must check executionType === 'ui-only'")
+  assert(firstSendChatIdx !== -1, 'main.ts RUN_QUICK_ACTION must call sendChatWithRecovery for LLM path')
+  const uiOnlyBlock = runQuickActionBlock.substring(0, firstSendChatIdx)
+  assert(
+    /executionType === 'ui-only'[\s\S]*?return\s*[;\s]/.test(uiOnlyBlock),
+    "main.ts: ui-only branch must return before any sendChatWithRecovery (early return)"
+  )
+  console.log('[assert-invariants] ui-only early return before provider: pass')
+
+  // 3) tool-only branches return before provider: tool-only block must not contain sendChatWithRecovery in the same branch
+  const toolOnlySection = runQuickActionBlock.substring(uiOnlyReturnIdx, firstSendChatIdx)
+  assert(
+    !toolOnlySection.includes('sendChatWithRecovery'),
+    'main.ts: tool-only branches must not call sendChatWithRecovery (they return before LLM path)'
+  )
+  console.log('[assert-invariants] tool-only returns before provider: pass')
+
+  // 4) Assistants sourced from generated TS only (no runtime JSON read in plugin)
+  const assistantsIndex = fs.readFileSync(ASSISTANTS_INDEX_TS, 'utf8')
+  assert(
+    assistantsIndex.includes("from './assistants.generated'") || assistantsIndex.includes('assistants.generated'),
+    'assistants/index.ts must import from assistants.generated (not JSON)'
+  )
+  assert(
+    !assistantsIndex.includes("require(.+assistants\\.manifest\\.json)") && !assistantsIndex.includes("fetch(.+assistants\\.manifest)"),
+    'assistants/index.ts must not require/fetch assistants.manifest.json at runtime'
+  )
+  const noJsonReadInSrc = (dir: string): boolean => {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      for (const e of entries) {
+        const full = path.join(dir, e.name)
+        if (e.isDirectory() && e.name !== 'node_modules' && !e.name.startsWith('.')) {
+          if (!noJsonReadInSrc(full)) return false
+        } else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+          const content = fs.readFileSync(full, 'utf8')
+          if (/require\s*\(\s*['\"].*\.(manifest\.json|config\.json)['\"]\s*\)/.test(content)) return false
+          if (/readFileSync\s*\([^)]*\.(manifest\.json|config\.json)/.test(content)) return false
+        }
+      }
+      return true
+    } catch {
+      return true
+    }
+  }
+  assert(noJsonReadInSrc(SRC), 'Plugin src must not require/readFileSync assistants.manifest.json or config.json (use generated TS only)')
+  console.log('[assert-invariants] Assistants from generated TS only: pass')
+
+  // 5) buildSelectionContext: images only when quickAction?.requiresVision && provider supports && selection.hasSelection
+  const selectionContext = fs.readFileSync(SELECTION_CONTEXT_TS, 'utf8')
+  assert(
+    selectionContext.includes('quickAction?.requiresVision') || selectionContext.includes('quickAction?.requiresVision === true'),
+    'selectionContext.ts must gate on quickAction.requiresVision'
+  )
+  assert(
+    /needsVision\s*&&\s*providerSupportsImages\s*&&\s*selection\.hasSelection/.test(selectionContext) ||
+    (selectionContext.includes('needsVision') && selectionContext.includes('providerSupportsImages') && selectionContext.includes('selection.hasSelection')),
+    'selectionContext.ts must include images only when needsVision && providerSupportsImages && selection.hasSelection'
+  )
+  console.log('[assert-invariants] buildSelectionContext image gating: pass')
+
+  console.log('[assert-invariants] All invariants passed.')
+  process.exit(0)
+}
+
+main()

@@ -31,8 +31,17 @@
     lastDisplayError: null,
     actionModalRetry: null,
     actionModalCopyText: '',
-    usersList: []
+    usersList: [],
+    kbRegistry: [],
+    kbRegistryFetched: false,
+    selectedKbId: null,
+    kbCreateMode: false,
+    kbPreviewDoc: null,
+    kbEditDoc: null
   }
+
+  /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
+  const KB_ID_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
   const FETCH_OPTS = { credentials: 'include' }
   /** Single label for "reset this section only" buttons (Config, AI, etc.) */
@@ -372,11 +381,7 @@
   // #region agent log (gated by ?ace_debug=1)
   function debugLog (location, message, data) {
     if (!ACE_DEBUG) return
-    var payload = { location: location, message: message, data: data || {}, timestamp: Date.now(), sessionId: 'debug-session', requestId: data && data.requestId }
     console.log('[ACE debug]', message, data)
-    if (typeof fetch !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(function () {})
-    }
   }
   // #endregion
   async function apiUsersUpdate (id, updates, requestId) {
@@ -606,6 +611,7 @@
       state.meta = data.meta || null
       state.validation = data.validation || { errors: [], warnings: [] }
       state.loadedAt = new Date().toLocaleString()
+      state.kbRegistryFetched = false
       state.connected = true
       state.saveSummary = null
       state.previewSummary = null
@@ -737,7 +743,7 @@
         updateFooterButtons()
         return
       }
-      let html = '<span class="errors">' + state.validation.errors.map(escapeHtml).join('; ') + '</span>'
+      let html = '<ul class="validation-errors-list">' + state.validation.errors.map(function (err) { return '<li class="errors">' + escapeHtml(err) + '</li>' }).join('') + '</ul>'
       if (hasWarn) html += '<div class="warnings">' + state.validation.warnings.map(escapeHtml).join('; ') + '</div>'
       if (hasErr) html += ' <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
       el.innerHTML = html
@@ -746,7 +752,7 @@
       return
     }
     let html = ''
-    if (last.errors && last.errors.length) html += '<span class="errors">' + last.errors.map(escapeHtml).join('; ') + '</span>'
+    if (last.errors && last.errors.length) html += '<ul class="validation-errors-list">' + last.errors.map(function (err) { return '<li class="errors">' + escapeHtml(err) + '</li>' }).join('') + '</ul>'
     if (last.warnings && last.warnings.length) html += '<div class="warnings">' + last.warnings.map(escapeHtml).join('; ') + '</div>'
     if (!html) html = 'Validation passed.'
     else html += ' <button type="button" class="btn-small" id="copy-validation-error-btn">Copy error</button>'
@@ -1424,6 +1430,9 @@
 
   // ——— Assistants tab ———
   function renderAssistantsTab () {
+    if (state.selectedAssistantId && !state.kbRegistryFetched) {
+      fetchKbRegistry().then(function () { state.kbRegistryFetched = true; renderAssistantsTab() }).catch(function () { state.kbRegistryFetched = true; state.kbRegistry = []; renderAssistantsTab() })
+    }
     const panel = document.getElementById('panel-assistants')
     const m = state.editedModel
     const list = m?.assistantsManifest?.assistants || []
@@ -1490,18 +1499,71 @@
     html += '<label>Tag variant</label><select id="ae-tag-variant"><option value="">—</option><option value="new"' + (a.tag?.variant === 'new' ? ' selected' : '') + '>new</option><option value="beta"' + (a.tag?.variant === 'beta' ? ' selected' : '') + '>beta</option><option value="alpha"' + (a.tag?.variant === 'alpha' ? ' selected' : '') + '>alpha</option></select>'
     html += '<label>Icon ID</label><input type="text" id="ae-iconId" class="ace-field" value="' + escapeHtml(a.iconId || '') + '">'
     html += '<label>Kind</label><select id="ae-kind"><option value="ai"' + (a.kind === 'ai' ? ' selected' : '') + '>ai</option><option value="tool"' + (a.kind === 'tool' ? ' selected' : '') + '>tool</option><option value="hybrid"' + (a.kind === 'hybrid' ? ' selected' : '') + '>hybrid</option></select>'
-    html += '<div class="section-title">Quick actions</div><ul class="quick-actions-list" id="ae-quickActions">'
+    html += '<div class="section-title">Quick actions</div>'
+    html += '<p class="ace-qa-execution-type-helper fg-secondary">Execution type: <strong>ui-only</strong> = handled in UI, does not call main; <strong>tool-only</strong> = main/handler only, no LLM; <strong>llm</strong> = calls provider (sendChatWithRecovery); <strong>hybrid</strong> = tool + LLM / mixed steps.</p>'
+    html += '<ul class="quick-actions-list" id="ae-quickActions">'
+    const EXECUTION_TYPES = ['ui-only', 'tool-only', 'llm', 'hybrid']
     ;(a.quickActions || []).forEach((qa, i) => {
-      html += '<li><input type="text" placeholder="id" value="' + escapeHtml(qa.id) + '" data-i="' + i + '" data-field="id"><input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label"><button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button></li>'
+      const execType = (qa.executionType && EXECUTION_TYPES.includes(qa.executionType)) ? qa.executionType : 'llm'
+      html += '<li class="quick-action-row">'
+      html += '<input type="text" placeholder="id" value="' + escapeHtml(qa.id) + '" data-i="' + i + '" data-field="id" class="ae-qa-id">'
+      html += '<input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label" class="ae-qa-label">'
+      html += '<label class="ae-qa-exec-label">Execution type</label><select class="ae-qa-exec-select" data-i="' + i + '" data-field="executionType">'
+      EXECUTION_TYPES.forEach(opt => { html += '<option value="' + escapeHtml(opt) + '"' + (execType === opt ? ' selected' : '') + '>' + escapeHtml(opt) + '</option>' })
+      html += '</select>'
+      html += '<button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button></li>'
     })
     html += '</ul><button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
+    // Optional structured config (PR7)
+    html += '<div class="section-title">Structured instructions</div>'
+    html += '<ul class="instruction-blocks-list" id="ae-instructionBlocks">'
+    const blocks = a.instructionBlocks || []
+    const BLOCK_KINDS = ['system', 'behavior', 'rules', 'examples', 'format', 'context']
+    blocks.forEach((block, i) => {
+      html += '<li class="instruction-block-row" data-i="' + i + '">'
+      html += '<label>Kind</label><select class="ae-ib-kind" data-i="' + i + '">'
+      BLOCK_KINDS.forEach(k => { html += '<option value="' + k + '"' + ((block.kind || 'behavior') === k ? ' selected' : '') + '>' + k + '</option>' })
+      html += '</select>'
+      html += '<label>Content</label><textarea class="ae-ib-content ace-field" rows="3" data-i="' + i + '">' + escapeHtml(block.content || '') + '</textarea>'
+      html += '<div class="field-row"><label><input type="checkbox" class="ae-ib-enabled" data-i="' + i + '" ' + (block.enabled !== false ? 'checked' : '') + '> Enabled</label></div>'
+      html += '<div class="instruction-block-actions"><button type="button" class="btn-small ae-ib-up" data-i="' + i + '">Up</button><button type="button" class="btn-small ae-ib-down" data-i="' + i + '">Down</button><button type="button" class="btn-small ae-ib-remove" data-i="' + i + '">Remove</button></div></li>'
+    })
+    html += '</ul><button type="button" class="btn-small add-btn" id="ae-ib-add">Add block</button>'
+    html += '<label>Tone/style preset</label><input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
+    html += '<label>Output schema ID</label><input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="Schema id">'
+    html += '<label>Knowledge base refs</label>'
+    const kbRegistry = state.kbRegistry || []
+    if (!state.kbRegistryFetched) {
+      html += '<p class="fg-secondary">Loading KB list…</p>'
+    } else {
+      html += '<p class="fg-secondary">Select KBs; order matters for injection.</p>'
+      html += '<div class="ae-kb-refs-list" id="ae-kb-refs-checkboxes">'
+      kbRegistry.forEach(function (entry) {
+        const refs = a.knowledgeBaseRefs || []
+        const checked = refs.indexOf(entry.id) !== -1
+        html += '<label class="field-row ae-kb-ref-cb"><input type="checkbox" class="ae-kb-ref-cb-input" data-id="' + escapeHtml(entry.id) + '" ' + (checked ? 'checked' : '') + '> <span>' + escapeHtml(entry.title || entry.id) + '</span> <span class="fg-secondary" style="font-size:0.9em">(' + escapeHtml(entry.id) + ')</span></label>'
+      })
+      html += '</div>'
+      html += '<div class="ae-kb-refs-selected" id="ae-kb-refs-selected"><span class="fg-secondary">Selected (order):</span> <span id="ae-kb-refs-order"></span></div>'
+      html += '<div class="ae-kb-refs-reorder" id="ae-kb-refs-reorder"></div>'
+    }
+    html += '<div class="field-row"><label><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Safety: allow images</label></div>'
     html += '<label>Prompt template</label><textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="12">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
     return html
+  }
+
+  const EXECUTION_TYPES_ACE = ['ui-only', 'tool-only', 'llm', 'hybrid']
+  function ensureQuickActionExecutionTypes (a) {
+    if (!a.quickActions) return
+    a.quickActions.forEach(qa => {
+      if (!qa.executionType || !EXECUTION_TYPES_ACE.includes(qa.executionType)) qa.executionType = 'llm'
+    })
   }
 
   function bindAssistantEditor () {
     const a = (state.editedModel?.assistantsManifest?.assistants || []).find(x => x.id === state.selectedAssistantId)
     if (!a) return
+    ensureQuickActionExecutionTypes(a)
     const set = (id, field, value) => {
       a[field] = value
       showUnsavedBanner()
@@ -1526,20 +1588,155 @@
         renderAssistantsTab()
       }
     })
-    document.querySelectorAll('#ae-quickActions input').forEach(inp => {
-      inp.onchange = function () {
+    document.querySelectorAll('#ae-quickActions input, #ae-quickActions select').forEach(el => {
+      const handler = function () {
         const i = parseInt(this.getAttribute('data-i'), 10)
         const field = this.getAttribute('data-field')
         if (a.quickActions[i]) a.quickActions[i][field] = this.value
         showUnsavedBanner()
       }
+      el.onchange = handler
+      if (el.tagName === 'INPUT') el.oninput = handler
     })
     const addBtn = document.getElementById('ae-qa-add')
     if (addBtn) addBtn.onclick = function () {
       a.quickActions = a.quickActions || []
-      a.quickActions.push({ id: 'new-action', label: 'New action', templateMessage: '' })
+      a.quickActions.push({ id: 'new-action', label: 'New action', templateMessage: '', executionType: 'llm' })
       showUnsavedBanner()
       renderAssistantsTab()
+    }
+    // Structured instructions (PR7)
+    if (!a.instructionBlocks) a.instructionBlocks = []
+    document.querySelectorAll('.ae-ib-kind').forEach(el => {
+      el.onchange = function () {
+        const i = parseInt(this.getAttribute('data-i'), 10)
+        if (a.instructionBlocks[i]) a.instructionBlocks[i].kind = this.value
+        showUnsavedBanner()
+      }
+    })
+    document.querySelectorAll('.ae-ib-content').forEach(el => {
+      const handler = function () {
+        const i = parseInt(this.getAttribute('data-i'), 10)
+        if (a.instructionBlocks[i]) a.instructionBlocks[i].content = this.value
+        showUnsavedBanner()
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+    document.querySelectorAll('.ae-ib-enabled').forEach(el => {
+      el.onchange = function () {
+        const i = parseInt(this.getAttribute('data-i'), 10)
+        if (a.instructionBlocks[i]) a.instructionBlocks[i].enabled = this.checked
+        showUnsavedBanner()
+      }
+    })
+    document.querySelectorAll('.ae-ib-remove').forEach(btn => {
+      btn.onclick = function () {
+        const i = parseInt(this.getAttribute('data-i'), 10)
+        a.instructionBlocks.splice(i, 1)
+        showUnsavedBanner()
+        renderAssistantsTab()
+      }
+    })
+    document.querySelectorAll('.ae-ib-up').forEach(btn => {
+      btn.onclick = function () {
+        const i = parseInt(this.getAttribute('data-i'), 10)
+        if (i <= 0) return
+        const t = a.instructionBlocks[i]
+        a.instructionBlocks[i] = a.instructionBlocks[i - 1]
+        a.instructionBlocks[i - 1] = t
+        showUnsavedBanner()
+        renderAssistantsTab()
+      }
+    })
+    document.querySelectorAll('.ae-ib-down').forEach(btn => {
+      btn.onclick = function () {
+        const i = parseInt(this.getAttribute('data-i'), 10)
+        if (i >= a.instructionBlocks.length - 1) return
+        const t = a.instructionBlocks[i]
+        a.instructionBlocks[i] = a.instructionBlocks[i + 1]
+        a.instructionBlocks[i + 1] = t
+        showUnsavedBanner()
+        renderAssistantsTab()
+      }
+    })
+    const ibAdd = document.getElementById('ae-ib-add')
+    if (ibAdd) ibAdd.onclick = function () {
+      a.instructionBlocks = a.instructionBlocks || []
+      a.instructionBlocks.push({ id: 'block-' + Date.now(), kind: 'behavior', content: '', enabled: true })
+      showUnsavedBanner()
+      renderAssistantsTab()
+    }
+    const toneEl = document.getElementById('ae-toneStylePreset')
+    if (toneEl) toneEl.onchange = function () { a.toneStylePreset = this.value || undefined; showUnsavedBanner() }
+    if (toneEl) toneEl.oninput = function () { a.toneStylePreset = this.value || undefined; showUnsavedBanner() }
+    const schemaEl = document.getElementById('ae-outputSchemaId')
+    if (schemaEl) schemaEl.onchange = function () { a.outputSchemaId = this.value || undefined; showUnsavedBanner() }
+    if (schemaEl) schemaEl.oninput = function () { a.outputSchemaId = this.value || undefined; showUnsavedBanner() }
+    // KB refs: checkboxes + order (registry-backed)
+    const refsCheckboxes = document.querySelectorAll('.ae-kb-ref-cb-input')
+    const refsOrderEl = document.getElementById('ae-kb-refs-order')
+    const refsReorderEl = document.getElementById('ae-kb-refs-reorder')
+    function syncKbRefsFromCheckboxes () {
+      const current = a.knowledgeBaseRefs || []
+      const checked = []
+      refsCheckboxes.forEach(function (cb) {
+        if (cb.checked) checked.push(cb.getAttribute('data-id'))
+      })
+      const ordered = current.filter(function (id) { return checked.indexOf(id) !== -1 })
+      checked.forEach(function (id) { if (ordered.indexOf(id) === -1) ordered.push(id) })
+      a.knowledgeBaseRefs = ordered.length ? ordered : undefined
+      showUnsavedBanner()
+      renderKbRefsOrder()
+    }
+    function renderKbRefsOrder () {
+      const ordered = a.knowledgeBaseRefs || []
+      if (!refsOrderEl) return
+      refsOrderEl.textContent = ordered.length ? ordered.join(', ') : '—'
+      if (!refsReorderEl) return
+      refsReorderEl.innerHTML = ''
+      ordered.forEach(function (id, idx) {
+        const label = (state.kbRegistry || []).find(function (e) { return e.id === id })
+        const title = label ? (label.title || id) : id
+        const div = document.createElement('div')
+        div.className = 'field-row ae-kb-ref-order-row'
+        div.innerHTML = '<span class="ae-kb-ref-order-label">' + escapeHtml(title) + ' <span class="fg-secondary">(' + escapeHtml(id) + ')</span></span>' +
+          '<button type="button" class="btn-small ae-kb-ref-up" data-idx="' + idx + '">Up</button>' +
+          '<button type="button" class="btn-small ae-kb-ref-down" data-idx="' + idx + '">Down</button>'
+        refsReorderEl.appendChild(div)
+      })
+      refsReorderEl.querySelectorAll('.ae-kb-ref-up').forEach(function (btn) {
+        btn.onclick = function () {
+          const idx = parseInt(this.getAttribute('data-idx'), 10)
+          if (idx <= 0) return
+          const arr = (a.knowledgeBaseRefs || []).slice()
+          const t = arr[idx]; arr[idx] = arr[idx - 1]; arr[idx - 1] = t
+          a.knowledgeBaseRefs = arr
+          showUnsavedBanner()
+          renderKbRefsOrder()
+        }
+      })
+      refsReorderEl.querySelectorAll('.ae-kb-ref-down').forEach(function (btn) {
+        btn.onclick = function () {
+          const idx = parseInt(this.getAttribute('data-idx'), 10)
+          const arr = a.knowledgeBaseRefs || []
+          if (idx >= arr.length - 1) return
+          const t = arr[idx]; arr[idx] = arr[idx + 1]; arr[idx + 1] = t
+          a.knowledgeBaseRefs = arr
+          showUnsavedBanner()
+          renderKbRefsOrder()
+        }
+      })
+    }
+    refsCheckboxes.forEach(function (cb) {
+      cb.onchange = syncKbRefsFromCheckboxes
+    })
+    renderKbRefsOrder()
+    const allowImg = document.getElementById('ae-allowImages')
+    if (allowImg) allowImg.onchange = function () {
+      if (!a.safetyOverrides) a.safetyOverrides = {}
+      a.safetyOverrides.allowImages = this.checked || undefined
+      showUnsavedBanner()
     }
   }
 
@@ -1607,6 +1804,390 @@
       state.editedModel.customKnowledge = deepClone(state.originalModel.customKnowledge)
       showUnsavedBanner()
       renderKnowledgeTab()
+    }
+  }
+
+  // ——— Knowledge Bases tab (PR11b) ———
+  async function fetchKbRegistry () {
+    const res = await fetch(API_BASE + '/api/kb/registry', { ...FETCH_OPTS })
+    if (!res.ok) throw new Error(res.status === 403 ? 'Not authorized' : 'Failed to load registry')
+    const data = await res.json()
+    state.kbRegistry = data.knowledgeBases || []
+  }
+
+  function renderKnowledgeBasesTab () {
+    const panel = document.getElementById('panel-knowledge-bases')
+    if (!panel) return
+    panel.setAttribute('aria-busy', 'true')
+    panel.innerHTML = '<div class="section-title">Knowledge Bases</div><p class="fg-secondary">Loading…</p>'
+    fetchKbRegistry()
+      .then(function () {
+        state.panelKnowledgeBasesReady = true
+        renderKnowledgeBasesTabContent()
+      })
+      .catch(function (err) {
+        panel.removeAttribute('aria-busy')
+        panel.innerHTML = '<div class="section-title">Knowledge Bases</div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
+      })
+  }
+
+  function renderKnowledgeBasesTabContent () {
+    const panel = document.getElementById('panel-knowledge-bases')
+    if (!panel || !state.panelKnowledgeBasesReady) return
+    panel.removeAttribute('aria-busy')
+    const registry = state.kbRegistry || []
+    const selectedId = state.selectedKbId
+    const createMode = state.kbCreateMode
+    const previewDoc = state.kbPreviewDoc
+    const editDoc = state.kbEditDoc
+
+    let html = '<div class="section-title">Knowledge Bases</div>'
+    html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference by id (knowledgeBaseRefs).</p>'
+    html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import KB</button>'
+    html += '<div class="list-panel">'
+    html += '<div class="list" id="kb-list">'
+    const assistants = state.editedModel?.assistantsManifest?.assistants || []
+    function referencedBy (kbId) {
+      return assistants.filter(function (as) { return (as.knowledgeBaseRefs || []).indexOf(kbId) !== -1 })
+    }
+    registry.forEach(function (entry) {
+      const cls = entry.id === selectedId && !createMode ? 'item selected' : 'item'
+      const meta = [entry.id]
+      if (entry.tags && entry.tags.length) meta.push(entry.tags.join(', '))
+      if (entry.version) meta.push('v' + entry.version)
+      if (entry.updatedAt) meta.push(entry.updatedAt.slice(0, 10))
+      const refs = referencedBy(entry.id)
+      const refLabel = refs.length ? refs.map(function (as) { return as.label || as.id }).join(', ') : 'Not referenced'
+      html += '<div class="' + cls + '" data-id="' + escapeHtml(entry.id) + '">'
+      html += '<strong>' + escapeHtml(entry.title || entry.id) + '</strong>'
+      html += ' <span class="fg-secondary" style="font-size:0.9em">' + escapeHtml(meta.join(' · ')) + '</span>'
+      html += '<div class="kb-referenced-by fg-secondary" style="font-size:0.85em;margin-top:2px">Referenced by: ' + escapeHtml(refLabel) + '</div>'
+      html += '<div class="kb-row-actions">'
+      html += '<button type="button" class="btn-small kb-view-edit" data-id="' + escapeHtml(entry.id) + '">View/Edit</button>'
+      html += '<button type="button" class="btn-small kb-reimport" data-id="' + escapeHtml(entry.id) + '">Re-import</button>'
+      html += '<button type="button" class="btn-small kb-copy-id" data-id="' + escapeHtml(entry.id) + '">Copy ID</button>'
+      html += '<button type="button" class="btn-small kb-delete" data-id="' + escapeHtml(entry.id) + '">Delete</button>'
+      html += '</div></div>'
+    })
+    html += '</div><div class="editor" id="kb-editor-panel">'
+    if (createMode) {
+      html += kbImportFormHtml(previewDoc)
+    } else if (selectedId && editDoc) {
+      html += kbEditFormHtml(editDoc)
+    } else if (selectedId) {
+      html += '<p class="fg-secondary">Loading…</p>'
+    } else {
+      html += '<div class="empty">Select a KB or click Create / Import KB</div>'
+    }
+    html += '</div></div>'
+    panel.innerHTML = html
+
+    document.getElementById('kb-create-btn').onclick = function () {
+      state.kbCreateMode = true
+      state.kbPreviewDoc = null
+      state.selectedKbId = null
+      state.kbEditDoc = null
+      renderKnowledgeBasesTabContent()
+    }
+    document.querySelectorAll('#kb-list .item[data-id]').forEach(function (el) {
+      const id = el.getAttribute('data-id')
+      el.addEventListener('click', function (e) {
+        if (e.target.closest('.kb-row-actions')) return
+        state.selectedKbId = id
+        state.kbCreateMode = false
+        state.kbPreviewDoc = null
+        state.kbEditDoc = null
+        loadKbDocThenRender(id)
+      })
+    })
+    document.querySelectorAll('.kb-view-edit').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation()
+        const id = this.getAttribute('data-id')
+        state.selectedKbId = id
+        state.kbCreateMode = false
+        state.kbPreviewDoc = null
+        loadKbDocThenRender(id)
+      }
+    })
+    document.querySelectorAll('.kb-reimport').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation()
+        const id = this.getAttribute('data-id')
+        const entry = registry.find(function (e) { return e.id === id })
+        state.kbCreateMode = true
+        state.kbPreviewDoc = null
+        state.selectedKbId = null
+        state.kbEditDoc = null
+        state.kbReimportId = id
+        state.kbReimportTitle = entry ? (entry.title || '') : ''
+        renderKnowledgeBasesTabContent()
+      }
+    })
+    document.querySelectorAll('.kb-copy-id').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation()
+        const id = this.getAttribute('data-id')
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(id).then(function () {
+            showActionModal({ state: 'success', title: 'Copied', message: 'ID copied: ' + id })
+          }).catch(function () {
+            showActionModal({ state: 'error', message: 'Copy failed' })
+          })
+        } else {
+          showActionModal({ state: 'success', title: 'ID', message: id, copyText: id })
+        }
+      }
+    })
+    document.querySelectorAll('.kb-delete').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation()
+        const id = this.getAttribute('data-id')
+        const entry = registry.find(function (e) { return e.id === id })
+        const title = entry ? (entry.title || id) : id
+        if (!confirm('Delete KB “‘ + title + ’”? This removes the file and registry entry.')) return
+        fetch(API_BASE + '/api/kb/' + encodeURIComponent(id), { method: 'DELETE', ...FETCH_OPTS })
+          .then(function (res) {
+            if (!res.ok) return res.json().then(function (body) { throw new Error(body.error || 'Delete failed') })
+            state.selectedKbId = null
+            state.kbEditDoc = null
+            state.kbRegistry = state.kbRegistry.filter(function (e) { return e.id !== id })
+            renderKnowledgeBasesTabContent()
+            showActionModal({ state: 'success', message: 'Deleted.' })
+          })
+          .catch(function (err) {
+            showActionModal({ state: 'error', message: err.message || 'Delete failed' })
+          })
+      }
+    })
+
+    if (createMode) bindKbImportForm()
+    else if (selectedId && editDoc) bindKbEditForm(editDoc)
+    else if (selectedId) loadKbDocThenRender(selectedId)
+  }
+
+  function loadKbDocThenRender (id) {
+    fetch(API_BASE + '/api/kb/' + encodeURIComponent(id), { ...FETCH_OPTS })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.status === 404 ? 'Not found' : 'Failed to load')
+        return res.json()
+      })
+      .then(function (doc) {
+        state.kbEditDoc = doc
+        renderKnowledgeBasesTabContent()
+      })
+      .catch(function (err) {
+        state.kbEditDoc = null
+        renderKnowledgeBasesTabContent()
+        showActionModal({ state: 'error', message: err.message || 'Load failed' })
+      })
+  }
+
+  function kbImportFormHtml (previewDoc) {
+    const reimportId = state.kbReimportId || ''
+    const reimportTitle = state.kbReimportTitle || ''
+    let html = '<div class="kb-import-form">'
+    html += '<label>ID (kebab-case)</label><input type="text" id="kb-import-id" class="ace-field" value="' + escapeHtml(reimportId) + '" placeholder="e.g. design-guidelines">'
+    html += '<label>Title</label><input type="text" id="kb-import-title" class="ace-field" value="' + escapeHtml(reimportTitle) + '" placeholder="Optional">'
+    html += '<label>Import from</label>'
+    html += '<textarea id="kb-import-md" class="ace-field" rows="8" placeholder="Paste Markdown here"></textarea>'
+    html += '<p class="fg-secondary" style="margin-top:4px">Or paste JSON (loose shape OK):</p>'
+    html += '<textarea id="kb-import-json" class="ace-field" rows="6" placeholder="Paste JSON here"></textarea>'
+    html += '<p class="fg-secondary">Or <input type="file" id="kb-import-file-md" accept=".md"> <input type="file" id="kb-import-file-json" accept=".json"></p>'
+    html += '<button type="button" class="btn-small" id="kb-preview-normalize">Preview normalize</button>'
+    html += '<div id="kb-normalize-errors" class="fg-secondary" style="margin-top:8px;color:var(--error, #c00);" role="alert"></div>'
+    if (previewDoc) {
+      html += '<div class="kb-preview-block"><pre id="kb-preview-json">' + escapeHtml(JSON.stringify(previewDoc, null, 2)) + '</pre></div>'
+      html += '<button type="button" class="btn-small" id="kb-save-create">Save</button>'
+    }
+    html += '</div>'
+    return html
+  }
+
+  function kbEditFormHtml (doc) {
+    if (!doc) return ''
+    let html = '<div class="kb-edit-form">'
+    html += '<label>ID (read-only)</label><input type="text" class="ace-field" value="' + escapeHtml(doc.id) + '" readonly>'
+    html += '<label>Title</label><input type="text" id="kb-edit-title" class="ace-field" value="' + escapeHtml(doc.title || '') + '">'
+    html += '<label>Purpose</label><textarea id="kb-edit-purpose" class="ace-field" rows="2">' + escapeHtml(doc.purpose || '') + '</textarea>'
+    html += '<label>Scope</label><textarea id="kb-edit-scope" class="ace-field" rows="2">' + escapeHtml(doc.scope || '') + '</textarea>'
+    html += '<label>Definitions (one per line or bullet)</label><textarea id="kb-edit-definitions" class="ace-field" rows="4">' + escapeHtml((doc.definitions || []).join('\n')) + '</textarea>'
+    html += '<label>Rules / constraints</label><textarea id="kb-edit-rules" class="ace-field" rows="4">' + escapeHtml((doc.rulesConstraints || []).join('\n')) + '</textarea>'
+    html += '<label>Do (one per line)</label><textarea id="kb-edit-do" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.do ? doc.doDont.do : []).join('\n')) + '</textarea>'
+    html += '<label>Don\'t (one per line)</label><textarea id="kb-edit-dont" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.dont ? doc.doDont.dont : []).join('\n')) + '</textarea>'
+    html += '<label>Examples</label><textarea id="kb-edit-examples" class="ace-field" rows="4">' + escapeHtml((doc.examples || []).join('\n')) + '</textarea>'
+    html += '<label>Edge cases</label><textarea id="kb-edit-edge" class="ace-field" rows="3">' + escapeHtml((doc.edgeCases || []).join('\n')) + '</textarea>'
+    html += '<label>Source</label><input type="text" id="kb-edit-source" class="ace-field" value="' + escapeHtml(doc.source || '') + '">'
+    html += '<label>Version</label><input type="text" id="kb-edit-version" class="ace-field" value="' + escapeHtml(doc.version || '') + '">'
+    html += '<label>Tags (comma-separated)</label><input type="text" id="kb-edit-tags" class="ace-field" value="' + escapeHtml((doc.tags || []).join(', ')) + '">'
+    html += '<button type="button" class="btn-small" id="kb-save-edit">Save changes</button>'
+    html += '</div>'
+    return html
+  }
+
+  function bindKbImportForm () {
+    const errEl = document.getElementById('kb-normalize-errors')
+    const previewBtn = document.getElementById('kb-preview-normalize')
+    const saveBtn = document.getElementById('kb-save-create')
+    if (previewBtn) {
+      previewBtn.onclick = function () {
+        var id = (document.getElementById('kb-import-id') || {}).value.trim() || 'draft'
+        var title = (document.getElementById('kb-import-title') || {}).value
+        if (!KB_ID_REGEX.test(id)) {
+          if (errEl) errEl.textContent = 'ID must be kebab-case (e.g. my-knowledge-base).'
+          return
+        }
+        var md = (document.getElementById('kb-import-md') || {}).value
+        var json = (document.getElementById('kb-import-json') || {}).value
+        var type = md.trim() ? 'md' : 'json'
+        var content = md.trim() || json.trim()
+        if (!content) {
+          if (errEl) errEl.textContent = 'Paste Markdown or JSON first.'
+          return
+        }
+        if (errEl) errEl.textContent = ''
+        fetch(API_BASE + '/api/kb/normalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: type, content: content, id: id, title: title || undefined }),
+          ...FETCH_OPTS
+        })
+          .then(function (res) { return res.json() })
+          .then(function (data) {
+            if (data.errors && data.errors.length) {
+              if (errEl) errEl.textContent = data.errors.join('; ')
+              state.kbPreviewDoc = null
+            } else {
+              if (errEl) errEl.textContent = ''
+              state.kbPreviewDoc = data.doc
+            }
+            renderKnowledgeBasesTabContent()
+          })
+          .catch(function (err) {
+            if (errEl) errEl.textContent = err.message || 'Normalize failed'
+          })
+      }
+    }
+    if (saveBtn) {
+      saveBtn.onclick = function () {
+        var doc = state.kbPreviewDoc
+        if (!doc) return
+        saveKbCreate(doc, false)
+      }
+    }
+    var fileMd = document.getElementById('kb-import-file-md')
+    var fileJson = document.getElementById('kb-import-file-json')
+    if (fileMd) {
+      fileMd.onchange = function () {
+        var f = this.files && this.files[0]
+        if (!f) return
+        var r = new FileReader()
+        r.onload = function () {
+          var ta = document.getElementById('kb-import-md')
+          if (ta) ta.value = r.result || ''
+        }
+        r.readAsText(f)
+      }
+    }
+    if (fileJson) {
+      fileJson.onchange = function () {
+        var f = this.files && this.files[0]
+        if (!f) return
+        var r = new FileReader()
+        r.onload = function () {
+          var ta = document.getElementById('kb-import-json')
+          if (ta) ta.value = r.result || ''
+        }
+        r.readAsText(f)
+      }
+    }
+  }
+
+  function saveKbCreate (doc, forceOverwrite) {
+    fetch(API_BASE + '/api/kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doc: doc, forceOverwrite: forceOverwrite || undefined }),
+      ...FETCH_OPTS
+    })
+      .then(function (res) {
+        return res.json().then(function (body) {
+          if (res.status === 409 && body.code === 'OVERWRITE_REQUIRED') {
+            if (!confirm('A KB with this ID already exists. Overwrite?')) return
+            saveKbCreate(doc, true)
+            return
+          }
+          if (!res.ok) throw new Error(body.error || body.errors ? (body.errors || []).join('; ') : 'Save failed')
+          state.kbRegistry = body.registry ? (body.registry.knowledgeBases || []) : state.kbRegistry
+          state.kbCreateMode = false
+          state.kbPreviewDoc = null
+          state.kbReimportId = null
+          state.kbReimportTitle = null
+          renderKnowledgeBasesTabContent()
+          showActionModal({ state: 'success', message: 'Saved.' })
+        })
+      })
+      .catch(function (err) {
+        showActionModal({ state: 'error', message: err.message || 'Save failed' })
+      })
+  }
+
+  function bindKbEditForm (doc) {
+    var saveBtn = document.getElementById('kb-save-edit')
+    if (!saveBtn) return
+    saveBtn.onclick = function () {
+      var title = (document.getElementById('kb-edit-title') || {}).value
+      var purpose = (document.getElementById('kb-edit-purpose') || {}).value
+      var scope = (document.getElementById('kb-edit-scope') || {}).value
+      var defs = (document.getElementById('kb-edit-definitions') || {}).value.split(/\n/).map(function (s) { return s.trim() }).filter(Boolean)
+      var rules = (document.getElementById('kb-edit-rules') || {}).value.split(/\n/).map(function (s) { return s.trim() }).filter(Boolean)
+      var doList = (document.getElementById('kb-edit-do') || {}).value.split(/\n/).map(function (s) { return s.trim() }).filter(Boolean)
+      var dontList = (document.getElementById('kb-edit-dont') || {}).value.split(/\n/).map(function (s) { return s.trim() }).filter(Boolean)
+      var examples = (document.getElementById('kb-edit-examples') || {}).value.split(/\n/).map(function (s) { return s.trim() }).filter(Boolean)
+      var edge = (document.getElementById('kb-edit-edge') || {}).value.split(/\n/).map(function (s) { return s.trim() }).filter(Boolean)
+      var source = (document.getElementById('kb-edit-source') || {}).value
+      var version = (document.getElementById('kb-edit-version') || {}).value
+      var tagsStr = (document.getElementById('kb-edit-tags') || {}).value
+      var tags = tagsStr ? tagsStr.split(',').map(function (s) { return s.trim() }).filter(Boolean) : []
+      var payload = {
+        doc: {
+          id: doc.id,
+          title: title,
+          purpose: purpose,
+          scope: scope,
+          definitions: defs,
+          rulesConstraints: rules,
+          doDont: { do: doList, dont: dontList },
+          examples: examples,
+          edgeCases: edge,
+          source: source || undefined,
+          version: version || undefined,
+          tags: tags
+        }
+      }
+      fetch(API_BASE + '/api/kb/' + encodeURIComponent(doc.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        ...FETCH_OPTS
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (body) { throw new Error(body.error || (body.errors || []).join('; ')) })
+          return res.json()
+        })
+        .then(function (data) {
+          state.kbEditDoc = data.doc
+          var entry = state.kbRegistry.find(function (e) { return e.id === doc.id })
+          if (entry) {
+            entry.title = data.doc.title
+            if (data.doc.updatedAt) entry.updatedAt = data.doc.updatedAt
+          }
+          renderKnowledgeBasesTabContent()
+          showActionModal({ state: 'success', message: 'Saved.' })
+        })
+        .catch(function (err) {
+          showActionModal({ state: 'error', message: err.message || 'Save failed' })
+        })
     }
   }
 
@@ -2002,6 +2583,7 @@
     config: 'General Plugin Settings',
     ai: 'AI',
     assistants: 'Assistants — Definitions and prompts',
+    'knowledge-bases': 'Knowledge Bases — Normalized KB docs',
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
     registries: 'Design System Registries — Registry JSON per design system',
@@ -2010,8 +2592,8 @@
   }
 
   function switchTab (tabId) {
-    const panelIds = ['panel-config', 'panel-ai', 'panel-assistants', 'panel-knowledge', 'panel-content-models', 'panel-registries', 'panel-analytics', 'panel-users']
-    const tabIds = ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics', 'users']
+    const panelIds = ['panel-config', 'panel-ai', 'panel-assistants', 'panel-knowledge-bases', 'panel-knowledge', 'panel-content-models', 'panel-registries', 'panel-analytics', 'panel-users']
+    const tabIds = ['config', 'ai', 'assistants', 'knowledge-bases', 'knowledge', 'content-models', 'registries', 'analytics', 'users']
     const allowedTabs = state.auth.allowedTabs || []
     const role = state.auth.role
     const firstAllowed = allowedTabs[0] || 'config'
@@ -2061,6 +2643,7 @@
     if (tabId === 'ai') renderAITab()
     if (tabId === 'analytics') renderAnalyticsTab()
     if (tabId === 'users') renderUsersTab()
+    if (tabId === 'knowledge-bases') renderKnowledgeBasesTab()
   }
 
   function renderAnalyticsTab () {
