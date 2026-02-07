@@ -306,7 +306,20 @@
       "hoverSummary": "Error screen specialist",
       "iconId": "CautionIcon",
       "id": "errors",
-      "instructionBlocks": [],
+      "instructionBlocks": [
+        {
+          "id": "errors-output-generate",
+          "kind": "format",
+          "content": "Generate Error Screens: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"generateErrorScreens\", \"version\": 1, \"meta\": { \"title\": \"string?\", \"sourceName\": \"string?\" }, \"variants\": [ { \"id\": \"string\", \"label\": \"string\", \"rationale\": \"string\", \"copy\": { \"inlineMessage\"?, \"bannerTitle\"?, \"toastMessage\"?, \"helperText\"? } } ] }. Cap 4–6 variants.",
+          "enabled": true
+        },
+        {
+          "id": "errors-output-check",
+          "kind": "format",
+          "content": "Check Errors: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"checkErrors\", \"version\": 1, \"result\": \"PASS\" | \"FAIL\", \"summary\": \"string\", \"items\": [ { \"severity\": \"critical\"|\"high\"|\"medium\"|\"low\", \"title\": \"string\", \"fix\": \"string\" } ] }. Cap 10 items.",
+          "enabled": true
+        }
+      ],
       "intro": "I identify design errors, inconsistencies, and quality issues. Select elements to find problems before handoff.",
       "kind": "ai",
       "label": "Errors",
@@ -315,23 +328,21 @@
       "quickActions": [
         {
           "executionType": "llm",
-          "id": "find-errors",
+          "id": "generate-error-screens",
           "imageScale": 2,
-          "label": "Find errors",
+          "label": "Generate Error Screens",
           "maxImages": 1,
           "requiresSelection": true,
           "requiresVision": true,
-          "templateMessage": "Identify all design errors including layout issues, inconsistencies, component misuse, missing states, and naming problems."
+          "templateMessage": "Generate multiple error-state variants (e.g. inline validation, banner, toast, disabled state, error icon, helper text) with short rationale for each. Return valid JSON only."
         },
         {
           "executionType": "llm",
-          "id": "check-consistency",
-          "imageScale": 2,
-          "label": "Check consistency",
-          "maxImages": 1,
+          "id": "check-errors",
+          "label": "Check Errors",
           "requiresSelection": true,
-          "requiresVision": true,
-          "templateMessage": "Check for style inconsistencies in spacing, colors, typography, and component usage across the design."
+          "requiresVision": false,
+          "templateMessage": "Evaluate the selection and return PASS or FAIL with a concise summary and top fixes. Return valid JSON only."
         }
       ],
       "tag": {

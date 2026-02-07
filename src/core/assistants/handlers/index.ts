@@ -9,6 +9,7 @@ import { DesignCritiqueHandler } from './designCritique'
 import { DesignWorkshopHandler } from './designWorkshop'
 import { DiscoveryCopilotHandler } from './discovery'
 import { AnalyticsTaggingHandler } from './analyticsTagging'
+import { ErrorsHandler } from './errors'
 
 /**
  * All registered handlers
@@ -18,7 +19,8 @@ const handlers: AssistantHandler[] = [
   new DesignCritiqueHandler(),
   new DesignWorkshopHandler(),
   new DiscoveryCopilotHandler(),
-  new AnalyticsTaggingHandler()
+  new AnalyticsTaggingHandler(),
+  new ErrorsHandler()
 ]
 
 /**

@@ -151,10 +151,14 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     iconId: "CautionIcon",
     kind: "ai",
     quickActions: [
-      { id: "find-errors", label: "Find errors", templateMessage: "Identify all design errors including layout issues, inconsistencies, component misuse, missing states, and naming problems.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "check-consistency", label: "Check consistency", templateMessage: "Check for style inconsistencies in spacing, colors, typography, and component usage across the design.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "generate-error-screens", label: "Generate Error Screens", templateMessage: "Generate multiple error-state variants (e.g. inline validation, banner, toast, disabled state, error icon, helper text) with short rationale for each. Return valid JSON only.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "check-errors", label: "Check Errors", templateMessage: "Evaluate the selection and return PASS or FAIL with a concise summary and top fixes. Return valid JSON only.", executionType: "llm", requiresSelection: true },
     ],
     promptTemplate: "# Errors Assistant\n\nYou are **FigmAI's Errors Assistant**, a design quality assurance specialist embedded inside a Figma plugin.\nYou identify design errors, inconsistencies, and quality issues that could cause problems in implementation or user experience."
+    , instructionBlocks: [
+      { id: "errors-output-generate", kind: "format", content: "Generate Error Screens: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"generateErrorScreens\", \"version\": 1, \"meta\": { \"title\": \"string?\", \"sourceName\": \"string?\" }, \"variants\": [ { \"id\": \"string\", \"label\": \"string\", \"rationale\": \"string\", \"copy\": { \"inlineMessage\"?, \"bannerTitle\"?, \"toastMessage\"?, \"helperText\"? } } ] }. Cap 4–6 variants." },
+      { id: "errors-output-check", kind: "format", content: "Check Errors: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"checkErrors\", \"version\": 1, \"result\": \"PASS\" | \"FAIL\", \"summary\": \"string\", \"items\": [ { \"severity\": \"critical\"|\"high\"|\"medium\"|\"low\", \"title\": \"string\", \"fix\": \"string\" } ] }. Cap 10 items." },
+    ]
     , knowledgeBaseRefs: ["errors"]
   },
   {

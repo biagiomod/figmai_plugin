@@ -54,7 +54,8 @@ function expectHandler(assistantId: string, actionId: string, route: RouteClassi
     return (
       (assistantId === 'design_critique' && (actionId === 'give-critique' || actionId === 'deceptive-review')) ||
       (assistantId === 'design_workshop' && actionId === 'generate-screens') ||
-      (assistantId === 'discovery_copilot' && actionId === 'start-discovery')
+      (assistantId === 'discovery_copilot' && actionId === 'start-discovery') ||
+      (assistantId === 'errors' && (actionId === 'generate-error-screens' || actionId === 'check-errors'))
     )
   }
   return false
