@@ -2,13 +2,15 @@
 /**
  * Post-build manifest patcher for networkAccess.allowedDomains
  *
- * - Reads /custom/config.json
- * - Computes final allowedDomains as:
- *     baseAllowedDomains ∪ extraAllowedDomains
- * - Validates each entry is a valid origin (scheme + host + optional port, no path/search/hash)
- * - Writes the result into manifest.json.networkAccess.allowedDomains
+ * This script is the single place that writes manifest.networkAccess.allowedDomains.
+ * It reads custom/config.json and computes the final list from:
+ *   baseAllowedDomains ∪ extraAllowedDomains ∪ [analytics.endpointUrl if enabled]
+ * It does NOT include config.llm.endpoint or config.llm.proxy.baseUrl here; those
+ * are used at runtime by the provider. scripts/assert-invariants.ts validates
+ * that no collected origin (manifest + config.llm + config.analytics) matches the
+ * blocklist (e.g. segment.io, posthog.com).
  *
- * This runs after build-figma-plugin has generated manifest.json from package.json.
+ * Runs after build-figma-plugin has generated manifest.json from package.json.
  */
 
 import * as fs from 'fs'
@@ -131,6 +133,13 @@ function patchManifest(manifestPath: string, finalAllowedDomains: string[]): boo
   }
 }
 
+/**
+ * Compute the list of allowed domains from custom/config.json.
+ * This list is exactly what gets written to manifest.networkAccess.allowedDomains;
+ * Figma enforces it at runtime and blocks any other outbound origins.
+ * The analytics endpoint origin is included only when analytics is enabled
+ * and config.analytics.endpointUrl is set.
+ */
 function computeAllowedDomains(configPath: string): string[] | null {
   const config = loadJsonFile<CustomConfigFile>(configPath) || {}
   const networkAccess = config.networkAccess || {}

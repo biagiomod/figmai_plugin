@@ -114,7 +114,7 @@ export enum ProviderErrorType {
   PROVIDER_ERROR = 'provider_error',
   /** Timeout */
   TIMEOUT = 'timeout',
-  /** Response blocked by content policy / content filter (e.g. Azure). Do not retry. */
+  /** Response blocked by content policy / content filter (e.g. content-filter). Do not retry. */
   CONTENT_FILTER = 'content_filter',
   /** Unknown/unexpected error */
   UNKNOWN = 'unknown'

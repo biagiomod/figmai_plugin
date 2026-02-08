@@ -10,7 +10,7 @@
 When Internal API is enabled (settings: `connectionType === 'internal-api'` and `internalApiUrl` is set):
 
 - **All** LLM/chat requests **must** go through **InternalApiProvider only**.
-- Any “public mode” routing (proxy, `providerId`-based, external/OpenAI/Azure direct) **must** be automatically disabled/ignored.
+- Any “public mode” routing (proxy, `providerId`-based, external/OpenAI/content-blocker direct) **must** be automatically disabled/ignored.
 - If proxy or other public settings are present at the same time, they **must** be treated as **inactive** for the session.
 - When Internal API is active and proxy settings exist, surface a **non-blocking notice**: e.g. “Internal API active; proxy ignored.”
 
@@ -58,7 +58,7 @@ This precedence must be un-bypassable, documented in code, and auditable via pri
 
 ### 1.5 Where instability likely originates
 
-- **Backend → Azure:** Intermittent 400 with “content filtering” is consistent with the **Internal API backend** calling Azure and Azure’s content filter sometimes triggering (e.g. Deceptive Review language: “deceptive”, “manipulate”, “dark pattern”).
+- **Backend → content-filter:** Intermittent 400 with “content filtering” is consistent with the **Internal API backend** calling content-filter and content-filter’s content filter sometimes triggering (e.g. Deceptive Review language: “deceptive”, “manipulate”, “dark pattern”).
 - **Plugin:** Single attempt per request in InternalApiProvider; no retry. All 4xx (including 400) are today mapped to a generic NETWORK-style message; content-filter 400 is not distinguished, so no “do not retry” or user-specific message.
 
 ---
@@ -91,17 +91,17 @@ This precedence must be un-bypassable, documented in code, and auditable via pri
 
 ---
 
-### Phase 3 — Azure content-filter stability
+### Phase 3 — content-filter stability
 
 | Step | What | Files | Why |
 |------|------|-------|-----|
 | 3.1 | **Content-filter error type:** Add `CONTENT_FILTER = 'content_filter'` to `ProviderErrorType`. In `ProviderError`, treat CONTENT_FILTER as non-retryable (e.g. set `retryable: false` when type is CONTENT_FILTER). | [provider.ts](figmai_plugin/src/core/provider/provider.ts) | Typed error so callers and retry logic can “do not retry” and show a specific message. |
-| 3.2 | **Detect content-filter 400 in Internal API provider:** When `response.status === 400`, read response body (text); if it indicates content filtering (e.g. substring “content_filter”, “content filtering”, “content policy”, or known Azure filter code/key), throw `ProviderError` with type `CONTENT_FILTER`, message like “Response was blocked by content policy. Try rephrasing or simplifying the request.” and `retryable: false`. Otherwise keep existing 400 handling (e.g. INVALID_REQUEST or NETWORK, `retryable: false`). | [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) | Users get a clear, actionable message; no retry on same prompt. |
+| 3.2 | **Detect content-filter 400 in Internal API provider:** When `response.status === 400`, read response body (text); if it indicates content filtering (e.g. substring “content_filter”, “content filtering”, “content policy”, or known content-filter filter code/key), throw `ProviderError` with type `CONTENT_FILTER`, message like “Response was blocked by content policy. Try rephrasing or simplifying the request.” and `retryable: false`. Otherwise keep existing 400 handling (e.g. INVALID_REQUEST or NETWORK, `retryable: false`). | [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) | Users get a clear, actionable message; no retry on same prompt. |
 | 3.3 | **Do not retry on content-filter:** Any retry/backoff logic (see 3.4) must **not** retry when the error type is CONTENT_FILTER (or status 400 with content-filter body). | [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) | Prevents repeated filtered requests. |
 | 3.4 | **Optional retry for retryable conditions only:** For Internal API, on 5xx or timeout (and only when error is marked retryable), retry up to 1–2 times with exponential backoff (e.g. 1s, 2s). Do **not** retry on 400, 401, 403, or CONTENT_FILTER. Use existing `ProviderError.retryable` / `isRetryable()` where applicable. | [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) | Improves stability for transient backend/network issues without resending filtered requests. |
-| 3.5 | **Prompt shaping for Deceptive Review:** In the Dark UX evaluation prompt, soften wording that may trigger Azure’s filter while keeping the same JSON schema and evaluation dimensions. E.g. add framing like “Evaluate for compliance with ethical UX guidelines”; use “patterns that may pressure or confuse users” alongside or instead of only “deceptive”/“manipulate” where it does not change semantics; avoid unnecessary repetition of strong terms. Keep schema and dimension list unchanged. | [designCritique.ts](figmai_plugin/src/core/assistants/handlers/designCritique.ts) (`getDarkUxEvaluationPrompt()`) | Reduces likelihood of content-filter triggers on Deceptive Review runs. |
+| 3.5 | **Prompt shaping for Deceptive Review:** In the Dark UX evaluation prompt, soften wording that may trigger content-filter’s filter while keeping the same JSON schema and evaluation dimensions. E.g. add framing like “Evaluate for compliance with ethical UX guidelines”; use “patterns that may pressure or confuse users” alongside or instead of only “deceptive”/“manipulate” where it does not change semantics; avoid unnecessary repetition of strong terms. Keep schema and dimension list unchanged. | [designCritique.ts](figmai_plugin/src/core/assistants/handlers/designCritique.ts) (`getDarkUxEvaluationPrompt()`) | Reduces likelihood of content-filter triggers on Deceptive Review runs. |
 
-**Risks:** 3.2 depends on backend/Azure response shape; detection should be conservative (if in doubt, treat as generic 400). 3.5 must not change output structure or meaning of dimensions.  
+**Risks:** 3.2 depends on backend/content-filter response shape; detection should be conservative (if in doubt, treat as generic 400). 3.5 must not change output structure or meaning of dimensions.  
 **Regression watch:** Deceptive Review output schema and dimension set must remain the same; 400s that are not content-filter should still show a sensible message.
 
 ---
@@ -136,7 +136,7 @@ Optional for symmetry: [proxyProvider.ts](figmai_plugin/src/core/provider/proxyP
 ## 4. Risks and regressions to watch
 
 - **TEST_PROXY refactor (Phase 1.4):** “Test connection” must still test the correct endpoint (Internal API when Internal API is selected; proxy when proxy is selected). If UI passes `options?.internalApiUrl` for “test before save”, that override must still be passed to Internal API provider’s `testConnection`.
-- **Content-filter detection (Phase 3.2):** Backend/Azure response format may vary. Prefer conservative heuristics (e.g. a few known substrings); if unclear, treat as generic 400. Avoid depending on exact JSON shape that might change.
+- **Content-filter detection (Phase 3.2):** Backend/content-filter response format may vary. Prefer conservative heuristics (e.g. a few known substrings); if unclear, treat as generic 400. Avoid depending on exact JSON shape that might change.
 - **Deceptive Review prompt (Phase 3.5):** Do not change JSON schema or dimension names/count; only soften instructional wording to reduce filter triggers.
 - **Logging:** No full URL, no path/query, no request/response bodies, no PII (constraint already stated).
 

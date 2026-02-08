@@ -4,7 +4,7 @@
 
 # LLM Prompt Pipeline — Diagnostic Report
 
-**Purpose:** Pinpoint why Azure CONTENT_FILTER can trigger even for "Hello?" in the work environment; document exact wire payloads, risky-content sources, and safe defaults.
+**Purpose:** Pinpoint why content-blocker CONTENT_FILTER can trigger even for "Hello?" in the work environment; document exact wire payloads, risky-content sources, and safe defaults.
 
 ---
 
@@ -50,7 +50,7 @@
 - Backend is assumed to inject knowledge base and/or design system content when kbName is present. The client cannot sanitize that server-injected content.
 
 **Can backend injection cause "Hello?" blocks?**
-- **Yes.** If the backend injects large or risky content (e.g. long text, URLs, token-like strings, or patterns that Azure flags) when it sees `kbName: 'figma'`, the **total** prompt (client message + server-injected context) can trigger CONTENT_FILTER even when the client sends only "Hello?" plus a short preamble.
+- **Yes.** If the backend injects large or risky content (e.g. long text, URLs, token-like strings, or patterns that content-blocker flags) when it sees `kbName: 'figma'`, the **total** prompt (client message + server-injected context) can trigger CONTENT_FILTER even when the client sends only "Hello?" plus a short preamble.
 - Mitigations on the client: (1) Sanitize and budget everything we send (pipeline). (2) On first CONTENT_FILTER, one retry with minimal payload and **no** kbName (fallback) so backend injection is avoided on retry.
 
 ---
@@ -63,7 +63,7 @@
 | **KB/DS merge (server)** | Backend when kbName present | Server injects full KB/DS; not visible to client | Avoid on fallback: omit kbName when minimalForContentFilter |
 | **Selection summaries** | buildSelectionContext → request.selectionSummary | Long text, node names, metrics; can contain URLs or structured blobs | Sanitize (HTML, data URLs, base64); budget ctx; drop on fallback |
 | **Images / data URLs** | selectionContext.images → request.images | Full base64 data URLs in Proxy payload | sanitizeSegments drops images and flags DATA_URL; applySafetyAssertions strips any remaining data:image/ |
-| **Long base64 runs** | In any message or selectionSummary text | Azure/content filters flag long encoded runs | Collapse to placeholders in sanitizeSegments; assert no long base64 in applySafetyAssertions |
+| **Long base64 runs** | In any message or selectionSummary text | content-blocker/content filters flag long encoded runs | Collapse to placeholders in sanitizeSegments; assert no long base64 in applySafetyAssertions |
 | **Huge JSON/log blocks** | Handlers or user paste | Very long lines or blocks | Clamp in sanitizeSegments (HUGE_JSON, LONG_LINE); budget |
 | **HTML** | User or context | Tags can confuse or trigger filters | Strip in sanitizeSegments |
 | **Repeated URLs / many URLs** | selectionSummary or messages | MANY_URLS flag; some filters sensitive to URL count | Flag in sanitizeSegments; no full URL list in diagnostics |

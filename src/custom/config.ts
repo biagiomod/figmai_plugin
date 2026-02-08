@@ -122,7 +122,7 @@ export function getPromptDiagnosticsLevel(): 'off' | 'compact' | 'details' {
 }
 
 /**
- * Safety toggles for work/Azure isolation (defaults: forceNoKbName false, forceNoSelectionSummary false, forceNoImages true)
+ * Safety toggles for work/content-filter isolation (defaults: forceNoKbName false, forceNoSelectionSummary false, forceNoImages true)
  */
 export function getSafetyToggles(): {
   forceNoKbName: boolean

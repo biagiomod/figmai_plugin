@@ -43,7 +43,7 @@ async function fetchWithTimeout(
 }
 
 /**
- * Detect Azure/OpenAI content-filter style 400 response from body (conservative).
+ * Detect content-filter/OpenAI content-filter style 400 response from body (conservative).
  * Do not retry when this returns true.
  */
 function isContentFilterResponse(body: string): boolean {

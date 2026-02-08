@@ -11,6 +11,20 @@ import * as path from 'node:path'
 const ROOT = path.resolve(__dirname, '..')
 const SRC = path.join(ROOT, 'src')
 const MAIN_TS = path.join(SRC, 'main.ts')
+const CONFIG_JSON = path.join(ROOT, 'custom', 'config.json')
+const MANIFEST_BUILD = path.join(ROOT, 'build', 'manifest.json')
+const MANIFEST_ROOT = path.join(ROOT, 'manifest.json')
+
+/** Hostnames that must not appear in allowedDomains or config-derived origins. */
+const ALLOWED_DOMAINS_BLOCKLIST = new Set([
+  'statsigapi.net',
+  'segment.io',
+  'segment.com',
+  'amplitude.com',
+  'posthog.com',
+  'sentry.io',
+  'datadoghq.com'
+])
 const SELECTION_CONTEXT_TS = path.join(SRC, 'core', 'context', 'selectionContext.ts')
 const ASSISTANTS_INDEX_TS = path.join(SRC, 'assistants', 'index.ts')
 const HANDLERS_INDEX_TS = path.join(SRC, 'core', 'assistants', 'handlers', 'index.ts')
@@ -107,6 +121,61 @@ function main(): void {
     'selectionContext.ts must include images only when needsVision && providerSupportsImages && selection.hasSelection'
   )
   console.log('[assert-invariants] buildSelectionContext image gating: pass')
+
+  // 6) Allowed domains blocklist: no unintended outbound origins (manifest + config, including llm endpoint/proxy)
+  const manifestPath = fs.existsSync(MANIFEST_BUILD) ? MANIFEST_BUILD : MANIFEST_ROOT
+  if (!fs.existsSync(manifestPath)) {
+    console.log('[assert-invariants] No manifest found; skipping allowed-domains check')
+  } else {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
+    const config = fs.existsSync(CONFIG_JSON)
+      ? (JSON.parse(fs.readFileSync(CONFIG_JSON, 'utf8')) as Record<string, unknown>)
+      : {}
+    type OriginEntry = { raw: string; source: 'manifest' | 'config' }
+    const entries: OriginEntry[] = []
+    const manifestDomains = manifest?.networkAccess && typeof manifest.networkAccess === 'object' && Array.isArray((manifest.networkAccess as Record<string, unknown>).allowedDomains)
+      ? ((manifest.networkAccess as Record<string, unknown>).allowedDomains as string[])
+      : []
+    for (const d of manifestDomains) entries.push({ raw: String(d ?? '').trim(), source: 'manifest' })
+    const net = config?.networkAccess && typeof config.networkAccess === 'object' ? (config.networkAccess as Record<string, unknown>) : {}
+    const base = Array.isArray(net.baseAllowedDomains) ? (net.baseAllowedDomains as string[]) : []
+    const extra = Array.isArray(net.extraAllowedDomains) ? (net.extraAllowedDomains as string[]) : []
+    for (const d of [...base, ...extra]) entries.push({ raw: String(d ?? '').trim(), source: 'config' })
+    const analytics = config?.analytics && typeof config.analytics === 'object' ? (config.analytics as Record<string, unknown>) : {}
+    if (analytics.enabled === true && typeof analytics.endpointUrl === 'string' && (analytics.endpointUrl as string).trim()) {
+      entries.push({ raw: (analytics.endpointUrl as string).trim(), source: 'config' })
+    }
+    const llm = config?.llm && typeof config.llm === 'object' ? (config.llm as Record<string, unknown>) : {}
+    if (typeof llm.endpoint === 'string' && (llm.endpoint as string).trim()) {
+      entries.push({ raw: (llm.endpoint as string).trim(), source: 'config' })
+    }
+    const proxy = llm?.proxy && typeof llm.proxy === 'object' ? (llm.proxy as Record<string, unknown>) : {}
+    if (typeof proxy.baseUrl === 'string' && (proxy.baseUrl as string).trim()) {
+      entries.push({ raw: (proxy.baseUrl as string).trim(), source: 'config' })
+    }
+    const hostnameToSource: Array<{ host: string; source: 'manifest' | 'config' }> = []
+    for (const { raw, source } of entries) {
+      if (!raw) continue
+      try {
+        const u = new URL(raw)
+        hostnameToSource.push({ host: u.hostname.toLowerCase(), source })
+      } catch {
+        // skip invalid URLs
+      }
+    }
+    for (const { host, source } of hostnameToSource) {
+      for (const blocked of ALLOWED_DOMAINS_BLOCKLIST) {
+        const b = blocked.toLowerCase()
+        if (host === b || host.endsWith('.' + b)) {
+          fail(
+            `Forbidden outbound domain: hostname "${host}" matches blocklist "${blocked}" (source: ${source}). ` +
+              'Remove from manifest.networkAccess.allowedDomains or from config (networkAccess, analytics.endpointUrl, llm.endpoint, or llm.proxy.baseUrl).'
+          )
+        }
+      }
+    }
+    console.log('[assert-invariants] Allowed domains blocklist: pass')
+  }
 
   console.log('[assert-invariants] All invariants passed.')
   process.exit(0)

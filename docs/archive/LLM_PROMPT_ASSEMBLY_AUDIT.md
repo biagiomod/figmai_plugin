@@ -4,7 +4,7 @@
 
 # LLM Prompt Assembly Audit
 
-**Purpose:** Identify all outbound LLM call paths, what each provider sends on the wire, sanitization gaps, and why Azure content filtering can trigger even for "Hello?" in General Assistant.
+**Purpose:** Identify all outbound LLM call paths, what each provider sends on the wire, sanitization gaps, and why content filtering can trigger even for "Hello?" in General Assistant.
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## 2. Wire payload by provider
 
-### 2.1 Internal API (Azure-backed)
+### 2.1 Internal API (content blocker-backed)
 
 **Implementation:** `internalApiProvider.ts` → `sendChat(request: ChatRequest)`.
 
@@ -52,7 +52,7 @@
 - All `request.messages` with `role === 'user'` are concatenated into `message`. So a single string is sent.
 
 **kbName / server-side KB:**
-- Backend receives `kbName: 'figma'` and may inject knowledge base and/or design system content **server-side**. The client cannot sanitize or budget that injected content. If the backend injects large or risky content, Azure can block even when the client sends only "Hello?" plus a short preamble.
+- Backend receives `kbName: 'figma'` and may inject knowledge base and/or design system content **server-side**. The client cannot sanitize or budget that injected content. If the backend injects large or risky content, content blockers can block even when the client sends only "Hello?" plus a short preamble.
 
 ---
 
@@ -115,10 +115,10 @@
 
 ---
 
-## 5. Why "Hello?" can be blocked (Internal API / Azure)
+## 5. Why "Hello?" can be blocked (Internal API / content-blocker)
 
 1. **Preamble:** The first user message is `preamble + "Hello?"`. If `getShortInstructions(assistant)` pulls from promptMarkdown that includes risky patterns (URLs, tokens, long numbers, or accidental base64-like snippets), the **combined** string may trigger the filter even though the user only said "Hello?".
-2. **Server-side injection:** The backend may inject large KB/DS when it sees `kbName: 'figma'`. If that injected content is large or contains patterns Azure flags, the **total** prompt (user message + server-injected context) can be blocked.
+2. **Server-side injection:** The backend may inject large KB/DS when it sees `kbName: 'figma'`. If that injected content is large or contains patterns content-blocker flags, the **total** prompt (user message + server-injected context) can be blocked.
 3. **No client-side budget:** Without per-segment and total caps, the client can send a very long preamble + user text; combined with server-injected context, the total prompt size or content can exceed policy.
 
 **Mitigations (implemented in prompt pipeline):**
@@ -171,7 +171,7 @@ Use these checks without verbose logs or raw prompt dumps.
    - No verbose dumps, no raw prompt text, no base64 in UI or default logs.
 
 5. **Enterprise-safe prompt (no override/jailbreak language)**
-   - Send "Hello?" in General Assistant (Internal API / Azure).
+   - Send "Hello?" in General Assistant (Internal API / content-blocker).
    - Confirm the request succeeds (no content-filter block from preamble).
    - Confirm the assembled prompt contains **no** phrases such as "ignore previous instructions", "disregard prior", or "you are now". The preamble uses only the safe session header and assistant context.
 
