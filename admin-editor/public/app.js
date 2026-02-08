@@ -2579,6 +2579,40 @@
     })
   }
 
+  // ——— Analytics dashboard (demo only; no live data) ———
+  var ANALYTICS_TAXONOMY = [
+    { type: 'plugin_open', when: 'User opens the plugin', fields: 'type, timestamp, sessionId' },
+    { type: 'assistant_run', when: 'User starts an assistant action', fields: 'type, timestamp, sessionId, properties (assistantId, actionId)' },
+    { type: 'assistant_complete', when: 'Assistant run finishes', fields: 'type, timestamp, sessionId, properties (assistantId, success, errorCode)' },
+    { type: 'tool_call', when: 'A tool is invoked', fields: 'type, timestamp, sessionId, properties (toolId, success)' },
+    { type: 'error', when: 'An error is tracked', fields: 'type, timestamp, sessionId, properties (errorCode, context)' },
+    { type: 'settings_change', when: 'User changes settings', fields: 'type, timestamp, sessionId, properties (key)' }
+  ]
+  var ANALYTICS_LIFECYCLE_STAGES = ['plugin_open', 'assistant_run', 'assistant_complete', 'tool_call', 'error', 'settings_change']
+  var ANALYTICS_FLOW_COVERAGE = {
+    'Open plugin': { plugin_open: true },
+    'Assistant run': { assistant_run: true },
+    'Tool call': { tool_call: true },
+    'Assistant complete': { assistant_complete: true },
+    'Error': { error: true },
+    'Settings change': { settings_change: true }
+  }
+  var ANALYTICS_PRIVACY_DIMENSIONS = [
+    { name: 'Identity', guardrails: ['No PII; session UUID only (24h expiry)'] },
+    { name: 'Design content', guardrails: ['No file names, document IDs, node IDs, or geometry'] },
+    { name: 'File content', guardrails: ['No prompts, user messages, or model outputs'] },
+    { name: 'Free-form text', guardrails: ['Only event types, codes, and setting key names (not values)'] },
+    { name: 'Network exposure', guardrails: ['HTTPS endpoint only; configurable via config'] }
+  ]
+  var ANALYTICS_SAMPLE_PAYLOADS = {
+    plugin_open: { type: 'plugin_open', timestamp: 1705800000000, sessionId: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx', properties: {} },
+    assistant_run: { type: 'assistant_run', timestamp: 1705800001000, sessionId: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx', properties: { assistantId: 'design_critique', actionId: 'give-critique' } },
+    assistant_complete: { type: 'assistant_complete', timestamp: 1705800001500, sessionId: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx', properties: { assistantId: 'design_critique', actionId: 'give-critique', success: true } },
+    tool_call: { type: 'tool_call', timestamp: 1705800002000, sessionId: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx', properties: { toolId: 'DESIGN_SYSTEM_QUERY' } },
+    error: { type: 'error', timestamp: 1705800002500, sessionId: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx', properties: { errorCode: 'provider_timeout', context: 'sendChat' } },
+    settings_change: { type: 'settings_change', timestamp: 1705800003000, sessionId: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx', properties: { keys: ['llm.endpoint'] } }
+  }
+
   var TAB_SUBHEADERS = {
     config: 'General Plugin Settings',
     ai: 'AI',
@@ -2587,7 +2621,7 @@
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
     registries: 'Design System Registries — Registry JSON per design system',
-    analytics: 'Analytics',
+    analytics: 'Analytics (Demo)',
     users: 'Users'
   }
 
@@ -2649,7 +2683,217 @@
   function renderAnalyticsTab () {
     const panel = document.getElementById('panel-analytics')
     if (!panel) return
-    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Analytics</h2></div><p class="ace-users-unauthorized" style="margin-top:0">Coming soon.</p>'
+    const m = state.editedModel
+    if (!m || !m.config) {
+      panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Analytics (Demo)</h2></div><p class="ace-card-subtext">No config loaded.</p>'
+      return
+    }
+    var analytics = m.config.analytics
+    var enabled = analytics && analytics.enabled === true
+    var endpointUrl = (analytics && typeof analytics.endpointUrl === 'string' && analytics.endpointUrl.trim()) ? analytics.endpointUrl.trim() : ''
+    var maskedEndpoint = endpointUrl ? 'https://••••••••••••/endpoint' : 'Not configured'
+    var firstSampleKey = Object.keys(ANALYTICS_SAMPLE_PAYLOADS)[0] || 'plugin_open'
+    var sampleJson = JSON.stringify(ANALYTICS_SAMPLE_PAYLOADS[firstSampleKey], null, 2)
+
+    var html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Analytics (Demo)</h2></div>'
+    html += '<div class="ace-analytics-disclaimer">Contract and config preview only. No events are collected or transmitted from this UI.</div>'
+    html += '<div class="ace-cards ace-analytics-cards">'
+
+    // Hero: Readiness Snapshot (Demo) — two donuts + payload budget bars
+    var flowCoverageMapping = typeof ANALYTICS_FLOW_COVERAGE === 'object' && ANALYTICS_FLOW_COVERAGE !== null ? ANALYTICS_FLOW_COVERAGE : {}
+    var flowKeys = Object.keys(flowCoverageMapping)
+    var flowCoveredCount = 0
+    flowKeys.forEach(function (f) {
+      var row = flowCoverageMapping[f]
+      if (row && typeof row === 'object' && Object.keys(row).some(function (et) { return row[et] === true })) flowCoveredCount++
+    })
+    var flowTotal = flowKeys.length
+    var flowPct = flowTotal ? Math.round((flowCoveredCount / flowTotal) * 100) : 0
+    var taxonomyTypes = Array.isArray(ANALYTICS_TAXONOMY) ? ANALYTICS_TAXONOMY.map(function (r) { return r.type }) : []
+    var samples = typeof ANALYTICS_SAMPLE_PAYLOADS === 'object' && ANALYTICS_SAMPLE_PAYLOADS !== null ? ANALYTICS_SAMPLE_PAYLOADS : {}
+    var eventReadyCount = taxonomyTypes.filter(function (t) { return samples[t] != null }).length
+    var eventTotal = taxonomyTypes.length
+    var eventPct = eventTotal ? Math.round((eventReadyCount / eventTotal) * 100) : 0
+    var heroPayloadBytes = []
+    Object.keys(samples).forEach(function (k) {
+      heroPayloadBytes.push({ key: k, bytes: JSON.stringify(samples[k]).length })
+    })
+    heroPayloadBytes.sort(function (a, b) { return b.bytes - a.bytes })
+    var topN = heroPayloadBytes.slice(0, 5)
+    var heroMaxBytes = topN.length ? Math.max.apply(null, topN.map(function (x) { return x.bytes })) : 0
+
+    html += '<div class="ace-card ace-analytics-hero-card">'
+    html += '<h3 class="ace-card-title">Readiness Snapshot (Demo)</h3>'
+    html += '<div class="ace-analytics-hero-grid">'
+    html += '<div class="ace-analytics-hero-donuts">'
+    html += '<div class="ace-analytics-donut-wrap">'
+    html += '<h4 class="ace-analytics-donut-title">Flow Coverage</h4>'
+    if (flowTotal === 0) {
+      html += '<div class="ace-analytics-donut-placeholder">Not available</div>'
+    } else {
+      var r = 40
+      var cx = 50
+      var cy = 50
+      var circ = 2 * Math.PI * r
+      var dash = (flowPct / 100) * circ
+      html += '<div class="ace-analytics-donut-inner"><svg class="ace-analytics-donut" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-90 ' + cx + ' ' + cy + ')"><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--ace-sidebar-bg, #eee)" stroke-width="12"/><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--ace-accent)" stroke-width="12" stroke-dasharray="' + dash + ' ' + circ + '"/></g></svg><div class="ace-analytics-donut-center"><span class="ace-analytics-donut-value">' + flowPct + '%</span><span class="ace-analytics-donut-num">' + flowCoveredCount + ' / ' + flowTotal + '</span></div></div>'
+    }
+    html += '<p class="ace-analytics-donut-copy">Derived from planned coverage matrix. Not live data.</p></div>'
+    html += '<div class="ace-analytics-donut-wrap">'
+    html += '<h4 class="ace-analytics-donut-title">Event Readiness</h4>'
+    if (eventTotal === 0 || !Object.keys(samples).length) {
+      html += '<div class="ace-analytics-donut-placeholder">No sample payloads defined</div>'
+    } else {
+      var dash2 = (eventPct / 100) * circ
+      html += '<div class="ace-analytics-donut-inner"><svg class="ace-analytics-donut" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-90 50 50)"><circle cx="50" cy="50" r="40" fill="none" stroke="var(--ace-sidebar-bg, #eee)" stroke-width="12"/><circle cx="50" cy="50" r="40" fill="none" stroke="var(--ace-accent)" stroke-width="12" stroke-dasharray="' + dash2 + ' ' + circ + '"/></g></svg><div class="ace-analytics-donut-center"><span class="ace-analytics-donut-value">' + eventPct + '%</span><span class="ace-analytics-donut-num">' + eventReadyCount + ' / ' + eventTotal + '</span></div></div>'
+    }
+    html += '<p class="ace-analytics-donut-copy">Derived from demo payload templates. Not live data.</p></div>'
+    html += '</div>'
+    html += '<div class="ace-analytics-hero-bars-wrap">'
+    html += '<h4 class="ace-analytics-hero-bars-title">Payload Budget (Top N)</h4>'
+    if (topN.length === 0) {
+      html += '<p class="ace-analytics-hero-bars-empty">No sample payloads defined</p>'
+    } else {
+      html += '<div class="ace-analytics-hero-bars">'
+      topN.forEach(function (item) {
+        var pct = heroMaxBytes > 0 ? (item.bytes / heroMaxBytes) * 100 : 0
+        html += '<div class="ace-analytics-hero-bar-row"><span class="ace-analytics-hero-bar-label">' + escapeHtml(item.key) + '</span><div class="ace-analytics-hero-bar-track"><div class="ace-analytics-hero-bar-fill" style="width:' + pct + '%"></div></div><span class="ace-analytics-hero-bar-value">' + item.bytes + ' B</span></div>'
+      })
+      html += '</div>'
+    }
+    html += '<p class="ace-analytics-hero-bars-copy">Computed from sample JSON templates. Not live data.</p>'
+    html += '</div></div></div>'
+
+    // A) Config Readiness
+    html += '<div class="ace-card ace-analytics-readiness">'
+    html += '<h3 class="ace-card-title">Config readiness</h3>'
+    html += '<p class="ace-card-subtext">Readiness for future wiring (from config). Endpoint domain must be in network allowlist (manifest/build).</p>'
+    html += '<ul class="ace-analytics-readiness-list">'
+    html += '<li class="ace-analytics-readiness-item"><span class="ace-analytics-readiness-label">Enabled</span><span class="ace-analytics-readiness-value">' + (enabled ? 'Yes' : 'Not configured') + '</span></li>'
+    html += '<li class="ace-analytics-readiness-item"><span class="ace-analytics-readiness-label">Endpoint</span><span class="ace-analytics-readiness-value">' + (endpointUrl ? 'Configured' : 'Not configured') + '</span></li>'
+    html += '<li class="ace-analytics-readiness-item ace-analytics-readiness-callout"><span class="ace-analytics-readiness-label">Network allowlist</span><span>Endpoint host must be in manifest allowlist (see build/docs).</span></li>'
+    html += '</ul></div>'
+
+    // B) Event lifecycle funnel (contract; no numbers)
+    html += '<div class="ace-card ace-analytics-funnel-card">'
+    html += '<h3 class="ace-card-title">Event lifecycle (contract)</h3>'
+    html += '<p class="ace-card-subtext">Intended event journey (contract). Shows which events follow which in the design. Not live telemetry.</p>'
+    html += '<div class="ace-analytics-funnel">'
+    ANALYTICS_LIFECYCLE_STAGES.forEach(function (stage, i) {
+      var label = stage.replace(/_/g, ' ')
+      html += '<div class="ace-analytics-funnel-stage"><span class="ace-analytics-funnel-pill">' + escapeHtml(label) + '</span></div>'
+      if (i < ANALYTICS_LIFECYCLE_STAGES.length - 1) html += '<div class="ace-analytics-funnel-arrow" aria-hidden="true">→</div>'
+    })
+    html += '</div></div>'
+
+    // C) Coverage matrix (flows × events)
+    var eventTypes = ANALYTICS_TAXONOMY.map(function (r) { return r.type })
+    html += '<div class="ace-card ace-analytics-matrix-card">'
+    html += '<h3 class="ace-card-title">Coverage matrix</h3>'
+    html += '<p class="ace-card-subtext">Which events cover which user flows (contract). Not usage data.</p>'
+    html += '<table class="ace-analytics-table ace-analytics-coverage-matrix"><thead><tr><th>Flow</th>'
+    eventTypes.forEach(function (et) { html += '<th><code>' + escapeHtml(et) + '</code></th>' })
+    html += '</tr></thead><tbody>'
+    Object.keys(ANALYTICS_FLOW_COVERAGE).forEach(function (flow) {
+      var row = ANALYTICS_FLOW_COVERAGE[flow]
+      html += '<tr><td class="ace-analytics-matrix-flow">' + escapeHtml(flow) + '</td>'
+      eventTypes.forEach(function (et) {
+        var covered = row[et] === true
+        html += '<td class="ace-analytics-matrix-cell' + (covered ? ' ace-analytics-matrix-covered' : '') + '">' + (covered ? '✓' : '') + '</td>'
+      })
+      html += '</tr>'
+    })
+    html += '</tbody></table></div>'
+
+    // D) Payload surface area (bytes from sample JSON)
+    var payloadBytes = {}
+    var maxBytes = 0
+    Object.keys(ANALYTICS_SAMPLE_PAYLOADS).forEach(function (k) {
+      var len = JSON.stringify(ANALYTICS_SAMPLE_PAYLOADS[k]).length
+      payloadBytes[k] = len
+      if (len > maxBytes) maxBytes = len
+    })
+    html += '<div class="ace-card ace-analytics-bars-card">'
+    html += '<h3 class="ace-card-title">Payload surface area</h3>'
+    html += '<p class="ace-card-subtext">Approximate payload size per event (from sample JSON in this demo). For budget and batching awareness. Not live traffic.</p>'
+    html += '<div class="ace-analytics-bars">'
+    Object.keys(payloadBytes).forEach(function (k) {
+      var bytes = payloadBytes[k]
+      var pct = maxBytes > 0 ? (bytes / maxBytes) * 100 : 0
+      html += '<div class="ace-analytics-bar-row">'
+      html += '<span class="ace-analytics-bar-label">' + escapeHtml(k) + '</span>'
+      html += '<div class="ace-analytics-bar-track"><div class="ace-analytics-bar-fill" style="width:' + pct + '%"></div></div>'
+      html += '<span class="ace-analytics-bar-value">' + bytes + ' B</span></div>'
+    })
+    html += '</div></div>'
+
+    // E) Privacy scorecard
+    html += '<div class="ace-card ace-analytics-privacy-card">'
+    html += '<h3 class="ace-card-title">Privacy posture (policy)</h3>'
+    html += '<p class="ace-card-subtext">All dimensions minimized by design. No data collected in this dashboard.</p>'
+    html += '<ul class="ace-analytics-privacy-list">'
+    ANALYTICS_PRIVACY_DIMENSIONS.forEach(function (d) {
+      html += '<li class="ace-analytics-privacy-item"><strong>' + escapeHtml(d.name) + '</strong>: ' + escapeHtml(d.guardrails.join(' ')) + '</li>'
+    })
+    html += '</ul></div>'
+
+    // Config preview (existing read-only table)
+    html += '<div class="ace-card ace-analytics-config-card">'
+    html += '<h3 class="ace-card-title">Config preview (from plugin config)</h3>'
+    html += '<p class="ace-card-subtext">Read-only. Values come from <code>config.analytics</code>.</p>'
+    html += '<table class="ace-analytics-table"><tbody>'
+    html += '<tr><td class="ace-analytics-table-label">Enabled</td><td>' + (enabled ? 'Yes' : 'No') + '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Endpoint</td><td class="ace-analytics-endpoint-cell"><span class="ace-analytics-endpoint-value" data-masked="true">' + escapeHtml(maskedEndpoint) + '</span>'
+    if (endpointUrl) {
+      var attrEndpoint = endpointUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+      html += ' <button type="button" class="btn btn-small ace-analytics-reveal-btn" data-action="reveal-endpoint" data-endpoint="' + attrEndpoint + '">Show</button>'
+    }
+    html += '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Flush interval (ms)</td><td>' + (analytics && typeof analytics.flushIntervalMs === 'number' ? String(analytics.flushIntervalMs) : 'Not set') + '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Max batch size</td><td>' + (analytics && typeof analytics.maxBatchSize === 'number' ? String(analytics.maxBatchSize) : 'Not set') + '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Max buffer</td><td>' + (analytics && typeof analytics.maxBuffer === 'number' ? String(analytics.maxBuffer) : 'Not set') + '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Retry max attempts</td><td>' + (analytics && typeof analytics.retryMaxAttempts === 'number' ? String(analytics.retryMaxAttempts) : 'Not set') + '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Retry base delay (ms)</td><td>' + (analytics && typeof analytics.retryBaseDelayMs === 'number' ? String(analytics.retryBaseDelayMs) : 'Not set') + '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Debug</td><td>' + (analytics && analytics.debug === true ? 'Yes' : 'No') + '</td></tr>'
+    html += '<tr><td class="ace-analytics-table-label">Sampling rate</td><td>Not set</td></tr>'
+    html += '</tbody></table></div>'
+
+    // Event taxonomy table
+    html += '<div class="ace-card">'
+    html += '<h3 class="ace-card-title">Event taxonomy (demo)</h3>'
+    html += '<p class="ace-card-subtext">Planned event types and field contract. Sample only.</p>'
+    html += '<table class="ace-analytics-table ace-analytics-taxonomy-table"><thead><tr><th>Event type</th><th>When</th><th>Required / optional fields</th></tr></thead><tbody>'
+    ANALYTICS_TAXONOMY.forEach(function (row) {
+      html += '<tr><td><code>' + escapeHtml(row.type) + '</code></td><td>' + escapeHtml(row.when) + '</td><td>' + escapeHtml(row.fields) + '</td></tr>'
+    })
+    html += '</tbody></table></div>'
+
+    // Sample payload + Copy JSON
+    html += '<div class="ace-card">'
+    html += '<h3 class="ace-card-title">Sample payload (preview)</h3>'
+    html += '<p class="ace-card-subtext">Example event JSON. Not live data.</p>'
+    html += '<label for="analytics-sample-select" class="ace-field-label">Select sample</label>'
+    html += '<select id="analytics-sample-select" class="ace-analytics-sample-select">'
+    Object.keys(ANALYTICS_SAMPLE_PAYLOADS).forEach(function (key) {
+      html += '<option value="' + escapeHtml(key) + '"' + (key === firstSampleKey ? ' selected' : '') + '>' + escapeHtml(key) + '</option>'
+    })
+    html += '</select>'
+    html += '<pre id="analytics-sample-pre" class="ace-analytics-sample-pre">' + escapeHtml(sampleJson) + '</pre>'
+    html += '<button type="button" class="btn btn-secondary" id="analytics-copy-json-btn" data-action="copy-payload">Copy JSON</button>'
+    html += '</div>'
+
+    html += '</div>'
+    panel.innerHTML = html
+
+    var selectEl = document.getElementById('analytics-sample-select')
+    var preEl = document.getElementById('analytics-sample-pre')
+    if (selectEl && preEl) {
+      selectEl.onchange = function () {
+        var key = selectEl.value
+        var payload = ANALYTICS_SAMPLE_PAYLOADS[key]
+        if (payload) preEl.textContent = JSON.stringify(payload, null, 2)
+      }
+    }
   }
 
   async function runValidate () {
@@ -2883,6 +3127,58 @@
         if (typeof state.actionModalRetry === 'function') state.actionModalRetry()
       }
     }
+    document.addEventListener('click', function (e) {
+      var panel = document.getElementById('panel-analytics')
+      if (!panel || !panel.contains(e.target)) return
+      var btn = e.target.closest && e.target.closest('[data-action]')
+      if (!btn || btn.getAttribute('data-action') === undefined) return
+      var action = btn.getAttribute('data-action')
+      if (action === 'copy-payload') {
+        var pre = document.getElementById('analytics-sample-pre')
+        var text = pre ? pre.textContent : ''
+        if (!text) return
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            var orig = btn.textContent
+            btn.textContent = 'Copied!'
+            setTimeout(function () { btn.textContent = orig }, 2000)
+          }, function () {
+            btn.textContent = 'Copy failed'
+            setTimeout(function () { btn.textContent = 'Copy JSON' }, 2000)
+          })
+        } else {
+          var ta = document.createElement('textarea')
+          ta.value = text
+          ta.setAttribute('readonly', '')
+          ta.style.position = 'absolute'
+          ta.style.left = '-9999px'
+          document.body.appendChild(ta)
+          ta.select()
+          try {
+            document.execCommand('copy')
+            btn.textContent = 'Copied!'
+          } catch (e) {
+            btn.textContent = 'Copy failed'
+          }
+          document.body.removeChild(ta)
+          setTimeout(function () { btn.textContent = 'Copy JSON' }, 2000)
+        }
+      } else if (action === 'reveal-endpoint') {
+        var span = panel.querySelector('.ace-analytics-endpoint-value')
+        var raw = btn.getAttribute('data-endpoint')
+        if (!span || !raw) return
+        var masked = span.getAttribute('data-masked') === 'true'
+        if (masked) {
+          span.textContent = raw
+          span.setAttribute('data-masked', 'false')
+          btn.textContent = 'Hide'
+        } else {
+          span.textContent = 'https://••••••••••••/endpoint'
+          span.setAttribute('data-masked', 'true')
+          btn.textContent = 'Show'
+        }
+      }
+    })
   }
 
   function setCreateFirstAccountLinkVisible (visible) {
