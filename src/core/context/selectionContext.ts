@@ -10,6 +10,7 @@ import type { Provider, ImageData } from '../provider/provider'
 import { summarizeSelection } from './selection'
 import { extractSelectionSummary, formatSelectionSummary } from './selectionSummary'
 import { exportSelectionAsImages } from '../figma/exportSelectionAsImages'
+import { debug } from '../debug/logger'
 
 /**
  * Selection Context
@@ -80,13 +81,20 @@ export async function buildSelectionContext(
           context.images = exportedImages
         }
         
-        // Log image export for debugging
-        console.log(`[SelectionContext] Exported ${context.images.length} image(s) for vision analysis`)
-        context.images.forEach((img, i) => {
-          const sizeBytes = img.dataUrl.length * 0.75 // Approximate base64 size
-          const preview = img.dataUrl.substring(0, 80) + '...'
-          console.log(`[SelectionContext] Image ${i + 1}: ${img.name || 'Unnamed'}, ${img.width}x${img.height}, ~${Math.round(sizeBytes / 1024)}KB, preview: ${preview}`)
-        })
+        // Diagnostics-only: log image count and per-image metadata (no dataUrl/base64)
+        if (debug.isEnabled('subsystem:provider')) {
+          const selectionDebug = debug.scope('subsystem:provider')
+          selectionDebug.log('SelectionContext image export', {
+            imageCount: context.images.length,
+            images: context.images.map((img, i) => ({
+              index: i + 1,
+              name: img.name ?? 'Unnamed',
+              width: img.width,
+              height: img.height,
+              approxSizeKB: Math.round((img.dataUrl.length * 0.75) / 1024)
+            }))
+          })
+        }
       } else {
         console.warn('[SelectionContext] Vision required but no images exported - continuing with summary only')
       }

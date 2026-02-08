@@ -109,7 +109,7 @@ export const customConfig: CustomConfig | null = {
       "sharedToken": "some-long-random-token"
     },
     "safety": {
-      "forceNoImages": true,
+      "forceNoImages": false,
       "forceNoKbName": false,
       "forceNoSelectionSummary": false
     },

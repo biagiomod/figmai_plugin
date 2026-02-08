@@ -69,13 +69,14 @@ export class InternalApiProvider implements Provider {
      * Internal API provider capabilities
      * Supports markdown (capabilities determined by backend)
      * Supports preamble injection for assistant context boundaries
+     * Supports images for vision (selection export); same payload shape as proxy.
      */
     readonly capabilities: ProviderCapabilities = {
-        supportsImages: false, // Internal API MVP doesn't support images
+        supportsImages: true,
         supportsMarkdown: true,
         requiresStrictSchema: false,
-        maxImages: 0,
-        supportsPreambleInjection: true // Enable preamble injection for assistant context boundaries
+        maxImages: 2,
+        supportsPreambleInjection: true
     }
 
     /**
@@ -241,12 +242,20 @@ export class InternalApiProvider implements Provider {
             ? userMessages + '\n\nSelection context (from Figma):\n' + selectionText.slice(0, MAX_SELECTION_CHARS)
             : userMessages
 
-        const payload: Record<string, string> = {
+        const payload: Record<string, unknown> = {
             type: 'generalChat',
             message
         }
         if (!request.minimalForContentFilter) {
             payload.kbName = 'figma'
+        }
+        if (request.images && request.images.length > 0) {
+            payload.images = request.images.map(img => ({
+                dataUrl: img.dataUrl,
+                name: img.name,
+                width: img.width,
+                height: img.height
+            }))
         }
 
         const url = baseUrl
@@ -257,7 +266,8 @@ export class InternalApiProvider implements Provider {
             provider: 'internal-api',
             messageLength: message.length,
             hasSelectionSummary: !!request.selectionSummary,
-            selectionInPayload: selectionInPayload ? 1 : 0
+            selectionInPayload: selectionInPayload ? 1 : 0,
+            imageCount: request.images?.length ?? 0
         })
 
         const maxRetries = 2
