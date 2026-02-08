@@ -81,6 +81,8 @@ import { resolveKnowledgeBaseDocs } from './core/knowledgeBases/resolveKb'
 import type { Assistant } from './assistants'
 import { createProvider } from './core/provider/providerFactory'
 import type { Provider, ChatRequest } from './core/provider/provider'
+import { StubProvider } from './core/provider/stubProvider'
+import { InternalApiProvider } from './core/provider/internalApiProvider'
 import { normalizeMessages } from './core/provider/normalize'
 import { sendChatWithRecovery } from './core/contentSafety'
 import { routeToolCall } from './core/tools/toolRouter'
@@ -180,7 +182,6 @@ async function initializeProvider() {
   } catch (error) {
     console.error('[Main] Failed to initialize provider:', error)
     // Fallback to stub provider
-    const { StubProvider } = await import('./core/provider/stubProvider')
     currentProvider = new StubProvider()
   }
 }
@@ -1540,7 +1541,6 @@ on<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', async function (options?
 
     // When UI passes an unsaved Internal API URL to test, use InternalApiProvider for that test only
     if (testOptions?.internalApiUrl) {
-      const { InternalApiProvider } = await import('./core/provider/internalApiProvider')
       testProvider = new InternalApiProvider()
     } else {
       testProvider = await createProvider(currentProviderId)

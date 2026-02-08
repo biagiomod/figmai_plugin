@@ -4,6 +4,8 @@
  * Creates a styled text frame with markdown converted to styled text
  */
 
+import { placeSingleArtifactNearSelection } from './placement'
+
 interface TextSpan {
   start: number
   end: number
@@ -204,8 +206,7 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
   const logId = runId || 'unknown'
   console.log(`[DC ${logId}] placeCritiqueOnCanvas ENTER`, { selectedNode: selectedNode ? { name: selectedNode.name, id: selectedNode.id } : null })
   
-  // Smart Placement v2: collision-aware single artifact near selection
-  const { placeSingleArtifactNearSelection } = await import('./placement')
+  // Smart Placement v2: collision-aware single artifact near selection (static import for Figma bundle)
 
   // Truncate very long text (cap at 20k chars)
   const MAX_CHARS = 20000

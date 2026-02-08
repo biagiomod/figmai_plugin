@@ -8,21 +8,31 @@
 import type { DesignSpecV1, BlockSpec, RenderReport } from './types'
 import { loadFonts, createTextNode, createAutoLayoutFrameSafe } from '../stage/primitives'
 import { placeBatchBelowPageContent } from '../figma/placement'
+import { getNuxtDemoAllowlist } from '../designSystem/nuxtDsRegistry'
+import { createInstanceOnly } from '../designSystem/componentService'
+import type { NuxtDemoAllowlistEntry } from '../../custom/generated/nuxtDsCatalog.generated'
+
+export interface RenderDesignSpecOptions {
+  useNuxtDs?: boolean
+}
 
 /**
  * Render Design Spec to Section
  * 
  * Creates a new Section (FrameNode) on the current page and places 1-5 screen frames inside it.
  * Screens are arranged horizontally with 80px spacing.
+ * When options.useNuxtDs is true, tries to place Nuxt UI components for button/input/card blocks.
  * 
  * @param spec - Normalized DesignSpecV1
  * @param runId - Run identifier for logging
- * @returns Section node, array of screen frames, and render report
+ * @param options - useNuxtDs: when true, attempt Nuxt DS instances for button/input/card
+ * @returns Section node, screens, report, and usedDsFallback (true if any block fell back to primitive due to DS failure)
  */
 export async function renderDesignSpecToSection(
   spec: DesignSpecV1,
-  runId?: string
-): Promise<{ section: FrameNode, screens: FrameNode[], report: RenderReport }> {
+  runId?: string,
+  options?: RenderDesignSpecOptions
+): Promise<{ section: FrameNode, screens: FrameNode[], report: RenderReport, usedDsFallback?: boolean }> {
   // Initialize render report
   const report: RenderReport = {
     consumedFields: [],
@@ -167,11 +177,15 @@ export async function renderDesignSpecToSection(
   const screens: FrameNode[] = []
   const fidelity = spec.render.intent.fidelity
   const intent = spec.meta?.intent
+  const useNuxtDs = options?.useNuxtDs === true
+  const nuxtAllowlist: NuxtDemoAllowlistEntry[] = useNuxtDs ? getNuxtDemoAllowlist() : []
+  let usedDsFallback = false
 
   for (const screenSpec of spec.screens) {
-    const screenFrame = await renderScreen(screenSpec, spec.canvas.device, fidelity, intent)
-    section.appendChild(screenFrame)
-    screens.push(screenFrame)
+    const screenResult = await renderScreen(screenSpec, spec.canvas.device, fidelity, intent, useNuxtDs, nuxtAllowlist)
+    section.appendChild(screenResult.frame)
+    screens.push(screenResult.frame)
+    if (screenResult.usedDsFallback) usedDsFallback = true
   }
 
   try {
@@ -180,18 +194,21 @@ export async function renderDesignSpecToSection(
     section.x = 0
     section.y = 100
   }
-  return { section, screens, report }
+  return { section, screens, report, usedDsFallback }
 }
 
 /**
- * Render a single screen frame
+ * Render a single screen frame.
+ * When useNuxtDs is true, tries Nuxt DS for button/input/card blocks; falls back to primitives on failure.
  */
 async function renderScreen(
   screenSpec: DesignSpecV1['screens'][0],
   device: DesignSpecV1['canvas']['device'],
   fidelity: DesignSpecV1['render']['intent']['fidelity'],
-  intent?: DesignSpecV1['meta']['intent']
-): Promise<FrameNode> {
+  intent?: DesignSpecV1['meta']['intent'],
+  useNuxtDs?: boolean,
+  nuxtAllowlist: NuxtDemoAllowlistEntry[] = []
+): Promise<{ frame: FrameNode, usedDsFallback: boolean }> {
   const screenFrame = figma.createFrame()
   screenFrame.name = screenSpec.name || 'Screen'
   screenFrame.resize(device.width, device.height)
@@ -223,16 +240,64 @@ async function renderScreen(
   // Apply gap
   screenFrame.itemSpacing = layout.gap ?? 12
 
+  const maxWidth = device.width - (screenFrame.paddingLeft + screenFrame.paddingRight)
+  let usedDsFallback = false
+
   // Render blocks
   for (const block of screenSpec.blocks) {
-    const blockNode = await renderBlock(block, fidelity, device.width - (screenFrame.paddingLeft + screenFrame.paddingRight), intent)
+    if (useNuxtDs && (block.type === 'button' || block.type === 'input' || block.type === 'card')) {
+      const nuxtNode = await tryCreateNuxtBlock(block, nuxtAllowlist)
+      if (nuxtNode) {
+        screenFrame.appendChild(nuxtNode)
+        continue
+      }
+      usedDsFallback = true
+    }
+    const blockNode = await renderBlock(block, fidelity, maxWidth, intent)
     screenFrame.appendChild(blockNode)
   }
 
   // Apply fidelity-specific styling to screen frame
   applyFidelityStyling(screenFrame, fidelity, intent)
 
-  return screenFrame
+  return { frame: screenFrame, usedDsFallback }
+}
+
+/**
+ * Try to create a Nuxt DS instance for a block. Returns null if no allowlist match or import fails.
+ * Uses defaultVariant from allowlist entry; does not map DesignSpec variants to Nuxt axes for PoC.
+ * Passes entry.kind so component_set keys use importComponentSetByKeyAsync.
+ */
+async function tryCreateNuxtBlock(
+  block: BlockSpec,
+  allowlist: NuxtDemoAllowlistEntry[]
+): Promise<InstanceNode | null> {
+  const entry = resolveNuxtEntryForBlock(block, allowlist)
+  if (!entry) return null
+  const kind: 'component' | 'component_set' = entry.kind === 'component_set' ? 'component_set' : 'component'
+  console.log(`[DW Nuxt DS] attempt name=${entry.name} key=${entry.key} kind=${kind}`)
+  const variantProps = entry.defaultVariant ? { ...entry.defaultVariant } : undefined
+  const instance = await createInstanceOnly(entry.key, variantProps, kind)
+  return instance
+}
+
+/** Resolve block type to an allowlist entry (by name). Prefer first match in order. */
+function resolveNuxtEntryForBlock(block: BlockSpec, allowlist: NuxtDemoAllowlistEntry[]): NuxtDemoAllowlistEntry | null {
+  const namesToTry: string[] = []
+  if (block.type === 'button') {
+    namesToTry.push('ButtonPrimary', 'ButtonGroup', 'Button')
+  } else if (block.type === 'input') {
+    namesToTry.push('InputOutline', 'InputSoft', 'Input')
+  } else if (block.type === 'card') {
+    namesToTry.push('Card')
+  } else {
+    return null
+  }
+  for (const name of namesToTry) {
+    const entry = allowlist.find((e) => e.name === name)
+    if (entry) return entry
+  }
+  return null
 }
 
 /**

@@ -9,12 +9,15 @@ import type { DesignSpecV1, DesignIntent, RenderReport } from '../../designWorks
 import { validateDesignSpecV1, normalizeDesignSpecV1 } from '../../designWorkshop/validate'
 import { renderDesignSpecToSection } from '../../designWorkshop/renderer'
 import { extractJsonFromResponse } from '../../output/normalize'
+import { showNuxtDsFallbackHintIfNeeded } from '../../designSystem/nuxtDsHint'
 import { loadFonts, createTextNode } from '../../stage/primitives'
 
 export class DesignWorkshopHandler implements AssistantHandler {
   // Store latest user request and intent for handleResponse
   private latestUserRequest: string = ''
   private latestIntent: DesignIntent = {}
+  /** When true, Design Workshop will try Nuxt DS components when "@ds-nuxt" is in the latest user message. */
+  private useNuxtDsForThisRun: boolean = false
 
   canHandle(assistantId: string, actionId: string | undefined): boolean {
     return assistantId === 'design_workshop' && (actionId === 'generate-screens' || actionId === undefined)
@@ -29,6 +32,7 @@ export class DesignWorkshopHandler implements AssistantHandler {
 
     // Store for use in handleResponse
     this.latestUserRequest = latestUserRequest
+    this.useNuxtDsForThisRun = /\@ds-nuxt/i.test(latestUserRequest)
 
     // Extract intent from user request (simple keyword-based extraction)
     const intent = this.extractIntent(latestUserRequest, messages)
@@ -343,7 +347,7 @@ CRITICAL:
 
       // Render to section
       console.log(`[DW][RENDER] ${runId} - Starting render`)
-      const renderResult = await renderDesignSpecToSection(normalized, runId)
+      const renderResult = await renderDesignSpecToSection(normalized, runId, { useNuxtDs: this.useNuxtDsForThisRun })
       console.log(`[DW][RENDER] ${runId} - Render complete`)
 
       // Log render report
@@ -361,6 +365,11 @@ CRITICAL:
 
       // Create observability artifacts
       await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
+
+      // One-time hint when Nuxt DS was requested but import failed (fallback to primitives)
+      if (renderResult.usedDsFallback) {
+        await showNuxtDsFallbackHintIfNeeded()
+      }
 
       // Send completion message
       replaceStatusMessage('Screens placed on stage')
@@ -510,10 +519,14 @@ ${originalResponse.substring(0, 2000)}`
 
       // Normalize and render
       const normalized = normalizeDesignSpecV1(repairedSpec)
-      const renderResult = await renderDesignSpecToSection(normalized, runId)
+      const renderResult = await renderDesignSpecToSection(normalized, runId, { useNuxtDs: this.useNuxtDsForThisRun })
 
       // Create observability artifacts
       await this.createObservabilityArtifacts(normalized, renderResult.report, runId, renderResult.section)
+
+      if (renderResult.usedDsFallback) {
+        await showNuxtDsFallbackHintIfNeeded()
+      }
 
       context.replaceStatusMessage('Screens placed on stage')
       if (normalized.meta.truncationNotice) {

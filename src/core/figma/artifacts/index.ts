@@ -4,6 +4,8 @@
  */
 
 import { placeArtifactFrame, type PlaceArtifactOptions } from './placeArtifact'
+import { scorecardComponent } from './components/scorecard'
+import { deceptiveReportComponent } from './components/deceptiveReport'
 
 /**
  * Options for creating an artifact
@@ -112,23 +114,11 @@ export async function createArtifact(
 /**
  * Initialize artifact component registry
  * Call this from a single entrypoint to register all components
- * Uses explicit imports to avoid circular dependencies and ensure deterministic registration
+ * Uses static imports for Figma-compatible bundle (no dynamic import).
  */
 export function initializeArtifactComponents(): void {
-  // Register scorecard component
-  // Using explicit import to ensure deterministic registration order
-  import('./components/scorecard').then(({ scorecardComponent }) => {
-    registerArtifactComponent('scorecard', scorecardComponent)
-  }).catch((error) => {
-    console.error('[Artifacts] Failed to register scorecard component:', error)
-  })
-  
-  // Register deceptive report component
-  import('./components/deceptiveReport').then(({ deceptiveReportComponent }) => {
-    registerArtifactComponent('deceptive-report', deceptiveReportComponent)
-  }).catch((error) => {
-    console.error('[Artifacts] Failed to register deceptive report component:', error)
-  })
+  registerArtifactComponent('scorecard', scorecardComponent)
+  registerArtifactComponent('deceptive-report', deceptiveReportComponent)
 }
 
 // Auto-initialize on module load
