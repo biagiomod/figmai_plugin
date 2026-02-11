@@ -75,6 +75,7 @@ import { categorizeError } from './core/analytics/errorCodes'
 
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
+import { debug } from './core/debug/logger'
 import { getDefaultAssistant, getAssistant, getWelcomeMessage, listAssistants, getShortInstructions } from './assistants'
 import { buildAssistantInstructionSegments } from './core/assistants/instructionAssembly'
 import { resolveKnowledgeBaseDocs } from './core/knowledgeBases/resolveKb'
@@ -340,17 +341,12 @@ const replacedStatusRequestIds = new Set<string>()
 // Guard: only run final status update once per requestId for tool-only (avoids duplicate "Add HAT: …" lines).
 const completedToolOnlyRequestIds = new Set<string>()
 
-// #region agent log
 let mainTraceCounter = 0
 function qaTrace(marker: string, data: Record<string, unknown>) {
+  if (!debug.isEnabled('trace:chat')) return
   mainTraceCounter += 1
-  const payload = { location: 'main.ts', message: marker, data: { n: mainTraceCounter, ...data }, timestamp: Date.now(), hypothesisId: 'RUN_QUICK_ACTION_FLOW' }
-  console.log('[QA_TRACE]', marker, '#', mainTraceCounter, data)
-  try {
-    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {})
-  } catch {}
+  debug.scope('trace:chat').log(`QA_TRACE ${marker}`, { n: mainTraceCounter, ...data })
 }
-// #endregion
 
 // Replace status message in-place with final message. Dedupe: replace first matching status, remove any other status entries for same requestId, then post once.
 function replaceStatusMessage(requestId: string, finalContent: string, isError: boolean = false) {

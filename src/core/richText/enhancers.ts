@@ -1,8 +1,8 @@
 /**
- * Rich Text Enhancers
- * Detect and enhance AST nodes with semantic information
- * (e.g., scores, highlights, badges).
- * Score/scorecard enhancement is gated to design_critique assistant only.
+ * Rich Text Enhancers — assistant-scoped pipeline
+ *
+ * Enhancements are opt-in per assistant via ENHANCERS_BY_ASSISTANT.
+ * Only design_critique gets score/scorecard; others get no score nodes.
  */
 
 import type { RichTextNode } from './types'
@@ -10,25 +10,17 @@ import { jsonToAst } from './jsonToAst'
 
 export type EnhanceRichTextOptions = { assistantId?: string }
 
+export type EnhancerFn = (nodes: RichTextNode[]) => RichTextNode[]
+
 const DESIGN_CRITIQUE_ID = 'design_critique'
 
-/**
- * Detect score patterns in text and convert to score nodes
- * Patterns: "Score: 82/100", "82/100", "Accessibility: 70"
- */
 function detectScores(text: string): Array<{ value: number; max: number; label?: string; start: number; end: number }> {
   const scores: Array<{ value: number; max: number; label?: string; start: number; end: number }> = []
-
-  // Pattern: "Score: 82/100" or "82/100"
-  // Exclude progress indicators like "generate: 1/100"
   const scorePattern = /(?:Score|score|Rating|rating)?\s*:?\s*(\d+)\s*\/\s*(\d+)/g
   let match
   while ((match = scorePattern.exec(text)) !== null) {
     const label = match[0].includes(':') ? match[0].split(':')[0].trim().toLowerCase() : undefined
-    // Skip progress-related labels (generate, progress, etc.)
-    if (label && (label === 'generate' || label === 'progress' || label === 'processing')) {
-      continue
-    }
+    if (label && (label === 'generate' || label === 'progress' || label === 'processing')) continue
     const value = parseInt(match[1], 10)
     const max = parseInt(match[2], 10)
     scores.push({
@@ -39,16 +31,10 @@ function detectScores(text: string): Array<{ value: number; max: number; label?:
       end: match.index + match[0].length
     })
   }
-
-  // Pattern: "Accessibility: 70" (assumes max 100)
-  // Exclude progress indicators like "generate: 1" or "generate: 1/100"
   const percentagePattern = /([A-Za-z]+)\s*:?\s*(\d+)(?:\s*%)?/g
   while ((match = percentagePattern.exec(text)) !== null) {
     const label = match[1].toLowerCase()
-    // Skip progress-related labels (generate, progress, etc.)
-    if (label === 'generate' || label === 'progress' || label === 'processing') {
-      continue
-    }
+    if (label === 'generate' || label === 'progress' || label === 'processing') continue
     const value = parseInt(match[2], 10)
     if (value >= 0 && value <= 100) {
       scores.push({
@@ -60,17 +46,11 @@ function detectScores(text: string): Array<{ value: number; max: number; label?:
       })
     }
   }
-
   return scores
 }
 
-/** Only run score/scorecard enhancement when assistant is Design Critique. */
-function allowScorecard(options: EnhanceRichTextOptions | undefined): boolean {
-  return options?.assistantId === DESIGN_CRITIQUE_ID
-}
-
-/** Dedupe consecutive score nodes with same value/max/label so each score renders at most once. */
-function dedupeScoreNodes(nodes: RichTextNode[]): RichTextNode[] {
+/** Dedupe consecutive score nodes with same value/max/label. Exported for tests. */
+export function dedupeScoreNodes(nodes: RichTextNode[]): RichTextNode[] {
   const out: RichTextNode[] = []
   for (const node of nodes) {
     if (node.type === 'score') {
@@ -89,108 +69,111 @@ function dedupeScoreNodes(nodes: RichTextNode[]): RichTextNode[] {
   return out
 }
 
-/**
- * Enhance AST nodes with semantic information.
- * Score/scorecard detection and JSON-to-AST conversion run only when assistantId === 'design_critique'.
- */
-export function enhanceRichText(nodes: RichTextNode[], options?: EnhanceRichTextOptions): RichTextNode[] {
+/** Scorecard/score enhancer: JSON-to-AST + score pattern detection. For design_critique only. */
+function scorecardEnhancer(nodes: RichTextNode[]): RichTextNode[] {
   const enhanced: RichTextNode[] = []
-  const runScorecard = allowScorecard(options)
-
   for (const node of nodes) {
     if (node.type === 'paragraph') {
       const text = node.text
-
-      if (runScorecard) {
-        const jsonNodes = jsonToAst(text)
-        if (jsonNodes && jsonNodes.length > 0) {
-          enhanced.push(...jsonNodes)
-          continue
-        }
-
-        const scores = detectScores(text)
-        if (scores.length > 0) {
-          let lastIndex = 0
-          for (const score of scores) {
-            if (score.start > lastIndex) {
-              const beforeText = text.substring(lastIndex, score.start).trim()
-              if (beforeText) {
-                enhanced.push({
-                  type: 'paragraph',
-                  text: beforeText,
-                  inline: node.inline
-                })
-              }
-            }
-            enhanced.push({
-              type: 'score',
-              value: score.value,
-              max: score.max,
-              label: score.label
-            })
-            lastIndex = score.end
-          }
-          if (lastIndex < text.length) {
-            const remaining = text.substring(lastIndex).trim()
-            if (remaining) {
-              enhanced.push({
-                type: 'paragraph',
-                text: remaining,
-                inline: node.inline
-              })
-            }
-          }
-          continue
-        }
+      const jsonNodes = jsonToAst(text)
+      if (jsonNodes && jsonNodes.length > 0) {
+        enhanced.push(...jsonNodes)
+        continue
       }
-
+      const scores = detectScores(text)
+      if (scores.length > 0) {
+        let lastIndex = 0
+        for (const score of scores) {
+          if (score.start > lastIndex) {
+            const beforeText = text.substring(lastIndex, score.start).trim()
+            if (beforeText) enhanced.push({ type: 'paragraph', text: beforeText, inline: node.inline })
+          }
+          enhanced.push({ type: 'score', value: score.value, max: score.max, label: score.label })
+          lastIndex = score.end
+        }
+        if (lastIndex < text.length) {
+          const remaining = text.substring(lastIndex).trim()
+          if (remaining) enhanced.push({ type: 'paragraph', text: remaining, inline: node.inline })
+        }
+        continue
+      }
       enhanced.push(node)
     } else if (node.type === 'heading') {
       const text = node.text
-
-      if (runScorecard) {
-        const scores = detectScores(text)
-        if (scores.length > 0) {
-          let lastIndex = 0
-          for (const score of scores) {
-            if (score.start > lastIndex) {
-              const beforeText = text.substring(lastIndex, score.start).trim()
-              if (beforeText) {
-                enhanced.push({
-                  type: 'heading',
-                  level: node.level,
-                  text: beforeText
-                })
-              }
-            }
-            enhanced.push({
-              type: 'score',
-              value: score.value,
-              max: score.max,
-              label: score.label
-            })
-            lastIndex = score.end
+      const scores = detectScores(text)
+      if (scores.length > 0) {
+        let lastIndex = 0
+        for (const score of scores) {
+          if (score.start > lastIndex) {
+            const beforeText = text.substring(lastIndex, score.start).trim()
+            if (beforeText) enhanced.push({ type: 'heading', level: node.level, text: beforeText })
           }
-          if (lastIndex < text.length) {
-            const remaining = text.substring(lastIndex).trim()
-            if (remaining) {
-              enhanced.push({
-                type: 'heading',
-                level: node.level,
-                text: remaining
-              })
-            }
-          }
-          continue
+          enhanced.push({ type: 'score', value: score.value, max: score.max, label: score.label })
+          lastIndex = score.end
         }
+        if (lastIndex < text.length) {
+          const remaining = text.substring(lastIndex).trim()
+          if (remaining) enhanced.push({ type: 'heading', level: node.level, text: remaining })
+        }
+        continue
       }
-
       enhanced.push(node)
     } else {
       enhanced.push(node)
     }
   }
-
   return dedupeScoreNodes(enhanced)
 }
 
+/** Registry: which enhancers run per assistant. Default = no enhancers (passthrough). */
+export const ENHANCERS_BY_ASSISTANT: Record<string, EnhancerFn[]> = {
+  [DESIGN_CRITIQUE_ID]: [scorecardEnhancer],
+  default: []
+}
+
+/** Get enhancers for an assistant (or default). */
+function getEnhancersForAssistant(assistantId: string | undefined): EnhancerFn[] {
+  if (!assistantId) return ENHANCERS_BY_ASSISTANT.default
+  return ENHANCERS_BY_ASSISTANT[assistantId] ?? ENHANCERS_BY_ASSISTANT.default
+}
+
+/**
+ * Run the assistant-scoped enhancer pipeline.
+ * Only assistants listed in ENHANCERS_BY_ASSISTANT get enhancements (e.g. design_critique gets scorecard).
+ */
+export function enhanceRichText(nodes: RichTextNode[], options?: EnhanceRichTextOptions): RichTextNode[] {
+  const assistantId = options?.assistantId
+  const enhancers = getEnhancersForAssistant(assistantId)
+  let result = nodes
+  for (const enhancer of enhancers) {
+    result = enhancer(result)
+  }
+  return result
+}
+
+/**
+ * Estimate total text length from enhanced nodes (for inflation guard).
+ * Sums node text lengths; list/scorecard types use a fixed estimate.
+ */
+export function estimateEnhancedTextLength(nodes: RichTextNode[]): number {
+  let len = 0
+  for (const node of nodes) {
+    const n = node as { text?: string; type?: string; items?: unknown[] }
+    if (n.text != null && typeof n.text === 'string') {
+      len += n.text.length
+    } else if (n.items && Array.isArray(n.items)) {
+      for (const item of n.items as unknown[]) {
+        if (Array.isArray(item)) {
+          for (const inner of item as { text?: string }[]) {
+            if (inner?.text) len += inner.text.length
+          }
+        } else if (typeof item === 'string') {
+          len += item.length
+        }
+      }
+    } else {
+      len += 80
+    }
+  }
+  return len
+}

@@ -1,21 +1,19 @@
 /**
- * Regression: score/scorecard enhancement must only run for design_critique.
- * Non-critique assistants (e.g. Smart Detector / general) must not get score nodes.
+ * Regression: score/scorecard enhancement gated to design_critique; dedupeScoreNodes collapses duplicates.
  */
 
 import { parseRichText } from './parseRichText'
-import { enhanceRichText } from './enhancers'
+import { enhanceRichText, dedupeScoreNodes } from './enhancers'
+import type { RichTextNode } from './types'
 
-function hasScoreNodes(nodes: ReturnType<typeof enhanceRichText>): boolean {
+function hasScoreNodes(nodes: RichTextNode[]): boolean {
   return nodes.some(n => n.type === 'score')
 }
 
-// Text that would match score pattern (e.g. Smart Detector summary containing "First: 3/100 (3%)")
+// --- Gating: non-critique must not get score nodes ---
 const textWithScoreLikePattern = 'First: 3/100 (3%). Summary of findings.'
-
 const astWithPattern = parseRichText(textWithScoreLikePattern)
 
-// Non-critique: must NOT produce any score nodes
 const enhancedGeneral = enhanceRichText(astWithPattern, { assistantId: 'general' })
 const enhancedSmartDetector = enhanceRichText(astWithPattern, { assistantId: 'general' })
 
@@ -30,10 +28,37 @@ if (hasScoreNodes(enhancedGeneral) || hasScoreNodes(enhancedSmartDetector)) {
 
 // Design critique: may produce score nodes when pattern exists
 const enhancedCritique = enhanceRichText(astWithPattern, { assistantId: 'design_critique' })
-// Just ensure we don't crash; score nodes are allowed
 if (enhancedCritique.length === 0) {
   console.error('[enhancers.test] FAIL: design_critique produced no nodes')
   process.exit(1)
 }
 
-console.log('[enhancers.test] PASS: score enhancement gated to design_critique')
+// --- Dedupe: consecutive identical score nodes collapse to one ---
+const duplicateScores: RichTextNode[] = [
+  { type: 'score', value: 82, max: 100, label: 'Score' },
+  { type: 'score', value: 82, max: 100, label: 'Score' },
+  { type: 'score', value: 82, max: 100, label: 'Score' }
+]
+const deduped = dedupeScoreNodes(duplicateScores)
+const scoreCount = deduped.filter(n => n.type === 'score').length
+if (deduped.length !== 1 || scoreCount !== 1) {
+  console.error('[enhancers.test] FAIL: dedupeScoreNodes should collapse 3 identical scores to 1', {
+    dedupedLength: deduped.length,
+    scoreCount
+  })
+  process.exit(1)
+}
+
+// Dedupe preserves distinct score nodes
+const mixed: RichTextNode[] = [
+  { type: 'score', value: 80, max: 100 },
+  { type: 'score', value: 80, max: 100 },
+  { type: 'score', value: 90, max: 100 }
+]
+const dedupedMixed = dedupeScoreNodes(mixed)
+if (dedupedMixed.length !== 2) {
+  console.error('[enhancers.test] FAIL: dedupeScoreNodes should keep two distinct scores', { dedupedLength: dedupedMixed.length })
+  process.exit(1)
+}
+
+console.log('[enhancers.test] PASS: score gating + dedupeScoreNodes')

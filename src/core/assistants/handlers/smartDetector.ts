@@ -5,18 +5,14 @@
 
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import { scanSelectionSmart } from '../../detection/smartDetector'
+import { debug } from '../../debug/logger'
 
-// #region agent log
 let handlerTraceCounter = 0
 function qaTraceHandler(marker: string, data: Record<string, unknown>) {
+  if (!debug.isEnabled('trace:chat')) return
   handlerTraceCounter += 1
-  const payload = { location: 'smartDetector.ts', message: marker, data: { n: handlerTraceCounter, ...data }, timestamp: Date.now(), hypothesisId: 'RUN_QUICK_ACTION_FLOW' }
-  console.log('[QA_TRACE]', marker, '#', handlerTraceCounter, data)
-  try {
-    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {})
-  } catch {}
+  debug.scope('trace:chat').log(`QA_TRACE ${marker}`, { n: handlerTraceCounter, ...data })
 }
-// #endregion
 
 const SUMMARY_PREVIEW = 5
 

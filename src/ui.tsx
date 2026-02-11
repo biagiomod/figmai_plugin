@@ -93,7 +93,7 @@ import { RichTextRenderer } from './ui/components/RichTextRenderer'
 import { ProviderIndicators } from './ui/components/ProviderIndicators'
 import { GenericAiIndicator } from './ui/components/GenericAiIndicator'
 import { parseRichText } from './core/richText/parseRichText'
-import { enhanceRichText } from './core/richText/enhancers'
+import { enhanceRichText, estimateEnhancedTextLength } from './core/richText/enhancers'
 import type { RichTextNode } from './core/richText/types'
 import type {
   ResetHandler,
@@ -134,6 +134,7 @@ import { getInitialMode } from './ui/utils/mode'
 import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits, isPromptDiagnosticsEnabled } from './custom/config'
 import { BUILD_VERSION } from './core/build'
 import { debugLog } from './ui/utils/debug'
+import { debug } from './core/debug/logger'
 
 // Import CSS
 import './ui/styles/theme.css'
@@ -421,36 +422,30 @@ function Plugin() {
   const RENDER_SITE_PRIMARY = 'ChatDialog:primaryList'
   /** Debounce tool-only quick actions to avoid duplicate RUN_QUICK_ACTION (e.g. double-click). */
   const lastToolOnlyEmitRef = useRef<{ key: string; time: number } | null>(null)
-  // #region agent log
   const uiTraceCounterRef = useRef(0)
   const qaTraceUI = useCallback((marker: string, data: Record<string, unknown>) => {
+    if (!debug.isEnabled('trace:chat')) return
     uiTraceCounterRef.current += 1
-    const n = uiTraceCounterRef.current
-    const payload = { location: 'ui.tsx', message: marker, data: { n, ...data }, timestamp: Date.now(), hypothesisId: 'RUN_QUICK_ACTION_FLOW' }
-    console.log('[QA_TRACE]', marker, '#', n, data)
-    try {
-      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {})
-    } catch {}
+    debug.scope('trace:chat').log(`QA_TRACE ${marker}`, { n: uiTraceCounterRef.current, ...data })
   }, [])
-  // #endregion
   
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // DOM stamping: count how many times the last message appears in the DOM (detect duplicate render sites)
   useEffect(() => {
+    if (!debug.isEnabled('trace:chat')) return
     const lastMsg = messages[messages.length - 1]
     const lastId = lastMsg?.id
     if (!lastId) return
     const nodes = document.querySelectorAll(`[data-message-id="${lastId}"]`)
     const sites = Array.from(new Set(Array.from(nodes).map(n => n.getAttribute('data-render-site'))))
-    console.log('[CHAT_DOM_COUNT]', { lastId, count: nodes.length, sites })
+    debug.scope('trace:chat').log('CHAT_DOM_COUNT', { lastId, count: nodes.length, sites })
   }, [messages])
 
-  // After render: measure DOM text length of last assistant bubble vs message.content (detect in-bubble duplication)
   useEffect(() => {
+    if (!debug.isEnabled('trace:chat')) return
     const lastMsg = messages[messages.length - 1]
     if (!lastMsg || lastMsg.role !== 'assistant') return
     const el = lastAssistantBubbleRef.current
@@ -459,13 +454,7 @@ function Plugin() {
     const contentLen = (lastMsg.content && String(lastMsg.content).length) || 0
     const domTextLen = renderedText.length
     const ratio = contentLen > 0 ? domTextLen / contentLen : 0
-    console.log('[RENDER_DOM_TEXT]', {
-      messageId: lastMsg.id,
-      domTextLen,
-      contentLen,
-      ratio: Math.round(ratio * 100) / 100,
-      domTail: renderedText.slice(-60)
-    })
+    debug.scope('trace:chat').log('RENDER_DOM_TEXT', { messageId: lastMsg.id, domTextLen, contentLen, ratio: Math.round(ratio * 100) / 100, domTail: renderedText.slice(-60) })
   }, [messages])
 
   // Auto-collapse credits after 3 seconds (only on first open)
@@ -2242,17 +2231,12 @@ ${htmlTable}
 
   const isCode2Design = assistant.id === 'code2design'
 
-  // #region agent log - CHAT_RENDER (per-render: detect duplicate mounts)
-  ;(() => {
+  if (debug.isEnabled('trace:chat')) {
     const lastMsg = messages[messages.length - 1]
     const lastId = lastMsg?.id ?? 'none'
     const lastLen = (lastMsg?.content && String(lastMsg.content).length) ?? 0
-    console.log('[CHAT_RENDER]', 'instanceId=' + chatInstanceId, 'messagesCount=' + messages.length, 'lastMessageId=' + lastId, 'lastMessageLen=' + lastLen)
-    try {
-      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ui.tsx', message: 'CHAT_RENDER', data: { instanceId: chatInstanceId, messagesCount: messages.length, lastMessageId: lastId, lastMessageLen: lastLen }, timestamp: Date.now(), hypothesisId: 'CHAT_MOUNT' }) }).catch(() => {})
-    } catch {}
-  })()
-  // #endregion
+    debug.scope('trace:chat').log('CHAT_RENDER', { instanceId: chatInstanceId, messagesCount: messages.length, lastMessageId: lastId, lastMessageLen: lastLen })
+  }
 
   return (
     <div style={{
@@ -2488,17 +2472,16 @@ ${htmlTable}
             Paste a FigmAI Template JSON to generate Figma elements, or select frames and click GET JSON.
           </div>
         )}
-        {(() => {
+        {debug.isEnabled('trace:chat') && (() => {
           const lastMsg = messages[messages.length - 1]
           const lastId = lastMsg?.id ?? 'none'
           const lastLen = (lastMsg?.content && String(lastMsg.content).length) ?? 0
-          console.log('[CHAT_LIST_RENDER]', { instanceId: chatListInstanceId, renderSiteId: RENDER_SITE_PRIMARY, messagesCount: messages.length, lastMessageId: lastId, lastMessageLen: lastLen })
+          debug.scope('trace:chat').log('CHAT_LIST_RENDER', { instanceId: chatListInstanceId, renderSiteId: RENDER_SITE_PRIMARY, messagesCount: messages.length, lastMessageId: lastId, lastMessageLen: lastLen })
           return null
         })()}
         {messages.map((message, index) => {
-          if (index === messages.length - 1) {
-            console.log('[CHAT_ROW]', 'instanceId=' + chatInstanceId, 'messageId=' + message.id, 'index=' + index)
-            try { fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ui.tsx', message: 'CHAT_ROW', data: { instanceId: chatInstanceId, messageId: message.id, index }, timestamp: Date.now(), hypothesisId: 'CHAT_MOUNT' }) }).catch(() => {}) } catch {}
+          if (debug.isEnabled('trace:chat') && index === messages.length - 1) {
+            debug.scope('trace:chat').log('CHAT_ROW', { instanceId: chatInstanceId, messageId: message.id, index })
           }
           // Render boundary divider before boundary message
           if (message.isBoundary) {
@@ -2616,9 +2599,9 @@ ${htmlTable}
             )
           }
           
-          if (index === messages.length - 1) {
+          if (debug.isEnabled('trace:chat') && index === messages.length - 1) {
             const contentLen = (message.content && String(message.content).length) || 0
-            console.log('[CHAT_ROW_RENDER]', { messageId: message.id, contentLen, oneBubble: true })
+            debug.scope('trace:chat').log('CHAT_ROW_RENDER', { messageId: message.id, contentLen, oneBubble: true })
           }
           return (
             <div
@@ -2657,29 +2640,40 @@ ${htmlTable}
                       const contentHash = contentToRender.slice(0, 40) + '_' + contentLen
                       const ast = parseRichText(contentToRender)
                       const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
-                      const renderedBlockCount = enhanced.length
-                      const firstBlockPreview = enhanced[0] ? getBlockPreview(enhanced[0]) : ''
-                      const lastBlockPreview = enhanced[renderedBlockCount - 1] ? getBlockPreview(enhanced[renderedBlockCount - 1]) : ''
-                      console.log('[RENDER_CONTENT]', { messageId: message.id, contentLen, contentHash, renderedBlockCount, firstBlockPreview, lastBlockPreview })
-                      const hashes = enhanced.map(getBlockHash)
-                      const totalCount = hashes.length
-                      const countByHash: Record<string, number> = {}
-                      for (const h of hashes) {
-                        countByHash[h] = (countByHash[h] ?? 0) + 1
+                      const estimateLen = estimateEnhancedTextLength(enhanced)
+                      const inflationCap = Math.max(contentLen * 2, 5000)
+                      let nodesToRender = enhanced
+                      if (estimateLen > inflationCap) {
+                        if (debug.isEnabled('trace:chat')) {
+                          debug.scope('trace:chat').log('RENDER_INFLATION_GUARD', { messageId: message.id, contentLen, estimateLen, cap: inflationCap })
+                        }
+                        nodesToRender = ast
                       }
-                      const uniqueCount = Object.keys(countByHash).length
-                      let topRepeatedHash: string | undefined
-                      let topCount = 0
-                      for (const [h, c] of Object.entries(countByHash)) {
-                        if (c > 1 && c > topCount) {
-                          topCount = c
-                          topRepeatedHash = h
+                      const renderedBlockCount = nodesToRender.length
+                      const firstBlockPreview = nodesToRender[0] ? getBlockPreview(nodesToRender[0]) : ''
+                      const lastBlockPreview = nodesToRender[renderedBlockCount - 1] ? getBlockPreview(nodesToRender[renderedBlockCount - 1]) : ''
+                      if (debug.isEnabled('trace:chat')) {
+                        debug.scope('trace:chat').log('RENDER_CONTENT', { messageId: message.id, contentLen, contentHash, renderedBlockCount, firstBlockPreview, lastBlockPreview })
+                        const hashes = nodesToRender.map(getBlockHash)
+                        const totalCount = hashes.length
+                        const countByHash: Record<string, number> = {}
+                        for (const h of hashes) {
+                          countByHash[h] = (countByHash[h] ?? 0) + 1
+                        }
+                        const uniqueCount = Object.keys(countByHash).length
+                        let topRepeatedHash: string | undefined
+                        let topCount = 0
+                        for (const [h, c] of Object.entries(countByHash)) {
+                          if (c > 1 && c > topCount) {
+                            topCount = c
+                            topRepeatedHash = h
+                          }
+                        }
+                        if (totalCount > 0) {
+                          debug.scope('trace:chat').log('RENDER_BLOCK_HASHES', { messageId: message.id, uniqueCount, totalCount, topRepeatedHash: topRepeatedHash ?? null })
                         }
                       }
-                      if (totalCount > 0) {
-                        console.log('[RENDER_BLOCK_HASHES]', { messageId: message.id, uniqueCount, totalCount, topRepeatedHash: topRepeatedHash ?? null })
-                      }
-                      return <RichTextRenderer nodes={enhanced} />
+                      return <RichTextRenderer nodes={nodesToRender} />
                     } catch (error) {
                       console.error('[UI] RichText parsing error:', error)
                       const cleanedFallback = cleanChatContent(message.content)

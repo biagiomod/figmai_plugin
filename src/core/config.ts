@@ -53,8 +53,10 @@ export const CONFIG = {
         'subsystem:clipboard': false,
         'subsystem:analytics_tagging': false,
 
-        'subsystem:ui': true,
+        'subsystem:ui': false,
 
+        // Chat/QA tracing (diagnosis only; no logs in normal use)
+        'trace:chat': false,
 
         // Global scope (always checked first)
         'global': false
