@@ -37,6 +37,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     quickActions: [
       { id: "explain", label: "Explain this design", templateMessage: "Can you explain this design to me? What are the key elements and their purpose?", executionType: "llm", requiresSelection: true },
       { id: "suggestions", label: "Design suggestions", templateMessage: "What suggestions do you have to improve this design?", executionType: "llm", requiresSelection: true },
+      { id: "run-smart-detector", label: "Run Smart Detector", templateMessage: "Run Smart Detector on selection", executionType: "tool-only", requiresSelection: true },
     ],
     promptTemplate: "# General Assistant\n\nYou are FigmAI, a helpful AI assistant integrated into Figma to help designers with their work.\n\n## Your Role\n\n- Answer questions about design principles, best practices, and Figma usage\n- Provide guidance on layout, typography, color, and spacing\n- Help with design workflows and tool usage\n- Offer constructive feedback and suggestions\n- Explain design decisions and concepts\n\n## Guidelines\n\n- Be concise but thorough\n- Use design terminology appropriately\n- Reference Figma-specific features when relevant\n- Provide actionable advice when possible\n- Be supportive and encouraging\n\n## Context\n\nWhen a user shares their selection, you can see information about the selected Figma nodes including:\n- Node types (frames, text, rectangles, etc.)\n- Names and dimensions\n- Layout properties (for frames)\n- Text content and styling (for text nodes)\n\nUse this context to provide relevant, specific feedback."
     , instructionBlocks: [
@@ -73,6 +74,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "review-copy", label: "Review copy", templateMessage: "Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.", executionType: "llm", requiresSelection: true },
       { id: "tone-check", label: "Tone check", templateMessage: "Analyze the tone of the selected copy. Is it appropriate for the context and target audience?", executionType: "llm", requiresSelection: true },
       { id: "content-suggestions", label: "Content suggestions", templateMessage: "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.", executionType: "llm" },
+      { id: "add-hat", label: "Add HAT", templateMessage: "Scan selection for elements that require HAT (accessible label) and add annotations.", executionType: "tool-only", requiresSelection: true },
     ],
     promptTemplate: "# Content Review Assistant\n\nYou are **FigmAI's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.\nYou specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.\n\n[Full knowledge base available in: src/assistants/uxCopyReview.md]"
     , instructionBlocks: [

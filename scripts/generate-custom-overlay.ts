@@ -59,6 +59,10 @@ interface CustomConfig {
     denylist?: string[]
     strictMode?: boolean
   }
+  /** Component/instance names that should always be treated as requiring HAT (accessible label). Used by Content Review Assistant "Add HAT" action. */
+  accessibility?: {
+    hatRequiredComponents?: string[]
+  }
   analytics?: {
     enabled?: boolean
     endpointUrl?: string
@@ -68,6 +72,19 @@ interface CustomConfig {
     retryMaxAttempts?: number
     retryBaseDelayMs?: number
     debug?: boolean
+  }
+  /** Smart Detector: element and content classifier config (build-time only). */
+  detectors?: {
+    elementClassifier?: {
+      componentKindMap?: Record<string, string>
+      nameKindRules?: Array<{ contains: string[]; kind: string }>
+      maxNodes?: number
+    }
+    contentClassifier?: {
+      keywordLists?: { legal?: string[]; terms?: string[]; privacy?: string[]; consent?: string[] }
+      placeholderPatterns?: string[]
+      ctaVerbs?: string[]
+    }
   }
 }
 
@@ -192,6 +209,52 @@ function normalizeConfigForEmit(config: CustomConfig): CustomConfig {
       contentMvpAssistantId: DEFAULT_CONTENT_MVP_ASSISTANT_ID
     }
   }
+  if (out.accessibility) {
+    if (!Array.isArray(out.accessibility.hatRequiredComponents)) {
+      out.accessibility.hatRequiredComponents = []
+    }
+  }
+  if (out.detectors) {
+    out.detectors = { ...out.detectors }
+    if (out.detectors.elementClassifier) {
+      out.detectors.elementClassifier = { ...out.detectors.elementClassifier }
+      if (!out.detectors.elementClassifier.componentKindMap || typeof out.detectors.elementClassifier.componentKindMap !== 'object') {
+        out.detectors.elementClassifier.componentKindMap = {}
+      }
+      if (!Array.isArray(out.detectors.elementClassifier.nameKindRules)) {
+        out.detectors.elementClassifier.nameKindRules = []
+      }
+    } else {
+      out.detectors.elementClassifier = { componentKindMap: {}, nameKindRules: [] }
+    }
+    if (out.detectors.contentClassifier) {
+      out.detectors.contentClassifier = { ...out.detectors.contentClassifier }
+      const kl = out.detectors.contentClassifier.keywordLists
+      if (!kl || typeof kl !== 'object') {
+        out.detectors.contentClassifier.keywordLists = {}
+      } else {
+        out.detectors.contentClassifier.keywordLists = {
+          legal: Array.isArray(kl.legal) ? kl.legal : [],
+          terms: Array.isArray(kl.terms) ? kl.terms : [],
+          privacy: Array.isArray(kl.privacy) ? kl.privacy : [],
+          consent: Array.isArray(kl.consent) ? kl.consent : []
+        }
+      }
+      if (!Array.isArray(out.detectors.contentClassifier.placeholderPatterns)) {
+        out.detectors.contentClassifier.placeholderPatterns = []
+      }
+      if (!Array.isArray(out.detectors.contentClassifier.ctaVerbs)) {
+        out.detectors.contentClassifier.ctaVerbs = []
+      }
+    } else {
+      out.detectors.contentClassifier = { keywordLists: {}, placeholderPatterns: [], ctaVerbs: [] }
+    }
+  } else {
+    out.detectors = {
+      elementClassifier: { componentKindMap: {}, nameKindRules: [] },
+      contentClassifier: { keywordLists: {}, placeholderPatterns: [], ctaVerbs: [] }
+    }
+  }
   return out
 }
 
@@ -271,6 +334,9 @@ export interface CustomConfig {
     denylist?: string[]
     strictMode?: boolean
   }
+  accessibility?: {
+    hatRequiredComponents?: string[]
+  }
   analytics?: {
     enabled?: boolean
     endpointUrl?: string
@@ -280,6 +346,18 @@ export interface CustomConfig {
     retryMaxAttempts?: number
     retryBaseDelayMs?: number
     debug?: boolean
+  }
+  detectors?: {
+    elementClassifier?: {
+      componentKindMap?: Record<string, string>
+      nameKindRules?: Array<{ contains: string[]; kind: string }>
+      maxNodes?: number
+    }
+    contentClassifier?: {
+      keywordLists?: { legal?: string[]; terms?: string[]; privacy?: string[]; consent?: string[] }
+      placeholderPatterns?: string[]
+      ctaVerbs?: string[]
+    }
   }
 }
 

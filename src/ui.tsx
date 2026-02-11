@@ -94,6 +94,7 @@ import { ProviderIndicators } from './ui/components/ProviderIndicators'
 import { GenericAiIndicator } from './ui/components/GenericAiIndicator'
 import { parseRichText } from './core/richText/parseRichText'
 import { enhanceRichText } from './core/richText/enhancers'
+import type { RichTextNode } from './core/richText/types'
 import type {
   ResetHandler,
   RequestSelectionStateHandler,
@@ -254,6 +255,22 @@ function isDesignWorkshopIntro(text: string): boolean {
   )
 }
 
+/** Return first 40 chars of a block for RENDER_CONTENT preview */
+function getBlockPreview(node: RichTextNode): string {
+  const n = node as { text?: string; type?: string; items?: unknown[] }
+  if (n.text != null && typeof n.text === 'string') return n.text.slice(0, 40)
+  if (n.items) return `[${n.type ?? 'node'}:${(n.items as unknown[]).length}]`
+  return String(n.type ?? 'node').slice(0, 40)
+}
+
+/** Stable hash for a block for RENDER_BLOCK_HASHES (detect repeated blocks) */
+function getBlockHash(node: RichTextNode): string {
+  const n = node as { text?: string; type?: string; items?: unknown[] }
+  if (n.text != null && typeof n.text === 'string') return n.text.slice(0, 80) + '_' + n.text.length
+  if (n.items) return `${n.type ?? 'node'}_${(n.items as unknown[]).length}`
+  return String(n.type ?? 'node')
+}
+
 /**
  * Navigation Indicator Mode Gating Switch
  * 
@@ -314,6 +331,8 @@ function Plugin() {
     return getDefaultAssistant(currentMode)
   })
   const [messages, setMessages] = useState<Message[]>([])
+  /** Status line for current request (e.g. "Processing…"). Shown in dedicated area; not in message list. Cleared when final message arrives. */
+  const [activeStatus, setActiveStatus] = useState<{ requestId: string; text: string } | null>(null)
   const [input, setInput] = useState('')
   const [selectionState, setSelectionState] = useState<SelectionState>({
     count: 0,
@@ -390,13 +409,65 @@ function Plugin() {
   }, [])
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const lastAssistantBubbleRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  /** Per-component-instance ID for chat render tracing (detect duplicate mounts). */
+  const chatInstanceIdRef = useRef<string | null>(null)
+  if (chatInstanceIdRef.current === null) chatInstanceIdRef.current = Math.random().toString(36).slice(2)
+  const chatInstanceId = chatInstanceIdRef.current
+  const chatListInstanceIdRef = useRef<string | null>(null)
+  if (chatListInstanceIdRef.current === null) chatListInstanceIdRef.current = 'list-' + Math.random().toString(36).slice(2, 10)
+  const chatListInstanceId = chatListInstanceIdRef.current
+  const RENDER_SITE_PRIMARY = 'ChatDialog:primaryList'
+  /** Debounce tool-only quick actions to avoid duplicate RUN_QUICK_ACTION (e.g. double-click). */
+  const lastToolOnlyEmitRef = useRef<{ key: string; time: number } | null>(null)
+  // #region agent log
+  const uiTraceCounterRef = useRef(0)
+  const qaTraceUI = useCallback((marker: string, data: Record<string, unknown>) => {
+    uiTraceCounterRef.current += 1
+    const n = uiTraceCounterRef.current
+    const payload = { location: 'ui.tsx', message: marker, data: { n, ...data }, timestamp: Date.now(), hypothesisId: 'RUN_QUICK_ACTION_FLOW' }
+    console.log('[QA_TRACE]', marker, '#', n, data)
+    try {
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {})
+    } catch {}
+  }, [])
+  // #endregion
   
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-  
+
+  // DOM stamping: count how many times the last message appears in the DOM (detect duplicate render sites)
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1]
+    const lastId = lastMsg?.id
+    if (!lastId) return
+    const nodes = document.querySelectorAll(`[data-message-id="${lastId}"]`)
+    const sites = Array.from(new Set(Array.from(nodes).map(n => n.getAttribute('data-render-site'))))
+    console.log('[CHAT_DOM_COUNT]', { lastId, count: nodes.length, sites })
+  }, [messages])
+
+  // After render: measure DOM text length of last assistant bubble vs message.content (detect in-bubble duplication)
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1]
+    if (!lastMsg || lastMsg.role !== 'assistant') return
+    const el = lastAssistantBubbleRef.current
+    if (!el) return
+    const renderedText = el.innerText ?? ''
+    const contentLen = (lastMsg.content && String(lastMsg.content).length) || 0
+    const domTextLen = renderedText.length
+    const ratio = contentLen > 0 ? domTextLen / contentLen : 0
+    console.log('[RENDER_DOM_TEXT]', {
+      messageId: lastMsg.id,
+      domTextLen,
+      contentLen,
+      ratio: Math.round(ratio * 100) / 100,
+      domTail: renderedText.slice(-60)
+    })
+  }, [messages])
+
   // Auto-collapse credits after 3 seconds (only on first open)
   useEffect(() => {
     if (showCredits && !hasAutoCollapsedRef.current) {
@@ -474,32 +545,44 @@ function Plugin() {
              (message.message.role === 'assistant' && message.message.content.includes('intro')))
           
           if (shouldProcessAssistantMessage) {
+            const incoming = message.message as Message
+            // Option A: status ("Processing…") is not added to the message list; show in dedicated area only. Ensures one bubble per request.
+            if (incoming.role === 'assistant' && incoming.isStatus === true && incoming.statusStyle === 'loading') {
+              setActiveStatus({ requestId: incoming.requestId ?? '', text: incoming.content ?? 'Processing…' })
+              setMessages(prev => prev)
+              console.log('[UI] setThinking false - ASSISTANT_MESSAGE (status only, not in transcript)', { requestId: incoming.requestId })
+              break
+            }
+            if (incoming.role === 'assistant' && incoming.requestId) {
+              setActiveStatus(prev => (prev?.requestId === incoming.requestId ? null : prev))
+            }
             console.log('[UI] setThinking false - ASSISTANT_MESSAGE received', { role: message.message.role })
+            // All assistant message content updates go through this reducer (no direct messages[i].content mutation elsewhere)
             setMessages(prev => {
-              const incoming = message.message as Message
+              const incomingInner = message.message as Message
 
               // User messages: keep existing behavior
-              if (incoming.role === 'user') {
+              if (incomingInner.role === 'user') {
                 const statusMessages = prev.filter(m => m.isStatus)
                 const nonStatusMessages = prev.filter(m => !m.isStatus)
                 // Put user message before status messages for correct order
-                return [...nonStatusMessages, incoming, ...statusMessages]
+                return [...nonStatusMessages, incomingInner, ...statusMessages]
               }
 
               // Assistant messages: clean + dedupe
-              const cleanedContent = cleanChatContent(incoming.content)
+              const cleanedContent = cleanChatContent(incomingInner.content)
               
               // Deduplicate instructions messages (only one per assistant)
-              if (incoming.isInstructions) {
+              if (incomingInner.isInstructions) {
                 const hasDuplicateInstructions = prev.some(m => {
                   if (m.role !== 'assistant' || !m.isInstructions) return false
                   // Check if same assistant or same content
-                  return (m.assistantId === incoming.assistantId && m.assistantId) ||
+                  return (m.assistantId === incomingInner.assistantId && m.assistantId) ||
                          cleanChatContent(m.content) === cleanedContent
                 })
 
                 if (hasDuplicateInstructions) {
-                  console.log('[UI] Skipping duplicate instructions message', { assistantId: incoming.assistantId })
+                  console.log('[UI] Skipping duplicate instructions message', { assistantId: incomingInner.assistantId })
                   return prev
                 }
               }
@@ -520,20 +603,42 @@ function Plugin() {
                 }
               }
 
-              const cleanedMessage: Message = { ...incoming, content: cleanedContent }
+              const cleanedMessage: Message = { ...incomingInner, content: cleanedContent }
               
               // Check if message with same ID already exists (for in-place replacement, e.g., status messages)
-              const existingIndex = prev.findIndex(m => m.id === cleanedMessage.id)
-              if (existingIndex !== -1) {
-                // Replace existing message in-place (status message replacement)
+              const existingById = prev.findIndex(m => m.id === cleanedMessage.id)
+              if (existingById !== -1) {
+                const newContentLen = (cleanedMessage.content && String(cleanedMessage.content).length) || 0
+                const newContentTail = (cleanedMessage.content && String(cleanedMessage.content).slice(-40)) || ''
+                qaTraceUI('UI_RENDER_REPLACE_STATUS', { requestId: cleanedMessage.requestId, messageId: cleanedMessage.id })
+                qaTraceUI('UI_STATUS_UPDATE_CONTENT', { requestId: cleanedMessage.requestId, messageId: cleanedMessage.id, newContentLength: newContentLen, newContentTail, kind: 'replace' })
                 const newMessages = [...prev]
-                newMessages[existingIndex] = cleanedMessage
+                newMessages[existingById] = cleanedMessage
                 return newMessages
               }
               
-              // Otherwise, append new message
-              const newMessages = [...prev, cleanedMessage]
-              return newMessages
+              // Dedupe by requestId: one final message per request (e.g. tool-only Add HAT)
+              if (cleanedMessage.requestId) {
+                const existingByRequestId = prev.findIndex(
+                  m => m.requestId === cleanedMessage.requestId && m.role === 'assistant'
+                )
+                if (existingByRequestId !== -1) {
+                  const newContentLen = (cleanedMessage.content && String(cleanedMessage.content).length) || 0
+                  const newContentTail = (cleanedMessage.content && String(cleanedMessage.content).slice(-40)) || ''
+                  qaTraceUI('UI_RENDER_REPLACE_STATUS', { requestId: cleanedMessage.requestId })
+                  qaTraceUI('UI_STATUS_UPDATE_CONTENT', { requestId: cleanedMessage.requestId, messageId: cleanedMessage.id, newContentLength: newContentLen, newContentTail, kind: 'replace' })
+                  const newMessages = [...prev]
+                  newMessages[existingByRequestId] = cleanedMessage
+                  return newMessages
+                }
+              }
+              
+              const totalAfter = prev.length + 1
+              const contentLen = (cleanedMessage.content && String(cleanedMessage.content).length) || 0
+              const contentTail = (cleanedMessage.content && String(cleanedMessage.content).slice(-40)) || ''
+              qaTraceUI('UI_RENDER_APPEND_MESSAGE', { requestId: cleanedMessage.requestId, messageId: cleanedMessage.id, totalMessagesAfterAppend: totalAfter, appendedMessageLength: contentLen, appendedMessageTail: contentTail })
+              qaTraceUI('UI_STATUS_UPDATE_CONTENT', { requestId: cleanedMessage.requestId, messageId: cleanedMessage.id, newContentLength: contentLen, newContentTail: contentTail, kind: 'append' })
+              return [...prev, cleanedMessage]
             })
           } else {
             console.log('[UI] Ignoring ASSISTANT_MESSAGE - resetToken mismatch or missing message', { 
@@ -877,8 +982,9 @@ function Plugin() {
   
   // Comprehensive UI reset function - restores all state to initial values
   const resetUIState = useCallback((currentMode: Mode) => {
-    // Clear all chat content
+    // Clear all chat content and any in-flight status
     setMessages([])
+    setActiveStatus(null)
     
     // Clear all error/success banners
     setScorecardError(null)
@@ -949,6 +1055,7 @@ function Plugin() {
 
   const handleClearChat = useCallback(() => {
     setMessages([])
+    setActiveStatus(null)
     setShowClearChatModal(false)
   }, [])
   
@@ -1220,16 +1327,25 @@ function Plugin() {
       setScorecardError(null)
     }
 
+    // Debounce tool-only to prevent duplicate RUN_QUICK_ACTION (single final status line).
+    if (action.executionType === 'tool-only') {
+      const key = `${assistant.id}:${actionId}`
+      const now = Date.now()
+      const last = lastToolOnlyEmitRef.current
+      if (last?.key === key && now - last.time < 800) {
+        setSelectionRequired(false)
+        return
+      }
+      lastToolOnlyEmitRef.current = { key, time: now }
+      qaTraceUI('UI_CLICK_QUICK_ACTION', { assistantId: assistant.id, actionId })
+    }
+
     // Send quick action to main thread
-    // Main thread will:
-    // - Create user message and send it back (single source of truth)
-    // - Create status message and send it back
-    // - Process the action
-    // - Replace status message with final result
+    qaTraceUI('UI_SEND_RUN_QUICK_ACTION', { assistantId: assistant.id, actionId })
     console.log('[UI] postMessage RUN_QUICK_ACTION', { actionId, assistantId: assistant.id })
     emit<RunQuickActionHandler>('RUN_QUICK_ACTION', actionId, assistant.id)
     setSelectionRequired(false)
-  }, [assistant, selectionState, contentTable])
+  }, [assistant, selectionState, contentTable, qaTraceUI])
   
   const handleSendJson = useCallback(() => {
     if (!jsonInput.trim()) return
@@ -2126,7 +2242,18 @@ ${htmlTable}
 
   const isCode2Design = assistant.id === 'code2design'
 
-  
+  // #region agent log - CHAT_RENDER (per-render: detect duplicate mounts)
+  ;(() => {
+    const lastMsg = messages[messages.length - 1]
+    const lastId = lastMsg?.id ?? 'none'
+    const lastLen = (lastMsg?.content && String(lastMsg.content).length) ?? 0
+    console.log('[CHAT_RENDER]', 'instanceId=' + chatInstanceId, 'messagesCount=' + messages.length, 'lastMessageId=' + lastId, 'lastMessageLen=' + lastLen)
+    try {
+      fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ui.tsx', message: 'CHAT_RENDER', data: { instanceId: chatInstanceId, messagesCount: messages.length, lastMessageId: lastId, lastMessageLen: lastLen }, timestamp: Date.now(), hypothesisId: 'CHAT_MOUNT' }) }).catch(() => {})
+    } catch {}
+  })()
+  // #endregion
+
   return (
     <div style={{
       display: 'flex',
@@ -2302,6 +2429,33 @@ ${htmlTable}
           />
         ) : (
           <div style={{ display: 'contents' }}>
+            {/* Dedicated status area: one "Processing…" line when a request is in flight; not in message list */}
+            {activeStatus && (
+              <div style={{
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--bg)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-sm)',
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--muted)',
+                maxWidth: '100%',
+                alignSelf: 'flex-start'
+              }}>
+                <div className="spinner" style={{
+                  width: '16px',
+                  height: '16px',
+                  border: '2.5px solid var(--muted)',
+                  borderTopColor: 'var(--accent)',
+                  borderRadius: '50%',
+                  boxSizing: 'border-box',
+                  flexShrink: 0
+                }} />
+                <span>{activeStatus.text}</span>
+              </div>
+            )}
             {messages.length === 0 && !isCode2Design && (
               <div style={{
                 display: 'flex',
@@ -2334,12 +2488,22 @@ ${htmlTable}
             Paste a FigmAI Template JSON to generate Figma elements, or select frames and click GET JSON.
           </div>
         )}
-        
+        {(() => {
+          const lastMsg = messages[messages.length - 1]
+          const lastId = lastMsg?.id ?? 'none'
+          const lastLen = (lastMsg?.content && String(lastMsg.content).length) ?? 0
+          console.log('[CHAT_LIST_RENDER]', { instanceId: chatListInstanceId, renderSiteId: RENDER_SITE_PRIMARY, messagesCount: messages.length, lastMessageId: lastId, lastMessageLen: lastLen })
+          return null
+        })()}
         {messages.map((message, index) => {
+          if (index === messages.length - 1) {
+            console.log('[CHAT_ROW]', 'instanceId=' + chatInstanceId, 'messageId=' + message.id, 'index=' + index)
+            try { fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ui.tsx', message: 'CHAT_ROW', data: { instanceId: chatInstanceId, messageId: message.id, index }, timestamp: Date.now(), hypothesisId: 'CHAT_MOUNT' }) }).catch(() => {}) } catch {}
+          }
           // Render boundary divider before boundary message
           if (message.isBoundary) {
             return (
-              <div key={message.id} style={{ width: '100%', margin: 'var(--spacing-md) 0' }}>
+              <div key={message.id} data-message-id={message.id} data-render-site={RENDER_SITE_PRIMARY} style={{ width: '100%', margin: 'var(--spacing-md) 0' }}>
                 <div style={{
                   height: '1px',
                   backgroundColor: 'var(--border)',
@@ -2355,6 +2519,8 @@ ${htmlTable}
             return (
               <div
                 key={message.id}
+                data-message-id={message.id}
+                data-render-site={RENDER_SITE_PRIMARY}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -2382,7 +2548,7 @@ ${htmlTable}
                     try {
                       const contentToRender = cleanChatContent(message.content)
                       const ast = parseRichText(contentToRender)
-                      const enhanced = enhanceRichText(ast)
+                      const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
                       return <RichTextRenderer nodes={enhanced} />
                     } catch (error) {
                       console.error('[UI] RichText parsing error:', error)
@@ -2403,6 +2569,8 @@ ${htmlTable}
             return (
               <div
                 key={message.id}
+                data-message-id={message.id}
+                data-render-site={RENDER_SITE_PRIMARY}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -2432,7 +2600,7 @@ ${htmlTable}
                     try {
                       const contentToRender = cleanChatContent(message.content)
                       const ast = parseRichText(contentToRender)
-                      const enhanced = enhanceRichText(ast)
+                      const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
                       return <RichTextRenderer nodes={enhanced} />
                     } catch (error) {
                       console.error('[UI] RichText parsing error:', error)
@@ -2448,9 +2616,15 @@ ${htmlTable}
             )
           }
           
+          if (index === messages.length - 1) {
+            const contentLen = (message.content && String(message.content).length) || 0
+            console.log('[CHAT_ROW_RENDER]', { messageId: message.id, contentLen, oneBubble: true })
+          }
           return (
             <div
               key={message.id}
+              data-message-id={message.id}
+              data-render-site={RENDER_SITE_PRIMARY}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -2460,78 +2634,72 @@ ${htmlTable}
               }}
             >
               {message.role === 'assistant' ? (
-                // Check if this is a status message with loading animation
-                message.isStatus && message.statusStyle === 'loading' ? (
-                  // Animated loading status message
-                  <div style={{
-                    padding: 'var(--spacing-sm) var(--spacing-md)',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg)',
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--spacing-sm)',
-                    fontSize: 'var(--font-size-sm)',
-                    color: 'var(--muted)',
-                    maxWidth: '100%'
-                  }}>
-                    <div className="spinner" style={{
-                      width: '16px',
-                      height: '16px',
-                      border: '2.5px solid var(--muted)',
-                      borderTopColor: 'var(--accent)',
-                      borderRadius: '50%',
-                      boxSizing: 'border-box',
-                      flexShrink: 0
-                    }} />
-                    <span>{message.content}</span>
-                  </div>
-                ) : (
-                  // Regular assistant message (rich text rendering)
-                  <div style={{
-                    padding: 'var(--spacing-sm) var(--spacing-md)',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: message.statusStyle === 'error' ? 'var(--error)' : 'var(--bg)',
-                    border: '1px solid var(--border)',
-                    color: message.statusStyle === 'error' ? 'var(--error-text)' : 'var(--fg)',
-                    maxWidth: '100%',
-                    userSelect: 'text',
-                    WebkitUserSelect: 'text',
-                    MozUserSelect: 'text',
-                    msUserSelect: 'text',
-                    cursor: 'text'
-                  }}>
-                    {(() => {
-                      try {
-                        // Clean content before rendering: remove internal metadata tags
-                        const contentToRender = cleanChatContent(message.content)
-
-                        // Always parse and render with RichTextRenderer for assistant messages
-                        const ast = parseRichText(contentToRender)
-                        const enhanced = enhanceRichText(ast)
-                        return <RichTextRenderer nodes={enhanced} />
-                      } catch (error) {
-                        // Fallback to plain text if parsing fails
-                        console.error('[UI] RichText parsing error:', error)
-                        const cleanedFallback = cleanChatContent(message.content)
-                        return (
-                          <div style={{
-                            fontSize: 'var(--font-size-sm)',
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                            userSelect: 'text',
-                            WebkitUserSelect: 'text',
-                            MozUserSelect: 'text',
-                            msUserSelect: 'text',
-                            cursor: 'text'
-                          }}>
-                            {cleanedFallback}
-                          </div>
-                        )
+                // Single bubble per message: status is shown in dedicated area only; transcript only has final content
+                <div
+                  ref={index === messages.length - 1 && message.role === 'assistant' ? lastAssistantBubbleRef : undefined}
+                  style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: message.statusStyle === 'error' ? 'var(--error)' : 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  color: message.statusStyle === 'error' ? 'var(--error-text)' : 'var(--fg)',
+                  maxWidth: '100%',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text',
+                  MozUserSelect: 'text',
+                  msUserSelect: 'text',
+                  cursor: 'text'
+                }}>
+                  {(() => {
+                    try {
+                      const contentToRender = cleanChatContent(message.content)
+                      const contentLen = contentToRender.length
+                      const contentHash = contentToRender.slice(0, 40) + '_' + contentLen
+                      const ast = parseRichText(contentToRender)
+                      const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
+                      const renderedBlockCount = enhanced.length
+                      const firstBlockPreview = enhanced[0] ? getBlockPreview(enhanced[0]) : ''
+                      const lastBlockPreview = enhanced[renderedBlockCount - 1] ? getBlockPreview(enhanced[renderedBlockCount - 1]) : ''
+                      console.log('[RENDER_CONTENT]', { messageId: message.id, contentLen, contentHash, renderedBlockCount, firstBlockPreview, lastBlockPreview })
+                      const hashes = enhanced.map(getBlockHash)
+                      const totalCount = hashes.length
+                      const countByHash: Record<string, number> = {}
+                      for (const h of hashes) {
+                        countByHash[h] = (countByHash[h] ?? 0) + 1
                       }
-                    })()}
-                  </div>
-                )
+                      const uniqueCount = Object.keys(countByHash).length
+                      let topRepeatedHash: string | undefined
+                      let topCount = 0
+                      for (const [h, c] of Object.entries(countByHash)) {
+                        if (c > 1 && c > topCount) {
+                          topCount = c
+                          topRepeatedHash = h
+                        }
+                      }
+                      if (totalCount > 0) {
+                        console.log('[RENDER_BLOCK_HASHES]', { messageId: message.id, uniqueCount, totalCount, topRepeatedHash: topRepeatedHash ?? null })
+                      }
+                      return <RichTextRenderer nodes={enhanced} />
+                    } catch (error) {
+                      console.error('[UI] RichText parsing error:', error)
+                      const cleanedFallback = cleanChatContent(message.content)
+                      return (
+                        <div style={{
+                          fontSize: 'var(--font-size-sm)',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          userSelect: 'text',
+                          WebkitUserSelect: 'text',
+                          MozUserSelect: 'text',
+                          msUserSelect: 'text',
+                          cursor: 'text'
+                        }}>
+                          {cleanedFallback}
+                        </div>
+                      )
+                    }
+                  })()}
+                </div>
               ) : (
                 // User message display (plain text)
                 <div style={{

@@ -30,6 +30,13 @@
           "label": "Design suggestions",
           "requiresSelection": true,
           "templateMessage": "What suggestions do you have to improve this design?"
+        },
+        {
+          "executionType": "tool-only",
+          "id": "run-smart-detector",
+          "label": "Run Smart Detector",
+          "requiresSelection": true,
+          "templateMessage": "Run Smart Detector on selection"
         }
       ],
       "safetyOverrides": {
@@ -123,6 +130,13 @@
           "id": "content-suggestions",
           "label": "Content suggestions",
           "templateMessage": "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "add-hat",
+          "label": "Add HAT",
+          "requiresSelection": true,
+          "templateMessage": "Scan selection for elements that require HAT (accessible label) and add annotations."
         }
       ],
       "tag": {

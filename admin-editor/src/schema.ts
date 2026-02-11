@@ -74,6 +74,13 @@ export const configSchema = z
       })
       .passthrough()
       .optional(),
+    /** Component/instance names that should always be treated as requiring HAT. Used by Content Review Assistant "Add HAT" action. */
+    accessibility: z
+      .object({
+        hatRequiredComponents: z.array(z.string()).optional()
+      })
+      .passthrough()
+      .optional(),
     analytics: z
       .object({
         enabled: z.boolean().optional(),

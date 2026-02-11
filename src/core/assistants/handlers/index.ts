@@ -5,22 +5,26 @@
 
 import type { AssistantHandler } from './base'
 import { ContentTableHandler } from './contentTable'
+import { ContentReviewHandler } from './contentReview'
 import { DesignCritiqueHandler } from './designCritique'
 import { DesignWorkshopHandler } from './designWorkshop'
 import { DiscoveryCopilotHandler } from './discovery'
 import { AnalyticsTaggingHandler } from './analyticsTagging'
 import { ErrorsHandler } from './errors'
+import { SmartDetectorHandler } from './smartDetector'
 
 /**
  * All registered handlers
  */
 const handlers: AssistantHandler[] = [
   new ContentTableHandler(),
+  new ContentReviewHandler(),
   new DesignCritiqueHandler(),
   new DesignWorkshopHandler(),
   new DiscoveryCopilotHandler(),
   new AnalyticsTaggingHandler(),
-  new ErrorsHandler()
+  new ErrorsHandler(),
+  new SmartDetectorHandler()
 ]
 
 /**

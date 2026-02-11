@@ -1545,6 +1545,33 @@ textarea.ace-field.large {
   outline-offset: 2px;
 }
 
+/* HAT-required components list */
+.ace-hat-components-card .ace-hat-list {
+  margin-bottom: var(--ace-space-12);
+}
+.ace-hat-components-card .ace-hat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  margin-bottom: var(--ace-space-8);
+}
+.ace-hat-components-card .ace-hat-name {
+  flex: 1;
+  font-size: var(--ace-font-size-14);
+  color: var(--ace-text);
+}
+.ace-hat-components-card .ace-hat-remove {
+  flex-shrink: 0;
+}
+.ace-hat-components-card .ace-hat-add-row {
+  display: flex;
+  gap: var(--ace-space-8);
+  align-items: center;
+}
+.ace-hat-components-card .ace-hat-add-row .ace-field {
+  flex: 1;
+}
+
 /* Backward-compatible hidden field: present in DOM but not visible */
 .visually-hidden {
   position: absolute;

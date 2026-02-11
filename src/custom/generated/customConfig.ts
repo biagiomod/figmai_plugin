@@ -67,6 +67,9 @@ export interface CustomConfig {
     denylist?: string[]
     strictMode?: boolean
   }
+  accessibility?: {
+    hatRequiredComponents?: string[]
+  }
   analytics?: {
     enabled?: boolean
     endpointUrl?: string
@@ -76,6 +79,18 @@ export interface CustomConfig {
     retryMaxAttempts?: number
     retryBaseDelayMs?: number
     debug?: boolean
+  }
+  detectors?: {
+    elementClassifier?: {
+      componentKindMap?: Record<string, string>
+      nameKindRules?: Array<{ contains: string[]; kind: string }>
+      maxNodes?: number
+    }
+    contentClassifier?: {
+      keywordLists?: { legal?: string[]; terms?: string[]; privacy?: string[]; consent?: string[] }
+      placeholderPatterns?: string[]
+      ctaVerbs?: string[]
+    }
   }
 }
 
@@ -159,5 +174,16 @@ export const customConfig: CustomConfig | null = {
     "denylist": [],
     "enabled": true,
     "strictMode": true
+  },
+  "detectors": {
+    "elementClassifier": {
+      "componentKindMap": {},
+      "nameKindRules": []
+    },
+    "contentClassifier": {
+      "keywordLists": {},
+      "placeholderPatterns": [],
+      "ctaVerbs": []
+    }
   }
 }

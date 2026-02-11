@@ -180,3 +180,46 @@ export function getDesignSystemConfig(): {
     strictMode: customConfig?.designSystems?.strictMode === true
   }
 }
+
+/**
+ * Component/instance names that should always be treated as requiring HAT (accessible label).
+ * Used by Content Review Assistant "Add HAT" quick action. Match is case-insensitive.
+ */
+export function getHatRequiredComponents(): string[] {
+  const arr = customConfig?.accessibility?.hatRequiredComponents
+  return Array.isArray(arr) ? arr : []
+}
+
+/** Smart Detector element classifier config (safe defaults when absent). */
+export function getDetectorElementClassifierConfig(): {
+  componentKindMap: Record<string, string>
+  nameKindRules: Array<{ contains: string[]; kind: string }>
+  maxNodes: number
+} {
+  const ec = customConfig?.detectors?.elementClassifier
+  return {
+    componentKindMap: ec?.componentKindMap && typeof ec.componentKindMap === 'object' ? ec.componentKindMap : {},
+    nameKindRules: Array.isArray(ec?.nameKindRules) ? ec.nameKindRules : [],
+    maxNodes: typeof ec?.maxNodes === 'number' && ec.maxNodes > 0 ? ec.maxNodes : 2000
+  }
+}
+
+/** Smart Detector content classifier config (safe defaults when absent). */
+export function getDetectorContentClassifierConfig(): {
+  keywordLists: { legal: string[]; terms: string[]; privacy: string[]; consent: string[] }
+  placeholderPatterns: string[]
+  ctaVerbs: string[]
+} {
+  const cc = customConfig?.detectors?.contentClassifier
+  const kl = cc?.keywordLists && typeof cc.keywordLists === 'object' ? cc.keywordLists : {}
+  return {
+    keywordLists: {
+      legal: Array.isArray(kl.legal) ? kl.legal : [],
+      terms: Array.isArray(kl.terms) ? kl.terms : [],
+      privacy: Array.isArray(kl.privacy) ? kl.privacy : [],
+      consent: Array.isArray(kl.consent) ? kl.consent : []
+    },
+    placeholderPatterns: Array.isArray(cc?.placeholderPatterns) ? cc.placeholderPatterns : [],
+    ctaVerbs: Array.isArray(cc?.ctaVerbs) ? cc.ctaVerbs : []
+  }
+}

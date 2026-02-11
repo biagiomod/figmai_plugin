@@ -355,6 +355,19 @@ Invalid configurations fall back to defaults and log warnings.
 
 ---
 
+## Custom config (ACE) — Accessibility (HAT)
+
+When using the Admin Config Editor (ACE), you can configure **HAT-required components** so the Content Review Assistant’s **Add HAT** quick action treats them as always requiring an accessible label.
+
+- **Config path:** `custom/config.json` → `accessibility.hatRequiredComponents`
+- **Type:** `string[]` (component or instance names)
+- **Flow:** ACE edits `custom/config.json`; the build runs `generate-custom-overlay`, which emits `src/custom/generated/customConfig.ts`. The plugin reads this at runtime (no runtime JSON).
+- **Usage:** In Content Review, select one or more frames and run **Add HAT**. Any `INSTANCE` whose main component name matches an entry in `hatRequiredComponents` (case-insensitive) gets a HAT annotation with a suggested accessible label.
+- **ACE UI:** General Plugin Settings → **Accessibility — HAT-required components**: add/remove component names (e.g. `IconButton`, `ToolbarIconOnly`, `AvatarButton`).
+- **Add HAT (tool-only):** Content Review Assistant quick action **Add HAT** routes through the generic tool-only path (`getHandler` → `handleResponse`). No per-action branch in main. Matching uses (a) `instance.mainComponent?.name` then (b) `instance.name`; invisible nodes are skipped; scan is capped at 2000 instances with a message when capped.
+
+---
+
 ## Best Practices
 
 1. **Use config files for environment-specific defaults**

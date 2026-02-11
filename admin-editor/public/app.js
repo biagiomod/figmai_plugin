@@ -659,7 +659,7 @@
   }
 
   var SECTION_STATE_KEY = 'ace.ui.configSectionExpanded.v1'
-  var CONFIG_SECTION_KEYS = ['default-mode', 'mode-settings', 'ai-api-endpoint', 'resource-links', 'credits', 'advanced-raw-json']
+  var CONFIG_SECTION_KEYS = ['default-mode', 'mode-settings', 'ai-api-endpoint', 'resource-links', 'credits', 'accessibility-hat', 'advanced-raw-json']
   function getDefaultExpandedState () {
     var out = {}
     for (var i = 0; i < CONFIG_SECTION_KEYS.length; i++) {
@@ -1003,6 +1003,20 @@
       })() +
       '</div>',
       expandedMap['credits'])
+    var hatList = Array.isArray(m.config.accessibility && m.config.accessibility.hatRequiredComponents) ? m.config.accessibility.hatRequiredComponents.slice() : []
+    html += collapsibleSection('accessibility-hat', 'Accessibility — HAT-required components',
+      '<div class="ace-card ace-hat-components-card">' +
+      '<p class="ace-card-subtext">Component/instance names that should always be treated as requiring HAT (accessible label). Used by Content Review Assistant &quot;Add HAT&quot; quick action.</p>' +
+      '<div class="ace-hat-list" id="hat-required-components-list">' +
+      hatList.map(function (name, idx) {
+        return '<div class="ace-hat-row" data-index="' + idx + '"><span class="ace-hat-name">' + escapeHtml(name) + '</span><button type="button" class="ace-hat-remove" data-index="' + idx + '" aria-label="Remove">Remove</button></div>'
+      }).join('') +
+      '</div>' +
+      '<div class="ace-hat-add-row">' +
+      '<input type="text" id="hat-new-component-name" class="ace-text-input ace-field" placeholder="e.g. IconButton, ToolbarIconOnly">' +
+      '<button type="button" id="hat-add-btn" class="ace-btn">Add</button>' +
+      '</div></div>',
+      expandedMap['accessibility-hat'])
     html += collapsibleSection('advanced-raw-json', 'Advanced: Raw JSON Config',
       '<div class="ace-card danger-zone ace-raw-json-card">' +
       '<p class="ace-raw-json-warning">Warning: Invalid JSON will fail validation</p>' +
@@ -1170,6 +1184,50 @@
         if (!id || typeof id !== 'string') return
         var m = id.match(/^credits-(createdBy|apiTeam|llmInstruct)-\d+-(label|url)$/)
         if (m) syncCreditsGroupToModel(m[1])
+      })
+    }
+
+    // HAT-required components: ensure config.accessibility.hatRequiredComponents exists and wire Add/Remove
+    if (!state.editedModel.config.accessibility) state.editedModel.config.accessibility = {}
+    if (!Array.isArray(state.editedModel.config.accessibility.hatRequiredComponents)) state.editedModel.config.accessibility.hatRequiredComponents = []
+    var hatListEl = document.getElementById('hat-required-components-list')
+    var hatAddBtn = document.getElementById('hat-add-btn')
+    var hatNewInput = document.getElementById('hat-new-component-name')
+    if (hatAddBtn && hatNewInput && hatListEl) {
+      hatAddBtn.onclick = function () {
+        var name = (hatNewInput.value || '').trim()
+        if (!name) return
+        state.editedModel.config.accessibility.hatRequiredComponents.push(name)
+        var row = document.createElement('div')
+        row.className = 'ace-hat-row'
+        row.innerHTML = '<span class="ace-hat-name">' + escapeHtml(name) + '</span><button type="button" class="ace-hat-remove" aria-label="Remove">Remove</button>'
+        hatListEl.appendChild(row)
+        row.querySelector('.ace-hat-remove').onclick = function () {
+          var arr = state.editedModel.config.accessibility.hatRequiredComponents
+          var i = arr.indexOf(name)
+          if (i !== -1) arr.splice(i, 1)
+          row.remove()
+          showUnsavedBanner()
+          updateFooterButtons()
+        }
+        hatNewInput.value = ''
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    if (hatListEl) {
+      hatListEl.querySelectorAll('.ace-hat-remove').forEach(function (btn) {
+        btn.onclick = function () {
+          var row = btn.closest('.ace-hat-row')
+          var nameEl = row && row.querySelector('.ace-hat-name')
+          var name = nameEl ? nameEl.textContent : ''
+          var arr = state.editedModel.config.accessibility.hatRequiredComponents
+          var i = arr.indexOf(name)
+          if (i !== -1) arr.splice(i, 1)
+          if (row) row.remove()
+          showUnsavedBanner()
+          updateFooterButtons()
+        }
       })
     }
 

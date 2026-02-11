@@ -1,11 +1,16 @@
 /**
  * Rich Text Enhancers
  * Detect and enhance AST nodes with semantic information
- * (e.g., scores, highlights, badges)
+ * (e.g., scores, highlights, badges).
+ * Score/scorecard enhancement is gated to design_critique assistant only.
  */
 
 import type { RichTextNode } from './types'
 import { jsonToAst } from './jsonToAst'
+
+export type EnhanceRichTextOptions = { assistantId?: string }
+
+const DESIGN_CRITIQUE_ID = 'design_critique'
 
 /**
  * Detect score patterns in text and convert to score nodes
@@ -59,120 +64,133 @@ function detectScores(text: string): Array<{ value: number; max: number; label?:
   return scores
 }
 
-/**
- * Enhance AST nodes with semantic information
- * Detects scores, structured JSON, and other patterns
- */
-export function enhanceRichText(nodes: RichTextNode[]): RichTextNode[] {
-  const enhanced: RichTextNode[] = []
+/** Only run score/scorecard enhancement when assistant is Design Critique. */
+function allowScorecard(options: EnhanceRichTextOptions | undefined): boolean {
+  return options?.assistantId === DESIGN_CRITIQUE_ID
+}
 
+/** Dedupe consecutive score nodes with same value/max/label so each score renders at most once. */
+function dedupeScoreNodes(nodes: RichTextNode[]): RichTextNode[] {
+  const out: RichTextNode[] = []
   for (const node of nodes) {
-    // Check for structured JSON in paragraph nodes
-    if (node.type === 'paragraph') {
-      const text = node.text
-      
-      // Try to convert JSON to structured nodes
-      const jsonNodes = jsonToAst(text)
-      if (jsonNodes && jsonNodes.length > 0) {
-        // If JSON conversion succeeded, use those nodes instead
-        enhanced.push(...jsonNodes)
+    if (node.type === 'score') {
+      const last = out[out.length - 1]
+      if (
+        last?.type === 'score' &&
+        last.value === node.value &&
+        last.max === node.max &&
+        (last.label ?? '') === (node.label ?? '')
+      ) {
         continue
       }
-      
-      // Otherwise, check for score patterns
-      const scores = detectScores(text)
+    }
+    out.push(node)
+  }
+  return out
+}
 
-      if (scores.length > 0) {
-        // Split text around scores and create score nodes
-        let lastIndex = 0
-        for (const score of scores) {
-          // Add text before score
-          if (score.start > lastIndex) {
-            const beforeText = text.substring(lastIndex, score.start).trim()
-            if (beforeText) {
+/**
+ * Enhance AST nodes with semantic information.
+ * Score/scorecard detection and JSON-to-AST conversion run only when assistantId === 'design_critique'.
+ */
+export function enhanceRichText(nodes: RichTextNode[], options?: EnhanceRichTextOptions): RichTextNode[] {
+  const enhanced: RichTextNode[] = []
+  const runScorecard = allowScorecard(options)
+
+  for (const node of nodes) {
+    if (node.type === 'paragraph') {
+      const text = node.text
+
+      if (runScorecard) {
+        const jsonNodes = jsonToAst(text)
+        if (jsonNodes && jsonNodes.length > 0) {
+          enhanced.push(...jsonNodes)
+          continue
+        }
+
+        const scores = detectScores(text)
+        if (scores.length > 0) {
+          let lastIndex = 0
+          for (const score of scores) {
+            if (score.start > lastIndex) {
+              const beforeText = text.substring(lastIndex, score.start).trim()
+              if (beforeText) {
+                enhanced.push({
+                  type: 'paragraph',
+                  text: beforeText,
+                  inline: node.inline
+                })
+              }
+            }
+            enhanced.push({
+              type: 'score',
+              value: score.value,
+              max: score.max,
+              label: score.label
+            })
+            lastIndex = score.end
+          }
+          if (lastIndex < text.length) {
+            const remaining = text.substring(lastIndex).trim()
+            if (remaining) {
               enhanced.push({
                 type: 'paragraph',
-                text: beforeText,
+                text: remaining,
                 inline: node.inline
               })
             }
           }
-
-          // Add score node
-          enhanced.push({
-            type: 'score',
-            value: score.value,
-            max: score.max,
-            label: score.label
-          })
-
-          lastIndex = score.end
+          continue
         }
-
-        // Add remaining text
-        if (lastIndex < text.length) {
-          const remaining = text.substring(lastIndex).trim()
-          if (remaining) {
-            enhanced.push({
-              type: 'paragraph',
-              text: remaining,
-              inline: node.inline
-            })
-          }
-        }
-      } else {
-        enhanced.push(node)
       }
+
+      enhanced.push(node)
     } else if (node.type === 'heading') {
       const text = node.text
-      const scores = detectScores(text)
 
-      if (scores.length > 0) {
-        // Split text around scores and create score nodes
-        let lastIndex = 0
-        for (const score of scores) {
-          // Add text before score
-          if (score.start > lastIndex) {
-            const beforeText = text.substring(lastIndex, score.start).trim()
-            if (beforeText) {
+      if (runScorecard) {
+        const scores = detectScores(text)
+        if (scores.length > 0) {
+          let lastIndex = 0
+          for (const score of scores) {
+            if (score.start > lastIndex) {
+              const beforeText = text.substring(lastIndex, score.start).trim()
+              if (beforeText) {
+                enhanced.push({
+                  type: 'heading',
+                  level: node.level,
+                  text: beforeText
+                })
+              }
+            }
+            enhanced.push({
+              type: 'score',
+              value: score.value,
+              max: score.max,
+              label: score.label
+            })
+            lastIndex = score.end
+          }
+          if (lastIndex < text.length) {
+            const remaining = text.substring(lastIndex).trim()
+            if (remaining) {
               enhanced.push({
                 type: 'heading',
                 level: node.level,
-                text: beforeText
+                text: remaining
               })
             }
           }
-
-          // Add score node
-          enhanced.push({
-            type: 'score',
-            value: score.value,
-            max: score.max,
-            label: score.label
-          })
-
-          lastIndex = score.end
+          continue
         }
-
-        // Add remaining text
-        if (lastIndex < text.length) {
-          const remaining = text.substring(lastIndex).trim()
-          if (remaining) {
-            enhanced.push({
-              type: 'heading',
-              level: node.level,
-              text: remaining
-            })
-          }
-        }
-      } else {
-        enhanced.push(node)
       }
+
+      enhanced.push(node)
     } else {
       enhanced.push(node)
     }
   }
 
-  return enhanced
+  return dedupeScoreNodes(enhanced)
 }
 

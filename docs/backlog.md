@@ -33,7 +33,7 @@ Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figm
 | **C — Knowledge base** | C1 | KB structure standard | [BL-023](#bl-023) |
 | | C2 | KB builder template | [BL-024](#bl-024) |
 | | C3 | External KB import/parsing | [BL-025](#bl-025) |
-| **D — Design system** | D1 | Design system KB (first-class type) | [BL-026](#bl-026) |
+| **D — Design system** | D1 | Design system KB and guardrails (first-class type + DS-only enforcement) | [BL-026](#bl-026) |
 | | D2 | Component library import | [BL-027](#bl-027) |
 | | D3 | Multi-design-system switching | [BL-028](#bl-028) |
 | **E — ACE config safety & versioning** | E1–E3 | Backups, build-linked snapshots, user attribution | [BL-016](#bl-016-expanded) (merged) |
@@ -53,6 +53,18 @@ Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figm
 | **K — Continuous improvement** | K1 | External architecture review agent | [BL-041](#bl-041) |
 | **L — Errors assistant (post-demo bugs)** | L1 | GROUP selection → sub-screen duplication | [BL-042](#bl-042) |
 | | L2 | Intermittent "not a function" on Quick Action | [BL-043](#bl-043) |
+
+**Strategy initiatives (2026)** — Seven prioritized initiatives aligned to backlog:
+
+| Initiative | ID | Link |
+|------------|-----|------|
+| Design System Guardrails | BL-026 | [BL-026](#bl-026) |
+| Dev Handoff Pack | BL-044 | [BL-044](#bl-044) |
+| Document Ops | BL-045 | [BL-045](#bl-045) |
+| Prompt-to-Flow | BL-046 | [BL-046](#bl-046) |
+| Inline Copy Ops | BL-047 | [BL-047](#bl-047) |
+| Research-to-Design Bridge | BL-048 | [BL-048](#bl-048) |
+| Creative Micro-Tools | BL-049 | [BL-049](#bl-049) |
 
 ---
 
@@ -197,8 +209,9 @@ Prioritized items ready for implementation. These should have clear scope and ac
 
 | ID | Title | Priority | Status | Owner | Acceptance Criteria | Notes / Links |
 |----|-------|----------|--------|-------|---------------------|---------------|
-| BL-007 | Improve assistant accuracy and usefulness across all assistants | P1 | Proposed | Unassigned | Each assistant has clearer scope, fewer ambiguous responses, and better task completion rates | |
+| BL-007 | Improve assistant accuracy and usefulness across all assistants | P1 | Proposed | Unassigned | Each assistant has clearer scope, fewer ambiguous responses, and better task completion rates | Umbrella. Related: [BL-026](#bl-026) (DS guardrails), [BL-044](#bl-044)–[BL-049](#bl-049) (strategy initiatives). |
 | BL-008 | Create Figma-stage UI components aligned to plugin design direction | P2 | Proposed | Unassigned | Components feel cohesive, usable, and ready for real design workflows | |
+| BL-026 | Design system KB and guardrails (first-class type + DS-only enforcement) | P1 | Backlog | Unassigned | Design system as first-class KB type; enforce DS-only components/tokens where DS is active; nearest-DS-match suggestions; DS compliance auditing (tool-only where possible). | Source: D1. Depends on BL-001 for full guardrails. See [details](#bl-026). |
 
 ---
 
@@ -209,7 +222,7 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | ID | Title | Priority | Status | Owner | Acceptance Criteria | Notes / Links |
 |----|-------|----------|--------|-------|---------------------|---------------|
 | BL-005 | Public HTML marketing website for FigmAI plugin | P2 | Proposed | Unassigned | Static site exists with overview, feature list, screenshots, docs links, and contact info | |
-| BL-006 | HTML admin/editor interface for custom config and knowledge files | P2 | Proposed | Unassigned | Editors can update content through UI, with validation and export back to source format | |
+| BL-006 | HTML admin/editor interface for custom config and knowledge files | P2 | Done | Unassigned | Editors can update content through UI, with validation and export back to source format | Implemented via ACE (Admin Config Editor). |
 | BL-011 | AT-A (Analytics Tagging Assistant) placeholder — improvements/known issues, details TBD | P2 | Proposed | Unassigned | Placeholder tracked; scope and acceptance criteria to be defined. | |
 | BL-012 | ACE: AI settings tab + Internal API activation without requiring Test Connection | P2 | Proposed | Unassigned | ACE has an AI settings tab; internal API can be activated without mandatory Test Connection. | |
 | BL-013 | ACE: Assistants wizard UX + "How Assistants work" documentation | P2 | Proposed | Unassigned | Wizard UX is improved; "How Assistants work" doc exists and is discoverable. | |
@@ -225,7 +238,6 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | BL-023 | KB structure standard | P2 | Backlog | Unassigned | Standard sections: purpose, scope, definitions, rules, do/don't, examples, edge, accessibility, dark-mode, compliance. | Source: C1. See [details](#bl-023). |
 | BL-024 | KB builder template | P2 | Backlog | Unassigned | ACE guided builder → markdown/JSON output. | Source: C2. See [details](#bl-024). |
 | BL-025 | External KB import/parsing | P2 | Backlog | Unassigned | Upload, preview, normalize, approval, save for external KBs. | Source: C3. See [details](#bl-025). |
-| BL-026 | Design system KB (first-class type) | P2 | Backlog | Unassigned | Design system as first-class KB type in ACE. | Source: D1. See [details](#bl-026). |
 | BL-027 | Component library import | P2 | Backlog | Unassigned | Scrape libraries; JSON import; bulk import; manual fallback. | Source: D2. See [details](#bl-027). |
 | BL-028 | Multi-design-system switching | P2 | Backlog | Unassigned | Profiles; active selector; DS-scoped KB/registry/rules. | Source: D3. See [details](#bl-028). |
 | BL-029 | Assistant test harness | P2 | Backlog | Unassigned | Prompt sets, expected patterns, schema validation, scorecards, regression. | Source: F1. See [details](#bl-029). |
@@ -241,6 +253,12 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | BL-039 | Multi-format export (content/analytics) | P2 | Backlog | Unassigned | JSON/XML/mobile/CMS export. | Source: J3. See [details](#bl-039). |
 | BL-040 | DB-level versioning (content/analytics) | P2 | Backlog | Unassigned | History, diff, rollback, attribution, locking/conflicts. | Source: J4. See [details](#bl-040). |
 | BL-041 | External architecture review agent | P2 | Backlog | Unassigned | Tooling/scalability/safety/UX/automation review; run at major releases/quarterly/milestones. | Source: K1. See [details](#bl-041). |
+| BL-044 | Dev Handoff Pack | P2 | Backlog | Unassigned | Structured handoff artifacts (specs, tokens, components) for dev consumption. | Strategy 2026. See [details](#bl-044). |
+| BL-045 | Document Ops | P2 | Backlog | Unassigned | Document operations with tool-only where possible; optional LLM suggestions clearly separated. | Strategy 2026. See [details](#bl-045). |
+| BL-046 | Prompt-to-Flow | P2 | Backlog | Unassigned | Bounded flow generation from prompts; DS-constrained and schema-driven; demos/workshops scope. | Strategy 2026. See [details](#bl-046). |
+| BL-047 | Inline Copy Ops | P2 | Backlog | Unassigned | Inline copy editing and operations in design context. | Strategy 2026. See [details](#bl-047). |
+| BL-048 | Research-to-Design Bridge | P2 | Backlog | Unassigned | Bridge research insights into design artifacts and assistant context. | Strategy 2026. See [details](#bl-048). |
+| BL-049 | Creative Micro-Tools | P3 | Backlog | Unassigned | Optional micro-tools and ideas for creative workflows. | Strategy 2026. See [details](#bl-049). |
 
 #### Merged & new item details
 
@@ -306,10 +324,10 @@ Standard fields for merged and newly added items: **Problem/Goal**, **Scope**, *
 
 ##### BL-026 {#bl-026}
 
-- **Problem / Goal:** Treat design system as a first-class KB type.
-- **Scope:** ACE + Plugin. Design system KB type with same rigor as other KBs.
-- **Deliverables:** Design system KB as first-class KB type in ACE and Plugin.
-- **Dependencies:** Design system registry and KB structure. **Owner:** Unassigned. **Status:** Backlog.
+- **Problem / Goal:** Treat design system as a first-class KB type and enforce guardrails so assistant outputs stay within the active design system where DS is enabled.
+- **Scope:** ACE + Plugin. Design system KB type; enforcement and auditing in plugin (tool-only where possible).
+- **Deliverables:** (1) Design system KB as first-class KB type in ACE and Plugin. (2) Enforce DS-only components/tokens in assistant outputs when a design system is active. (3) "Nearest DS match" suggestions on violations/deviations. (4) DS compliance auditing exposed as tool-only actions (no LLM where possible). (5) Clear separation of tool-only vs LLM-assisted paths.
+- **Dependencies:** BL-001 must be completed for full DS guardrails (tool invocation for DS availability). Design system registry and KB structure. **Owner:** Unassigned. **Status:** Backlog.
 
 ##### BL-027 {#bl-027}
 
@@ -414,6 +432,48 @@ Standard fields for merged and newly added items: **Problem/Goal**, **Scope**, *
 - **Problem / Goal:** Periodic external review of architecture for tooling, scalability, safety, UX, automation.
 - **Scope:** Process. No code ownership in backlog.
 - **Deliverables:** External architecture review agent (or process): tooling, scalability, safety, UX, automation; run at major releases/quarterly/milestones.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-044 {#bl-044}
+
+- **Problem / Goal:** Provide structured handoff artifacts for developers (specs, tokens, components).
+- **Scope:** Plugin (and optionally ACE). Outputs consumed by dev tooling.
+- **Deliverables:** Dev Handoff Pack: structured artifacts (specs, design tokens, component metadata) suitable for dev consumption. executionType and scope TBD per action (tool-only preferred where possible).
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-045 {#bl-045}
+
+- **Problem / Goal:** Document operations (export, sync, format) with minimal LLM use where deterministic behavior is sufficient.
+- **Scope:** Plugin. Document ops as tool-only where possible; LLM only for optional suggestions.
+- **Deliverables:** Document Ops: tool-only operations clearly separated from optional LLM-suggestion paths. No runtime JSON reads or dynamic prompt mutation; assistants and KBs remain reference-only and build-time configured.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-046 {#bl-046}
+
+- **Problem / Goal:** Bounded flow/screen generation from natural-language prompts for demos and workshops.
+- **Scope:** Plugin. Bounded; DS-constrained and schema-driven. Demos/workshops only (not general-purpose).
+- **Deliverables:** Prompt-to-Flow: generate flows/screens from prompts within DS and schema constraints. Scope limited to demos and workshops; no open-ended generation.
+- **Dependencies:** BL-026 (DS guardrails) for DS-constrained output. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-047 {#bl-047}
+
+- **Problem / Goal:** Inline copy editing and operations in design context.
+- **Scope:** Plugin. Inline copy ops (edit, suggest, replace) in Figma text/copy context.
+- **Deliverables:** Inline Copy Ops: operations on copy within design layers; executionType and scope TBD (tool-only vs LLM per action).
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-048 {#bl-048}
+
+- **Problem / Goal:** Bridge research insights into design artifacts and assistant context.
+- **Scope:** Plugin (and optionally ACE). Research inputs → design-relevant context.
+- **Deliverables:** Research-to-Design Bridge: ingest or reference research (user studies, findings) and surface to design assistants/context; no tone or output-shape rules in KBs (reference-only).
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-049 {#bl-049}
+
+- **Problem / Goal:** Optional micro-tools and ideas for creative workflows.
+- **Scope:** Plugin. Ideas/experiments; low commitment.
+- **Deliverables:** Creative Micro-Tools: optional ideas for small creative utilities (e.g. variations, naming, micro-edits). P3; may be deferred or refined into concrete items.
 - **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
 
 ---
@@ -832,6 +892,7 @@ This section tracks significant changes to the backlog structure itself.
 | 2026-01-21 | Governance rule updated (Editor → Backlog Maintainer); BL-002 updated (deprioritized, partially addressed); new items added (AT-A placeholder, ACE roadmap including backlog viewer/editor, Tech Debt) | Apply approved Backlog Update execution plan |
 | 2026-01-21 | Index (by category) added; E1–E3 merged into BL-016, G1 merged into BL-017; BL-020–BL-041 added (A1–K1); merged & new item details section; Merge notes added | Merge categorized backlog (Architect mode); preserve traceability A1–K1 ↔ BL-020–BL-041 |
 | 2026-01-21 | BL-042, BL-043 added (Errors assistant post-demo bugs); Index L1/L2 added | Architect: GROUP selection sub-screen duplication; intermittent "not a function" on Quick Action |
+| 2026-01-21 | Backlog aligned to 2026 strategy initiatives | Backlog Strategy Alignment: BL-026 expanded (Design System Guardrails, P1, moved to Next); BL-044–BL-049 added (Dev Handoff Pack, Document Ops, Prompt-to-Flow, Inline Copy Ops, Research-to-Design Bridge, Creative Micro-Tools); BL-006 marked Done (ACE); BL-007 cross-links; Index strategy subsection; Changelog entry |
 
 ---
 

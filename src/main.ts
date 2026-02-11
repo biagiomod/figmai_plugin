@@ -335,31 +335,73 @@ function sendStatusMessage(requestId: string, content: string = 'Processing...')
   return statusMessage
 }
 
-// Replace status message in-place with final message
+// Guard: only replace status once per requestId (avoids duplicate final message from repeat events).
+const replacedStatusRequestIds = new Set<string>()
+// Guard: only run final status update once per requestId for tool-only (avoids duplicate "Add HAT: …" lines).
+const completedToolOnlyRequestIds = new Set<string>()
+
+// #region agent log
+let mainTraceCounter = 0
+function qaTrace(marker: string, data: Record<string, unknown>) {
+  mainTraceCounter += 1
+  const payload = { location: 'main.ts', message: marker, data: { n: mainTraceCounter, ...data }, timestamp: Date.now(), hypothesisId: 'RUN_QUICK_ACTION_FLOW' }
+  console.log('[QA_TRACE]', marker, '#', mainTraceCounter, data)
+  try {
+    fetch('http://127.0.0.1:7242/ingest/5cbaa6c2-4815-4212-80f6-d608747f90a6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {})
+  } catch {}
+}
+// #endregion
+
+// Replace status message in-place with final message. Dedupe: replace first matching status, remove any other status entries for same requestId, then post once.
 function replaceStatusMessage(requestId: string, finalContent: string, isError: boolean = false) {
-  // Find status message by requestId
-  const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-  
-  if (statusIndex === -1) {
-    console.warn('[Main] Status message not found for requestId:', requestId)
-    // Fallback: send as new message
-    sendAssistantMessage(finalContent, undefined, requestId)
+  if (replacedStatusRequestIds.has(requestId)) return
+  replacedStatusRequestIds.add(requestId)
+
+  const indices = messageHistory
+    .map((m, i) => (m.requestId === requestId && m.isStatus === true ? i : -1))
+    .filter(i => i >= 0)
+
+  if (indices.length === 0) {
+    // Replace any existing message with this requestId so we don't append a duplicate line
+    const anyWithRequestId = messageHistory.findIndex(m => m.requestId === requestId)
+    if (anyWithRequestId !== -1) {
+      const cleanedContent = cleanChatContent(finalContent)
+      const summaryHash = cleanedContent.slice(0, 40) + '_' + cleanedContent.length
+      qaTrace('MAIN_POST_FINAL', { requestId, summaryHash, messageLength: cleanedContent.length, messagePreviewEnd: cleanedContent.slice(-40) })
+      const finalMessage: Message = {
+        ...messageHistory[anyWithRequestId],
+        content: cleanedContent,
+        timestamp: Date.now(),
+        isStatus: false,
+        statusStyle: isError ? 'error' : undefined
+      }
+      messageHistory[anyWithRequestId] = finalMessage
+      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: finalMessage } })
+    } else {
+      replacedStatusRequestIds.delete(requestId)
+      console.warn('[Main] Status message not found for requestId:', requestId)
+      sendAssistantMessage(finalContent, undefined, requestId)
+    }
     return
   }
-  
-  // Replace status message with final message
+
   const cleanedContent = cleanChatContent(finalContent)
+  const summaryHash = cleanedContent.slice(0, 40) + '_' + cleanedContent.length
+  qaTrace('MAIN_POST_FINAL', { requestId, summaryHash, messageLength: cleanedContent.length, messagePreviewEnd: cleanedContent.slice(-40) })
   const finalMessage: Message = {
-    id: messageHistory[statusIndex].id, // Keep same ID for in-place replacement
+    id: messageHistory[indices[0]].id,
     role: 'assistant',
     content: cleanedContent,
     timestamp: Date.now(),
     requestId,
-    isStatus: false, // Remove status flag
+    isStatus: false,
     statusStyle: isError ? 'error' : undefined
   }
-  
-  messageHistory[statusIndex] = finalMessage
+  messageHistory[indices[0]] = finalMessage
+  const toRemove = indices.slice(1).sort((a, b) => b - a)
+  for (const idx of toRemove) {
+    messageHistory.splice(idx, 1)
+  }
   figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: finalMessage } })
 }
 
@@ -697,6 +739,7 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
 
   // Generate request ID for this request
   const requestId = generateRequestId()
+  qaTrace('MAIN_RECV_RUN_QUICK_ACTION', { requestId, assistantId, actionId })
 
   try {
     const assistant = getAssistant(assistantId)
@@ -728,115 +771,44 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
       return
     }
 
-    // ——— tool-only (and legacy unknown for same actions): handler only, no provider.sendChat ———
+    // ——— tool-only (and legacy unknown): single generic path ———
+    // Status lifecycle: only main calls replaceStatusMessage once per requestId (guard prevents duplicate final message).
     if ((executionType === 'tool-only' || executionType === 'unknown') && handler) {
-      if (assistantId === 'design_critique' && actionId === 'temp-place-forced-action-card') {
-        const userMessage: Message = {
-          id: generateMessageId(),
-          role: 'user',
-          content: action.templateMessage,
-          timestamp: Date.now()
-        }
-        messageHistory.push(userMessage)
-        figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
-        sendStatusMessage(requestId, 'Placing demo cards on stage…')
-        const providerForContext = currentProvider || await createProvider(currentProviderId)
-        const handlerContext = {
-          assistantId,
-          actionId,
-          response: '',
-          selectionOrder,
-          selection: summarizeSelection(selectionOrder),
-          provider: providerForContext,
-          sendChatWithRecovery: async (req: ChatRequest) => {
-            const r = await sendChatWithRecovery(providerForContext, req, {
-              selectionSummary: req.selectionSummary,
-              assistantId,
-              quickActionId: actionId
-            })
-            return r.response
-          },
-          sendAssistantMessage,
-          replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-          requestId
-        }
-        if (typeof handler.handleResponse !== 'function') {
-          throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
-        }
-        const result = await handler.handleResponse(handlerContext)
-        if (result.handled) {
-          const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-          if (statusIndex !== -1) {
-            replaceStatusMessage(requestId, result.message || 'Deceptive demo cards placed on stage')
-          }
-          return
-        }
+      sendStatusMessage(requestId, 'Processing…')
+      const providerForContext = currentProvider || await createProvider(currentProviderId)
+      const handlerContext = {
+        assistantId,
+        actionId,
+        response: '',
+        selectionOrder,
+        selection: summarizeSelection(selectionOrder),
+        provider: providerForContext,
+        sendChatWithRecovery: async (req: ChatRequest) => {
+          const r = await sendChatWithRecovery(providerForContext, req, {
+            selectionSummary: req.selectionSummary,
+            assistantId,
+            quickActionId: actionId
+          })
+          return r.response
+        },
+        sendAssistantMessage,
+        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+        requestId
       }
-      if (assistantId === 'content_table' && actionId === 'generate-table') {
-        const providerForContext = currentProvider || await createProvider(currentProviderId)
-        const handlerContext = {
-          assistantId,
-          actionId,
-          response: '',
-          selectionOrder,
-          selection: summarizeSelection(selectionOrder),
-          provider: providerForContext,
-          sendChatWithRecovery: async (req: ChatRequest) => {
-            const r = await sendChatWithRecovery(providerForContext, req, {
-              selectionSummary: req.selectionSummary,
-              assistantId,
-              quickActionId: actionId
-            })
-            return r.response
-          },
-          sendAssistantMessage,
-          replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-          requestId
-        }
-        if (typeof handler.handleResponse !== 'function') {
-          throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
-        }
-        const result = await handler.handleResponse(handlerContext)
-        if (result.handled) {
-          const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-          if (statusIndex !== -1) {
-            replaceStatusMessage(requestId, result.message || 'Table generated')
-          }
-          return
-        }
+      if (typeof handler.handleResponse !== 'function') {
+        throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
       }
-      if (assistantId === 'analytics_tagging' && (actionId === 'get-analytics-tags' || actionId === 'copy-table' || actionId === 'new-session')) {
-        const providerForContext = currentProvider || await createProvider(currentProviderId)
-        const handlerContext = {
-          assistantId,
-          actionId,
-          response: '',
-          selectionOrder,
-          selection: summarizeSelection(selectionOrder),
-          provider: providerForContext,
-          sendChatWithRecovery: async (req: ChatRequest) => {
-            const r = await sendChatWithRecovery(providerForContext, req, {
-              selectionSummary: req.selectionSummary,
-              assistantId,
-              quickActionId: actionId
-            })
-            return r.response
-          },
-          sendAssistantMessage,
-          replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-          requestId
-        }
-        if (typeof handler.handleResponse !== 'function') {
-          throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
-        }
-        const result = await handler.handleResponse(handlerContext)
-        if (result.handled) {
-          const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-          if (statusIndex !== -1) {
-            replaceStatusMessage(requestId, result.message || 'Done')
-          }
+      qaTrace('MAIN_CALL_HANDLER', { requestId })
+      const result = await handler.handleResponse(handlerContext)
+      qaTrace('MAIN_HANDLER_RETURN', { requestId, handled: result.handled, hasMessage: !!(result as { message?: string }).message })
+      if (result.handled) {
+        if (completedToolOnlyRequestIds.has(requestId)) {
+          console.log('[Main] tool-only already completed for requestId, skipping duplicate status:', requestId)
           return
         }
+        completedToolOnlyRequestIds.add(requestId)
+        replaceStatusMessage(requestId, result.message ?? 'Done')
+        return
       }
     }
 
