@@ -9,11 +9,12 @@ import {
   renderForChat,
   renderForAnnotation,
   sanitizeForChat,
+  formatSmartDetectorReport,
   type ReportDoc
 } from './reportFormat'
 import { parseRichText } from './parseRichText'
 
-/** Mirror of main.ts cleanChatContent (no welcome-line logic) to test SD report pipeline in isolation. */
+/** Mirror of main.ts cleanChatContent (no welcome-line logic); preserves single blank lines. */
 function cleanChatContentMainStyle(raw: string): string {
   if (!raw) return ''
   let text = raw
@@ -21,12 +22,16 @@ function cleanChatContentMainStyle(raw: string): string {
     .replace(/generate:\s*\d+\/\d+/gi, '')
     .replace(/\(\d+%\)/g, '')
     .trim()
-  const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
+  const lines = text.split('\n')
   const uniqueLines: string[] = []
   const seen = new Set<string>()
   const keyValueLike = /^\s*\*\*[^*]+\*\*:?\s*.+/
   for (const line of lines) {
     const trimmed = line.trim()
+    if (trimmed === '') {
+      if (uniqueLines[uniqueLines.length - 1] !== '') uniqueLines.push('')
+      continue
+    }
     const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ')
     if (keyValueLike.test(trimmed)) {
       uniqueLines.push(trimmed)
@@ -42,7 +47,7 @@ function cleanChatContentMainStyle(raw: string): string {
   return text
 }
 
-/** Mirror of ui.tsx cleanChatContent (with welcome-line logic) to test double-clean. */
+/** Mirror of ui.tsx cleanChatContent (with welcome-line logic); preserves single blank lines. */
 function cleanChatContentUIStyle(raw: string): string {
   if (!raw) return ''
   let text = raw
@@ -51,13 +56,17 @@ function cleanChatContentUIStyle(raw: string): string {
     .replace(/\(\d+%\)/g, '')
     .trim()
   const welcomeLinePatterns = [/welcome to your content table assistant/i, /welcome to your design workshop assistant/i, /welcome to your/i]
-  const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
+  const lines = text.split('\n')
   const uniqueLines: string[] = []
   const seen = new Set<string>()
   let welcomeLineFound: string | null = null
   const keyValueLike = /^\s*\*\*[^*]+\*\*:?\s*.+/
   for (const line of lines) {
     const trimmed = line.trim()
+    if (trimmed === '') {
+      if (uniqueLines[uniqueLines.length - 1] !== '') uniqueLines.push('')
+      continue
+    }
     const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ')
     const isWelcomeLine = welcomeLinePatterns.some(p => p.test(line) || p.test(normalized))
     if (isWelcomeLine) {
@@ -252,6 +261,126 @@ function test_contentNormalized_contract() {
   assert.strictEqual(stored, mainCleaned, 'when contentNormalized, stored must equal payload')
 }
 
+/** formatSmartDetectorReport: block format, no list markers, no double blanks inside items. */
+function test_formatSmartDetectorReport_structure() {
+  const input = {
+    stats: {
+      nodesScanned: 16,
+      elementsByKind: { button: 2, image: 1 },
+      contentByKind: { heading_copy: 1, body_copy: 1 },
+      patternCount: 0
+    },
+    elements: [
+      { kind: 'button', confidence: 'med', reasons: ['heuristic:cta_text'], labelGuess: 'Submit' },
+      { kind: 'image', confidence: 'high', reasons: ['heuristic:image_named_no_text'], labelGuess: 'Hero' }
+    ],
+    content: [
+      { contentKind: 'heading_copy', confidence: 'high', text: 'Welcome to Funville!' }
+    ]
+  }
+  const md = formatSmartDetectorReport(input)
+  assert.ok(md.includes('## Smart Detector\n\n'), 'title followed by blank')
+  assert.ok(md.includes('\n\n### Top Elements\n\n'), 'section with blanks')
+  assert.ok(md.includes('\n**Confidence:**'), 'Confidence on own line')
+  assert.ok(md.includes('\n**Label:**'), 'Label on own line')
+  assert.ok(/\n\n\*\*Kind:\*\* image/.test(md), 'exactly one blank line between element blocks')
+  assert.ok(md.includes('**Kind:**') && md.includes('**Confidence:**') && md.includes('**Label:**') && md.includes('**Reasons:**'), 'each item has Kind, Confidence, Label, Reasons')
+  assert.ok(!/\n\d+\.\s+\*\*Kind:/.test(md), 'no numbered list markers')
+  assert.ok(!/\n-\s+/.test(md), 'no "- " at start of any line')
+  assert.ok(!/\n\*\s+/.test(md), 'no "* " at start of any line')
+  assert.ok(!/\*\*Kind:\*\*[^\n]*\n\n[^\n]*\*\*Confidence:\*\*/.test(md), 'no double blank inside item (Kind and Confidence)')
+}
+
+/** Pipeline: formatSmartDetectorReport -> sanitize -> clean -> parse; visible text includes key tokens. */
+function test_formatSmartDetectorReport_pipeline() {
+  const input = {
+    stats: {
+      nodesScanned: 16,
+      elementsByKind: { button: 2, image: 1 },
+      contentByKind: { heading_copy: 1 },
+      patternCount: 0
+    },
+    elements: [
+      { kind: 'button', confidence: 'med', reasons: ['heuristic:cta_text'], labelGuess: 'Submit' }
+    ],
+    content: [{ contentKind: 'heading_copy', confidence: 'high', text: 'Welcome' }]
+  }
+  const md = formatSmartDetectorReport(input)
+  const sanitized = sanitizeForChat(renderForChat(md))
+  const cleaned = cleanChatContentMainStyle(sanitized)
+  assert.ok(cleaned.includes('Scanned'), 'Scanned survives pipeline')
+  assert.ok(cleaned.includes('Elements'), 'Elements survives pipeline')
+  assert.ok(cleaned.includes('Top Elements'), 'Top Elements section survives')
+  assert.ok(cleaned.includes('button='), 'button= token survives')
+  assert.ok(cleaned.includes('\n\n'), 'blank lines survive cleanChatContent')
+  const nodes = parseRichText(cleaned)
+  const textContent = nodes
+    .map((n) => ('text' in n && typeof (n as { text: string }).text === 'string' ? (n as { text: string }).text : ''))
+    .join('')
+  assert.ok(textContent.includes('16'), 'parseRichText includes Scanned value')
+  assert.ok(textContent.includes('button') || textContent.includes('Elements'), 'parseRichText includes key tokens')
+  assert.ok(textContent.includes('Kind') || textContent.includes('Confidence') || textContent.includes('Label') || textContent.includes('Reasons'), 'Kind/Confidence/Label/Reasons appear in visible text')
+}
+
+/** Two buttons when button=2: Top Elements must include both, each with own block. */
+function test_formatSmartDetectorReport_two_buttons() {
+  const input = {
+    stats: {
+      nodesScanned: 20,
+      elementsByKind: { button: 2, image: 1, icon: 1 },
+      contentByKind: { heading_copy: 1 },
+      patternCount: 0
+    },
+    elements: [
+      { kind: 'button', confidence: 'high', reasons: ['heuristic:cta_text'], labelGuess: 'Submit' },
+      { kind: 'image', confidence: 'high', reasons: ['heuristic:image_named_no_text'], labelGuess: 'Hero' },
+      { kind: 'button', confidence: 'med', reasons: ['heuristic:text_over_bg'], labelGuess: 'Enter' },
+      { kind: 'icon', confidence: 'high', reasons: ['heuristic:icon_named_no_text'], labelGuess: 'Icon' }
+    ],
+    content: [{ contentKind: 'heading_copy', confidence: 'high', text: 'Welcome' }]
+  }
+  const md = formatSmartDetectorReport(input)
+  const buttonBlocks = md.match(/\*\*Kind:\*\* button/g)
+  assert.ok(buttonBlocks && buttonBlocks.length >= 2, 'must include two Kind: button blocks when button=2')
+  assert.ok(md.includes('Submit'), 'first button label present')
+  assert.ok(md.includes('Enter'), 'second button label present')
+  assert.ok(/\*\*Kind:\*\* button[\s\S]*?\n\n\*\*Kind:\*\* button/.test(md), 'two button blocks separated by exactly one blank line')
+  assert.ok(!/\n\d+\.\s+\*\*Kind:/.test(md), 'no numbered list markers')
+}
+
+/** Regression: newlines must survive format -> sanitize -> clean -> parse; Scanned and Elements on separate lines. */
+function test_smart_detector_newline_preservation() {
+  const input = {
+    stats: {
+      nodesScanned: 16,
+      elementsByKind: { button: 1 },
+      contentByKind: { heading_copy: 1 },
+      patternCount: 0
+    },
+    elements: [
+      { kind: 'button', confidence: 'med', reasons: ['heuristic:cta_text'], labelGuess: 'Submit' }
+    ],
+    content: [{ contentKind: 'heading_copy', confidence: 'high', text: 'Welcome' }]
+  }
+  const md = formatSmartDetectorReport(input)
+  const sanitized = sanitizeForChat(renderForChat(md))
+  const cleaned = cleanChatContentMainStyle(sanitized)
+  const nodes = parseRichText(cleaned)
+  const textContent = nodes
+    .map((n) => ('text' in n && typeof (n as { text: string }).text === 'string' ? (n as { text: string }).text : ''))
+    .join('\n')
+  assert.ok(/\*\*Scanned:\*\*[^\n]*\n\*\*Elements:\*\*/.test(textContent), 'Scanned and Elements on separate lines (newline between, not space)')
+  assert.ok(/\*\*Kind:\*\*[^\n]*\n\*\*Confidence:\*\*/.test(textContent), 'Kind and Confidence on separate lines (newline between, not space)')
+}
+
+/** Blank-line preservation: single blanks survive; multiple consecutive collapse to one. */
+function test_cleanChatContent_preserves_blanks() {
+  const withBlanks = 'Line1\n\nLine2\n\n\nLine3'
+  const cleaned = cleanChatContentMainStyle(withBlanks)
+  assert.ok(cleaned.includes('\n\n'), 'at least one blank preserved')
+  assert.ok(cleaned.includes('Line1') && cleaned.includes('Line2') && cleaned.includes('Line3'), 'content preserved')
+}
+
 async function main() {
   test_toCanonicalMarkdown_smart_detector_like()
   test_renderForChat_passthrough_and_truncation()
@@ -263,6 +392,11 @@ async function main() {
   test_smart_detector_double_clean()
   test_cleanChatContent_main_idempotent()
   test_contentNormalized_contract()
+  test_formatSmartDetectorReport_structure()
+  test_formatSmartDetectorReport_pipeline()
+  test_formatSmartDetectorReport_two_buttons()
+  test_smart_detector_newline_preservation()
+  test_cleanChatContent_preserves_blanks()
   console.log('[reportFormat] All tests passed.')
 }
 

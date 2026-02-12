@@ -281,14 +281,19 @@ function cleanChatContent(raw: string): string {
     .trim()
 
   // Remove duplicate lines (split by newlines, keep unique).
+  // Preserve single blank lines for paragraph separation; collapse multiple consecutive blanks.
   // Never dedupe report key/value lines (e.g. "**Scanned:** 16 nodes") so Smart Detector body is preserved.
-  const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
+  const lines = text.split('\n')
   const uniqueLines: string[] = []
   const seen = new Set<string>()
   const keyValueLike = /^\s*\*\*[^*]+\*\*:?\s*.+/
 
   for (const line of lines) {
     const trimmed = line.trim()
+    if (trimmed === '') {
+      if (uniqueLines[uniqueLines.length - 1] !== '') uniqueLines.push('')
+      continue
+    }
     const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ')
     if (keyValueLike.test(trimmed)) {
       uniqueLines.push(trimmed)

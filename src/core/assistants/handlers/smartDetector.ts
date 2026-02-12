@@ -7,11 +7,7 @@
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import { scanSelectionSmart } from '../../detection/smartDetector'
 import { debug } from '../../debug/logger'
-import {
-  type ReportDoc,
-  toCanonicalMarkdown,
-  renderForChat
-} from '../../richText/reportFormat'
+import { formatSmartDetectorReport, renderForChat } from '../../richText/reportFormat'
 
 let handlerTraceCounter = 0
 function qaTraceHandler(marker: string, data: Record<string, unknown>) {
@@ -19,8 +15,6 @@ function qaTraceHandler(marker: string, data: Record<string, unknown>) {
   handlerTraceCounter += 1
   debug.scope('trace:chat').log(`QA_TRACE ${marker}`, { n: handlerTraceCounter, ...data })
 }
-
-const TOP_PREVIEW = 3
 
 async function getSelectionRoots(selectionOrder: string[]): Promise<SceneNode[]> {
   const roots: SceneNode[] = []
@@ -33,62 +27,8 @@ async function getSelectionRoots(selectionOrder: string[]): Promise<SceneNode[]>
   return roots
 }
 
-function buildReportDoc(result: Awaited<ReturnType<typeof scanSelectionSmart>>): ReportDoc {
-  const { stats, elements, content } = result
-  const sections: ReportDoc['sections'] = [
-    {
-      keyValues: [
-        { key: 'Scanned', value: `${stats.nodesScanned} nodes${stats.capped ? ' (capped)' : ''}` },
-        {
-          key: 'Elements',
-          value: Object.entries(stats.elementsByKind).map(([k, v]) => `${k}=${v}`).join(', ') || '0'
-        },
-        {
-          key: 'Content',
-          value: Object.entries(stats.contentByKind).map(([k, v]) => `${k}=${v}`).join(', ') || '0'
-        },
-        { key: 'Patterns', value: String(stats.patternCount) }
-      ]
-    }
-  ]
-
-  if (elements.length > 0) {
-    sections.push({
-      title: 'Top Elements',
-      keyValues: elements.slice(0, TOP_PREVIEW).flatMap((e, i) => {
-        const reasons = e.reasons.length ? e.reasons.join(', ') : 'none'
-        const label = e.labelGuess ? e.labelGuess.slice(0, 60) : '—'
-        return [
-          { key: `${i + 1}.`, value: `**Kind:** ${e.kind} **Confidence:** ${e.confidence}` },
-          { key: 'Label', value: label },
-          { key: 'Reasons', value: reasons }
-        ]
-      })
-    })
-  }
-
-  if (content.length > 0) {
-    sections.push({
-      title: 'Top Content',
-      keyValues: content.slice(0, TOP_PREVIEW).flatMap((c, i) => {
-        const preview = c.text.slice(0, 50) + (c.text.length > 50 ? '…' : '')
-        return [
-          { key: `${i + 1}.`, value: `**Kind:** ${c.contentKind} **Confidence:** ${c.confidence}` },
-          { key: 'Text', value: preview }
-        ]
-      })
-    })
-  }
-
-  return {
-    title: 'Smart Detector',
-    sections
-  }
-}
-
 function formatSummary(result: Awaited<ReturnType<typeof scanSelectionSmart>>): string {
-  const doc = buildReportDoc(result)
-  const md = toCanonicalMarkdown(doc)
+  const md = formatSmartDetectorReport(result)
   return renderForChat(md)
 }
 

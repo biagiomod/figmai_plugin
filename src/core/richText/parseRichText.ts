@@ -205,7 +205,7 @@ export function parseRichText(input: string): RichTextNode[] {
     }
 
     if (paragraphLines.length > 0) {
-      const paragraphText = paragraphLines.join(' ').trim()
+      const paragraphText = paragraphLines.join('\n').trim()
       const inline = parseLine(paragraphText)
       nodes.push({ type: 'paragraph', text: paragraphText, inline })
     } else {

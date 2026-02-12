@@ -211,9 +211,9 @@ function cleanChatContent(raw: string): string {
   ]
   
   // Remove duplicate paragraphs (split by newlines, keep unique)
-  // Do this BEFORE collapsing whitespace to preserve paragraph structure.
+  // Preserve single blank lines for paragraph separation; collapse multiple consecutive blanks.
   // Never dedupe report-style key/value lines (e.g. "**Scanned:** 16 nodes") so Smart Detector body is preserved.
-  const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
+  const lines = text.split('\n')
   const uniqueLines: string[] = []
   const seen = new Set<string>()
   let welcomeLineFound: string | null = null
@@ -221,6 +221,10 @@ function cleanChatContent(raw: string): string {
 
   for (const line of lines) {
     const trimmed = line.trim()
+    if (trimmed === '') {
+      if (uniqueLines[uniqueLines.length - 1] !== '') uniqueLines.push('')
+      continue
+    }
     const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ')
     const isWelcomeLine = welcomeLinePatterns.some(pattern => pattern.test(line) || pattern.test(normalized))
 

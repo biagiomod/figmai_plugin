@@ -144,6 +144,128 @@ function stripMarkdownToPlain(line: string): string {
     .trim()
 }
 
+// ---- Smart Detector Report ----
+
+/** Minimal shape for formatSmartDetectorReport; avoids importing detection layer. */
+export interface SmartDetectorReportInput {
+  stats: {
+    nodesScanned: number
+    capped?: boolean
+    elementsByKind: Record<string, number>
+    contentByKind: Record<string, number>
+    patternCount: number
+  }
+  elements: Array<{ kind: string; confidence: string; reasons: string[]; labelGuess?: string }>
+  content: Array<{ contentKind: string; confidence: string; text: string }>
+}
+
+const TOP_PREVIEW = 5
+const MAX_PER_KIND = 2
+
+type ElementLike = { kind: string; confidence: string; reasons: string[]; labelGuess?: string }
+
+/** Select elements so kinds with count > 1 get up to min(2, count) entries; then fill remaining slots. */
+function selectTopElements(
+  elements: ElementLike[],
+  elementsByKind: Record<string, number>,
+  maxTotal: number
+): ElementLike[] {
+  const confidenceRank = (c: string) => (c === 'high' ? 2 : c === 'med' ? 1 : 0)
+  const byKind = new Map<string, ElementLike[]>()
+  for (const e of elements) {
+    const list = byKind.get(e.kind) ?? []
+    list.push(e)
+    byKind.set(e.kind, list)
+  }
+  for (const list of Array.from(byKind.values())) {
+    list.sort((a: ElementLike, b: ElementLike) => confidenceRank(b.confidence) - confidenceRank(a.confidence))
+  }
+
+  const selected: ElementLike[] = []
+  const used = new Set<number>()
+
+  const takeFromKind = (kind: string, max: number) => {
+    const list = byKind.get(kind) ?? []
+    let taken = 0
+    for (let i = 0; i < list.length && taken < max; i++) {
+      const idx = elements.indexOf(list[i])
+      if (idx >= 0 && !used.has(idx)) {
+        used.add(idx)
+        selected.push(list[i])
+        taken++
+      }
+    }
+  }
+
+  for (const [kind, count] of Object.entries(elementsByKind)) {
+    if (count > 1) {
+      takeFromKind(kind, Math.min(MAX_PER_KIND, count))
+    }
+  }
+
+  const remaining = elements
+    .map((e, i) => ({ e, i }))
+    .filter(({ i }) => !used.has(i))
+    .sort((a, b) => confidenceRank(b.e.confidence) - confidenceRank(a.e.confidence))
+
+  for (const { e, i } of remaining) {
+    if (selected.length >= maxTotal) break
+    selected.push(e)
+    used.add(i)
+  }
+
+  return selected
+}
+
+export function formatSmartDetectorReport(input: SmartDetectorReportInput): string {
+  const { stats, elements, content } = input
+  const lines: string[] = []
+
+  lines.push('## Smart Detector')
+  lines.push('')
+  lines.push(
+    `**Scanned:** ${stats.nodesScanned} nodes${stats.capped ? ' (capped)' : ''}\n` +
+      `**Elements:** ${Object.entries(stats.elementsByKind).map(([k, v]) => `${k}=${v}`).join(', ') || '0'}\n` +
+      `**Content:** ${Object.entries(stats.contentByKind).map(([k, v]) => `${k}=${v}`).join(', ') || '0'}\n` +
+      `**Patterns:** ${stats.patternCount}`
+  )
+  lines.push('')
+
+  const topElements = selectTopElements(elements, stats.elementsByKind, TOP_PREVIEW)
+  if (topElements.length > 0) {
+    lines.push('### Top Elements')
+    lines.push('')
+    for (const e of topElements) {
+      const reasons = e.reasons.length ? e.reasons.join(', ') : 'none'
+      const label = e.labelGuess ? e.labelGuess.slice(0, 60) : '—'
+      lines.push(
+        `**Kind:** ${e.kind}\n` +
+          `**Confidence:** ${e.confidence}\n` +
+          `**Label:** ${label}\n` +
+          `**Reasons:** ${reasons}`
+      )
+      lines.push('')
+    }
+  }
+
+  if (content.length > 0) {
+    lines.push('### Top Content')
+    lines.push('')
+    for (let i = 0; i < Math.min(content.length, TOP_PREVIEW); i++) {
+      const c = content[i]
+      const preview = c.text.slice(0, 50) + (c.text.length > 50 ? '…' : '')
+      lines.push(
+        `**Kind:** ${c.contentKind}\n` +
+          `**Confidence:** ${c.confidence}\n` +
+          `**Text:** ${preview}`
+      )
+      lines.push('')
+    }
+  }
+
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+}
+
 // ---- Guardrail: no raw HTML in Chat ----
 
 export function sanitizeForChat(s: string): string {

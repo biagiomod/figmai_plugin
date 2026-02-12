@@ -30,7 +30,8 @@ export const richTextTheme = {
   paragraph: {
     fontSize: 12,
     lineHeight: 1.5,
-    marginBottom: 8
+    marginBottom: 8,
+    whiteSpace: 'pre-wrap' as const
   },
   list: {
     fontSize: 12,
