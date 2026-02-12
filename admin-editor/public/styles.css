@@ -2116,6 +2116,9 @@ body.ace-home-page {
 .ace-home-hero-card {
   padding: var(--ace-space-24);
 }
+.ace-home-hero + .ace-home-section {
+  margin-top: var(--ace-space-16);
+}
 .ace-home-lead {
   font-size: var(--ace-font-size-16);
   line-height: 1.5;
