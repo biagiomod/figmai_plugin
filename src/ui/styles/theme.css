@@ -143,9 +143,7 @@
 
 /* Dark theme variables are defined in skins/dark.css */
 
-/* AT-A (Analytics Tagging Assistant): single scroller for both axes so horizontal scrollbar stays visible when vertical scroll is present */
-
-.ata-root {
+/* AT-A (Analytics Tagging Assistant): single scroller for both axes so horizontal scrollbar stays visible when vertical scroll is present */.ata-root {
   display: flex;
   flex-direction: column;
   flex: 1;

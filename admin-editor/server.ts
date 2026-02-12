@@ -13,7 +13,7 @@ import cookieParser from 'cookie-parser'
 import { loadModel } from './src/model'
 import { validateModel, adminEditableModelSchema, saveRequestBodySchema } from './src/schema'
 import { saveModel, saveModelDryRun } from './src/save'
-import { requireAuth, requireAdmin, requireRoleValidateSave } from './src/auth-middleware'
+import { requireAuth, requireAdmin, requireRoleValidateSave, validateWrapperConfig } from './src/auth-middleware'
 import {
   handleLogin,
   handleLogout,
@@ -38,6 +38,11 @@ const backupRootDir = path.join(adminEditorDir, '.backups')
 const dataDir = path.join(adminEditorDir, 'data')
 
 const ACE_DEBUG = process.env.ACE_DEBUG === '1' || process.env.ACE_DEBUG === 'true'
+const ACE_AUTH_MODE = process.env.ACE_AUTH_MODE || 'local'
+
+// Fail fast if wrapper mode is misconfigured (missing/placeholder token)
+validateWrapperConfig()
+
 const app = express()
 app.use(express.json({ limit: '10mb' }))
 app.use(cookieParser())
@@ -586,7 +591,14 @@ app.get('/api/build-info', (_req, res) => {
   }
 })
 
-// ——— Auth routes (no auth required) ———
+// ——— Wrapper mode: disable all Node auth endpoints ———
+if (ACE_AUTH_MODE === 'wrapper') {
+  app.use('/api/auth', (_req: express.Request, res: express.Response) => {
+    res.status(403).json({ error: 'Auth endpoints disabled in wrapper mode. Authentication is handled by the Spring wrapper.' })
+  })
+}
+
+// ——— Auth routes (local mode only; wrapper mode guard above returns 403) ———
 app.get('/api/auth/bootstrap-allowed', (req, res) => {
   handleBootstrapAllowed(req, res, dataDir)
 })
@@ -598,7 +610,7 @@ app.post('/api/auth/login', (req, res, next) => {
 })
 app.post('/api/auth/logout', handleLogout)
 
-// ——— Auth: me (requires valid session) ———
+// ——— Auth: me (requires valid session / wrapper headers) ———
 app.get('/api/auth/me', requireAuth(dataDir), (req, res) => handleMe(req, res, dataDir))
 
 // ——— Users CRUD (admin only) ———
@@ -764,8 +776,10 @@ app.post('/api/save', requireAuth(dataDir), requireRoleValidateSave, (req, res) 
 })
 
 const PORT = process.env.ADMIN_EDITOR_PORT ? parseInt(process.env.ADMIN_EDITOR_PORT, 10) : 3333
-app.listen(PORT, () => {
-  console.log(`Admin Config Editor server at http://localhost:${PORT}`)
+const HOST = process.env.ADMIN_EDITOR_HOST || (ACE_AUTH_MODE === 'wrapper' ? '127.0.0.1' : '0.0.0.0')
+app.listen(PORT, HOST, () => {
+  console.log(`Admin Config Editor server at http://${HOST}:${PORT}`)
+  console.log(`Auth mode: ${ACE_AUTH_MODE}${ACE_AUTH_MODE === 'wrapper' ? ' (Spring wrapper — Node login disabled, identity from headers)' : ' (local cookie/session auth)'}`)
   console.log(`Repo root: ${repoRoot}`)
   console.log(`Data dir: ${dataDir}`)
   console.log('Endpoints: GET /api/model, POST /api/validate, POST /api/save; auth: /api/auth/*, users: /api/users (admin)')
