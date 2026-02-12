@@ -30,6 +30,7 @@ export type {
 export { traverseSelection } from './traversal'
 export { classifyElements } from './elementClassifier'
 export { classifyContent } from './contentClassifier'
+export { getAncestors, findNearestInteractiveAncestor, hasInteractiveAncestor } from './hierarchy'
 
 /**
  * Run element + content detection on selection roots.

@@ -19,6 +19,7 @@ import {
   computeInset,
   hasBackground
 } from './utils'
+import { hasInteractiveAncestor } from './hierarchy'
 import type { DetectedElement, ElementKind, Confidence } from './types'
 
 const IMAGE_ELIGIBLE_TYPES = new Set<SceneNode['type']>(['RECTANGLE', 'FRAME', 'INSTANCE', 'GROUP'])
@@ -29,6 +30,19 @@ const MAX_BUTTON_TEXT_LEN = 24
 const MIN_BUTTON_PADDING_PX = 4
 const DEFAULT_CTA_VERBS = ['Enter', 'Continue', 'Next', 'Submit', 'Save', 'Done']
 const MAX_LINK_TEXT_LEN = 60
+/** Font size above this is treated as heading-like; button labels are typically smaller. */
+const HEADING_FONT_SIZE_THRESHOLD = 24
+const HEADING_NAME_SUBSTRINGS = ['heading', 'title', 'headline']
+
+/** True if the text node looks like a heading/title (name or large font). Gates button classification so headings are not emitted as buttons. */
+function isHeadingLikeText(textNode: TextNode): boolean {
+  const name = (textNode.name ?? '').toLowerCase()
+  if (HEADING_NAME_SUBSTRINGS.some(s => name.includes(s))) return true
+  const fontSize = typeof (textNode as unknown as { fontSize?: number }).fontSize === 'number'
+    ? (textNode as unknown as { fontSize: number }).fontSize
+    : 0
+  return fontSize > HEADING_FONT_SIZE_THRESHOLD
+}
 
 function getVisibleTextInside(node: SceneNode): string[] {
   const out: string[] = []
@@ -106,18 +120,20 @@ function textMatchesCta(text: string, ctaVerbs: string[]): boolean {
   return ctaVerbs.some(v => v.trim().toLowerCase() === t)
 }
 
-/** Button structural: one short text + background + padding. Returns kind/reasons/confidence/labelGuess or null. */
+/** Button structural: container (not TEXT) with short label text + background + padding. Heading-like label text disqualifies. */
 function tryButtonStructural(node: SceneNode): {
   kind: 'button'
   confidence: Confidence
   reasons: string[]
   labelGuess: string
 } | null {
+  if (node.type === 'TEXT') return null
   if (!BUTTON_CONTAINER_TYPES.has(node.type) || node.visible === false) return null
   const textNodes = getVisibleTextDescendants(node, 8)
   if (textNodes.length === 0) return null
   const dominant = getDominantTextNode(textNodes)
   if (!dominant) return null
+  if (isHeadingLikeText(dominant)) return null
   const text = String(dominant.characters ?? '').trim()
   if (text.length === 0 || text.length > MAX_BUTTON_TEXT_LEN) return null
   if (text.includes('\n')) return null
@@ -186,7 +202,15 @@ export async function classifyElements(
   const { componentKindMap, nameKindRules } = config
   const results: DetectedElement[] = []
 
+  // Build set of node ids that are button (or other interactive) containers for containment-aware link suppression.
+  const buttonContainerIds = new Set<string>()
   for (const node of nodes) {
+    if (node.type === 'TEXT') continue
+    if (tryButtonStructural(node)) buttonContainerIds.add(node.id)
+  }
+
+  for (const node of nodes) {
+    // Elements are containers/components; never emit a TEXT node as an element (e.g. button).
     if (node.type === 'TEXT') continue
     let kind: ElementKind | undefined
     let confidence: Confidence = 'med'
@@ -268,10 +292,11 @@ export async function classifyElements(
     })
   }
 
-  // Link heuristic: TEXT nodes passed separately (not in inspectable)
+  // Link heuristic: TEXT nodes passed separately (not in inspectable). Suppress when text is nested inside a button/container (label).
   if (options.textNodesForLinks && options.textNodesForLinks.length > 0) {
     for (const textNode of options.textNodesForLinks) {
       if (textNode.visible === false) continue
+      if (hasInteractiveAncestor(textNode as SceneNode, buttonContainerIds)) continue
       const linkResult = tryLinkHeuristic(textNode)
       if (!linkResult || linkResult.reasons.length === 0) continue
       const textBounds = options.includeBbox ? getAbsoluteBounds(textNode) : null

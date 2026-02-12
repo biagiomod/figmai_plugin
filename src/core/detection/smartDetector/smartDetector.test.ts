@@ -291,6 +291,136 @@ async function test_classifyElements_link_heuristic_name_contains_link() {
   assert.strictEqual(linkEl!.labelGuess, 'Terms & Conditions')
 }
 
+/** Containment: nested label text inside a button must NOT be emitted as a separate link element. */
+async function test_classifyElements_nested_label_in_button_suppressed_as_link() {
+  const textChild = {
+    id: 't1',
+    type: 'TEXT',
+    name: 'Terms link',
+    visible: true,
+    characters: 'Terms & Conditions',
+    absoluteBoundingBox: { x: 10, y: 10, width: 80, height: 20 },
+    parent: null as BaseNode | null
+  } as unknown as TextNode
+  const rectChild = {
+    id: 'r1',
+    type: 'RECTANGLE',
+    visible: true,
+    absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 40 }
+  } as unknown as SceneNode
+  const frame = {
+    id: 'f1',
+    type: 'FRAME',
+    name: 'Btn',
+    visible: true,
+    fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }],
+    absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 40 },
+    children: [rectChild, textChild]
+  } as unknown as SceneNode
+  ;(textChild as unknown as { parent: BaseNode | null }).parent = frame
+  const result = await classifyElements([frame], {
+    configOverride: emptyConfig,
+    textNodesForLinks: [textChild]
+  })
+  const buttonEl = result.find(e => e.kind === 'button')
+  assert.ok(buttonEl, 'button container should emit button element')
+  const linkEl = result.find(e => e.kind === 'link')
+  assert.ok(!linkEl, 'TEXT inside button must NOT be emitted as separate link (nested label suppressed)')
+}
+
+/** Standalone hyperlink text (not inside a button) must still emit link. */
+async function test_classifyElements_standalone_link_emitted() {
+  const textNode = {
+    id: 'standalone',
+    type: 'TEXT',
+    name: 'Standalone link',
+    visible: true,
+    characters: 'Learn more',
+    parent: null
+  } as unknown as TextNode
+  const result = await classifyElements([], {
+    configOverride: emptyConfig,
+    textNodesForLinks: [textNode]
+  })
+  const linkEl = result.find(e => e.kind === 'link')
+  assert.ok(linkEl, 'standalone CTA-like text with no button ancestor should emit link')
+}
+
+/** Invariant: no TEXT node is ever emitted as button (only containers from inspectable). */
+async function test_classifyElements_text_never_emitted_as_button() {
+  const textNode = {
+    id: 'heading1',
+    type: 'TEXT',
+    name: 'Heading',
+    visible: true,
+    characters: 'Welcome'
+  } as unknown as TextNode
+  const result = await classifyElements([], { configOverride: emptyConfig, textNodesForLinks: [textNode] })
+  const buttonEl = result.find(e => e.kind === 'button')
+  assert.ok(!buttonEl, 'TEXT nodes must never be emitted as button (only link or not emitted)')
+}
+
+/** Heading-like text in a container (name "Heading 1" or large font) must NOT yield Kind: button even with text_over_bg + padding. */
+async function test_classifyElements_heading_like_container_not_button() {
+  const textChild = {
+    id: 't1',
+    type: 'TEXT',
+    name: 'Heading 1',
+    visible: true,
+    characters: 'Welcome to the site',
+    absoluteBoundingBox: { x: 10, y: 10, width: 180, height: 28 }
+  } as unknown as SceneNode
+  const rectChild = {
+    id: 'r1',
+    type: 'RECTANGLE',
+    visible: true,
+    absoluteBoundingBox: { x: 0, y: 0, width: 200, height: 48 }
+  } as unknown as SceneNode
+  const frame = {
+    id: 'f1',
+    type: 'FRAME',
+    name: 'Hero',
+    visible: true,
+    fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }],
+    absoluteBoundingBox: { x: 0, y: 0, width: 200, height: 48 },
+    children: [rectChild, textChild]
+  } as unknown as SceneNode
+  const result = await classifyElements([frame], { configOverride: emptyConfig })
+  const buttonEl = result.find(e => e.kind === 'button')
+  assert.ok(!buttonEl, 'container with heading-like label (name "Heading 1") must NOT emit button')
+}
+
+/** Container with large-font text (heading-like) must NOT yield button. */
+async function test_classifyElements_large_font_label_not_button() {
+  const textChild = {
+    id: 't1',
+    type: 'TEXT',
+    name: 'Title',
+    visible: true,
+    characters: 'Welcome',
+    fontSize: 32,
+    absoluteBoundingBox: { x: 10, y: 10, width: 120, height: 36 }
+  } as unknown as SceneNode
+  const rectChild = {
+    id: 'r1',
+    type: 'RECTANGLE',
+    visible: true,
+    absoluteBoundingBox: { x: 0, y: 0, width: 140, height: 56 }
+  } as unknown as SceneNode
+  const frame = {
+    id: 'f1',
+    type: 'FRAME',
+    name: 'Banner',
+    visible: true,
+    fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }],
+    absoluteBoundingBox: { x: 0, y: 0, width: 140, height: 56 },
+    children: [rectChild, textChild]
+  } as unknown as SceneNode
+  const result = await classifyElements([frame], { configOverride: emptyConfig })
+  const buttonEl = result.find(e => e.kind === 'button')
+  assert.ok(!buttonEl, 'container with large font label (fontSize > 24) must NOT emit button')
+}
+
 async function main() {
   test_parseNameTokens()
   test_nameKindRules_matching()
@@ -308,6 +438,11 @@ async function main() {
   await test_classifyElements_button_structural_emits_with_reasons()
   await test_classifyElements_button_reject_big_paragraph()
   await test_classifyElements_link_heuristic_name_contains_link()
+  await test_classifyElements_nested_label_in_button_suppressed_as_link()
+  await test_classifyElements_standalone_link_emitted()
+  await test_classifyElements_text_never_emitted_as_button()
+  await test_classifyElements_heading_like_container_not_button()
+  await test_classifyElements_large_font_label_not_button()
   console.log('[smartDetector] All tests passed.')
 }
 
