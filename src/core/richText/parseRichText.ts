@@ -5,20 +5,20 @@
 
 import type { RichTextNode, InlineNode } from './types'
 
+/** Pre-compiled inline formatting patterns (hoisted to module scope to avoid per-call RegExp construction). */
+const INLINE_PATTERNS = [
+  { source: /\*\*([^*]+)\*\*/.source, type: 'bold' as const },
+  { source: /\*([^*]+)\*/.source, type: 'italic' as const },
+  { source: /`([^`]+)`/.source, type: 'code' as const },
+  { source: /\[([^\]]+)\]\(([^)]+)\)/.source, type: 'link' as const }
+]
+
 /**
  * Parse inline formatting (bold, italic, code) within a text string
  */
 function parseInline(text: string): InlineNode[] {
   const nodes: InlineNode[] = []
   let currentIndex = 0
-
-  // Patterns for inline formatting
-  const patterns = [
-    { regex: /\*\*([^*]+)\*\*/g, type: 'bold' as const },
-    { regex: /\*([^*]+)\*/g, type: 'italic' as const },
-    { regex: /`([^`]+)`/g, type: 'code' as const },
-    { regex: /\[([^\]]+)\]\(([^)]+)\)/g, type: 'link' as const }
-  ]
 
   // Find all matches with their positions
   const matches: Array<{
@@ -29,9 +29,9 @@ function parseInline(text: string): InlineNode[] {
     url?: string
   }> = []
 
-  for (const pattern of patterns) {
+  for (const pattern of INLINE_PATTERNS) {
     let match
-    const regex = new RegExp(pattern.regex.source, 'g')
+    const regex = new RegExp(pattern.source, 'g')
     while ((match = regex.exec(text)) !== null) {
       matches.push({
         start: match.index,

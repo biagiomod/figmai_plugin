@@ -19,22 +19,31 @@ export function getAncestors(node: SceneNode): SceneNode[] {
 
 /**
  * Return the nearest ancestor whose id is in interactiveContainerIds, or null.
- * Used to detect when a TEXT node is inside a button/container so we can suppress emitting it as a separate link.
+ * Short-circuits the parent walk without allocating an ancestors array.
  */
 export function findNearestInteractiveAncestor(
   node: SceneNode,
   interactiveContainerIds: Set<string>
 ): SceneNode | null {
-  for (const ancestor of getAncestors(node)) {
-    if (interactiveContainerIds.has(ancestor.id)) return ancestor
+  let current: BaseNode | null = node.parent
+  while (current) {
+    if (current.type === 'PAGE' || current.type === 'DOCUMENT') break
+    if (interactiveContainerIds.has(current.id)) return current as SceneNode
+    current = current.parent
   }
   return null
 }
 
 /**
  * True when the node has an interactive ancestor (e.g. button container).
- * Use to gate link emission: do not emit TEXT as link when it is nested inside a button.
+ * Short-circuits: walks parent chain directly without allocating an array.
  */
 export function hasInteractiveAncestor(node: SceneNode, interactiveContainerIds: Set<string>): boolean {
-  return findNearestInteractiveAncestor(node, interactiveContainerIds) !== null
+  let current: BaseNode | null = node.parent
+  while (current) {
+    if (current.type === 'PAGE' || current.type === 'DOCUMENT') break
+    if (interactiveContainerIds.has(current.id)) return true
+    current = current.parent
+  }
+  return false
 }

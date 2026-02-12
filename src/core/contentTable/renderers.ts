@@ -322,8 +322,9 @@ function renderContentOnly(universalTable: UniversalContentTableV1): string {
     
     // Col 7: Content (populated with actual content value)
     const content = item.content.value || ''
-    // Escape HTML and preserve newlines as <br> tags
-    const escapedContent = escapeHtml(content).replace(/\n/g, '<br>')
+    // Escape HTML and preserve newlines and carriage returns as <br> tags
+    // Handle \r\n (Windows), \n (Unix), and \r (old Mac) line breaks
+    const escapedContent = escapeHtml(content).replace(/\r\n|\r|\n/g, '<br>')
     html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${escapedContent}</td>`
     
     // Col 8: Rules/Comment (blank)

@@ -1504,8 +1504,10 @@
       return matchSearch && visible
     })
 
-    let html = '<div class="section-title">Assistants</div>'
-    html += '<div class="reset-section"><button type="button" class="btn-small" id="reset-assistants-btn">Reset section</button></div>'
+    let html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">Assistants</h2>'
+    html += '<button type="button" class="ace-section-header-btn" id="reset-assistants-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
+    html += '</div>'
     html += '<div class="field-row"><input type="text" id="assistants-search" class="ace-field" placeholder="Search by id or label" value="' + escapeHtml(search) + '">'
     html += '<label class="field-row"><input type="checkbox" id="assistants-show-hidden" ' + (showHidden ? 'checked' : '') + '> Show hidden (not in simple mode)</label></div>'
     html += '<div class="list-panel">'
@@ -1877,7 +1879,7 @@
     const panel = document.getElementById('panel-knowledge-bases')
     if (!panel) return
     panel.setAttribute('aria-busy', 'true')
-    panel.innerHTML = '<div class="section-title">Knowledge Bases</div><p class="fg-secondary">Loading…</p>'
+    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div><p class="fg-secondary">Loading…</p>'
     fetchKbRegistry()
       .then(function () {
         state.panelKnowledgeBasesReady = true
@@ -1885,7 +1887,7 @@
       })
       .catch(function (err) {
         panel.removeAttribute('aria-busy')
-        panel.innerHTML = '<div class="section-title">Knowledge Bases</div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
+        panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
       })
   }
 
@@ -1899,7 +1901,7 @@
     const previewDoc = state.kbPreviewDoc
     const editDoc = state.kbEditDoc
 
-    let html = '<div class="section-title">Knowledge Bases</div>'
+    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div>'
     html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference by id (knowledgeBaseRefs).</p>'
     html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import KB</button>'
     html += '<div class="list-panel">'
@@ -2255,10 +2257,13 @@
     const m = state.editedModel
     const raw = m?.contentModelsRaw ?? ''
 
-    let html = '<div class="danger-zone">'
+    let html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">Content Models</h2>'
+    html += '<button type="button" class="ace-section-header-btn" id="revert-content-models-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
+    html += '</div>'
+    html += '<div class="danger-zone">'
     html += '<p class="danger-zone-label">Raw content model markdown — changing this affects generated presets. Edit with care.</p>'
     html += '<div class="banner-warning">Changing this affects generated presets. Edit with care.</div>'
-    html += '<div class="reset-section"><button type="button" class="btn-small" id="revert-content-models-btn">Revert</button></div>'
     html += '<textarea id="content-models-raw" class="large ace-field--full" rows="24">' + escapeHtml(raw) + '</textarea>'
     html += '</div>'
     panel.innerHTML = html
@@ -2281,8 +2286,10 @@
     const regs = state.editedModel?.designSystemRegistries || {}
     const ids = Object.keys(regs)
 
-    let html = '<div class="section-title">Design System Registries</div>'
-    html += '<div class="reset-section"><button type="button" class="btn-small" id="reset-registries-btn">Reset section</button></div>'
+    let html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">Design System Registries</h2>'
+    html += '<button type="button" class="ace-section-header-btn" id="reset-registries-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
+    html += '</div>'
     html += '<p class="danger-zone-label">Raw registry JSON per design system — invalid JSON will fail validation.</p>'
     ids.forEach(id => {
       const val = regs[id]
@@ -2671,6 +2678,9 @@
     settings_change: { type: 'settings_change', timestamp: 1705800003000, sessionId: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx', properties: { keys: ['llm.endpoint'] } }
   }
 
+  /** Tabs that render their own ace-section-header-row and must NOT show the legacy #tab-subheader pretitle. */
+  var HIDE_TAB_SUBHEADER_TABS = new Set(['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users'])
+
   var TAB_SUBHEADERS = {
     config: 'General Plugin Settings',
     ai: 'AI',
@@ -2717,7 +2727,7 @@
     })
     const subheaderEl = document.getElementById('tab-subheader')
     if (subheaderEl) {
-      if (tabId === 'config' || tabId === 'ai' || tabId === 'users' || tabId === 'analytics') {
+      if (HIDE_TAB_SUBHEADER_TABS.has(tabId)) {
         subheaderEl.textContent = ''
         subheaderEl.style.display = 'none'
       } else {

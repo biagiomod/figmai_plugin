@@ -421,6 +421,143 @@ async function test_classifyElements_large_font_label_not_button() {
   assert.ok(!buttonEl, 'container with large font label (fontSize > 24) must NOT emit button')
 }
 
+// ---- Regression: classification output determinism (perf refactor) ----
+
+/** Baseline fixture: mixed node set producing known output (icon + button + link). Verifies caching + hoisting produce identical results. */
+async function test_regression_classification_determinism() {
+  const iconNode = {
+    id: 'icon1',
+    type: 'FRAME',
+    name: 'Icon_Close',
+    visible: true,
+    children: []
+  } as unknown as SceneNode
+
+  const textChild = {
+    id: 'bt1',
+    type: 'TEXT',
+    name: 'Label',
+    visible: true,
+    characters: 'Submit',
+    absoluteBoundingBox: { x: 10, y: 10, width: 60, height: 18 }
+  } as unknown as SceneNode
+  const rectChild = {
+    id: 'br1',
+    type: 'RECTANGLE',
+    visible: true,
+    absoluteBoundingBox: { x: 0, y: 0, width: 80, height: 38 }
+  } as unknown as SceneNode
+  const buttonFrame = {
+    id: 'btn1',
+    type: 'FRAME',
+    name: 'PrimaryBtn',
+    visible: true,
+    fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 1 } }],
+    absoluteBoundingBox: { x: 0, y: 0, width: 80, height: 38 },
+    children: [rectChild, textChild]
+  } as unknown as SceneNode
+
+  const linkText = {
+    id: 'link1',
+    type: 'TEXT',
+    name: 'Terms link',
+    visible: true,
+    characters: 'Privacy Policy',
+    parent: null
+  } as unknown as TextNode
+
+  const nodes = [iconNode, buttonFrame]
+  const opts = { configOverride: emptyConfig, textNodesForLinks: [linkText] }
+
+  // Run twice: outputs must be structurally identical
+  const run1 = await classifyElements(nodes, opts)
+  const run2 = await classifyElements(nodes, opts)
+  assert.strictEqual(run1.length, run2.length, 'determinism: same number of elements')
+  for (let i = 0; i < run1.length; i++) {
+    assert.strictEqual(run1[i].kind, run2[i].kind, `determinism: kind[${i}] must match`)
+    assert.strictEqual(run1[i].confidence, run2[i].confidence, `determinism: confidence[${i}] must match`)
+    assert.deepStrictEqual(run1[i].reasons, run2[i].reasons, `determinism: reasons[${i}] must match`)
+    assert.strictEqual(run1[i].labelGuess, run2[i].labelGuess, `determinism: labelGuess[${i}] must match`)
+    assert.strictEqual(run1[i].nodeId, run2[i].nodeId, `determinism: nodeId[${i}] must match`)
+  }
+
+  // Verify expected baseline
+  assert.strictEqual(run1.length, 3, 'baseline: icon + button + link = 3 elements')
+  assert.strictEqual(run1[0].kind, 'icon')
+  assert.strictEqual(run1[0].nodeId, 'icon1')
+  assert.strictEqual(run1[1].kind, 'button')
+  assert.strictEqual(run1[1].nodeId, 'btn1')
+  assert.strictEqual(run1[1].labelGuess, 'Submit')
+  assert.strictEqual(run1[2].kind, 'link')
+  assert.strictEqual(run1[2].nodeId, 'link1')
+}
+
+/** Regression: button structural detection still works after caching refactor. */
+async function test_regression_button_structural_cached() {
+  const textChild = {
+    id: 't_cache',
+    type: 'TEXT',
+    name: 'CTA',
+    visible: true,
+    characters: 'Continue',
+    absoluteBoundingBox: { x: 8, y: 8, width: 70, height: 18 }
+  } as unknown as SceneNode
+  const frame = {
+    id: 'f_cache',
+    type: 'FRAME',
+    name: 'ActionBtn',
+    visible: true,
+    fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.6, b: 1 } }],
+    absoluteBoundingBox: { x: 0, y: 0, width: 86, height: 34 },
+    children: [textChild]
+  } as unknown as SceneNode
+
+  const result = await classifyElements([frame], { configOverride: emptyConfig })
+  const buttonEl = result.find(e => e.kind === 'button')
+  assert.ok(buttonEl, 'regression: button structural must still emit after caching refactor')
+  assert.strictEqual(buttonEl!.labelGuess, 'Continue')
+  assert.ok(buttonEl!.reasons.includes('heuristic:text_over_bg'), 'regression: text_over_bg reason preserved')
+  assert.ok(buttonEl!.reasons.includes('heuristic:button_padding'), 'regression: button_padding reason preserved')
+  assert.ok(buttonEl!.reasons.includes('heuristic:cta_text'), 'regression: cta_text reason for "Continue"')
+  assert.strictEqual(buttonEl!.confidence, 'high', 'regression: "Continue" CTA should be high confidence')
+}
+
+/** Regression: INSTANCE with DS mapping still works with hoisted getMainComponentNameAsync. */
+async function test_regression_instance_ds_hoisted() {
+  const instanceNode = {
+    id: 'inst_hoist',
+    type: 'INSTANCE',
+    name: 'Instance',
+    visible: true,
+    getMainComponentAsync: async () => ({ name: 'PrimaryButton' })
+  } as unknown as SceneNode
+  const result = await classifyElements([instanceNode], {
+    configOverride: { componentKindMap: { PrimaryButton: 'button' }, nameKindRules: [] }
+  })
+  assert.strictEqual(result.length, 1, 'regression: INSTANCE with DS map should emit one element')
+  assert.strictEqual(result[0].kind, 'button')
+  assert.strictEqual(result[0].confidence, 'high')
+  assert.ok(result[0].reasons.some(r => r === 'ds:PrimaryButton'), 'regression: DS reason preserved')
+  assert.strictEqual(result[0].componentName, 'PrimaryButton', 'regression: componentName from hoisted call')
+}
+
+/** Regression: INSTANCE with name-rule (no DS match) should still use hoisted componentName for labelGuess. */
+async function test_regression_instance_name_rule_hoisted() {
+  const instanceNode = {
+    id: 'inst_nr',
+    type: 'INSTANCE',
+    name: 'Primary Button',
+    visible: true,
+    getMainComponentAsync: async () => ({ name: 'SomeComponent' })
+  } as unknown as SceneNode
+  const result = await classifyElements([instanceNode], {
+    configOverride: { componentKindMap: {}, nameKindRules: [{ contains: ['button'], kind: 'button' }] }
+  })
+  assert.strictEqual(result.length, 1, 'regression: INSTANCE name-rule should emit')
+  assert.strictEqual(result[0].kind, 'button')
+  assert.strictEqual(result[0].componentName, 'SomeComponent', 'regression: componentName from single hoisted async call')
+}
+
 async function main() {
   test_parseNameTokens()
   test_nameKindRules_matching()
@@ -443,6 +580,11 @@ async function main() {
   await test_classifyElements_text_never_emitted_as_button()
   await test_classifyElements_heading_like_container_not_button()
   await test_classifyElements_large_font_label_not_button()
+  // Regression tests for perf refactor (caching + hoisting)
+  await test_regression_classification_determinism()
+  await test_regression_button_structural_cached()
+  await test_regression_instance_ds_hoisted()
+  await test_regression_instance_name_rule_hoisted()
   console.log('[smartDetector] All tests passed.')
 }
 

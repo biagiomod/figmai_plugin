@@ -202,11 +202,14 @@ export async function classifyElements(
   const { componentKindMap, nameKindRules } = config
   const results: DetectedElement[] = []
 
-  // Build set of node ids that are button (or other interactive) containers for containment-aware link suppression.
+  // Pre-pass: cache tryButtonStructural results per node and build buttonContainerIds for link suppression.
   const buttonContainerIds = new Set<string>()
+  const buttonCache = new Map<string, ReturnType<typeof tryButtonStructural>>()
   for (const node of nodes) {
     if (node.type === 'TEXT') continue
-    if (tryButtonStructural(node)) buttonContainerIds.add(node.id)
+    const cached = tryButtonStructural(node)
+    buttonCache.set(node.id, cached)
+    if (cached) buttonContainerIds.add(node.id)
   }
 
   for (const node of nodes) {
@@ -219,18 +222,22 @@ export async function classifyElements(
 
     const nodeName = (node.name ?? '').trim()
 
-    // Lane 1: DS mapping (INSTANCE only)
+    // Hoist getMainComponentNameAsync: one call per INSTANCE, reused for DS mapping and result building.
+    let mainComponentName: string | undefined
     if (node.type === 'INSTANCE') {
       try {
-        const mainName = await getMainComponentNameAsync(node as InstanceNode)
-        const mainTrim = mainName?.trim()
-        if (mainTrim && componentKindMap[mainTrim]) {
-          kind = componentKindMap[mainTrim] as ElementKind
-          confidence = 'high'
-          reasons.push(`ds:${mainTrim}`)
-        }
+        mainComponentName = (await getMainComponentNameAsync(node as InstanceNode))?.trim() ?? undefined
       } catch {
         // ignore
+      }
+    }
+
+    // Lane 1: DS mapping (INSTANCE only)
+    if (node.type === 'INSTANCE' && mainComponentName) {
+      if (componentKindMap[mainComponentName]) {
+        kind = componentKindMap[mainComponentName] as ElementKind
+        confidence = 'high'
+        reasons.push(`ds:${mainComponentName}`)
       }
     }
 
@@ -247,9 +254,9 @@ export async function classifyElements(
       }
     }
 
-    // Lane 2b: button structural (text + background + padding)
+    // Lane 2b: button structural — reuse cached pre-pass result (no second call)
     if (kind == null) {
-      const buttonResult = tryButtonStructural(node)
+      const buttonResult = buttonCache.get(node.id) ?? null
       if (buttonResult) {
         kind = buttonResult.kind
         confidence = buttonResult.confidence
@@ -272,9 +279,8 @@ export async function classifyElements(
 
     if (reasons.length === 0) continue
 
-    const componentName = node.type === 'INSTANCE'
-      ? await getMainComponentNameAsync(node as InstanceNode).catch(() => undefined)
-      : undefined
+    // Reuse hoisted mainComponentName instead of a second async call
+    const componentName = mainComponentName ?? undefined
     const labelGuess = labelGuessOverride ?? inferLabelGuess(node, componentName ?? (nodeName || undefined))
 
     const bbox = options.includeBbox && 'x' in node && 'y' in node && 'width' in node && 'height' in node

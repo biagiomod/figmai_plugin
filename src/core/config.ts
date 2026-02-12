@@ -33,8 +33,8 @@ export const CONFIG = {
     // Scoped debug configuration
     debug: {
       // Global enable/disable for all debugging
-      // TODO: Consider setting to false for demo stability; keep warn/error unaffected.
-      enabled: true,
+      // Set to false for demo stability; warn/error still unaffected.
+      enabled: false,
 
       // Scoped enable (supports wildcards: 'assistant:*', 'subsystem:*')
       scopes: {

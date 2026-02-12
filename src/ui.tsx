@@ -80,7 +80,7 @@ import {
 } from '@create-figma-plugin/ui'
 import { emit, on } from '@create-figma-plugin/utilities'
 import { h } from 'preact'
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
@@ -305,6 +305,44 @@ function getBlockHash(node: RichTextNode): string {
  * To re-enable provider-specific indicators, change this to 'provider-specific'
  */
 const NAV_INDICATOR_MODE: 'generic' | 'provider-specific' = 'generic'
+
+/**
+ * Memoized rich-text renderer: caches parseRichText + enhanceRichText output.
+ * Used inside the message .map() where hooks cannot be called directly.
+ * Re-parses only when content or assistantId changes.
+ */
+function MemoRichText({ content, assistantId, inflationGuard }: {
+  content: string
+  assistantId: string
+  inflationGuard?: boolean
+}) {
+  const nodes = useMemo(() => {
+    try {
+      const ast = parseRichText(content)
+      const enhanced = enhanceRichText(ast, { assistantId })
+      if (inflationGuard) {
+        const contentLen = content.length
+        const estimateLen = estimateEnhancedTextLength(enhanced)
+        const inflationCap = Math.max(contentLen * 2, 5000)
+        if (estimateLen > inflationCap) {
+          return ast
+        }
+      }
+      return enhanced
+    } catch {
+      return null
+    }
+  }, [content, assistantId, inflationGuard])
+
+  if (nodes === null) {
+    return (
+      <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+        {content}
+      </div>
+    )
+  }
+  return <RichTextRenderer nodes={nodes} />
+}
 
 function Plugin() {
   // Log build version on component mount
@@ -2564,21 +2602,10 @@ ${htmlTable}
                   msUserSelect: 'text',
                   cursor: 'text'
                 }}>
-                  {(() => {
-                    try {
-                      const contentToRender = message.content != null ? String(message.content) : ''
-                      const ast = parseRichText(contentToRender)
-                      const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
-                      return <RichTextRenderer nodes={enhanced} />
-                    } catch (error) {
-                      console.error('[UI] RichText parsing error:', error)
-                      return (
-                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                          {message.content}
-                        </div>
-                      )
-                    }
-                  })()}
+                  <MemoRichText
+                    content={message.content != null ? String(message.content) : ''}
+                    assistantId={message.assistantId ?? assistant.id}
+                  />
                 </div>
               </div>
             )
@@ -2618,21 +2645,10 @@ ${htmlTable}
                   msUserSelect: 'text',
                   cursor: 'text'
                 }}>
-                  {(() => {
-                    try {
-                      const contentToRender = message.content != null ? String(message.content) : ''
-                      const ast = parseRichText(contentToRender)
-                      const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
-                      return <RichTextRenderer nodes={enhanced} />
-                    } catch (error) {
-                      console.error('[UI] RichText parsing error:', error)
-                      return (
-                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                          {message.content}
-                        </div>
-                      )
-                    }
-                  })()}
+                  <MemoRichText
+                    content={message.content != null ? String(message.content) : ''}
+                    assistantId={message.assistantId ?? assistant.id}
+                  />
                 </div>
               </div>
             )
@@ -2673,75 +2689,11 @@ ${htmlTable}
                   msUserSelect: 'text',
                   cursor: 'text'
                 }}>
-                  {(() => {
-                    const contentToRender = message.content != null ? String(message.content) : ''
-                    try {
-                      const contentLen = contentToRender.length
-                      const contentHash = contentToRender.slice(0, 40) + '_' + contentLen
-                      const ast = parseRichText(contentToRender)
-                      if (debug.isEnabled('trace:chat')) {
-                        const inputLineCount = contentToRender.split('\n').length
-                        const nodeTypes: Record<string, number> = {}
-                        for (const n of ast) {
-                          const t = n.type
-                          nodeTypes[t] = (nodeTypes[t] ?? 0) + 1
-                        }
-                        debug.scope('trace:chat').log('CHAT_PARSE', { messageId: message.id, inputLen: contentToRender.length, inputLineCount, nodeCount: ast.length, nodeTypes })
-                      }
-                      const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
-                      const estimateLen = estimateEnhancedTextLength(enhanced)
-                      const inflationCap = Math.max(contentLen * 2, 5000)
-                      let nodesToRender = enhanced
-                      if (estimateLen > inflationCap) {
-                        if (debug.isEnabled('trace:chat')) {
-                          debug.scope('trace:chat').log('RENDER_INFLATION_GUARD', { messageId: message.id, contentLen, estimateLen, cap: inflationCap })
-                        }
-                        nodesToRender = ast
-                      }
-                      const renderedBlockCount = nodesToRender.length
-                      const firstBlockPreview = nodesToRender[0] ? getBlockPreview(nodesToRender[0]) : ''
-                      const lastBlockPreview = nodesToRender[renderedBlockCount - 1] ? getBlockPreview(nodesToRender[renderedBlockCount - 1]) : ''
-                      if (debug.isEnabled('trace:chat')) {
-                        debug.scope('trace:chat').log('RENDER_CONTENT', { messageId: message.id, contentLen, contentHash, renderedBlockCount, firstBlockPreview, lastBlockPreview })
-                        const hashes = nodesToRender.map(getBlockHash)
-                        const totalCount = hashes.length
-                        const countByHash: Record<string, number> = {}
-                        for (const h of hashes) {
-                          countByHash[h] = (countByHash[h] ?? 0) + 1
-                        }
-                        const uniqueCount = Object.keys(countByHash).length
-                        let topRepeatedHash: string | undefined
-                        let topCount = 0
-                        for (const [h, c] of Object.entries(countByHash)) {
-                          if (c > 1 && c > topCount) {
-                            topCount = c
-                            topRepeatedHash = h
-                          }
-                        }
-                        if (totalCount > 0) {
-                          debug.scope('trace:chat').log('RENDER_BLOCK_HASHES', { messageId: message.id, uniqueCount, totalCount, topRepeatedHash: topRepeatedHash ?? null })
-                        }
-                      }
-                      return <RichTextRenderer nodes={nodesToRender} />
-                    } catch (error) {
-                      console.error('[UI] RichText parsing error:', error)
-                      const fallbackContent = message.content != null ? String(message.content) : ''
-                      return (
-                        <div style={{
-                          fontSize: 'var(--font-size-sm)',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          userSelect: 'text',
-                          WebkitUserSelect: 'text',
-                          MozUserSelect: 'text',
-                          msUserSelect: 'text',
-                          cursor: 'text'
-                        }}>
-                          {fallbackContent}
-                        </div>
-                      )
-                    }
-                  })()}
+                  <MemoRichText
+                    content={message.content != null ? String(message.content) : ''}
+                    assistantId={message.assistantId ?? assistant.id}
+                    inflationGuard
+                  />
                 </div>
               ) : (
                 // User message display (plain text)
