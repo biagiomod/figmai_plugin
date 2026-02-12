@@ -204,6 +204,15 @@ export function getDetectorElementClassifierConfig(): {
   }
 }
 
+/**
+ * Whether Datadog RUM is explicitly enabled (default false).
+ * Do not enable in Figma plugin sandbox: DNS/egress to browser-intake-datadoghq.com often fails (ERR_NAME_NOT_RESOLVED).
+ * If you add @datadog/browser-rum, only init when getDatadogRumEnabled() && shouldInitDatadogRum() (see core/analytics/datadogGuard).
+ */
+export function getDatadogRumEnabled(): boolean {
+  return customConfig?.analytics?.datadog?.enabled === true
+}
+
 /** Smart Detector content classifier config (safe defaults when absent). */
 export function getDetectorContentClassifierConfig(): {
   keywordLists: { legal: string[]; terms: string[]; privacy: string[]; consent: string[] }

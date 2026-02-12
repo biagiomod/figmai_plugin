@@ -79,6 +79,7 @@ export interface CustomConfig {
     retryMaxAttempts?: number
     retryBaseDelayMs?: number
     debug?: boolean
+    datadog?: { enabled?: boolean }
   }
   detectors?: {
     elementClassifier?: {

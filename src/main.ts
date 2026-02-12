@@ -76,6 +76,7 @@ import { categorizeError } from './core/analytics/errorCodes'
 import { BRAND } from './core/brand'
 import { CONFIG } from './core/config'
 import { debug } from './core/debug/logger'
+import { sanitizeForChat } from './core/richText/reportFormat'
 import { getDefaultAssistant, getAssistant, getWelcomeMessage, listAssistants, getShortInstructions } from './assistants'
 import { buildAssistantInstructionSegments } from './core/assistants/instructionAssembly'
 import { resolveKnowledgeBaseDocs } from './core/knowledgeBases/resolveKb'
@@ -136,9 +137,9 @@ import { renderDocumentToStage } from './core/stage/renderDocument'
 import { parseDesignSpecJson, renderDesignSpecToStage } from './core/stage/renderDesignSpec'
 import { renderPlaceholderScorecard } from './core/figma/renderPlaceholderScorecard'
 import { renderScorecard, renderScorecardV2, type ScorecardData } from './core/figma/renderScorecard'
-import { getHandler } from './core/assistants/handlers'
+import { getHandler, getHandlerByActionId } from './core/assistants/handlers'
 import { getTopLevelContainerNode } from './core/stage/anchor'
-import { BUILD_VERSION } from './core/build'
+import { BUILD_VERSION, BUILD_ID, BUILT_AT } from './core/build'
 import type { ExecutionType } from './core/types'
 
 /**
@@ -279,18 +280,23 @@ function cleanChatContent(raw: string): string {
     .replace(/\(\d+%\)/g, '')                         // standalone "(Z%)"
     .trim()
 
-  // Remove duplicate lines (split by newlines, keep unique)
-  // Do this BEFORE collapsing whitespace to preserve line structure
+  // Remove duplicate lines (split by newlines, keep unique).
+  // Never dedupe report key/value lines (e.g. "**Scanned:** 16 nodes") so Smart Detector body is preserved.
   const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
   const uniqueLines: string[] = []
   const seen = new Set<string>()
-  
+  const keyValueLike = /^\s*\*\*[^*]+\*\*:?\s*.+/
+
   for (const line of lines) {
-    const normalized = line.trim().toLowerCase().replace(/\s+/g, ' ')
-    // Only skip if we've seen this exact normalized line before
+    const trimmed = line.trim()
+    const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ')
+    if (keyValueLike.test(trimmed)) {
+      uniqueLines.push(trimmed)
+      continue
+    }
     if (!seen.has(normalized)) {
       seen.add(normalized)
-      uniqueLines.push(line.trim())
+      uniqueLines.push(trimmed)
     }
   }
 
@@ -304,16 +310,22 @@ function cleanChatContent(raw: string): string {
 
 // Send assistant message to UI
 function sendAssistantMessage(content: string, toolCallId?: string, requestId?: string) {
-  // Clean content before sending to remove internal metadata tags
-  const cleanedContent = cleanChatContent(content)
-  
+  const sanitized = sanitizeForChat(content)
+  const cleanedContent = cleanChatContent(sanitized)
+  if (debug.isEnabled('trace:chat')) {
+    const lineCount = cleanedContent.split('\n').length
+    const previewTop = cleanedContent.slice(0, 200)
+    const jsonSample = JSON.stringify(cleanedContent.slice(0, 400))
+    debug.scope('trace:chat').log('CHAT_SEND_TO_UI', { requestId, len: cleanedContent.length, lineCount, previewTop, jsonSample })
+  }
   const message: Message = {
     id: generateMessageId(),
     role: 'assistant',
     content: cleanedContent,
     timestamp: Date.now(),
     toolCallId,
-    requestId
+    requestId,
+    contentNormalized: true
   }
   messageHistory.push(message)
   
@@ -361,7 +373,13 @@ function replaceStatusMessage(requestId: string, finalContent: string, isError: 
     // Replace any existing message with this requestId so we don't append a duplicate line
     const anyWithRequestId = messageHistory.findIndex(m => m.requestId === requestId)
     if (anyWithRequestId !== -1) {
-      const cleanedContent = cleanChatContent(finalContent)
+      const cleanedContent = cleanChatContent(sanitizeForChat(finalContent))
+      if (debug.isEnabled('trace:chat')) {
+        const lineCount = cleanedContent.split('\n').length
+        const previewTop = cleanedContent.slice(0, 200)
+        const jsonSample = JSON.stringify(cleanedContent.slice(0, 400))
+        debug.scope('trace:chat').log('CHAT_SEND_TO_UI', { requestId, len: cleanedContent.length, lineCount, previewTop, jsonSample })
+      }
       const summaryHash = cleanedContent.slice(0, 40) + '_' + cleanedContent.length
       qaTrace('MAIN_POST_FINAL', { requestId, summaryHash, messageLength: cleanedContent.length, messagePreviewEnd: cleanedContent.slice(-40) })
       const finalMessage: Message = {
@@ -369,7 +387,8 @@ function replaceStatusMessage(requestId: string, finalContent: string, isError: 
         content: cleanedContent,
         timestamp: Date.now(),
         isStatus: false,
-        statusStyle: isError ? 'error' : undefined
+        statusStyle: isError ? 'error' : undefined,
+        contentNormalized: true
       }
       messageHistory[anyWithRequestId] = finalMessage
       figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: finalMessage } })
@@ -381,7 +400,13 @@ function replaceStatusMessage(requestId: string, finalContent: string, isError: 
     return
   }
 
-  const cleanedContent = cleanChatContent(finalContent)
+  const cleanedContent = cleanChatContent(sanitizeForChat(finalContent))
+  if (debug.isEnabled('trace:chat')) {
+    const lineCount = cleanedContent.split('\n').length
+    const previewTop = cleanedContent.slice(0, 200)
+    const jsonSample = JSON.stringify(cleanedContent.slice(0, 400))
+    debug.scope('trace:chat').log('CHAT_SEND_TO_UI', { requestId, len: cleanedContent.length, lineCount, previewTop, jsonSample })
+  }
   const summaryHash = cleanedContent.slice(0, 40) + '_' + cleanedContent.length
   qaTrace('MAIN_POST_FINAL', { requestId, summaryHash, messageLength: cleanedContent.length, messagePreviewEnd: cleanedContent.slice(-40) })
   const finalMessage: Message = {
@@ -391,7 +416,8 @@ function replaceStatusMessage(requestId: string, finalContent: string, isError: 
     timestamp: Date.now(),
     requestId,
     isStatus: false,
-    statusStyle: isError ? 'error' : undefined
+    statusStyle: isError ? 'error' : undefined,
+    contentNormalized: true
   }
   messageHistory[indices[0]] = finalMessage
   const toRemove = indices.slice(1).sort((a, b) => b - a)
@@ -759,8 +785,28 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
     })
 
     // Route by executionType (from manifest / PR2–PR3). Legacy fallback: 'unknown' uses same tool-only branches.
-    const executionType = resolveExecutionType(action)
-    const handler = getHandler(assistantId, actionId)
+    let executionType = resolveExecutionType(action)
+    let handler = getHandler(assistantId, actionId)
+    // ActionId-first routing for run-smart-detector so we never rely on assistantId
+    if (actionId === 'run-smart-detector') {
+      const sdFallback = getHandler('general', 'run-smart-detector')
+      handler = getHandlerByActionId('run-smart-detector') ?? sdFallback
+      executionType = 'tool-only'
+    }
+
+    const selection = summarizeSelection(selectionOrder)
+    const resolvedHandlerName = handler ? ((handler as { constructor?: { name?: string } }).constructor?.name ?? 'none') : 'none'
+    const qaTraceOn = debug.isEnabled('trace:qa')
+    if (qaTraceOn) {
+      console.log('[QA_ROUTE]', {
+        actionId,
+        assistantId,
+        resolvedHandler: resolvedHandlerName,
+        executionType,
+        hasSelection: selection.hasSelection,
+        selectionCount: selectionOrder.length
+      })
+    }
 
     // ——— ui-only: defensive no-op (UI should not send these to main) ———
     if (executionType === 'ui-only') {
@@ -806,6 +852,11 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
         replaceStatusMessage(requestId, result.message ?? 'Done')
         return
       }
+    }
+
+    // Fallthrough to LLM path (General or other assistant) — log so we can confirm run-smart-detector did NOT take this path.
+    if (qaTraceOn) {
+      console.log('[QA_LLM_PATH]', { actionId, assistantId, note: 'LLM/chat path (not tool-only handler)' })
     }
 
     // ——— code2design (hybrid / legacy): main no-op or canned message ———
@@ -857,14 +908,14 @@ Use SEND JSON to import or GET JSON to export your designs.`
 
     // ——— llm (and any fallthrough): sendChatWithRecovery + handler hooks ———
     // Check selection requirement (need to check before building context)
-  const selection = summarizeSelection(selectionOrder)
-  if (action.requiresSelection && !selection.hasSelection) {
+  const selectionForReq = summarizeSelection(selectionOrder)
+  if (action.requiresSelection && !selectionForReq.hasSelection) {
     replaceStatusMessage(requestId, `Error: This action requires a selection. Please select one or more nodes first.`, true)
     return
   }
   
   // Check vision requirement
-  if (action.requiresVision && !selection.hasSelection) {
+  if (action.requiresVision && !selectionForReq.hasSelection) {
     replaceStatusMessage(requestId, `Error: This action requires a selection to analyze. Please select a frame or design element first.`, true)
     return
   }
@@ -1547,6 +1598,23 @@ on<CopyTableStatusHandler>('COPY_TABLE_STATUS', function (status: 'success' | 'e
 
 // Initialize plugin
 export default function () {
+  // --- Ingest fetch tracer (dev-safe): log if any code tries to hit debug ingest ---
+  if (typeof globalThis.fetch === 'function') {
+    const _origFetch = globalThis.fetch
+    globalThis.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+      const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : (input && typeof input === 'object' && 'href' in input ? (input as URL).href : ''))
+      const isIngest = typeof url === 'string' && (
+        (url.includes('127.0.0.1') && url.includes('7242')) || url.includes('/ingest')
+      )
+      if (isIngest) {
+        console.error('[BLOCKED_DEBUG_INGEST] fetch attempted (main)', { url, init })
+        console.error(new Error('[BLOCKED_DEBUG_INGEST] stack').stack)
+      }
+      return _origFetch.call(globalThis, input as RequestInfo, init)
+    }
+  }
+  console.log('[BUILD_ID]', { version: BUILD_VERSION, builtAt: BUILT_AT })
+
   // Track plugin open
   getAnalytics().track('plugin_open')
 

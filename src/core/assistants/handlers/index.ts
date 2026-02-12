@@ -36,6 +36,17 @@ export function getHandler(assistantId: string, actionId: string | undefined): A
 }
 
 /**
+ * Get handler by actionId only (for actions that must route regardless of current assistant).
+ * Used for run-smart-detector so it always hits SmartDetectorHandler.
+ */
+export function getHandlerByActionId(actionId: string): AssistantHandler | undefined {
+  if (actionId === 'run-smart-detector') {
+    return handlers.find(h => h.canHandle('general', 'run-smart-detector'))
+  }
+  return undefined
+}
+
+/**
  * Get all handlers
  */
 export function getAllHandlers(): AssistantHandler[] {

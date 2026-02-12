@@ -184,7 +184,8 @@ export function parseRichText(input: string): RichTextNode[] {
     }
 
     // Regular paragraph
-    // Collect consecutive non-empty lines into a paragraph
+    // Collect consecutive non-empty lines into a paragraph.
+    // Break only on actual list markers (- or * followed by space), not on bold (**text**).
     const paragraphLines: string[] = []
     while (i < lines.length) {
       const currentLine = lines[i].trim()
@@ -193,8 +194,7 @@ export function parseRichText(input: string): RichTextNode[] {
         currentLine.startsWith('#') ||
         currentLine.startsWith('```') ||
         currentLine.startsWith('>') ||
-        currentLine.startsWith('-') ||
-        currentLine.startsWith('*') ||
+        /^[-*]\s+/.test(currentLine) ||
         /^\d+\.\s+/.test(currentLine) ||
         /^---+$/.test(currentLine)
       ) {

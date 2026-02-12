@@ -111,6 +111,11 @@ export interface Message {
   isInstructions?: boolean
   // Request lifecycle tracking
   requestId?: string
+  /**
+   * When true, main has already applied sanitizeForChat + cleanChatContent.
+   * UI must store and render content as-is (no re-clean in reducer).
+   */
+  contentNormalized?: true
 }
 
 // ============================================================================

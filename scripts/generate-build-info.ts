@@ -79,6 +79,9 @@ export const BUILD_VERSION = ${JSON.stringify(version)}
 export const BUILD_ID = ${JSON.stringify(buildId)}
 export const BUILT_AT = ${JSON.stringify(builtAt)}
 ${gitSha != null ? `export const GIT_SHA = ${JSON.stringify(gitSha)}` : 'export const GIT_SHA: string | undefined = undefined'}
+
+/** Datadog RUM: false = never init in plugin (avoids browser-intake-datadoghq.com errors in sandbox). Set true only for non-plugin builds that need RUM. */
+export const ENABLE_DD_RUM = false
 `
 
 const jsonContent = JSON.stringify(jsonPayload, null, 2)

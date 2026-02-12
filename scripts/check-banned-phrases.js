@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Build-time check: Fail if build artifacts contain banned/jailbreak-style phrases.
- * Prevents "Ignore previous assistant instructions" and similar override phrases
- * from reaching the Internal API payload. Run as part of postbuild.
+ * Build-time check: Fail if build artifacts contain banned/jailbreak-style phrases
+ * or network debug ingest URLs (no fetch to 127.0.0.1:7242/ingest/ in shipped code).
+ * Run as part of postbuild.
  */
 
 const fs = require('fs');
@@ -17,6 +17,9 @@ const BANNED_PHRASES = [
   'disregard prior',
   'you are now'
 ];
+
+/** Fail if build contains debug ingest URL (fetch to local ingest server). */
+const DEBUG_INGEST_PATTERNS = ['127.0.0.1:7242', '/ingest/'];
 
 let found = false;
 const hits = [];
@@ -37,12 +40,20 @@ for (const file of filesToCheck) {
       hits.push({ file, line, phrase });
     }
   }
+  for (const pattern of DEBUG_INGEST_PATTERNS) {
+    if (content.includes(pattern)) {
+      found = true;
+      const idx = content.indexOf(pattern);
+      const line = content.slice(0, idx).split('\n').length;
+      hits.push({ file, line, phrase: `debug ingest URL (${pattern})` });
+    }
+  }
 }
 
 if (found) {
-  console.error('[check-banned-phrases] FAILED: Banned phrases found in build artifacts:');
+  console.error('[check-banned-phrases] FAILED: Banned phrases or debug ingest URL in build artifacts:');
   hits.forEach(({ file, line, phrase }) => console.error(`  ${file}:${line} - "${phrase}"`));
-  console.error('[check-banned-phrases] Remove these phrases from source and rebuild.');
+  console.error('[check-banned-phrases] Remove these from source and rebuild.');
   process.exit(1);
 }
 console.log('[check-banned-phrases] PASSED: No banned phrases in build artifacts');

@@ -180,4 +180,52 @@
 
 .ata-empty {
   flex-shrink: 0;
+}/* Chat assistant bubble: ensure Markdown (headings, paragraphs, lists, bold) is visible and readable */
+.chat-assistant-bubble {
+  color: var(--fg);
+}
+
+.chat-assistant-bubble .richtext-content,
+.chat-assistant-bubble .richtext-content div,
+.chat-assistant-bubble .richtext-content span,
+.chat-assistant-bubble .richtext-content strong,
+.chat-assistant-bubble .richtext-content em,
+.chat-assistant-bubble .richtext-content a,
+.chat-assistant-bubble .richtext-content code {
+  color: inherit;
+}
+
+.chat-assistant-bubble .richtext-content strong {
+  font-weight: 600;
+}
+
+.chat-assistant-bubble .richtext-content em {
+  font-style: italic;
+}
+
+.chat-assistant-bubble .richtext-content a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.chat-assistant-bubble .richtext-content > div + div {
+  margin-top: 6px;
+}
+
+.chat-assistant-bubble .richtext-content code {
+  font-family: monospace;
+  font-size: 11px;
+  background-color: var(--bg-secondary);
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: inherit;
+}
+
+.chat-assistant-bubble .richtext-content pre {
+  margin: 6px 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: inherit;
 }

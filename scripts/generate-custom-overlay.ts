@@ -72,6 +72,8 @@ interface CustomConfig {
     retryMaxAttempts?: number
     retryBaseDelayMs?: number
     debug?: boolean
+    /** Datadog RUM: default false. Do not enable in Figma plugin sandbox (DNS/egress can fail). */
+    datadog?: { enabled?: boolean }
   }
   /** Smart Detector: element and content classifier config (build-time only). */
   detectors?: {
@@ -346,6 +348,7 @@ export interface CustomConfig {
     retryMaxAttempts?: number
     retryBaseDelayMs?: number
     debug?: boolean
+    datadog?: { enabled?: boolean }
   }
   detectors?: {
     elementClassifier?: {

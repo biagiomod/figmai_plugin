@@ -132,7 +132,7 @@ import { sessionToTable } from './core/analyticsTagging/sessionToTable'
 import type { Session, Row } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
 import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits, isPromptDiagnosticsEnabled } from './custom/config'
-import { BUILD_VERSION } from './core/build'
+import { BUILD_VERSION, BUILT_AT } from './core/build'
 import { debugLog } from './ui/utils/debug'
 import { debug } from './core/debug/logger'
 
@@ -169,6 +169,23 @@ import {
   PathIcon
 } from './ui/icons'
 
+// --- Ingest fetch tracer (dev-safe): log if any code tries to hit debug ingest ---
+const _origFetch = globalThis.fetch
+globalThis.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : (input && 'href' in input ? (input as URL).href : ''))
+  const isIngest = typeof url === 'string' && (
+    (url.includes('127.0.0.1') && url.includes('7242')) || url.includes('/ingest')
+  )
+  if (isIngest) {
+    console.error('[BLOCKED_DEBUG_INGEST] fetch attempted', { url, init })
+    console.error(new Error('[BLOCKED_DEBUG_INGEST] stack').stack)
+  }
+  return _origFetch.call(globalThis, input as RequestInfo, init)
+}
+
+// --- Build identity (confirm which bundle is loaded) ---
+console.log('[BUILD_ID]', { version: BUILD_VERSION, builtAt: BUILT_AT })
+
 // --- Chat content helpers for Design Workshop UX cleanup ---
 
 /**
@@ -194,34 +211,36 @@ function cleanChatContent(raw: string): string {
   ]
   
   // Remove duplicate paragraphs (split by newlines, keep unique)
-  // Do this BEFORE collapsing whitespace to preserve paragraph structure
-  // Note: This preserves markdown formatting (e.g., **bold**) and unique lines
-  // The welcome line "**Welcome to your Content Table Assistant**" will be preserved
-  // as it's different from the description line when normalized
+  // Do this BEFORE collapsing whitespace to preserve paragraph structure.
+  // Never dedupe report-style key/value lines (e.g. "**Scanned:** 16 nodes") so Smart Detector body is preserved.
   const lines = text.split(/\n+/).filter(line => line.trim().length > 0)
   const uniqueLines: string[] = []
   const seen = new Set<string>()
   let welcomeLineFound: string | null = null
-  
+  const keyValueLike = /^\s*\*\*[^*]+\*\*:?\s*.+/
+
   for (const line of lines) {
-    const normalized = line.trim().toLowerCase().replace(/\s+/g, ' ')
-    // Test both original line and normalized line to catch markdown-wrapped welcome lines
+    const trimmed = line.trim()
+    const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ')
     const isWelcomeLine = welcomeLinePatterns.some(pattern => pattern.test(line) || pattern.test(normalized))
-    
-    // Always preserve welcome lines, even if they appear to be duplicates
+
     if (isWelcomeLine) {
       if (!welcomeLineFound) {
-        welcomeLineFound = line.trim()
-        uniqueLines.push(line.trim())
+        welcomeLineFound = trimmed
+        uniqueLines.push(trimmed)
       }
       continue
     }
-    
-    // Only skip if we've seen this exact normalized line before
-    // This preserves the original line with markdown formatting
+
+    // Always keep report key/value lines so body text is never dropped
+    if (keyValueLike.test(trimmed)) {
+      uniqueLines.push(trimmed)
+      continue
+    }
+
     if (!seen.has(normalized)) {
       seen.add(normalized)
-      uniqueLines.push(line.trim())
+      uniqueLines.push(trimmed)
     }
   }
   
@@ -532,9 +551,15 @@ function Plugin() {
             (message.resetToken === resetToken || 
              (resetToken === 0 && message.resetToken === undefined) ||
              (message.message.role === 'assistant' && message.message.content.includes('intro')))
-          
           if (shouldProcessAssistantMessage) {
             const incoming = message.message as Message
+            if (debug.isEnabled('trace:chat') && incoming?.content != null) {
+              const raw = String(incoming.content)
+              const lineCount = raw.split('\n').length
+              const previewTop = raw.slice(0, 200)
+              const jsonSample = JSON.stringify(raw.slice(0, 400))
+              debug.scope('trace:chat').log('CHAT_UI_RECV', { requestId: incoming.requestId, len: raw.length, lineCount, previewTop, jsonSample })
+            }
             // Option A: status ("Processing…") is not added to the message list; show in dedicated area only. Ensures one bubble per request.
             if (incoming.role === 'assistant' && incoming.isStatus === true && incoming.statusStyle === 'loading') {
               setActiveStatus({ requestId: incoming.requestId ?? '', text: incoming.content ?? 'Processing…' })
@@ -558,16 +583,18 @@ function Plugin() {
                 return [...nonStatusMessages, incomingInner, ...statusMessages]
               }
 
-              // Assistant messages: clean + dedupe
-              const cleanedContent = cleanChatContent(incomingInner.content)
-              
-              // Deduplicate instructions messages (only one per assistant)
+              // Assistant messages: single-pass normalization contract. When main set contentNormalized, store as-is; else clean once.
+              const contentToStore =
+                incomingInner.contentNormalized === true
+                  ? (incomingInner.content != null ? String(incomingInner.content) : '')
+                  : cleanChatContent(incomingInner.content)
+
+              // Deduplicate instructions messages (only one per assistant); compare using normalized form
               if (incomingInner.isInstructions) {
                 const hasDuplicateInstructions = prev.some(m => {
                   if (m.role !== 'assistant' || !m.isInstructions) return false
-                  // Check if same assistant or same content
                   return (m.assistantId === incomingInner.assistantId && m.assistantId) ||
-                         cleanChatContent(m.content) === cleanedContent
+                         cleanChatContent(m.content) === contentToStore
                 })
 
                 if (hasDuplicateInstructions) {
@@ -575,11 +602,10 @@ function Plugin() {
                   return prev
                 }
               }
-              
-              const looksLikeWorkshopIntro = isDesignWorkshopIntro(cleanedContent)
+
+              const looksLikeWorkshopIntro = isDesignWorkshopIntro(contentToStore)
 
               if (looksLikeWorkshopIntro) {
-                // Check if we already have a similar intro message (compare cleaned content)
                 const hasDuplicate = prev.some(m => {
                   if (m.role !== 'assistant') return false
                   const prevCleaned = cleanChatContent(m.content)
@@ -592,8 +618,13 @@ function Plugin() {
                 }
               }
 
-              const cleanedMessage: Message = { ...incomingInner, content: cleanedContent }
-              
+              const cleanedMessage: Message = { ...incomingInner, content: contentToStore }
+              if (debug.isEnabled('trace:chat')) {
+                const lineCount = contentToStore.split('\n').length
+                const previewTop = contentToStore.slice(0, 200)
+                const jsonSample = JSON.stringify(contentToStore.slice(0, 400))
+                debug.scope('trace:chat').log('CHAT_UI_STORE', { messageId: cleanedMessage.id, len: contentToStore.length, lineCount, previewTop, jsonSample })
+              }
               // Check if message with same ID already exists (for in-place replacement, e.g., status messages)
               const existingById = prev.findIndex(m => m.id === cleanedMessage.id)
               if (existingById !== -1) {
@@ -2512,7 +2543,9 @@ ${htmlTable}
                   maxWidth: '80%'
                 }}
               >
-                <div style={{
+                <div
+                  className="chat-assistant-bubble"
+                  style={{
                   padding: 'var(--spacing-md)',
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--bg)',
@@ -2529,7 +2562,7 @@ ${htmlTable}
                 }}>
                   {(() => {
                     try {
-                      const contentToRender = cleanChatContent(message.content)
+                      const contentToRender = message.content != null ? String(message.content) : ''
                       const ast = parseRichText(contentToRender)
                       const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
                       return <RichTextRenderer nodes={enhanced} />
@@ -2537,7 +2570,7 @@ ${htmlTable}
                       console.error('[UI] RichText parsing error:', error)
                       return (
                         <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                          {cleanChatContent(message.content)}
+                          {message.content}
                         </div>
                       )
                     }
@@ -2562,7 +2595,9 @@ ${htmlTable}
                   maxWidth: '80%'
                 }}
               >
-                <div style={{
+                <div
+                  className="chat-assistant-bubble"
+                  style={{
                   paddingTop: 'var(--spacing-sm)',
                   paddingRight: 'var(--spacing-md)',
                   paddingBottom: '4px',
@@ -2581,7 +2616,7 @@ ${htmlTable}
                 }}>
                   {(() => {
                     try {
-                      const contentToRender = cleanChatContent(message.content)
+                      const contentToRender = message.content != null ? String(message.content) : ''
                       const ast = parseRichText(contentToRender)
                       const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
                       return <RichTextRenderer nodes={enhanced} />
@@ -2589,7 +2624,7 @@ ${htmlTable}
                       console.error('[UI] RichText parsing error:', error)
                       return (
                         <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                          {cleanChatContent(message.content)}
+                          {message.content}
                         </div>
                       )
                     }
@@ -2620,6 +2655,7 @@ ${htmlTable}
                 // Single bubble per message: status is shown in dedicated area only; transcript only has final content
                 <div
                   ref={index === messages.length - 1 && message.role === 'assistant' ? lastAssistantBubbleRef : undefined}
+                  className="chat-assistant-bubble"
                   style={{
                   padding: 'var(--spacing-sm) var(--spacing-md)',
                   borderRadius: 'var(--radius-md)',
@@ -2634,11 +2670,20 @@ ${htmlTable}
                   cursor: 'text'
                 }}>
                   {(() => {
+                    const contentToRender = message.content != null ? String(message.content) : ''
                     try {
-                      const contentToRender = cleanChatContent(message.content)
                       const contentLen = contentToRender.length
                       const contentHash = contentToRender.slice(0, 40) + '_' + contentLen
                       const ast = parseRichText(contentToRender)
+                      if (debug.isEnabled('trace:chat')) {
+                        const inputLineCount = contentToRender.split('\n').length
+                        const nodeTypes: Record<string, number> = {}
+                        for (const n of ast) {
+                          const t = n.type
+                          nodeTypes[t] = (nodeTypes[t] ?? 0) + 1
+                        }
+                        debug.scope('trace:chat').log('CHAT_PARSE', { messageId: message.id, inputLen: contentToRender.length, inputLineCount, nodeCount: ast.length, nodeTypes })
+                      }
                       const enhanced = enhanceRichText(ast, { assistantId: message.assistantId ?? assistant.id })
                       const estimateLen = estimateEnhancedTextLength(enhanced)
                       const inflationCap = Math.max(contentLen * 2, 5000)
@@ -2676,7 +2721,7 @@ ${htmlTable}
                       return <RichTextRenderer nodes={nodesToRender} />
                     } catch (error) {
                       console.error('[UI] RichText parsing error:', error)
-                      const cleanedFallback = cleanChatContent(message.content)
+                      const fallbackContent = message.content != null ? String(message.content) : ''
                       return (
                         <div style={{
                           fontSize: 'var(--font-size-sm)',
@@ -2688,7 +2733,7 @@ ${htmlTable}
                           msUserSelect: 'text',
                           cursor: 'text'
                         }}>
-                          {cleanedFallback}
+                          {fallbackContent}
                         </div>
                       )
                     }

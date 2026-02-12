@@ -81,7 +81,6 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     errorMessage?: string
   } | null>(null)
   const [isTesting, setIsTesting] = useState(false)
-  
   // Refs for stable message handler (avoid re-registration on state changes)
   const modeRef = useRef<Mode>(mode)
   const hideContentMvpModeRef = useRef<boolean>(hideContentMvpMode)
@@ -168,7 +167,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       } else if (message.type === 'SETTINGS_RESPONSE' && message.settings) {
         const settings = message.settings as Settings
         const responseRequestId = message.requestId as string | undefined
-        
+
         // Guard 1: Ignore if modal is not open
         if (!isSettingsOpenRef.current) {
           debugLog('settings', 'SETTINGS_RESPONSE ignored: modal not open', { 

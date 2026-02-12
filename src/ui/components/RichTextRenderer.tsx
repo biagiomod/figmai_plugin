@@ -346,6 +346,7 @@ function renderNode(node: RichTextNode, index: number): h.JSX.Element {
 export function RichTextRenderer({ nodes }: RichTextRendererProps): h.JSX.Element {
   return (
     <div
+      className="richtext-content"
       style={{
         display: 'flex',
         flexDirection: 'column',

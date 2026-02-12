@@ -44,7 +44,10 @@ export async function scanSelectionSmart(
 
   const { inspectable, textNodes, capped } = traverseSelection(roots, maxNodes)
 
-  const elements = await classifyElements(inspectable, { includeBbox: options.includeBbox })
+  const elements = await classifyElements(inspectable, {
+    includeBbox: options.includeBbox,
+    textNodesForLinks: textNodes
+  })
   const content = classifyContent(textNodes)
 
   const patterns: DetectedPattern[] = [] // Phase 3: form_field grouping

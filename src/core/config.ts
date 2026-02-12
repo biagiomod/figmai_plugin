@@ -57,6 +57,8 @@ export const CONFIG = {
 
         // Chat/QA tracing (diagnosis only; no logs in normal use)
         'trace:chat': false,
+        /** Quick-action routing: [QA_ROUTE], [QA_SD_ENTER], [QA_LLM_PATH]. true = show routing logs when debug.enabled. Default off. */
+        'trace:qa': false,
 
         // Global scope (always checked first)
         'global': false

@@ -4,4 +4,4 @@
  * Run `npm run prebuild` or `npm run build` to generate.
  */
 
-export { BUILD_VERSION, BUILD_ID } from '../generated/buildInfo'
+export { BUILD_VERSION, BUILD_ID, BUILT_AT } from '../generated/buildInfo'

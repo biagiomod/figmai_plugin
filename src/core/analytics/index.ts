@@ -6,6 +6,9 @@
  * are made unless both config.analytics.enabled and config.analytics.endpointUrl
  * are set; the analytics origin is then included in manifest.networkAccess.allowedDomains
  * at build time by scripts/update-manifest-network-access.ts (not at runtime).
+ *
+ * Datadog RUM: Do not init in plugin (browser-intake-datadoghq.com fails in sandbox).
+ * Use core/analytics/datadogGuard.shouldInitDatadogRum() and lazy-import if ever adding @datadog/browser-rum.
  */
 
 import type { AnalyticsService, AnalyticsConfig, NullAnalytics } from './types'
