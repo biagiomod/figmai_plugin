@@ -43,7 +43,10 @@ app.use(express.json({ limit: '10mb' }))
 app.use(cookieParser())
 
 // In dev, prevent caching of main static assets so refresh always serves current files (avoids stale UI/blank page).
-const NO_CACHE_PATHS = new Set(['/', '/index.html', '/app.js', '/styles.css', '/fonts.css'])
+const NO_CACHE_PATHS = new Set([
+  '/', '/index.html', '/app.js', '/styles.css', '/fonts.css',
+  '/home', '/home/ace', '/home/ace/', '/home/ace/index.html', '/home/ace/app.js', '/home/ace/styles.css', '/home/ace/fonts.css'
+])
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     if (req.method === 'GET' && NO_CACHE_PATHS.has(req.path)) {
@@ -53,7 +56,512 @@ if (process.env.NODE_ENV !== 'production') {
   })
 }
 
-app.use(express.static(path.join(adminEditorDir, 'public')))
+const publicDir = path.join(adminEditorDir, 'public')
+
+type ManifestQuickAction = {
+  id?: string
+  label?: string
+  templateMessage?: string
+}
+
+type ManifestAssistant = {
+  id: string
+  label: string
+  intro: string
+  promptTemplate?: string
+  quickActions?: ManifestQuickAction[]
+}
+
+function escapeHtml (value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function sentenceCase (value: string): string {
+  if (!value) return ''
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function normalizeIntroLine (intro: string): string {
+  const oneLine = String(intro || '').replace(/\n+/g, ' ').replace(/\*\*/g, '').trim()
+  return oneLine.length > 220 ? oneLine.slice(0, 217) + '...' : oneLine
+}
+
+function loadAssistantsFromManifest (): ManifestAssistant[] {
+  const manifestPath = path.join(repoRoot, 'custom', 'assistants.manifest.json')
+  try {
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+    if (!parsed || !Array.isArray(parsed.assistants)) return []
+    return parsed.assistants.filter((a: any) => a && typeof a.id === 'string' && typeof a.label === 'string').map((a: any) => ({
+      id: a.id,
+      label: a.label,
+      intro: typeof a.intro === 'string' ? a.intro : '',
+      promptTemplate: typeof a.promptTemplate === 'string' ? a.promptTemplate : '',
+      quickActions: Array.isArray(a.quickActions) ? a.quickActions : []
+    }))
+  } catch (err) {
+    console.error('[home-pages] Failed to read assistants manifest:', err)
+    return []
+  }
+}
+
+function getRelatedAssistants (assistants: ManifestAssistant[], currentId: string): ManifestAssistant[] {
+  const idx = assistants.findIndex(a => a.id === currentId)
+  if (idx === -1) return assistants.slice(0, 3)
+  const candidates: ManifestAssistant[] = []
+  for (let i = 1; i < assistants.length && candidates.length < 3; i++) {
+    const left = idx - i
+    const right = idx + i
+    if (left >= 0 && assistants[left].id !== currentId) candidates.push(assistants[left])
+    if (right < assistants.length && assistants[right].id !== currentId && candidates.length < 3) candidates.push(assistants[right])
+  }
+  return candidates
+}
+
+function deriveBestFor (assistant: ManifestAssistant): string[] {
+  const intro = normalizeIntroLine(assistant.intro).toLowerCase()
+  const bullets = [
+    `Teams that need consistent ${assistant.label.toLowerCase()} outputs`,
+    'Design workflows that require clear decisions and documentation',
+    'Cross-functional collaboration with fewer handoff gaps'
+  ]
+  if (intro.includes('accessibility')) bullets[0] = 'Teams shipping inclusive and accessible experiences'
+  if (intro.includes('content')) bullets[0] = 'Teams aligning UX writing and content structure'
+  if (intro.includes('critique')) bullets[0] = 'Teams running repeatable design critiques'
+  return bullets
+}
+
+function deriveWhatYouGet (assistant: ManifestAssistant): string[] {
+  const actionLabels = (assistant.quickActions || [])
+    .map(a => (a.label || '').trim())
+    .filter(Boolean)
+    .slice(0, 3)
+  if (actionLabels.length === 0) {
+    return [
+      'Structured guidance in the plugin workflow',
+      'Actionable outputs tied to selected frames',
+      'Repeatable prompts for team consistency'
+    ]
+  }
+  return actionLabels.map(l => sentenceCase(l))
+}
+
+function deriveExamplePrompts (assistant: ManifestAssistant): string[] {
+  const promptMap: Record<string, string[]> = {
+    design_critique: [
+      'Review this flow and list the top usability issues.',
+      'Give me wins, risks, and concrete fixes for this screen.',
+      'Evaluate hierarchy, clarity, and interaction feedback.',
+      'Check this design for deceptive patterns and explain why.'
+    ],
+    accessibility: [
+      'Review this design for accessibility issues and suggest fixes.',
+      'Check color contrast and WCAG alignment for this screen.',
+      'Identify interaction and readability risks for keyboard users.'
+    ],
+    content_table: [
+      'Generate a content table from the selected container.',
+      'List all text fields and classify by content type.',
+      'Create a clean inventory for handoff and review.'
+    ]
+  }
+  if (promptMap[assistant.id]) return promptMap[assistant.id]
+  const fromActions = (assistant.quickActions || [])
+    .map(a => (a.templateMessage || '').trim())
+    .filter(Boolean)
+    .slice(0, 5)
+  if (fromActions.length >= 3) return fromActions
+  return [
+    `Help me use ${assistant.label} on this selected frame.`,
+    `What output should I expect from ${assistant.label} for this task?`,
+    `Give me a structured result I can apply to the design and handoff.`
+  ]
+}
+
+function assertNoEmDash (html: string, routeName: string): void {
+  if (process.env.NODE_ENV === 'production') return
+  const idx = html.indexOf('—')
+  if (idx === -1) return
+  const start = Math.max(0, idx - 40)
+  const end = Math.min(html.length, idx + 40)
+  const snippet = html.slice(start, end).replace(/\n/g, ' ')
+  console.error(`[home-pages:no-em-dash] Found em dash on route ${routeName}. Snippet: ${snippet}`)
+}
+
+function marketingLayout (opts: { title: string, activePath: string, body: string }): string {
+  const navLinks = [
+    { href: '/home', label: 'Home' },
+    { href: '/how-it-works', label: 'How It Works' },
+    { href: '/assistants', label: 'Assistants' },
+    { href: '/demo', label: 'Demo' },
+    { href: '/faq', label: 'FAQ' },
+    { href: '/home/ace', label: 'Admin' }
+  ]
+  const navHtml = navLinks.map(link => {
+    const active = opts.activePath === link.href || (opts.activePath.startsWith('/assistants/') && link.href === '/assistants')
+    return `<a class="ace-home-nav-link${active ? ' is-active' : ''}" href="${link.href}">${escapeHtml(link.label)}</a>`
+  }).join('')
+
+  return `<!DOCTYPE html>
+<html lang="en" class="ace-home-html">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(opts.title)}</title>
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="ace-home-page">
+  <header class="ace-home-topbar" role="banner">
+    <div class="ace-home-topbar-inner ace-container">
+      <a href="/home" class="ace-home-brand">
+        <img src="/assets/logo-figmai.svg" alt="" class="ace-home-logo" width="117" height="36" />
+      </a>
+      <nav class="ace-home-nav" aria-label="Marketing pages">${navHtml}</nav>
+    </div>
+  </header>
+  <main class="ace-home-main" role="main">
+    ${opts.body}
+  </main>
+</body>
+</html>`
+}
+
+function sendMarketingPage (res: express.Response, routeName: string, page: { title: string, activePath: string, body: string }): void {
+  const html = marketingLayout(page)
+  assertNoEmDash(html, routeName)
+  res.setHeader('Cache-Control', 'no-store')
+  res.send(html)
+}
+
+// ——— Home and ACE paths ———
+app.get('/home', (_req, res) => {
+  const assistants = loadAssistantsFromManifest()
+  const assistantsCards = assistants.map(a => `
+    <article class="ace-card ace-home-assistant-card">
+      <h3 class="ace-card-title">${escapeHtml(a.label)}</h3>
+      <p class="ace-card-subtext">${escapeHtml(normalizeIntroLine(a.intro) || 'Specialized assistant for focused design outcomes.')}</p>
+      <a class="btn-secondary ace-home-inline-btn" href="/assistants/${encodeURIComponent(a.id)}">View</a>
+    </article>
+  `).join('')
+
+  const faqTeaser = [
+    ['How do we start?', 'Install the plugin, choose an assistant, and run a focused quick action on selected frames.'],
+    ['Can teams tune behavior?', 'Yes. Assistants and knowledge can be configured through ACE when needed.'],
+    ['Does this replace design judgment?', 'No. It accelerates analysis and output so teams can make better decisions faster.'],
+    ['Is it tied only to Figma?', 'Figma is the current integration. The approach is designed to extend over time.'],
+    ['How is consistency maintained?', 'Teams use shared assistants, bounded references, and repeatable execution patterns.'],
+    ['Can we use it for accessibility checks?', 'Yes. Accessibility-focused assistants support review and remediation guidance.']
+  ].map(([q, a]) => `<article class="ace-card"><h3 class="ace-card-title">${escapeHtml(q)}</h3><p class="ace-card-subtext">${escapeHtml(a)}</p></article>`).join('')
+
+  const body = `
+  <section class="ace-home-hero ace-container">
+    <div class="ace-card ace-home-hero-card">
+      <h1 class="ace-section-title">AI assistance for design teams that need consistency, not chaos.</h1>
+      <p class="ace-home-lead">FigmAI brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
+      <div class="ace-home-cta-row">
+        <a class="btn-primary" href="/home/ace">Install the Plugin</a>
+        <a class="btn-secondary" href="/demo">Watch 2-min Demo</a>
+      </div>
+      <ul class="ace-home-proof-list">
+        <li>No API keys stored in the plugin</li>
+        <li>Build time compiled assistants and knowledge</li>
+        <li>Allowlisted network origins and explicit execution types</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h2 class="ace-section-title">Alignment is expensive</h2></div>
+    <div class="ace-card">
+      <ul class="ace-home-bullet-list">
+        <li>Repeated critique and standards review across teams</li>
+        <li>Discovery swirl that produces artifacts without decisions</li>
+        <li>Inconsistent patterns, accessibility misses, and content drift</li>
+        <li>Institutional knowledge that does not scale</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h2 class="ace-section-title">What FigmAI is</h2></div>
+    <div class="ace-card">
+      <p class="ace-home-lead ace-home-lead-small">FigmAI is an AI layer inside the design workflow that helps teams move from questions to usable outputs with more consistency.</p>
+      <ul class="ace-home-bullet-list">
+        <li>Chat and quick actions inside the workflow</li>
+        <li>Specialized assistants by job to be done</li>
+        <li>Governed knowledge bases injected as bounded reference context</li>
+        <li>Optional Admin Config Editor (ACE) for configuration and knowledge</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h2 class="ace-section-title">Key benefits</h2></div>
+    <div class="ace-home-grid ace-home-grid-5">
+      <article class="ace-card"><h3 class="ace-card-title">Faster decisions with less churn</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">Consistency across teams</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">Higher-quality releases</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">Better onboarding</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">Governed by default</h3></article>
+    </div>
+  </section>
+
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h2 class="ace-section-title">How it works</h2></div>
+    <div class="ace-home-grid ace-home-grid-3">
+      <article class="ace-card"><h3 class="ace-card-title">1. Pick an assistant or run a quick action</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">2. Select relevant frames and ask for output</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">3. Apply results to designs and handoff</h3></article>
+    </div>
+    <p class="ace-home-inline-links">See the full flow on <a href="/how-it-works">How It Works</a> or browse <a href="/assistants">Assistants</a>.</p>
+  </section>
+
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h2 class="ace-section-title">Assistants overview</h2></div>
+    <div class="ace-home-grid ace-home-grid-3">${assistantsCards}</div>
+  </section>
+
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h2 class="ace-section-title">Differentiators</h2></div>
+    <div class="ace-home-grid ace-home-grid-2">
+      <article class="ace-card"><h3 class="ace-card-title">Built for governed environments</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">Deterministic content and behavior</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">Explicit execution types</h3></article>
+      <article class="ace-card"><h3 class="ace-card-title">Knowledge as reference, not prompt soup</h3></article>
+    </div>
+  </section>
+
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h2 class="ace-section-title">FAQ</h2></div>
+    <div class="ace-home-grid ace-home-grid-2">${faqTeaser}</div>
+    <p class="ace-home-inline-links"><a href="/faq">Read the full FAQ</a></p>
+  </section>
+
+  <section class="ace-container ace-home-section ace-home-final-cta">
+    <div class="ace-card">
+      <h2 class="ace-section-title">Ready to bring structured AI support into your design workflow?</h2>
+      <div class="ace-home-cta-row">
+        <a class="btn-primary" href="/home/ace">Install the Plugin</a>
+        <a class="btn-secondary" href="/demo">Watch 2-min Demo</a>
+      </div>
+      <p class="ace-card-subtext">Start with one assistant, validate outputs in context, and scale gradually with team standards.</p>
+    </div>
+  </section>
+  `
+
+  sendMarketingPage(res, '/home', {
+    title: 'FigmAI Home',
+    activePath: '/home',
+    body
+  })
+})
+app.get('/how-it-works', (_req, res) => {
+  const body = `
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h1 class="ace-section-title">How It Works</h1></div>
+    <div class="ace-card">
+      <ol class="ace-home-number-list">
+        <li>Install the plugin and open FigmAI in Figma.</li>
+        <li>Pick an assistant aligned to your current task.</li>
+        <li>Select relevant frames, then run a quick action or ask a focused prompt.</li>
+        <li>Review the output, apply changes, and capture decisions for handoff.</li>
+      </ol>
+    </div>
+  </section>
+  <section class="ace-container ace-home-section">
+    <div class="ace-card">
+      <h2 class="ace-card-title">First successful run path</h2>
+      <ol class="ace-home-number-list">
+        <li>Open a real screen in your file.</li>
+        <li>Run one assistant action on that screen.</li>
+        <li>Apply at least one recommendation.</li>
+        <li>Share the updated frame with your team for validation.</li>
+      </ol>
+      <p class="ace-home-inline-links"><a href="/home">Back to Home</a></p>
+    </div>
+  </section>
+  `
+  sendMarketingPage(res, '/how-it-works', {
+    title: 'How It Works',
+    activePath: '/how-it-works',
+    body
+  })
+})
+app.get('/assistants', (_req, res) => {
+  const assistants = loadAssistantsFromManifest()
+  const cards = assistants.map(a => `
+    <article class="ace-card ace-home-assistant-card">
+      <h2 class="ace-card-title">${escapeHtml(a.label)}</h2>
+      <p class="ace-card-subtext">${escapeHtml(normalizeIntroLine(a.intro) || 'Specialized design workflow support.')}</p>
+      <a class="btn-secondary ace-home-inline-btn" href="/assistants/${encodeURIComponent(a.id)}">View</a>
+    </article>
+  `).join('')
+  const body = `
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h1 class="ace-section-title">Assistants</h1></div>
+    <p class="ace-home-lead ace-home-lead-small">Directory sourced from assistants manifest.</p>
+    <div class="ace-home-grid ace-home-grid-3">${cards}</div>
+  </section>
+  `
+  sendMarketingPage(res, '/assistants', {
+    title: 'Assistants',
+    activePath: '/assistants',
+    body
+  })
+})
+app.get('/assistants/:id', (req, res) => {
+  const assistants = loadAssistantsFromManifest()
+  const current = assistants.find(a => a.id === req.params.id)
+  if (!current) {
+    const body = `
+    <section class="ace-container ace-home-section">
+      <div class="ace-card">
+        <h1 class="ace-section-title">Assistant not found</h1>
+        <p class="ace-card-subtext">The requested assistant id does not exist in the manifest.</p>
+        <a class="btn-secondary" href="/assistants">Back to Assistants</a>
+      </div>
+    </section>
+    `
+    res.status(404)
+    return sendMarketingPage(res, '/assistants/:id', {
+      title: 'Assistant Not Found',
+      activePath: '/assistants',
+      body
+    })
+  }
+
+  const bestFor = deriveBestFor(current).map(item => `<li>${escapeHtml(item)}</li>`).join('')
+  const whatYouGet = deriveWhatYouGet(current).map(item => `<li>${escapeHtml(item)}</li>`).join('')
+  const prompts = deriveExamplePrompts(current).slice(0, 5).map(item => `<li>${escapeHtml(item)}</li>`).join('')
+  const related = getRelatedAssistants(assistants, current.id).map(a => `<li><a href="/assistants/${encodeURIComponent(a.id)}">${escapeHtml(a.label)}</a></li>`).join('')
+  const body = `
+  <section class="ace-container ace-home-section">
+    <div class="ace-card">
+      <h1 class="ace-section-title">${escapeHtml(current.label)}</h1>
+      <p class="ace-home-lead ace-home-lead-small">${escapeHtml(normalizeIntroLine(current.intro) || 'Specialized assistant for focused workflow outcomes.')}</p>
+    </div>
+  </section>
+  <section class="ace-container ace-home-section ace-home-grid ace-home-grid-2">
+    <article class="ace-card">
+      <h2 class="ace-card-title">Best for</h2>
+      <ul class="ace-home-bullet-list">${bestFor}</ul>
+    </article>
+    <article class="ace-card">
+      <h2 class="ace-card-title">What you get</h2>
+      <ul class="ace-home-bullet-list">${whatYouGet}</ul>
+    </article>
+  </section>
+  <section class="ace-container ace-home-section ace-home-grid ace-home-grid-2">
+    <article class="ace-card">
+      <h2 class="ace-card-title">Example prompts</h2>
+      <ul class="ace-home-bullet-list">${prompts}</ul>
+    </article>
+    <article class="ace-card">
+      <h2 class="ace-card-title">Workflow steps</h2>
+      <ol class="ace-home-number-list">
+        <li>Open the assistant and choose a quick action.</li>
+        <li>Select relevant frames and run the request.</li>
+        <li>Apply output to design and confirm with stakeholders.</li>
+      </ol>
+    </article>
+  </section>
+  <section class="ace-container ace-home-section">
+    <article class="ace-card">
+      <h2 class="ace-card-title">Related assistants</h2>
+      <ul class="ace-home-bullet-list">${related}</ul>
+      <p class="ace-home-inline-links"><a href="/assistants">Back to Assistants</a></p>
+    </article>
+  </section>
+  `
+  sendMarketingPage(res, '/assistants/:id', {
+    title: current.label,
+    activePath: '/assistants',
+    body
+  })
+})
+app.get('/demo', (_req, res) => {
+  const body = `
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h1 class="ace-section-title">Demo</h1></div>
+    <div class="ace-home-grid ace-home-grid-2">
+      <article class="ace-card">
+        <h2 class="ace-card-title">Plugin walkthrough</h2>
+        <p class="ace-card-subtext">Coming soon. Quick orientation to assistants and actions in context.</p>
+      </article>
+      <article class="ace-card">
+        <h2 class="ace-card-title">Design critique flow</h2>
+        <p class="ace-card-subtext">Coming soon. End-to-end review from frame selection to applied fixes.</p>
+      </article>
+      <article class="ace-card">
+        <h2 class="ace-card-title">Accessibility review flow</h2>
+        <p class="ace-card-subtext">Coming soon. Typical checks and remediation handoff workflow.</p>
+      </article>
+      <article class="ace-card">
+        <h2 class="ace-card-title">Content workflow flow</h2>
+        <p class="ace-card-subtext">Coming soon. Structured content outputs for collaboration and handoff.</p>
+      </article>
+    </div>
+  </section>
+  `
+  sendMarketingPage(res, '/demo', {
+    title: 'Demo',
+    activePath: '/demo',
+    body
+  })
+})
+app.get('/faq', (_req, res) => {
+  const section = (title: string, items: Array<[string, string]>) => `
+    <article class="ace-card">
+      <h2 class="ace-card-title">${escapeHtml(title)}</h2>
+      <div class="ace-home-faq-group">
+        ${items.map(([q, a]) => `<div class="ace-home-faq-item"><h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p></div>`).join('')}
+      </div>
+    </article>
+  `
+  const body = `
+  <section class="ace-container ace-home-section">
+    <div class="ace-section-header-row"><h1 class="ace-section-title">FAQ</h1></div>
+    <div class="ace-home-grid ace-home-grid-2">
+      ${section('Security', [
+        ['Where are API keys stored?', 'The plugin does not store API keys inside the client workflow.'],
+        ['How is network use controlled?', 'Teams can control allowed origins and execution behavior through configuration.']
+      ])}
+      ${section('Setup', [
+        ['How quickly can a team start?', 'Most teams can install, run one assistant action, and validate value in a short session.'],
+        ['Do we need ACE to start?', 'No. ACE is optional and useful when teams want governed configuration and knowledge updates.']
+      ])}
+      ${section('Governance', [
+        ['Can we standardize assistant behavior?', 'Yes. Assistants and knowledge references can be configured for consistent outcomes.'],
+        ['How do we avoid prompt drift?', 'Use bounded references, focused actions, and shared review practices.']
+      ])}
+      ${section('Usage', [
+        ['What if output is not ready to apply?', 'Treat results as draft input, then refine with design judgment and team review.'],
+        ['Can this support handoff?', 'Yes. Teams can use structured outputs to reduce ambiguity before delivery.']
+      ])}
+    </div>
+  </section>
+  `
+  sendMarketingPage(res, '/faq', {
+    title: 'FAQ',
+    activePath: '/faq',
+    body
+  })
+})
+app.use((req, res, next) => {
+  if (req.path === '/home/ace') {
+    return res.redirect(302, '/home/ace/')
+  }
+  next()
+})
+app.use('/home/ace', express.static(publicDir, { index: 'index.html' }))
+
+// ——— Root: ACE UI (unchanged) ———
+app.use(express.static(publicDir))
 
 // ——— Build info (no auth) ———
 // Reads build/build-info.json (generated by scripts/generate-build-info.ts). No caching so ACE shows current build.
