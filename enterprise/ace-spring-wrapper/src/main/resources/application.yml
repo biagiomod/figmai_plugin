@@ -1,0 +1,91 @@
+# ============================================================================
+# ACE Spring Wrapper — Safe Defaults
+# Override with: --spring.config.additional-location=file:/path/to/custom-ace.yml
+# ============================================================================
+
+server:
+  port: 8080
+
+ace:
+  routes:
+    site-base-path: /home
+    ace-base-path: /home/ace
+    api-base-path: /api
+
+  proxy:
+    node-base-url: http://127.0.0.1:3333
+    wrapper-token: REPLACE_ME_LONG_RANDOM
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+    max-request-bytes: 10485760  # 10 MB
+
+    # Strict allowlist: only these method+path patterns are proxied.
+    # Everything else returns 404.
+    # Tiers: public (no auth), read (authenticated), write (editor+), admin (admin only).
+    allowlist:
+      public:
+        - "GET /home/**"
+        - "GET /home/ace/**"
+        - "GET /api/build-info"
+      read:
+        - "GET /api/model"
+        - "GET /api/kb/**"
+        - "GET /api/registries"
+        - "GET /api/registries/**"
+        - "GET /api/content-models"
+        - "GET /api/content-models/**"
+        - "GET /api/assistants"
+        - "GET /api/assistants/**"
+      write:
+        - "POST /api/save"
+        - "POST /api/kb/**"
+        - "PUT /api/kb/**"
+        - "DELETE /api/kb/**"
+        - "POST /api/registries/**"
+        - "PUT /api/registries/**"
+        - "DELETE /api/registries/**"
+        - "POST /api/content-models/**"
+        - "PUT /api/content-models/**"
+        - "DELETE /api/content-models/**"
+        - "POST /api/assistants/**"
+        - "PUT /api/assistants/**"
+        - "DELETE /api/assistants/**"
+      admin:
+        - "* /api/admin/**"
+        - "GET /api/users"
+        - "POST /api/users/**"
+        - "PUT /api/users/**"
+        - "DELETE /api/users/**"
+
+  security:
+    enable-auth: false
+    dev-stub-auth: false
+    user-header-name: X-ACE-User
+    groups-header-name: X-ACE-Groups
+    role-header-name: X-ACE-Role
+    allow-groups-fallback: false
+    trusted-proxy-ips: []
+    headers:
+      content-security-policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;"
+      x-frame-options: DENY
+      x-content-type-options: nosniff
+    group-to-role-map:
+      ace-admins: admin
+      ace-managers: manager
+      ace-editors: editor
+      ace-reviewers: reviewer
+
+  audit:
+    enabled: true
+    mode: stdout
+    log-path: ./logs/ace-audit.jsonl
+
+# Actuator: expose health and info only
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized

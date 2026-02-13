@@ -20,6 +20,13 @@ admin-editor/.backups/
 # Generated build info (created at build time). build/build-info.json is committed so ACE has a value in dev.
 src/generated/buildInfo.ts
 
+# ACE Spring Wrapper — custom deployment config (never committed; contains secrets)
+**/custom-ace.yml
+
+# Spring wrapper build artifacts
+enterprise/ace-spring-wrapper/target/
+enterprise/ace-spring-wrapper/logs/
+
 # Work-only override files (not committed to Public repo)
 # Exception: workAdapter.override.ts has a committed no-op stub for build stability
 src/work/credentials.override.ts

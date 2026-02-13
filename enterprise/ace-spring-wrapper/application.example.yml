@@ -1,0 +1,114 @@
+# ============================================================================
+# ACE Spring Wrapper — Custom Deployment Template
+# ============================================================================
+#
+# Copy this file, fill in REPLACE_ME values, and load it at startup:
+#
+#   java -jar ace-spring-wrapper.jar \
+#     --spring.config.additional-location=file:/path/to/custom-ace.yml
+#
+# This file is NEVER committed. Add it to .gitignore:
+#   **/custom-ace.yml
+#
+# NOTE: When security.enable-auth is true, all /api/auth/** endpoints are
+# blocked at the Spring layer (403). Node must also run with ACE_AUTH_MODE=wrapper
+# to disable its own login/bootstrap endpoints and trust identity headers.
+# ============================================================================
+
+server:
+  port: 8080
+
+ace:
+  routes:
+    site-base-path: /home
+    ace-base-path: /home/ace
+    api-base-path: /api
+
+  proxy:
+    # Node sidecar internal URL (private network only).
+    node-base-url: http://ace-node:3333
+    # Shared secret injected to Node on every proxied request.
+    wrapper-token: REPLACE_ME_LONG_RANDOM
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+    max-request-bytes: 10485760  # 10 MB
+
+    # Strict allowlist: ONLY these method+path patterns are proxied.
+    # Everything else returns 404. Adjust to match your ACE API surface.
+    allowlist:
+      public:
+        - "GET /home/**"
+        - "GET /home/ace/**"
+        - "GET /api/build-info"
+      read:
+        - "GET /api/model"
+        - "GET /api/kb/**"
+        - "GET /api/registries"
+        - "GET /api/registries/**"
+        - "GET /api/content-models"
+        - "GET /api/content-models/**"
+        - "GET /api/assistants"
+        - "GET /api/assistants/**"
+      write:
+        - "POST /api/save"
+        - "POST /api/kb/**"
+        - "PUT /api/kb/**"
+        - "DELETE /api/kb/**"
+        - "POST /api/registries/**"
+        - "PUT /api/registries/**"
+        - "DELETE /api/registries/**"
+        - "POST /api/content-models/**"
+        - "PUT /api/content-models/**"
+        - "DELETE /api/content-models/**"
+        - "POST /api/assistants/**"
+        - "PUT /api/assistants/**"
+        - "DELETE /api/assistants/**"
+      admin:
+        - "* /api/admin/**"
+        - "GET /api/users"
+        - "POST /api/users/**"
+        - "PUT /api/users/**"
+        - "DELETE /api/users/**"
+
+  security:
+    # Set to true for custom deployments with SSO/gateway auth.
+    # When true, /api/auth/** is blocked and Node login is disabled.
+    enable-auth: true
+
+    # Dev stub auth: injects a hardcoded test user (dev-user@example.com, ace-admins).
+    # Set to true ONLY for local integration testing without a real SSO provider.
+    dev-stub-auth: false
+    user-header-name: X-ACE-User
+    groups-header-name: X-ACE-Groups
+    role-header-name: X-ACE-Role
+    allow-groups-fallback: false
+    # Only trust X-Forwarded-For when request remoteAddr is in this list.
+    trusted-proxy-ips:
+      - REPLACE_ME_TRUSTED_PROXY_IP
+
+    headers:
+      content-security-policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;"
+      x-frame-options: DENY
+      x-content-type-options: nosniff
+
+    # Canonical RBAC mapping in wrapper: group -> ACE role.
+    # Supported ACE roles: admin, manager, editor, reviewer
+    group-to-role-map:
+      REPLACE_ME_ADMIN_GROUP: admin
+      REPLACE_ME_MANAGER_GROUP: manager
+      REPLACE_ME_EDITOR_GROUP: editor
+      REPLACE_ME_REVIEWER_GROUP: reviewer
+
+  audit:
+    enabled: true
+    mode: stdout         # stdout | file
+    log-path: ./logs/ace-audit.jsonl
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized

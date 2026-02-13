@@ -1,0 +1,71 @@
+# ============================================================================
+# ACE Spring Wrapper — Docker Compose Example
+# ============================================================================
+#
+# BEFORE STARTING: replace ALL REPLACE_ME_* values.
+#   Generate a wrapper token:  openssl rand -hex 32
+#
+# Placeholder tokens (REPLACE_ME_LONG_RANDOM, changeme, etc.) are rejected
+# at startup by both Spring and Node.
+# ============================================================================
+version: "3.9"
+
+services:
+  ace-node:
+    image: node:20-alpine
+    working_dir: /workspace
+    command: sh -lc "npm ci && npx tsx admin-editor/server.ts"
+    environment:
+      ACE_AUTH_MODE: wrapper
+      # REQUIRED: Must match ACE_PROXY_WRAPPERTOKEN below.
+      # Generate: openssl rand -hex 32
+      # WARNING: This placeholder value is rejected at startup. You MUST replace it.
+      ACE_WRAPPER_TOKEN: REPLACE_ME_LONG_RANDOM
+      ACE_ALLOW_GROUPS_FALLBACK: "false"
+      # Bind to all interfaces inside Docker network (wrapper connects here)
+      ADMIN_EDITOR_HOST: "0.0.0.0"
+      ADMIN_EDITOR_PORT: "3333"
+    volumes:
+      - ../../:/workspace
+    expose:
+      - "3333"
+    restart: unless-stopped
+
+  ace-wrapper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - ace-node
+    environment:
+      SERVER_PORT: "8080"
+      ACE_PROXY_NODEBASEURL: "http://ace-node:3333"
+      # REQUIRED: Must match ACE_WRAPPER_TOKEN above.
+      # WARNING: This placeholder value is rejected at startup. You MUST replace it.
+      ACE_PROXY_WRAPPERTOKEN: REPLACE_ME_LONG_RANDOM
+      ACE_SECURITY_ENABLEAUTH: "true"
+      ACE_SECURITY_DEVSTUBAUTH: "false"
+      # These are OUTPUT header names for proxying to Node.
+      # Node expects X-ACE-User / X-ACE-Groups / X-ACE-Role.
+      # Do NOT change unless you also change Node's expected header names.
+      ACE_SECURITY_USERHEADERNAME: "X-ACE-User"
+      ACE_SECURITY_GROUPSHEADERNAME: "X-ACE-Groups"
+      ACE_SECURITY_ROLEHEADERNAME: "X-ACE-Role"
+      ACE_SECURITY_ALLOWGROUPSFALLBACK: "false"
+      ACE_SECURITY_TRUSTEDPROXYIPS_0: "172.18.0.1"
+      ACE_AUDIT_ENABLED: "true"
+      ACE_AUDIT_MODE: "stdout"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+# Public entrypoint:
+#   host:8080 -> ace-wrapper:8080
+#
+# Private internal only:
+#   ace-node:3333 (not published to host)
+#
+# Identity model:
+#   In production (devStubAuth=false), the wrapper reads identity from the
+#   Spring Security principal (OIDC/SAML/pre-auth), NOT from HTTP headers.
+#   Configure your IdP in SecurityConfig.java.
