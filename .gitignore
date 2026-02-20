@@ -5,6 +5,7 @@
 
 
 node_modules/
+**/node_modules/
 
 # Backup files
 *.bak
@@ -26,6 +27,7 @@ src/generated/buildInfo.ts
 # Spring wrapper build artifacts
 enterprise/ace-spring-wrapper/target/
 enterprise/ace-spring-wrapper/logs/
+enterprise/ace-spring-wrapper/.env
 
 # Work-only override files (not committed to Public repo)
 # Exception: workAdapter.override.ts has a committed no-op stub for build stability

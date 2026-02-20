@@ -78,5 +78,8 @@
     "denylist": [],
     "enabled": true,
     "strictMode": true
+  },
+  "accessibility": {
+    "hatRequiredComponents": []
   }
 }

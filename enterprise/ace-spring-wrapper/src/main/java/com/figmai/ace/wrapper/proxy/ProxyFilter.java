@@ -22,8 +22,8 @@ import java.util.Set;
  * Core reverse-proxy filter. Matches requests against the RouteAllowlist,
  * blocks disallowed routes, and proxies allowed ones to the Node sidecar.
  *
- * Route priority: /home/ace/** > /home/** > /api/** (handled via allowlist order).
- * When auth is enabled, /api/auth/** is explicitly blocked.
+ * Route priority: wrapper-owned endpoints (/actuator/**, /api/auth/**) bypass proxy;
+ * everything else is handled via allowlist + proxy.
  *
  * Filter order 50 — runs after security, RBAC, audit, rate-limit filters.
  */
@@ -70,14 +70,13 @@ public class ProxyFilter implements Filter {
         }
         String path = normalizedPathOpt.get();
 
-        // --- Block /api/auth/** when auth is enabled ---
-        // When Spring is the auth authority, Node login/bootstrap endpoints must be unreachable.
-        // Use exact prefix to avoid matching /api/authorize, /api/authentication, etc.
-        if (props.getSecurity().isEnableAuth()
-                && (path.equals("/api/auth") || path.startsWith("/api/auth/"))) {
-            response.setStatus(403);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"Auth endpoints blocked — use Spring SSO.\"}");
+        // Wrapper-owned endpoints should not be proxied to Node.
+        if (path.equals("/actuator") || path.startsWith("/actuator/")) {
+            chain.doFilter(req, res);
+            return;
+        }
+        if (path.equals("/api/auth") || path.startsWith("/api/auth/")) {
+            chain.doFilter(req, res);
             return;
         }
 

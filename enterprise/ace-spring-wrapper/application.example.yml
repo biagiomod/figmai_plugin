@@ -10,9 +10,11 @@
 # This file is NEVER committed. Add it to .gitignore:
 #   **/custom-ace.yml
 #
-# NOTE: When security.enable-auth is true, all /api/auth/** endpoints are
-# blocked at the Spring layer (403). Node must also run with ACE_AUTH_MODE=wrapper
-# to disable its own login/bootstrap endpoints and trust identity headers.
+# NOTE: In wrapper deployments, Spring owns /api/auth/**:
+#   - GET /api/auth/me
+#   - GET /api/auth/bootstrap-allowed
+# Those endpoints are handled by Spring MVC (not proxied to Node). Node still runs
+# with ACE_AUTH_MODE=wrapper to disable Node-side login/bootstrap endpoints.
 # ============================================================================
 
 server:
@@ -21,7 +23,7 @@ server:
 ace:
   routes:
     site-base-path: /home
-    ace-base-path: /home/ace
+    ace-base-path: /home/admin
     api-base-path: /api
 
   proxy:
@@ -38,8 +40,17 @@ ace:
     allowlist:
       public:
         - "GET /home/**"
-        - "GET /home/ace/**"
+        - "HEAD /home/**"
+        - "GET /home/admin/**"
+        - "HEAD /home/admin/**"
         - "GET /api/build-info"
+        # Root-relative assets used by product site pages.
+        - "GET /fonts.css"
+        - "HEAD /fonts.css"
+        - "GET /styles.css"
+        - "HEAD /styles.css"
+        - "GET /assets/**"
+        - "HEAD /assets/**"
       read:
         - "GET /api/model"
         - "GET /api/kb/**"
@@ -50,6 +61,7 @@ ace:
         - "GET /api/assistants"
         - "GET /api/assistants/**"
       write:
+        - "POST /api/validate"
         - "POST /api/save"
         - "POST /api/kb/**"
         - "PUT /api/kb/**"
@@ -67,12 +79,14 @@ ace:
         - "* /api/admin/**"
         - "GET /api/users"
         - "POST /api/users/**"
+        - "PATCH /api/users/**"
         - "PUT /api/users/**"
         - "DELETE /api/users/**"
 
   security:
     # Set to true for custom deployments with SSO/gateway auth.
-    # When true, /api/auth/** is blocked and Node login is disabled.
+    # When true, wrapper serves /api/auth/me and /api/auth/bootstrap-allowed,
+    # and Node login/bootstrap endpoints remain disabled by ACE_AUTH_MODE=wrapper.
     enable-auth: true
 
     # Dev stub auth: injects a hardcoded test user (dev-user@example.com, ace-admins).

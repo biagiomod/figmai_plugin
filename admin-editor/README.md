@@ -7,6 +7,8 @@ Local, browser-accessible backend for editing plugin custom config and assistant
 From the plugin repo root:
 
 ```bash
+rm -rf node_modules
+npm ci
 npm run admin
 ```
 
@@ -17,6 +19,14 @@ npm run admin:dev
 ```
 
 Then open **http://localhost:3333** in your browser. The Phase 2 UI loads the model and uses a Figma-derived shell: **left sidebar nav** (tabs: Config, Assistants, Knowledge, Content Models, Design System Registries), **sticky top action bar** (Reload, Validate, Preview, Save), and **main content** with a sticky section header and card-based layout for General Plugin Settings. Raw JSON remains in a clearly labeled danger zone. All writes go through the server; the UI only calls the API. The UI includes loading/disabled states, keyboard-accessible tabs (arrow keys, focus-visible), error recovery (Retry, Reload on 409, Copy error), and danger-zone framing for raw editors.
+
+If you see an `esbuild` platform mismatch (for example `@esbuild/linux-arm64` on macOS), your `node_modules` was created on a different OS/arch. Reset it with:
+
+```bash
+rm -rf node_modules
+npm ci
+npm run admin
+```
 
 To use a different port:
 

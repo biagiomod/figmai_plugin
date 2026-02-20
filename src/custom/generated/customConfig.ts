@@ -176,6 +176,9 @@ export const customConfig: CustomConfig | null = {
     "enabled": true,
     "strictMode": true
   },
+  "accessibility": {
+    "hatRequiredComponents": []
+  },
   "detectors": {
     "elementClassifier": {
       "componentKindMap": {},

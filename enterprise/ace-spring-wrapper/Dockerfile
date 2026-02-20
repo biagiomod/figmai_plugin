@@ -19,11 +19,15 @@ COPY src ./src
 RUN mvn package -DskipTests -B
 
 # --- Stage 2: Runtime ---
-FROM eclipse-temurin:17-jre-alpine
+# Use jammy (Ubuntu) base instead of Alpine: eclipse-temurin Alpine images do not
+# publish linux/arm64 manifests, which breaks builds on Apple Silicon (M1/M2/M3).
+# jammy is multi-arch (amd64 + arm64) and functionally equivalent.
+FROM eclipse-temurin:17-jre-jammy
 LABEL maintainer="ACE team"
 LABEL description="ACE Spring Wrapper — reverse proxy for custom deployments"
 
-RUN addgroup -S ace && adduser -S ace -G ace
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system ace && useradd --system --gid ace ace
 WORKDIR /app
 
 COPY --from=build /build/target/*.jar app.jar
@@ -33,6 +37,6 @@ USER ace
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:8080/actuator/health || exit 1
+  CMD curl -sf http://localhost:8080/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

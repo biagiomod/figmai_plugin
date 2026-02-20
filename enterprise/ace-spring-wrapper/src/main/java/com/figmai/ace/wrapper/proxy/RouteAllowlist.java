@@ -113,10 +113,12 @@ public class RouteAllowlist {
      */
     Optional<String> normalizePath(String input) {
         if (input == null || input.isBlank()) return Optional.of("/");
+        if (input.contains("\u0000")) return Optional.empty();
         String current = input.trim();
 
         // Iterative decode with a strict cap to catch double/triple encoding.
         for (int pass = 0; pass < MAX_DECODE_PASSES; pass++) {
+            if (current.contains("\u0000")) return Optional.empty();
             // Before decoding: reject if dangerous percent-encoded sequences are present.
             if (containsEncodedTraversal(current)) return Optional.empty();
             String decoded;
@@ -138,6 +140,7 @@ public class RouteAllowlist {
         if (!collapsed.startsWith("/")) {
             collapsed = "/" + collapsed;
         }
+        boolean trailingSlash = collapsed.length() > 1 && collapsed.endsWith("/");
 
         // Segment-level traversal check
         String[] parts = collapsed.split("/");
@@ -153,6 +156,10 @@ public class RouteAllowlist {
         while (it.hasNext()) {
             out.append(it.next());
             if (it.hasNext()) out.append('/');
+        }
+        // Preserve non-root trailing slash so /home/admin/ does not collapse to /home/admin.
+        if (trailingSlash && out.length() > 1 && out.charAt(out.length() - 1) != '/') {
+            out.append('/');
         }
         return Optional.of(out.toString());
     }

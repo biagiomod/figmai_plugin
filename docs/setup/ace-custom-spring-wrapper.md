@@ -6,6 +6,12 @@ Public entrypoint:
 
 - `wrapper:8080` (Spring Boot)
 
+Public URLs:
+
+- Product site: `/home/`
+- ACE UI: `/home/admin/`
+- Root-relative product assets: `/fonts.css`, `/styles.css`, `/assets/**`
+
 Private internal service:
 
 - `node:3333` (ACE admin-editor, wrapper mode)
@@ -47,7 +53,7 @@ Internet / SSO / Identity Provider
 
 - Route allowlist (default-deny for non-allowlisted route/method).
 - Path normalization with iterative decoding (max 2 passes) and double-encoded traversal rejection.
-- `/api/auth/**` blocked (403) when `enable-auth=true`.
+- `/api/auth/me` and `/api/auth/bootstrap-allowed` are wrapper-owned endpoints handled by Spring MVC (not proxied to Node).
 - RBAC tier gating (public / read / write / admin).
 - Rate limiting (100 req/60s per user, fallback per IP).
 - Audit log emission (JSONL to stdout or file).
@@ -115,7 +121,7 @@ openssl rand -hex 32
 |----------|---------|-------------|
 | `server.port` | `8080` | Wrapper listen port |
 | `ace.routes.site-base-path` | `/home` | Marketing site base path |
-| `ace.routes.ace-base-path` | `/home/ace` | ACE UI base path |
+| `ace.routes.ace-base-path` | `/home/admin` | ACE UI base path |
 | `ace.routes.api-base-path` | `/api` | API base path |
 | `ace.proxy.node-base-url` | `http://127.0.0.1:3333` | Internal Node upstream URL |
 | `ace.proxy.wrapper-token` | `REPLACE_ME_LONG_RANDOM` | Shared secret injected as `X-ACE-Wrapper-Token`. **Validated at startup; placeholder values are rejected.** |
@@ -137,6 +143,18 @@ openssl rand -hex 32
 | `ace.audit.enabled` | `true` | Enable audit logging |
 | `ace.audit.mode` | `stdout` | Audit output mode (`stdout` or `file`) |
 | `ace.audit.log-path` | `./logs/ace-audit.jsonl` | Audit file path when mode is `file` |
+
+Path forwarding behavior:
+
+- The wrapper preserves the incoming path when proxying to Node.
+- Requests to `/home/admin`, `/home/admin/`, and `/home/admin/**` are forwarded upstream with the same prefix (no `/home/admin` stripping).
+
+Static asset routing:
+
+- **ACE assets** use relative paths (`fonts.css`, `styles.css`, `app.js`), resolved under `/home/admin/*` by the browser.
+- **Product site assets** use root-relative paths (`/fonts.css`, `/styles.css`, `/assets/**`), served by Node at those roots.
+- Both `GET` and `HEAD` methods are allowed for all public static routes (HEAD is used by browsers and CDNs for cache validation).
+- The allowlist must include root-level patterns (`GET /fonts.css`, `GET /styles.css`, `GET /assets/**`) to proxy product site assets correctly.
 
 ### Node wrapper mode environment variables
 
@@ -163,6 +181,13 @@ openssl rand -hex 32
 ### A. Node-only local dev (unchanged)
 
 All commands below assume you are at the **repo root** (`figmai_plugin/`).
+
+If you switched between macOS/Linux (or host Docker bind mounts), reset dependencies first to avoid `esbuild` platform mismatch:
+
+```bash
+rm -rf node_modules
+npm ci
+```
 
 ```bash
 npm run admin
@@ -248,16 +273,40 @@ Key topology:
 - Node service port `3333` is internal (not host-published).
 - Wrapper injects wrapper token, role, user, and groups headers on proxied requests.
 
-Before starting, replace ALL `REPLACE_ME_*` placeholder values (especially `ACE_WRAPPER_TOKEN` / `ace.proxy.wrapper-token`). Placeholder tokens are rejected at startup.
+For local Docker dev, copy `.env.example` to `.env` (contains a dev-only token). For internal/prod, replace with a strong token.
+If `WRAPPER_TOKEN` changes, recreate both services so Node and Spring stay in sync.
 
 ```bash
 cd enterprise/ace-spring-wrapper
-docker compose -f docker-compose.example.yml up --build
+cp .env.example .env
+# optional: replace WRAPPER_TOKEN in .env with openssl rand -hex 32
+docker compose -f docker-compose.example.yml up --build --force-recreate
 ```
+
+This compose setup uses a dedicated Docker volume for `/workspace/node_modules`, so host `node_modules` is never reused across platforms.
 
 ---
 
-## 7. Troubleshooting
+## 7. Internal Deployment Checklist
+
+- Set `ACE_AUTH_MODE=wrapper` on Node.
+- Publish and verify:
+  - `https://<host>/home/` (product site)
+  - `https://<host>/home/admin/` (ACE UI)
+- Set the same strong token in both places:
+  - Node env: `ACE_WRAPPER_TOKEN`
+  - Spring env/property: `ACE_PROXY_WRAPPERTOKEN` / `ace.proxy.wrapper-token`
+- Keep Node private (`ace-node:3333` internal only, not host published).
+- Expose only wrapper publicly (`host:8080 -> ace-wrapper:8080`).
+- Set `ACE_SECURITY_ENABLEAUTH=true` and `ACE_SECURITY_DEVSTUBAUTH=false`.
+- Configure Spring Security principal source (OIDC/SAML/pre-auth) in `SecurityConfig.java`.
+- Ensure `ace.security.group-to-role-map` matches real IdP group names.
+- Keep `ACE_ALLOW_GROUPS_FALLBACK=false` in production.
+- Reverse proxy must preserve the `/home` prefix when forwarding requests (no path stripping), unless you explicitly support a different base path in both Node and wrapper configs.
+
+---
+
+## 8. Troubleshooting
 
 ### Startup failures
 
@@ -299,10 +348,12 @@ Check:
 - In production: verify the `GrantedAuthority` values on the Spring Security principal.
 - In dev stub: hardcoded user is `dev-user@example.com` with groups `ace-admins,ace-editors`.
 
-### 403 Auth endpoints blocked
+### /api/auth/* behavior in wrapper deployments
 
-- `/api/auth/**` is blocked at both Spring (when `enable-auth=true`) and Node (when `ACE_AUTH_MODE=wrapper`).
-- This is expected. Authentication is handled by the Spring wrapper's SSO integration.
+- `GET /api/auth/me` is served by Spring wrapper and returns current identity from wrapper filters.
+- `GET /api/auth/bootstrap-allowed` is served by Spring wrapper and returns `{"allowed":false,...}`.
+- `POST /api/auth/login` and `POST /api/auth/bootstrap` are disabled at Node when `ACE_AUTH_MODE=wrapper`.
+- If `GET /api/auth/me` returns 401, no authenticated identity reached the wrapper (check dev-stub or your SSO principal wiring).
 
 ### 404 Route not allowed
 
@@ -322,7 +373,7 @@ Check:
 
 ---
 
-## 8. Security Checklist
+## 9. Security Checklist
 
 - [ ] Node binds to `127.0.0.1` only (default in wrapper mode, or set `ADMIN_EDITOR_HOST=127.0.0.1`)
 - [ ] `ace.proxy.wrapper-token` is a strong random value (not a placeholder)
@@ -331,7 +382,7 @@ Check:
 - [ ] Production mode does NOT use `dev-stub-auth=true`
 - [ ] `dev-stub-auth` is only enabled with `dev`/`local`/`test` Spring profile
 - [ ] Route allowlist covers only the endpoints ACE needs (no `* /**` wildcards)
-- [ ] `/api/auth/**` is blocked at Spring when `enable-auth=true`
+- [ ] `GET /api/auth/me` and `GET /api/auth/bootstrap-allowed` are served by Spring (not proxied)
 - [ ] Node runs with `ACE_AUTH_MODE=wrapper` (disables login, requires identity headers)
 - [ ] `max-request-bytes` is set to a reasonable limit (default 10 MB)
 - [ ] Audit logging is enabled (`ace.audit.enabled=true`)
@@ -343,12 +394,13 @@ Check:
 
 ---
 
-## 9. Run Commands Reference
+## 10. Run Commands Reference
 
 ### Node-only dev (unchanged)
 
 ```bash
 # From repo root (figmai_plugin/)
+rm -rf node_modules && npm ci
 npm run admin
 ```
 
@@ -382,6 +434,48 @@ mvn spring-boot:run -Dspring-boot.run.arguments="\
 --ace.proxy.wrapper-token=$WRAPPER_TOKEN"
 ```
 
+### Docker wrapper dev
+
+```bash
+cd enterprise/ace-spring-wrapper
+cp .env.example .env
+docker compose -f docker-compose.example.yml up --build --force-recreate
+
+# verify health + auth endpoints
+docker compose -f docker-compose.example.yml ps
+curl -i http://localhost:8080/api/auth/me
+curl -i http://localhost:8080/api/auth/bootstrap-allowed
+```
+
+Quick endpoint sanity checks (dev-stub mode):
+
+```bash
+# Product site + ACE UI
+curl -I http://localhost:8080/home/                  # 200 text/html
+curl -I http://localhost:8080/home/admin/             # 200 text/html
+
+# ACE static assets (relative paths resolve under /home/admin/*)
+curl -I http://localhost:8080/home/admin/app.js       # 200 application/javascript
+curl -I http://localhost:8080/home/admin/styles.css   # 200 text/css
+curl -I http://localhost:8080/home/admin/fonts.css    # 200 text/css
+
+# Product site root-relative assets
+curl -I http://localhost:8080/fonts.css               # 200 text/css
+curl -I http://localhost:8080/styles.css               # 200 text/css
+curl -I http://localhost:8080/assets/logo-figmai.svg  # 200 image/svg+xml
+
+# Auth shape expected by ACE UI
+curl -i http://localhost:8080/api/auth/me
+# expected: { "user": { "id": "...", "username": "...", "email": "...", "role": "..." }, "allowedTabs": [...] }
+
+# Core APIs used by ACE
+curl -i http://localhost:8080/api/model
+curl -i -X POST http://localhost:8080/api/validate -H "Content-Type: application/json" -d '{"model":{}}'
+curl -i -X POST http://localhost:8080/api/save -H "Content-Type: application/json" -d '{}'
+curl -i http://localhost:8080/api/users
+curl -i -X PATCH http://localhost:8080/api/users/demo -H "Content-Type: application/json" -d '{"role":"editor"}'
+```
+
 ### Production
 
 ```bash
@@ -399,7 +493,7 @@ mvn test
 
 ---
 
-## 10. Verification Checklist
+## 11. Verification Checklist
 
 - [ ] Node-only dev still works when `ACE_AUTH_MODE` is not set.
 - [ ] Spring fails to start with placeholder wrapper token.
@@ -409,8 +503,59 @@ mvn test
 - [ ] Direct Node wrapper-mode request with wrong token returns 403.
 - [ ] Wrapper strips incoming `X-ACE-User` / `X-ACE-Role` / `X-ACE-Groups` / `X-ACE-Wrapper-Token` headers from client.
 - [ ] Wrapper injects `X-ACE-Wrapper-Token`, `X-ACE-User`, `X-ACE-Role`, and `X-ACE-Groups` to Node.
-- [ ] Wrapper blocks `/api/auth/**` when `enable-auth=true`.
+- [ ] Wrapper bypasses proxy for `/api/auth/**` and serves wrapper-owned auth endpoints.
+- [ ] `HEAD /home/admin/app.js` returns 200 (not blocked by allowlist).
+- [ ] `GET /fonts.css`, `GET /styles.css`, `GET /assets/**` proxy to Node (200).
 - [ ] Encoded traversal paths (`%2e%2e`, `%252e%252e`) are rejected (404).
 - [ ] RBAC tier gating rejects under-privileged users (403).
 - [ ] Rate limiting returns 429 after threshold.
 - [ ] Audit log records include user, tier, method, path, status, latency, clientIp.
+
+---
+
+## 12. Plugin Build Integration (Pull from ACE)
+
+The plugin compile flow remains local, but you can pull the authoritative ACE config snapshot before `npm run build`.
+
+Add and use:
+
+```bash
+npm run pull-config
+```
+
+`pull-config` reads:
+
+- `ACE_URL` (default: `http://localhost:8080`)
+- `ACE_TOKEN` (optional; sent as `X-ACE-Wrapper-Token`)
+
+What it syncs:
+
+- `custom/config.json`
+- `custom/assistants.manifest.json`
+- `custom/knowledge/*.md`
+- `custom/design-systems/<id>/registry.json`
+- `docs/content-models.md` (when present in `/api/model`)
+- `custom/.ace-revision`
+
+Behavior:
+
+- Idempotent by `meta.revision` from `/api/model`
+- If revision is unchanged, no files are written
+- If revision changed and `custom/.ace-revision` exists, run with `--force` to overwrite local files
+
+Examples:
+
+```bash
+# Local wrapper (dev stub)
+ACE_URL=http://localhost:8080 ACE_TOKEN=dev-wrapper-token-local-only npm run pull-config
+npm run build
+
+# Internal server / CI
+ACE_URL=https://ace.example.internal ACE_TOKEN=$CI_ACE_TOKEN npm run pull-config -- --force
+npm run build
+```
+
+Security notes:
+
+- The pull script does not send identity headers (`X-ACE-User`, `X-ACE-Groups`, `X-ACE-Role`)
+- It only sends optional `X-ACE-Wrapper-Token` when `ACE_TOKEN` is provided

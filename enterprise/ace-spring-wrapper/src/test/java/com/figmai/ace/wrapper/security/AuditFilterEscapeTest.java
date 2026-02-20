@@ -1,6 +1,5 @@
-package com.figmai.ace.wrapper;
+package com.figmai.ace.wrapper.security;
 
-import com.figmai.ace.wrapper.security.AuditFilter;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,7 +36,6 @@ class AuditFilterEscapeTest {
 
     @Test
     void escapesControlCharsAsUnicode() {
-        // U+0000 (null), U+0001 (SOH), U+001F (unit separator)
         assertEquals("\\u0000", AuditFilter.escapeJson("\u0000"));
         assertEquals("\\u0001", AuditFilter.escapeJson("\u0001"));
         assertEquals("\\u001f", AuditFilter.escapeJson("\u001F"));

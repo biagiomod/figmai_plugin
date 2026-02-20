@@ -22,21 +22,26 @@ class RouteAllowlistTest {
         proxy.setAllowlist(Map.of(
             "public", List.of(
                 "GET /api/build-info",
-                "GET /home/**",
-                "GET /home/ace/**"
+                "GET /home/**", "HEAD /home/**",
+                "GET /home/admin/**", "HEAD /home/admin/**",
+                "GET /fonts.css", "HEAD /fonts.css",
+                "GET /styles.css", "HEAD /styles.css",
+                "GET /assets/**", "HEAD /assets/**"
             ),
             "read", List.of(
                 "GET /api/model",
                 "GET /api/kb/**"
             ),
             "write", List.of(
+                "POST /api/validate",
                 "POST /api/save",
                 "POST /api/kb/**",
                 "PUT /api/kb/**",
                 "DELETE /api/kb/**"
             ),
             "admin", List.of(
-                "* /api/admin/**"
+                "* /api/admin/**",
+                "PATCH /api/users/**"
             )
         ));
         props.setProxy(proxy);
@@ -53,7 +58,8 @@ class RouteAllowlistTest {
         RouteAllowlist ral = build();
         assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/api/build-info"));
         assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/home/about"));
-        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/home/ace/app.js"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/home/admin/"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/home/admin/app.js"));
     }
 
     @Test
@@ -66,6 +72,7 @@ class RouteAllowlistTest {
     @Test
     void writeRouteMatches() {
         RouteAllowlist ral = build();
+        assertEquals(Optional.of(RouteAllowlist.Tier.WRITE), ral.match("POST", "/api/validate"));
         assertEquals(Optional.of(RouteAllowlist.Tier.WRITE), ral.match("POST", "/api/save"));
         assertEquals(Optional.of(RouteAllowlist.Tier.WRITE), ral.match("DELETE", "/api/kb/123"));
     }
@@ -75,6 +82,7 @@ class RouteAllowlistTest {
         RouteAllowlist ral = build();
         assertEquals(Optional.of(RouteAllowlist.Tier.ADMIN), ral.match("GET", "/api/admin/users"));
         assertEquals(Optional.of(RouteAllowlist.Tier.ADMIN), ral.match("POST", "/api/admin/config"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.ADMIN), ral.match("PATCH", "/api/users/42"));
     }
 
     @Test
@@ -128,6 +136,7 @@ class RouteAllowlistTest {
         RouteAllowlist ral = build();
         assertEquals(Optional.of(RouteAllowlist.Tier.READ), ral.match("GET", "//api//model"));
         assertEquals(Optional.of(RouteAllowlist.Tier.READ), ral.match("GET", "/api//kb//123"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "//home//admin//"));
     }
 
     @Test
@@ -136,6 +145,28 @@ class RouteAllowlistTest {
         assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GeT", "/api/build-info"));
         // Path matching remains case-sensitive by design.
         assertEquals(Optional.empty(), ral.match("GET", "/API/BUILD-INFO"));
+    }
+
+    @Test
+    void headMethodAllowedForPublicStaticRoutes() {
+        RouteAllowlist ral = build();
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/home/admin/app.js"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/home/admin/styles.css"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/home/admin/fonts.css"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/home/admin/"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/home/"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/fonts.css"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/styles.css"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("HEAD", "/assets/logo.svg"));
+    }
+
+    @Test
+    void rootRelativeAssetsMatchPublic() {
+        RouteAllowlist ral = build();
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/fonts.css"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/styles.css"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/assets/logo-figmai.svg"));
+        assertEquals(Optional.of(RouteAllowlist.Tier.PUBLIC), ral.match("GET", "/assets/icons/icon.png"));
     }
 
     @Test

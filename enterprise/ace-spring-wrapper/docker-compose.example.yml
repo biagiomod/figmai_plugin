@@ -2,33 +2,38 @@
 # ACE Spring Wrapper — Docker Compose Example
 # ============================================================================
 #
-# BEFORE STARTING: replace ALL REPLACE_ME_* values.
-#   Generate a wrapper token:  openssl rand -hex 32
-#
-# Placeholder tokens (REPLACE_ME_LONG_RANDOM, changeme, etc.) are rejected
-# at startup by both Spring and Node.
+# BEFORE STARTING:
+#   - local dev: copy .env.example to .env (dev token provided)
+#   - internal/prod: set WRAPPER_TOKEN to a strong random value
+#     Generate one with: openssl rand -hex 32
 # ============================================================================
-version: "3.9"
 
 services:
   ace-node:
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /workspace
     command: sh -lc "npm ci && npx tsx admin-editor/server.ts"
     environment:
       ACE_AUTH_MODE: wrapper
-      # REQUIRED: Must match ACE_PROXY_WRAPPERTOKEN below.
+      # REQUIRED: Must match the wrapper token configured in ace-wrapper below.
       # Generate: openssl rand -hex 32
-      # WARNING: This placeholder value is rejected at startup. You MUST replace it.
-      ACE_WRAPPER_TOKEN: REPLACE_ME_LONG_RANDOM
+      # Keep WRAPPER_TOKEN in .env so both services resolve the same value.
+      ACE_WRAPPER_TOKEN: ${WRAPPER_TOKEN:?WRAPPER_TOKEN is required (copy .env.example to .env)}
       ACE_ALLOW_GROUPS_FALLBACK: "false"
       # Bind to all interfaces inside Docker network (wrapper connects here)
       ADMIN_EDITOR_HOST: "0.0.0.0"
       ADMIN_EDITOR_PORT: "3333"
     volumes:
       - ../../:/workspace
+      - ace_node_modules:/workspace/node_modules
     expose:
       - "3333"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3333/api/build-info').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   ace-wrapper:
@@ -39,12 +44,14 @@ services:
       - ace-node
     environment:
       SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: "dev"
       ACE_PROXY_NODEBASEURL: "http://ace-node:3333"
       # REQUIRED: Must match ACE_WRAPPER_TOKEN above.
-      # WARNING: This placeholder value is rejected at startup. You MUST replace it.
-      ACE_PROXY_WRAPPERTOKEN: REPLACE_ME_LONG_RANDOM
+      # Keep WRAPPER_TOKEN in .env so both services resolve the same value.
+      # Use canonical Spring binding key (ace.proxy.wrapper-token -> ACE_PROXY_WRAPPER_TOKEN).
+      ACE_PROXY_WRAPPER_TOKEN: ${WRAPPER_TOKEN:?WRAPPER_TOKEN is required (copy .env.example to .env)}
       ACE_SECURITY_ENABLEAUTH: "true"
-      ACE_SECURITY_DEVSTUBAUTH: "false"
+      ACE_SECURITY_DEVSTUBAUTH: "true"
       # These are OUTPUT header names for proxying to Node.
       # Node expects X-ACE-User / X-ACE-Groups / X-ACE-Role.
       # Do NOT change unless you also change Node's expected header names.
@@ -57,7 +64,16 @@ services:
       ACE_AUDIT_MODE: "stdout"
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8080/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
     restart: unless-stopped
+
+volumes:
+  ace_node_modules:
 
 # Public entrypoint:
 #   host:8080 -> ace-wrapper:8080

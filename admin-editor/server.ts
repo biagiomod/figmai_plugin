@@ -50,7 +50,7 @@ app.use(cookieParser())
 // In dev, prevent caching of main static assets so refresh always serves current files (avoids stale UI/blank page).
 const NO_CACHE_PATHS = new Set([
   '/', '/index.html', '/app.js', '/styles.css', '/fonts.css',
-  '/home', '/home/ace', '/home/ace/', '/home/ace/index.html', '/home/ace/app.js', '/home/ace/styles.css', '/home/ace/fonts.css'
+  '/home', '/home/', '/home/admin', '/home/admin/', '/home/admin/index.html', '/home/admin/app.js', '/home/admin/styles.css', '/home/admin/fonts.css'
 ])
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
@@ -204,7 +204,7 @@ function marketingLayout (opts: { title: string, activePath: string, body: strin
     { href: '/assistants', label: 'Assistants' },
     { href: '/demo', label: 'Demo' },
     { href: '/faq', label: 'FAQ' },
-    { href: '/home/ace', label: 'Admin' }
+    { href: '/home/admin', label: 'Admin' }
   ]
   const navHtml = navLinks.map(link => {
     const active = opts.activePath === link.href || (opts.activePath.startsWith('/assistants/') && link.href === '/assistants')
@@ -244,7 +244,7 @@ function sendMarketingPage (res: express.Response, routeName: string, page: { ti
 }
 
 // ——— Home and ACE paths ———
-app.get('/home', (_req, res) => {
+app.get(['/home', '/home/'], (_req, res) => {
   const assistants = loadAssistantsFromManifest()
   const assistantsCards = assistants.map(a => `
     <article class="ace-card ace-home-assistant-card">
@@ -269,7 +269,7 @@ app.get('/home', (_req, res) => {
       <h1 class="ace-section-title">AI assistance for design teams that need consistency, not chaos.</h1>
       <p class="ace-home-lead">FigmAI brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
       <div class="ace-home-cta-row">
-        <a class="btn-primary" href="/home/ace">Install the Plugin</a>
+        <a class="btn-primary" href="/home/admin">Install the Plugin</a>
         <a class="btn-secondary" href="/demo">Watch 2-min Demo</a>
       </div>
       <ul class="ace-home-proof-list">
@@ -351,7 +351,7 @@ app.get('/home', (_req, res) => {
     <div class="ace-card">
       <h2 class="ace-section-title">Ready to bring structured AI support into your design workflow?</h2>
       <div class="ace-home-cta-row">
-        <a class="btn-primary" href="/home/ace">Install the Plugin</a>
+        <a class="btn-primary" href="/home/admin">Install the Plugin</a>
         <a class="btn-secondary" href="/demo">Watch 2-min Demo</a>
       </div>
       <p class="ace-card-subtext">Start with one assistant, validate outputs in context, and scale gradually with team standards.</p>
@@ -558,12 +558,15 @@ app.get('/faq', (_req, res) => {
   })
 })
 app.use((req, res, next) => {
+  if (req.path === '/home/admin') {
+    return res.redirect(302, '/home/admin/')
+  }
   if (req.path === '/home/ace') {
-    return res.redirect(302, '/home/ace/')
+    return res.redirect(302, '/home/admin/')
   }
   next()
 })
-app.use('/home/ace', express.static(publicDir, { index: 'index.html' }))
+app.use('/home/admin', express.static(publicDir, { index: 'index.html' }))
 
 // ——— Root: ACE UI (unchanged) ———
 app.use(express.static(publicDir))

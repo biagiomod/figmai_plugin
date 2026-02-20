@@ -129,7 +129,7 @@ public class AuditFilter implements Filter {
                 case '\f' -> sb.append("\\f");
                 default -> {
                     if (c < 0x20) {
-                        // Escape all other control chars as \uXXXX
+                        // Escape all other control chars as unicode
                         sb.append(String.format("\\u%04x", (int) c));
                     } else {
                         sb.append(c);

@@ -22,7 +22,7 @@ public class AceWrapperProperties {
     // --- Routes ---
     public static class Routes {
         private String siteBasePath = "/home";
-        private String aceBasePath = "/home/ace";
+        private String aceBasePath = "/home/admin";
         private String apiBasePath = "/api";
         public String getSiteBasePath() { return siteBasePath; }
         public void setSiteBasePath(String v) { this.siteBasePath = v; }

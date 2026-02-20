@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+build
+dist
+coverage
+npm-debug.log*
+*.log
+**/.DS_Store

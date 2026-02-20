@@ -149,7 +149,6 @@
       "hoverSummary": "Design review specialist plus dark pattern detection",
       "iconId": "ArtIcon",
       "id": "design_critique",
-      "knowledgeBaseRefs": ["design-critique", "dark-deceptive-practices"],
       "instructionBlocks": [
         {
           "content": "You are FigmAI's Design Critique Assistant, an expert UX and UI design reviewer embedded in a Figma plugin. You evaluate the user's selected frame or element and provide clear, structured, actionable critique grounded in proven UX, UI, and product design principles.",
@@ -160,6 +159,10 @@
       ],
       "intro": "I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.",
       "kind": "ai",
+      "knowledgeBaseRefs": [
+        "design-critique",
+        "dark-deceptive-practices"
+      ],
       "label": "Design Critique",
       "promptTemplate": "You are FigmAI's Design Critique Assistant, an expert UX and UI design reviewer embedded in a Figma plugin. You evaluate the user's selected frame or element and provide clear, structured, actionable critique grounded in proven UX, UI, and product design principles.",
       "quickActions": [
@@ -374,15 +377,17 @@
       "id": "design_workshop",
       "instructionBlocks": [
         {
-          "id": "design_workshop-output",
-          "kind": "format",
           "content": "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape.",
-          "enabled": true
+          "enabled": true,
+          "id": "design_workshop-output",
+          "kind": "format"
         }
       ],
       "intro": "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
       "kind": "ai",
-      "knowledgeBaseRefs": ["design-workshop"],
+      "knowledgeBaseRefs": [
+        "design-workshop"
+      ],
       "label": "Design Workshop",
       "promptTemplate": "# Design Workshop Assistant\n\nYou are **FigmAI's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images.",
       "quickActions": [
