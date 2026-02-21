@@ -1,47 +1,54 @@
 /**
  * Content Table Assistant Handler
- * Handles Content Table assistant quick actions
+ *
+ * Supports two actions:
+ *   generate-table  — scans selected containers and creates a new table/session.
+ *   add-to-table    — scans selected containers and appends rows to the existing session.
+ *
+ * Multi-select: accepts 1+ containers. Each is scanned in selectionOrder (deterministic).
+ * PAGE / DOCUMENT nodes are skipped with a warning; empty selection is an error.
+ *
+ * After a successful scan the Figma selection is cleared (matches Analytics Tagging UX).
  */
 
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
+import type { ContentItemV1 } from '../../contentTable/types'
 import { scanContentTable } from '../../contentTable/scanner'
 import { loadWorkAdapter } from '../../work/loadAdapter'
 import { normalizeContentTableV1, validateContentTableV1 } from '../../contentTable/validate'
+import { applyExclusionRules, DEFAULT_EXCLUSION_CONFIG } from '../../contentTable/exclusionRules'
+import type { ExclusionRulesConfig } from '../../contentTable/exclusionRules'
 
 export class ContentTableHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
-    return assistantId === 'content_table' && actionId === 'generate-table'
+    return assistantId === 'content_table' && (actionId === 'generate-table' || actionId === 'add-to-table')
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
-    const { selectionOrder, sendAssistantMessage, replaceStatusMessage } = context
+    const { actionId, selectionOrder, replaceStatusMessage } = context
+    const isAppend = actionId === 'add-to-table'
 
-    // Validate selection: must be exactly one container
     if (selectionOrder.length === 0) {
-      const errorMsg = 'Select a single container to scan.'
+      const errorMsg = 'Select one or more containers to scan.'
       replaceStatusMessage(errorMsg, true)
       figma.notify(errorMsg)
       return { handled: true }
     }
 
-    if (selectionOrder.length > 1) {
-      const errorMsg = 'Only one selection allowed. Select a single container.'
-      replaceStatusMessage(errorMsg, true)
-      figma.notify(errorMsg)
-      return { handled: true }
+    // Resolve nodes — skip PAGE/DOCUMENT, collect valid containers in selection order.
+    const validNodes: SceneNode[] = []
+    const skippedNames: string[] = []
+    for (const nodeId of selectionOrder) {
+      const node = await figma.getNodeByIdAsync(nodeId)
+      if (!node) continue
+      if (node.type === 'DOCUMENT' || node.type === 'PAGE') {
+        skippedNames.push(node.name || node.id)
+        continue
+      }
+      validNodes.push(node as SceneNode)
     }
 
-    // Get the selected node
-    const selectedNode = await figma.getNodeByIdAsync(selectionOrder[0])
-    if (!selectedNode) {
-      const errorMsg = 'Selected node not found.'
-      replaceStatusMessage(errorMsg, true)
-      figma.notify(errorMsg)
-      return { handled: true }
-    }
-
-    // Validate it's a valid container (not DOCUMENT or PAGE)
-    if (selectedNode.type === 'DOCUMENT' || selectedNode.type === 'PAGE') {
+    if (validNodes.length === 0) {
       const errorMsg = 'Please select a container (frame, component, etc.), not a page or document.'
       replaceStatusMessage(errorMsg, true)
       figma.notify(errorMsg)
@@ -49,84 +56,78 @@ export class ContentTableHandler implements AssistantHandler {
     }
 
     try {
-      // Status message already created in main thread, no need to send "Scanning..."
-
-      // Load Work adapter and get ignore rules and design system detector (Work-only features)
-      // If no override file exists, adapter will be no-op and rules/detector will be null/undefined
       const workAdapter = await loadWorkAdapter()
       const ignoreRules = workAdapter.getContentTableIgnoreRules?.() || null
       const detectDesignSystemComponent = workAdapter.detectDesignSystemComponent
 
-      // Scan the container (now async for thumbnail export)
-      // Pass ignore rules and design system detector to scanner (will be null/undefined in Public Plugin, applied in Work Plugin)
-      let contentTable = await scanContentTable(selectedNode as SceneNode, ignoreRules, detectDesignSystemComponent)
+      // Scan each valid container in selection order and concatenate items.
+      // Use the first container for table-level metadata (source, meta, thumbnail).
+      let contentTable = await scanContentTable(validNodes[0], ignoreRules, detectDesignSystemComponent)
 
-      // Post-process Content Table (Work-only hook)
-      // Called AFTER scanning but BEFORE sending to UI/export
-      // If hook throws, catch and log but continue with original table (never break the flow)
+      if (validNodes.length > 1) {
+        const additionalItems: ContentItemV1[] = []
+        for (let i = 1; i < validNodes.length; i++) {
+          const extra = await scanContentTable(validNodes[i], ignoreRules, detectDesignSystemComponent)
+          additionalItems.push(...extra.items)
+        }
+        contentTable = { ...contentTable, items: [...contentTable.items, ...additionalItems] }
+      }
+
+      // Post-process (Work-only hook)
       if (workAdapter.postProcessContentTable) {
         try {
-          // Extract selection context from table
           const selectionContext = {
             pageId: contentTable.source.pageId,
             pageName: contentTable.source.pageName,
             rootNodeId: contentTable.meta.rootNodeId
           }
-
-          // Call post-process hook (may be async)
-          const processedTable = await workAdapter.postProcessContentTable({
-            table: contentTable,
-            selectionContext
-          })
-
-          // Use processed table if hook returned a modified version
-          contentTable = processedTable
-
-          console.log('[ContentTableHandler] Content table post-processed by Work adapter')
+          contentTable = await workAdapter.postProcessContentTable({ table: contentTable, selectionContext })
         } catch (error) {
-          // Log error but continue with original table (never break the flow)
           console.error('[ContentTableHandler] Error in postProcessContentTable hook:', error)
-          // Continue with original contentTable
         }
       }
 
-      // Normalize and validate Content Table (schema hardening)
-      // Normalize ensures required fields exist with safe defaults
+      // Normalize + validate
       contentTable = normalizeContentTableV1(contentTable)
-
-      // Validate schema invariants (dev-only warnings/errors, never breaks flow)
       const validation = validateContentTableV1(contentTable)
       if (!validation.ok && validation.errors.length > 0) {
-        // Log validation errors (dev-only, controlled by CONFIG.dev.enableContentTableValidationLogging)
         console.error('[ContentTableHandler] Content table validation errors:', validation.errors)
       }
       if (validation.warnings.length > 0) {
         console.warn('[ContentTableHandler] Content table validation warnings:', validation.warnings)
       }
 
-      // Replace status message with completion message
+      // Post-filter: exclusion rules (enabled for CT-A; Work adapter can override with custom rules)
+      const workExclusion = workAdapter.getExclusionRulesConfig?.()
+      const exclusionConfig: ExclusionRulesConfig = workExclusion ?? { enabled: true, rules: [] }
+      contentTable = { ...contentTable, items: applyExclusionRules(contentTable.items, exclusionConfig) }
+
+      // Status message
       const itemCount = contentTable.items.length
+      const verb = isAppend ? 'added' : 'generated'
       if (itemCount === 0) {
-        replaceStatusMessage('No text items found in the selected container.')
+        replaceStatusMessage('No text items found in the selected container(s).')
       } else {
-        replaceStatusMessage(`Found ${itemCount} text item${itemCount === 1 ? '' : 's'}. Table generated.`)
+        const skipNote = skippedNames.length > 0 ? ` (skipped: ${skippedNames.join(', ')})` : ''
+        replaceStatusMessage(`${isAppend ? 'Added' : 'Found'} ${itemCount} text item${itemCount === 1 ? '' : 's'}. Table ${verb}.${skipNote}`)
       }
 
-      // Send table to UI (normalized and validated)
       figma.ui.postMessage({
         pluginMessage: {
-          type: 'CONTENT_TABLE_GENERATED',
-          table: contentTable
+          type: isAppend ? 'CONTENT_TABLE_APPEND' : 'CONTENT_TABLE_GENERATED',
+          table: contentTable,
+          scannedContainerNodeIds: validNodes.map(n => n.id)
         }
       })
 
-      console.log('[ContentTableHandler] Content table generated:', itemCount, 'items')
+      // Clear Figma selection after successful scan (matches Analytics Tagging UX).
+      try { figma.currentPage.selection = [] } catch { /* fail silently */ }
+
       return { handled: true }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       replaceStatusMessage(`Error: ${errorMessage}`, true)
       figma.notify(`Error generating table: ${errorMessage}`)
-
       figma.ui.postMessage({
         pluginMessage: {
           type: 'CONTENT_TABLE_ERROR',

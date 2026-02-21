@@ -6,6 +6,7 @@
 import { placeArtifactFrame, type PlaceArtifactOptions } from './placeArtifact'
 import { scorecardComponent } from './components/scorecard'
 import { deceptiveReportComponent } from './components/deceptiveReport'
+import { pluginUIPreviewComponent } from './components/pluginUIPreview'
 
 /**
  * Options for creating an artifact
@@ -119,6 +120,7 @@ export async function createArtifact(
 export function initializeArtifactComponents(): void {
   registerArtifactComponent('scorecard', scorecardComponent)
   registerArtifactComponent('deceptive-report', deceptiveReportComponent)
+  registerArtifactComponent('plugin-ui-preview', pluginUIPreviewComponent)
 }
 
 // Auto-initialize on module load

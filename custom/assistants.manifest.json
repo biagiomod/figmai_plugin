@@ -60,6 +60,13 @@
           "templateMessage": "Scan selected container and generate content table"
         },
         {
+          "executionType": "tool-only",
+          "id": "add-to-table",
+          "label": "ADD",
+          "requiresSelection": true,
+          "templateMessage": "Add selected container(s) to existing table"
+        },
+        {
           "executionType": "ui-only",
           "id": "copy-table",
           "label": "Copy Table",

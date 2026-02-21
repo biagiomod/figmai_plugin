@@ -119,6 +119,10 @@ import type {
   ToolCall,
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
+  RenderTableOnStageHandler,
+  RenderTableOnStagePayload,
+  RenderPluginUIPreviewHandler,
+  RenderPluginUIPreviewPayload,
   RunPlaceholderScorecardHandler,
   RunScorecardV2PlaceholderHandler,
   RequestAnalyticsTaggingSessionHandler,
@@ -141,6 +145,7 @@ import { getHandler, getHandlerByActionId } from './core/assistants/handlers'
 import { getTopLevelContainerNode } from './core/stage/anchor'
 import { BUILD_VERSION, BUILD_ID, BUILT_AT } from './core/build'
 import type { ExecutionType } from './core/types'
+import { pluginUIPreviewComponent } from './core/figma/artifacts/components/pluginUIPreview'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -1841,6 +1846,199 @@ on<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', async fu
       pluginMessage: {
         type: 'CONTENT_TABLE_REF_IMAGE_ERROR',
         message: `Could not export reference image: ${errorMessage}`
+      }
+    })
+  }
+})
+
+on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: RenderTableOnStagePayload) {
+  const FRAME_NAME = 'CT-A Table Preview'
+  const { headers, rows, existingFrameId } = payload
+
+  let frame: FrameNode | null = null
+
+  if (existingFrameId) {
+    const existing = await figma.getNodeByIdAsync(existingFrameId)
+    if (existing && existing.type === 'FRAME') {
+      frame = existing as FrameNode
+      for (const child of [...frame.children]) child.remove()
+    }
+  }
+
+  if (!frame) {
+    frame = figma.createFrame()
+    frame.name = FRAME_NAME
+  }
+
+  const BASE_COL_W = 130
+  const CONTENT_COL_W = BASE_COL_W * 3
+  const MIN_ROW_H = 24
+  const MAX_CONTENT_H = 80
+  const PAD = 8
+  const FONT_SIZE = 10
+  const CELL_PAD = 4
+
+  await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
+  await figma.loadFontAsync({ family: 'Inter', style: 'Bold' })
+
+  const colKeys = payload.columnKeys || []
+  const contentColIdx = headers.findIndex(h => h === 'Content')
+  const figmaRefColIndices = new Set<number>()
+  for (let i = 0; i < headers.length; i++) {
+    const key = colKeys[i] || ''
+    if (key === 'figmaRef' || key === 'nodeUrl' || headers[i] === 'Figma Ref' || headers[i] === 'Node URL') {
+      figmaRefColIndices.add(i)
+    }
+  }
+  const colWidths = headers.map((_, i) => i === contentColIdx ? CONTENT_COL_W : BASE_COL_W)
+  const totalW = colWidths.reduce((s, w) => s + w, 0)
+
+  const colX = (colIdx: number) => {
+    let x = 0
+    for (let i = 0; i < colIdx; i++) x += colWidths[i]
+    return x
+  }
+
+  frame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+  frame.clipsContent = true
+
+  for (let c = 0; c < headers.length; c++) {
+    const w = colWidths[c]
+    const bg = figma.createRectangle()
+    bg.x = colX(c)
+    bg.y = 0
+    bg.resize(w, MIN_ROW_H)
+    bg.fills = [{ type: 'SOLID', color: { r: 0.94, g: 0.94, b: 0.94 } }]
+    frame.appendChild(bg)
+
+    const txt = figma.createText()
+    txt.fontName = { family: 'Inter', style: 'Bold' }
+    txt.fontSize = FONT_SIZE
+    txt.characters = headers[c]
+    txt.x = colX(c) + CELL_PAD
+    txt.y = 5
+    txt.textAutoResize = 'NONE'
+    txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
+    txt.textTruncation = 'ENDING'
+    frame.appendChild(txt)
+  }
+
+  let yOffset = MIN_ROW_H
+  for (let r = 0; r < rows.length; r++) {
+    const cellTexts: TextNode[] = []
+    const cellHeights: number[] = []
+
+    for (let c = 0; c < headers.length; c++) {
+      const w = colWidths[c]
+      const isContent = c === contentColIdx
+      const isFigmaRef = figmaRefColIndices.has(c)
+      const raw = rows[r][c] || ''
+      const txt = figma.createText()
+      txt.fontName = { family: 'Inter', style: 'Regular' }
+      txt.fontSize = FONT_SIZE
+
+      if (isContent) {
+        txt.resize(w - CELL_PAD * 2, MIN_ROW_H)
+        txt.textAutoResize = 'HEIGHT'
+        txt.characters = raw.replace(/\r\n|\r/g, '\n')
+        const measured = Math.min(txt.height, MAX_CONTENT_H)
+        cellHeights.push(Math.max(MIN_ROW_H, measured + CELL_PAD))
+      } else if (isFigmaRef && raw) {
+        const linkLabel = 'View in Figma'
+        txt.textAutoResize = 'NONE'
+        txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
+        txt.characters = linkLabel
+        try {
+          txt.setRangeHyperlink(0, linkLabel.length, { type: 'URL', value: raw })
+          txt.setRangeTextDecoration(0, linkLabel.length, 'UNDERLINE')
+          txt.setRangeFills(0, linkLabel.length, [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1 } }])
+        } catch (_) {
+          txt.characters = 'View in Figma: ' + raw
+        }
+        txt.textTruncation = 'ENDING'
+        cellHeights.push(MIN_ROW_H)
+      } else {
+        txt.characters = raw.replace(/\n/g, ' ')
+        txt.textAutoResize = 'NONE'
+        txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
+        txt.textTruncation = 'ENDING'
+        cellHeights.push(MIN_ROW_H)
+      }
+      cellTexts.push(txt)
+    }
+
+    const rowH = Math.max(...cellHeights)
+
+    for (let c = 0; c < headers.length; c++) {
+      const w = colWidths[c]
+      const isContent = c === contentColIdx
+      const txt = cellTexts[c]
+      txt.x = colX(c) + CELL_PAD
+      txt.y = yOffset + CELL_PAD
+
+      if (isContent) {
+        const clampH = Math.min(txt.height, MAX_CONTENT_H)
+        txt.resize(w - CELL_PAD * 2, clampH)
+        txt.textAutoResize = 'NONE'
+      }
+
+      frame.appendChild(txt)
+    }
+
+    yOffset += rowH
+  }
+
+  const minH = MIN_ROW_H * 2 + PAD
+  frame.resize(Math.max(totalW, BASE_COL_W), Math.max(yOffset + PAD, minH))
+  figma.currentPage.appendChild(frame)
+  figma.viewport.scrollAndZoomIntoView([frame])
+
+  figma.ui.postMessage({
+    pluginMessage: {
+      type: 'RENDER_TABLE_ON_STAGE_DONE',
+      frameId: frame.id
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Render Plugin UI Preview to Stage
+// ---------------------------------------------------------------------------
+on<RenderPluginUIPreviewHandler>('RENDER_PLUGIN_UI_PREVIEW', async function (payload: RenderPluginUIPreviewPayload) {
+  const { theme } = payload
+  const frameName = theme === 'dark'
+    ? 'FigmAI Plugin UI \u2014 Dark'
+    : 'FigmAI Plugin UI \u2014 Light'
+
+  for (const child of [...figma.currentPage.children]) {
+    if (child.name === frameName) child.remove()
+  }
+
+  const root = figma.createFrame()
+  root.name = frameName
+  root.clipsContent = false
+
+  try {
+    await pluginUIPreviewComponent.render({
+      root,
+      options: { type: 'plugin-ui-preview', assistant: 'settings', replace: true },
+      data: { theme }
+    })
+
+    figma.viewport.scrollAndZoomIntoView([root])
+
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'RENDER_PLUGIN_UI_PREVIEW_DONE',
+        theme
+      }
+    })
+  } catch (err) {
+    root.remove()
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'RENDER_PLUGIN_UI_PREVIEW_FAILED',
+        error: err instanceof Error ? err.message : String(err)
       }
     })
   }

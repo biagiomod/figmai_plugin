@@ -7,6 +7,7 @@
  */
 
 import type { UniversalContentTableV1 } from '../types'
+import type { ExclusionRulesConfig } from '../contentTable/exclusionRules'
 
 /**
  * Design System Information
@@ -119,6 +120,13 @@ export interface WorkAdapter {
    * Work-only: Get ignore rules for filtering nodes during Content Table scanning
    */
   getContentTableIgnoreRules?: () => ContentTableIgnoreRules
+
+  /**
+   * Content Table Exclusion Rules Config
+   * Optional: return config to enable post-scan exclusion filtering.
+   * If absent or returns { enabled: false }, no filtering is applied.
+   */
+  getExclusionRulesConfig?: () => ExclusionRulesConfig
 
   /**
    * Design System Component Detector

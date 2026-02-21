@@ -64,7 +64,8 @@ export function summarizeSelection(selectionOrder?: string[]): SelectionState {
     count,
     summary,
     hasSelection: true,
-    names
+    names,
+    nodeIds: selection.map(n => n.id)
   }
 }
 

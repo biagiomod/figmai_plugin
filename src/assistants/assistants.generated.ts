@@ -55,6 +55,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     kind: "tool",
     quickActions: [
       { id: "generate-table", label: "GENERATE TABLE", templateMessage: "Scan selected container and generate content table", executionType: "tool-only", requiresSelection: true },
+      { id: "add-to-table", label: "ADD", templateMessage: "Add selected container(s) to existing table", executionType: "tool-only", requiresSelection: true },
       { id: "copy-table", label: "Copy Table", templateMessage: "Copy table to clipboard", executionType: "ui-only" },
       { id: "view-table", label: "View Table", templateMessage: "View table in plugin", executionType: "ui-only" },
       { id: "copy-ref-image", label: "Get Ref Image", templateMessage: "Get reference image", executionType: "ui-only" },

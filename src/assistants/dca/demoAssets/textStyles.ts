@@ -14,7 +14,7 @@ import { colors, fonts } from './tokens'
 export interface TextStyle {
   fontFamily: string
   fontSize: number
-  fontWeight: 'Regular' | 'Bold' | 'Medium' | 'SemiBold'
+  fontWeight: 'Regular' | 'Bold' | 'Medium' | 'Semi Bold'
   color: RGB
   lineHeight?: { unit: 'AUTO' | 'PIXELS'; value?: number }
 }

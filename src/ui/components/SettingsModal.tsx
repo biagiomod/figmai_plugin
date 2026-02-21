@@ -5,7 +5,8 @@ import { emit } from '@create-figma-plugin/utilities'
 import type {
   SaveSettingsHandler,
   TestProxyConnectionHandler,
-  RequestSettingsHandler
+  RequestSettingsHandler,
+  RenderPluginUIPreviewHandler
 } from '../../core/types'
 import type { Settings } from '../../core/settings'
 import type { Mode } from '../../core/types'
@@ -81,6 +82,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     errorMessage?: string
   } | null>(null)
   const [isTesting, setIsTesting] = useState(false)
+  const [uiPreviewTheme, setUiPreviewTheme] = useState<'light' | 'dark'>('light')
+  const [uiPreviewRendering, setUiPreviewRendering] = useState(false)
+  const [uiPreviewError, setUiPreviewError] = useState<string | null>(null)
   // Refs for stable message handler (avoid re-registration on state changes)
   const modeRef = useRef<Mode>(mode)
   const hideContentMvpModeRef = useRef<boolean>(hideContentMvpMode)
@@ -205,6 +209,12 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         setSharedToken(settings.sharedToken || '')
         setSessionToken(settings.sessionToken || '')
         setDefaultModel(settings.defaultModel || 'gpt-4.1-mini')
+      } else if (message.type === 'RENDER_PLUGIN_UI_PREVIEW_DONE') {
+        setUiPreviewRendering(false)
+        setUiPreviewError(null)
+      } else if (message.type === 'RENDER_PLUGIN_UI_PREVIEW_FAILED') {
+        setUiPreviewRendering(false)
+        setUiPreviewError(message.error || 'Render failed')
       }
     }
     
@@ -1122,6 +1132,67 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             Save
           </Button>
         </div>
+        {/* Render UI to Stage */}
+        <div style={{
+          borderTop: '1px solid var(--border-subtle)',
+          paddingTop: 'var(--spacing-md)',
+          marginTop: 'var(--spacing-sm)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--spacing-xs)'
+        }}>
+          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--fg-secondary)' }}>
+            Render Plugin UI to Stage
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+            <select
+              id="ui-preview-theme"
+              value={uiPreviewTheme}
+              onChange={(e) => setUiPreviewTheme((e.target as HTMLSelectElement).value as 'light' | 'dark')}
+              style={{
+                flex: 1,
+                fontSize: 'var(--font-size-sm)',
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--surface-modal)',
+                color: 'var(--fg)',
+                height: '28px'
+              }}
+            >
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setUiPreviewRendering(true)
+                setUiPreviewError(null)
+                emit<RenderPluginUIPreviewHandler>('RENDER_PLUGIN_UI_PREVIEW', { theme: uiPreviewTheme })
+              }}
+              disabled={uiPreviewRendering}
+              style={{
+                fontSize: 'var(--font-size-sm)',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+                backgroundColor: uiPreviewRendering ? 'var(--fg-disabled)' : 'var(--accent)',
+                color: 'var(--accent-text, #fff)',
+                cursor: uiPreviewRendering ? 'wait' : 'pointer',
+                height: '28px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {uiPreviewRendering ? 'Rendering...' : 'Render to Stage'}
+            </button>
+          </div>
+          {uiPreviewError && (
+            <div style={{ color: 'var(--error, #f33)', fontSize: 'var(--font-size-xs, 11px)', marginTop: '4px' }}>
+              Render failed: {uiPreviewError}
+            </div>
+          )}
+        </div>
+
         {/* Build version (read-only) */}
         <div style={{
           fontSize: 'var(--font-size-xs)',

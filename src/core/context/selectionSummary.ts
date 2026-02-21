@@ -239,7 +239,7 @@ export async function extractSelectionSummary(selectionOrder?: string[]): Promis
       if (typeof textNode.fontName !== 'symbol') {
         summary.fontFamily = `${textNode.fontName.family} ${textNode.fontName.style}`
         // Extract weight from style if available
-        const styleMatch = textNode.fontName.style.match(/(\d+)|(Bold|Regular|Light|Medium|SemiBold|Black|Thin)/i)
+        const styleMatch = textNode.fontName.style.match(/(\d+)|(Bold|Regular|Light|Medium|Semi\s?Bold|Black|Thin)/i)
         if (styleMatch) {
           summary.fontWeight = styleMatch[0]
         }

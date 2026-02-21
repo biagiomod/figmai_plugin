@@ -120,6 +120,7 @@ import type {
   Assistant,
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
+  RenderTableOnStageHandler,
   RequestAnalyticsTaggingSessionHandler,
   AnalyticsTaggingUpdateRowHandler,
   ExportAnalyticsTaggingScreenshotsHandler
@@ -127,7 +128,11 @@ import type {
 import type { AnalyticsTaggingExportCompactRow } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
-import { PRESET_INFO } from './core/contentTable/presets.generated'
+import { PRESET_INFO, PRESET_COLUMNS } from './core/contentTable/presets.generated'
+import type { ContentTableSession } from './core/contentTable/session'
+import { createSession, getEffectiveItems, applyEdit, deleteItem, appendItems, toggleDuplicateScan } from './core/contentTable/session'
+import { classifyCandidates, filterByDuplicates } from './core/contentTable/duplicates'
+import type { ContentItemV1 } from './core/contentTable/types'
 import { sessionToTable } from './core/analyticsTagging/sessionToTable'
 import type { Session, Row } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
@@ -425,12 +430,17 @@ function Plugin() {
   const [scorecardError, setScorecardError] = useState<{ error: string; raw?: string } | null>(null)
   // Content Table state
   const [contentTable, setContentTable] = useState<UniversalContentTableV1 | null>(null)
+  const [ctSession, setCtSession] = useState<ContentTableSession | null>(null)
   const [showFormatModal, setShowFormatModal] = useState(false)
   const [selectedFormat, setSelectedFormat] = useState<TableFormatPreset>('universal')
   const [showTableView, setShowTableView] = useState(false)
   const [pendingAction, setPendingAction] = useState<'copy' | 'view' | 'confluence' | null>(null)
   const [isCopyingRefImage, setIsCopyingRefImage] = useState(false)
   const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
+  const scannedContainerIdsRef = useRef<Set<string>>(new Set())
+  const [showRescanConfirm, setShowRescanConfirm] = useState(false)
+  const pendingRescanActionRef = useRef<string | null>(null)
+  const stageFrameIdRef = useRef<string | null>(null)
   const [showConfluenceModal, setShowConfluenceModal] = useState(false)
   const [lastPromptDiagnostics, setLastPromptDiagnostics] = useState<{
     compact: string
@@ -755,14 +765,42 @@ function Plugin() {
             (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
           
           if (shouldProcessContentTable) {
-            console.log('[UI] Received CONTENT_TABLE_GENERATED:', message.table)
-            console.log('[UI] setThinking false - CONTENT_TABLE_GENERATED')
-            setContentTable(message.table)
+            const rawItems = message.table.items as ContentItemV1[]
+            const dupResults = classifyCandidates(rawItems, [])
+            const { items: filtered, flaggedIds, skippedCount } = filterByDuplicates(dupResults)
+            const dedupedTable = { ...message.table, items: filtered }
+            setContentTable(dedupedTable)
+            setCtSession(createSession(dedupedTable, { flaggedDuplicateIds: flaggedIds, skippedCount }))
+            const genContainerIds: string[] = message.scannedContainerNodeIds || []
+            for (const cid of genContainerIds) scannedContainerIdsRef.current.add(cid)
+            if (genContainerIds.length === 0 && message.table.meta?.rootNodeId) {
+              scannedContainerIdsRef.current.add(message.table.meta.rootNodeId)
+            }
           } else {
-            console.log('[UI] Ignoring CONTENT_TABLE_GENERATED - resetToken mismatch or missing table', { 
-              messageToken: message.resetToken, 
-              currentToken: resetToken 
+            // Ignore stale messages
+          }
+          break
+        case 'CONTENT_TABLE_APPEND':
+          if (message.table) {
+            setCtSession(prev => {
+              if (!prev) return createSession(message.table)
+              const existing = getEffectiveItems(prev)
+              if (prev.scanEnabled) {
+                const dupResults = classifyCandidates(message.table.items, existing)
+                const { items: filtered, flaggedIds, skippedCount } = filterByDuplicates(dupResults)
+                return appendItems(prev, filtered, { flaggedDuplicateIds: flaggedIds, skippedCount })
+              }
+              return appendItems(prev, message.table.items)
             })
+            setContentTable(prev => {
+              if (!prev) return message.table
+              return { ...prev, items: [...prev.items, ...message.table.items] }
+            })
+            const appContainerIds: string[] = message.scannedContainerNodeIds || []
+            for (const cid of appContainerIds) scannedContainerIdsRef.current.add(cid)
+            if (appContainerIds.length === 0 && message.table.meta?.rootNodeId) {
+              scannedContainerIdsRef.current.add(message.table.meta.rootNodeId)
+            }
           }
           break
         case 'CONTENT_TABLE_ERROR':
@@ -776,6 +814,7 @@ function Plugin() {
             console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
             console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
             setContentTable(null)
+            setCtSession(null)
           } else {
             console.log('[UI] Ignoring CONTENT_TABLE_ERROR - resetToken mismatch', { 
               messageToken: message.resetToken, 
@@ -792,6 +831,9 @@ function Plugin() {
           console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_ERROR:', message.message)
           setIsCopyingRefImage(false)
           emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', message.message || 'Could not copy reference image.')
+          break
+        case 'RENDER_TABLE_ON_STAGE_DONE':
+          if (message.frameId) stageFrameIdRef.current = message.frameId
           break
         case 'PLACEHOLDER_SCORECARD_PLACED':
           console.log('[UI] Received PLACEHOLDER_SCORECARD_PLACED')
@@ -1298,10 +1340,18 @@ function Plugin() {
         }
         if (actionId === 'generate-new-table') {
           setContentTable(null)
+          setCtSession(null)
           setShowTableView(false)
           setSelectedFormat('universal')
           if (!selectionState.hasSelection) {
             setSelectionRequired(true)
+            return
+          }
+          const selNodeIds = selectionState.nodeIds || []
+          const overlap = selNodeIds.some(id => scannedContainerIdsRef.current.has(id))
+          if (overlap) {
+            pendingRescanActionRef.current = 'generate-table'
+            setShowRescanConfirm(true)
             return
           }
           emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'generate-table', assistant.id)
@@ -1379,11 +1429,16 @@ function Plugin() {
       return
     }
     
-    // FIX: Do NOT add user message here - main thread is the source of truth
-    // Main thread will create the user message and send it back via ASSISTANT_MESSAGE
-    // This prevents duplicate user bubbles (UI was adding optimistically, then main sent it again)
+    if (assistant.id === 'content_table' && (actionId === 'generate-table' || actionId === 'add-to-table')) {
+      const selNodeIds = selectionState.nodeIds || []
+      const overlap = selNodeIds.some(id => scannedContainerIdsRef.current.has(id))
+      if (overlap) {
+        pendingRescanActionRef.current = actionId
+        setShowRescanConfirm(true)
+        return
+      }
+    }
     
-    // Clear previous scorecard when starting new action
     if (assistant.id === 'design_critique' && actionId === 'give-critique') {
       setScorecard(null)
       setScorecardError(null)
@@ -2290,12 +2345,18 @@ ${htmlTable}
     .pop()
   
   // Quick actions: single source of truth from manifest (assistant.quickActions).
-  // Content Table: when table exists show UI-only actions; when no table show only generate-table.
+  // Content Table:
+  //   - generate-table: always visible
+  //   - add-to-table:   visible only when a session already has items
+  //   - ui-only actions: visible only when a table exists
   const quickActionsSource =
     assistant.id === 'content_table'
-      ? contentTable
-        ? assistant.quickActions.filter((a: QuickAction) => a.executionType === 'ui-only')
-        : assistant.quickActions.filter((a: QuickAction) => a.id === 'generate-table')
+      ? assistant.quickActions.filter((a: QuickAction) => {
+          if (a.id === 'generate-table') return true
+          if (a.id === 'add-to-table') return !!ctSession
+          if (a.executionType === 'ui-only') return !!contentTable
+          return false
+        })
       : assistant.quickActions
   const quickActions = quickActionsSource.filter((action: QuickAction) => {
     if (action.requiresSelection && !selectionState.hasSelection) return false
@@ -3144,7 +3205,8 @@ ${htmlTable}
           </div>
         )}
 
-        {/* Text Input */}
+        {/* Text Input — hidden for tool-only assistants (Content Table) */}
+        {assistant.id !== 'content_table' && (
         <TextboxMultiline
           ref={inputRef}
           value={input}
@@ -3165,6 +3227,7 @@ ${htmlTable}
             cursor: mode === 'content-mvp' ? 'not-allowed' : 'text'
           }}
         />
+        )}
         
         {/* Bottom Controls */}
         <div style={{
@@ -3265,7 +3328,8 @@ ${htmlTable}
             <ChevronDownIcon width={12} height={12} />
           </button>
           
-          {/* Send Button */}
+          {/* Send Button — hidden for tool-only assistants (Content Table) */}
+          {assistant.id !== 'content_table' && (
           <button
             type="button"
             onClick={handleSend}
@@ -3289,6 +3353,7 @@ ${htmlTable}
               <path d="M11.5264 4.41794C11.8209 4.17763 12.2557 4.19509 12.5303 4.4697L18.5303 10.4697C18.8232 10.7626 18.8232 11.2374 18.5303 11.5302C18.2374 11.8231 17.7626 11.8231 17.4697 11.5302L12.75 6.81052V19C12.75 19.4142 12.4142 19.75 12 19.75C11.5858 19.75 11.25 19.4142 11.25 19V6.81052L6.53027 11.5302C6.23738 11.8231 5.76262 11.8231 5.46973 11.5302C5.17684 11.2374 5.17685 10.7626 5.46973 10.4697L11.4697 4.4697L11.5264 4.41794Z" fill="#ffffff"/>
             </svg>
           </button>
+          )}
         </div>
       </div>
       
@@ -3790,11 +3855,44 @@ ${htmlTable}
               alignItems: 'center',
               marginBottom: 'var(--spacing-sm)'
             }}>
-              <div style={{
-                fontSize: 'var(--font-size-lg)',
-                fontWeight: 'var(--font-weight-semibold)'
-              }}>
-                Content Table
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  fontSize: 'var(--font-size-lg)',
+                  fontWeight: 'var(--font-weight-semibold)'
+                }}>
+                  Content Table
+                  {selectedFormat !== 'universal' && (
+                    <span style={{ fontSize: '11px', color: '#666', fontWeight: 400 }}>
+                      {' '}({PRESET_INFO.find(p => p.id === selectedFormat)?.label || selectedFormat})
+                    </span>
+                  )}
+                </div>
+                {ctSession && (
+                  <label
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px',
+                      color: ctSession.scanEnabled ? 'var(--accent, #0d99ff)' : '#888',
+                      cursor: 'pointer', userSelect: 'none',
+                      padding: '2px 8px', borderRadius: '10px',
+                      border: `1px solid ${ctSession.scanEnabled ? 'var(--accent, #0d99ff)' : '#ccc'}`,
+                      backgroundColor: ctSession.scanEnabled ? 'rgba(13,153,255,0.08)' : 'transparent',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={ctSession.scanEnabled}
+                      onChange={(e) => setCtSession(prev => prev ? toggleDuplicateScan(prev, (e.target as HTMLInputElement).checked) : prev)}
+                      style={{ margin: 0, cursor: 'pointer', accentColor: 'var(--accent, #0d99ff)' }}
+                    />
+                    Duplicate Scan
+                  </label>
+                )}
+                {ctSession && ctSession.lastSkippedCount > 0 && (
+                  <span style={{ fontSize: '10px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 6px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
+                    {ctSession.lastSkippedCount} duplicate{ctSession.lastSkippedCount > 1 ? 's' : ''} skipped
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => setShowTableView(false)}
@@ -3814,30 +3912,150 @@ ${htmlTable}
             <div style={{
               flex: 1,
               overflowY: 'auto',
+              overflowX: 'auto',
               border: '1px solid #e0e0e0',
               borderRadius: 'var(--radius-sm)',
-              padding: 'var(--spacing-sm)',
-              backgroundColor: '#ffffff',
-              userSelect: 'text',
-              WebkitUserSelect: 'text',
-              MozUserSelect: 'text',
-              msUserSelect: 'text',
-              cursor: 'text',
-              pointerEvents: 'auto'
+              padding: 0,
+              backgroundColor: '#ffffff'
             }}>
-              <div 
-                style={{
-                  userSelect: 'text',
-                  WebkitUserSelect: 'text',
-                  MozUserSelect: 'text',
-                  msUserSelect: 'text',
-                  cursor: 'text',
-                  pointerEvents: 'auto',
-                  backgroundColor: '#ffffff',
-                  color: '#000000'
-                }}
-                dangerouslySetInnerHTML={{ __html: toHtmlTable(contentTable, selectedFormat, { forView: true }) }} 
-              />
+              {ctSession ? (() => {
+                const items = getEffectiveItems(ctSession)
+                const presetCols = PRESET_COLUMNS[selectedFormat]
+                const dynamicColumns = presetCols && presetCols.length > 0 ? presetCols : PRESET_COLUMNS['universal']
+                const editableKeys = new Set(['content', 'notes', 'contentKey', 'jiraTicket', 'adaNotes', 'errorMessage'])
+                const editableFieldMap: Record<string, keyof ContentItemV1> = {
+                  content: 'content',
+                  notes: 'notes',
+                  contentKey: 'contentKey',
+                  notesJira: 'jiraTicket',
+                  jiraTicket: 'jiraTicket',
+                  adaNotes: 'adaNotes',
+                  errorMessage: 'errorMessage',
+                  rulesComment: 'notes'
+                }
+                const isContentCol = (key: string) => key === 'content'
+                const isFigmaRefCol = (key: string) => key === 'figmaRef' || key === 'nodeUrl'
+                const ROW_W = 36
+                const TOOLS_W = 56
+                const CONTENT_W = 360
+                const OTHER_W = 120
+                const otherCount = dynamicColumns.filter(c => !isContentCol(c.key)).length
+                const hasContent = dynamicColumns.some(c => isContentCol(c.key))
+                const tableMinW = ROW_W + TOOLS_W + (hasContent ? CONTENT_W : 0) + otherCount * OTHER_W
+                const thStyle = (isContent: boolean): React.CSSProperties => ({
+                  padding: '6px 10px', borderBottom: '2px solid #ddd', textAlign: 'left' as const,
+                  whiteSpace: 'nowrap' as const, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const,
+                  color: '#333', boxSizing: 'border-box' as const, fontSize: '12px', lineHeight: '1.4',
+                  width: isContent ? `${CONTENT_W}px` : `${OTHER_W}px`,
+                  minWidth: isContent ? `${CONTENT_W}px` : `${OTHER_W}px`
+                })
+                return (
+                  <table style={{ minWidth: `${tableMinW}px`, borderCollapse: 'collapse', fontSize: '12px', fontFamily: 'Inter, system-ui, sans-serif', tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: `${ROW_W}px` }} />
+                      {dynamicColumns.map(col => (
+                        <col key={col.key} style={{ width: isContentCol(col.key) ? `${CONTENT_W}px` : `${OTHER_W}px` }} />
+                      ))}
+                      <col style={{ width: `${TOOLS_W}px` }} />
+                    </colgroup>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f5f5f5' }}>
+                        <th style={{ padding: '6px 10px', borderBottom: '2px solid #ddd', textAlign: 'left', whiteSpace: 'nowrap', color: '#333', width: `${ROW_W}px`, boxSizing: 'border-box' }}>#</th>
+                        {dynamicColumns.map(col => (
+                          <th key={col.key} style={thStyle(isContentCol(col.key))}>{col.label}</th>
+                        ))}
+                        <th style={{ padding: '6px 10px', borderBottom: '2px solid #ddd', textAlign: 'center', whiteSpace: 'nowrap', color: '#333', width: `${TOOLS_W}px`, boxSizing: 'border-box' }}>Tools</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item, idx) => (
+                        <tr key={item.id} style={{ borderBottom: '1px solid #eee', verticalAlign: 'top' }}>
+                          <td style={{ padding: '4px 10px', color: '#999', fontSize: '11px', boxSizing: 'border-box' }}>{idx + 1}</td>
+                          {dynamicColumns.map(col => {
+                            const fieldKey = editableFieldMap[col.key]
+                            const isContent = isContentCol(col.key)
+                            if (fieldKey) {
+                              const curVal = fieldKey === 'content' ? item.content.value : (item[fieldKey] as string || '')
+                              if (isContent) {
+                                return (
+                                  <td key={col.key} style={{ padding: '4px 8px', boxSizing: 'border-box' }}>
+                                    <textarea
+                                      defaultValue={curVal}
+                                      rows={2}
+                                      onBlur={(e) => {
+                                        if (e.currentTarget.value !== curVal) {
+                                          setCtSession(prev => prev ? applyEdit(prev, item.id, fieldKey, e.currentTarget.value) : prev)
+                                        }
+                                      }}
+                                      style={{ width: '100%', minWidth: 0, border: '1px solid transparent', borderRadius: '3px', padding: '2px 4px', fontSize: '12px', fontFamily: 'inherit', color: '#000', backgroundColor: 'transparent', outline: 'none', resize: 'vertical', maxHeight: '96px', overflowY: 'auto', lineHeight: '1.4', boxSizing: 'border-box' }}
+                                      onFocus={(e) => { e.currentTarget.style.borderColor = '#0d99ff'; e.currentTarget.style.backgroundColor = '#fff' }}
+                                      onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent' }}
+                                    />
+                                  </td>
+                                )
+                              }
+                              return (
+                                <td key={col.key} style={{ padding: '4px 10px', boxSizing: 'border-box', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  <input
+                                    type="text"
+                                    defaultValue={curVal}
+                                    placeholder={fieldKey === 'notes' ? 'Add note...' : ''}
+                                    onBlur={(e) => {
+                                      if (e.currentTarget.value !== curVal) {
+                                        setCtSession(prev => prev ? applyEdit(prev, item.id, fieldKey, e.currentTarget.value) : prev)
+                                      }
+                                    }}
+                                    style={{ width: '100%', minWidth: 0, border: '1px solid transparent', borderRadius: '3px', padding: '2px 4px', fontSize: '12px', fontFamily: 'inherit', color: '#000', backgroundColor: 'transparent', outline: 'none', boxSizing: 'border-box' }}
+                                    onFocus={(e) => { e.currentTarget.style.borderColor = '#0d99ff'; e.currentTarget.style.backgroundColor = '#fff' }}
+                                    onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent' }}
+                                  />
+                                </td>
+                              )
+                            }
+                            if (isContent) {
+                              return (
+                                <td key={col.key} style={{ padding: '4px 8px', color: '#000', fontSize: '12px', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: '1.4', maxHeight: '96px', overflowY: 'auto', boxSizing: 'border-box' }}>{col.extract(item)}</td>
+                              )
+                            }
+                            if (isFigmaRefCol(col.key)) {
+                              const url = col.extract(item)
+                              return (
+                                <td key={col.key} style={{ padding: '4px 10px', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', boxSizing: 'border-box' }}>
+                                  {url ? <a href={url} target="_blank" rel="noreferrer" style={{ color: '#0066ff', textDecoration: 'underline', fontSize: '12px' }}>View in Figma</a> : ''}
+                                </td>
+                              )
+                            }
+                            return (
+                              <td key={col.key} style={{ padding: '4px 10px', color: '#000', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', boxSizing: 'border-box' }}>{col.extract(item)}</td>
+                            )
+                          })}
+                          <td style={{ padding: '4px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            {ctSession.flaggedDuplicateIds.has(item.id) && (
+                              <span title="Possible duplicate" style={{ fontSize: '9px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 4px', borderRadius: '4px', marginRight: '4px', fontWeight: 600 }}>Dup?</span>
+                            )}
+                            <button
+                              onClick={() => setCtSession(prev => prev ? deleteItem(prev, item.id) : prev)}
+                              title="Delete row"
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#cc3333', fontSize: '14px', padding: '2px 4px', borderRadius: '3px', lineHeight: 1 }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee' }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {items.length === 0 && (
+                        <tr><td colSpan={dynamicColumns.length + 2} style={{ padding: '16px', textAlign: 'center', color: '#999' }}>No items. All rows have been deleted.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                )
+              })() : (
+                <div style={{ padding: '16px', textAlign: 'center', color: '#999' }}>
+                  No table data available.
+                </div>
+              )}
             </div>
             
             <div style={{
@@ -3908,6 +4126,35 @@ ${htmlTable}
                   )}
                   {isCopyingRefImage ? 'Getting...' : 'Get Ref Image'}
                 </button>
+                <button
+                  onClick={() => {
+                    if (!ctSession || !contentTable) return
+                    const items = getEffectiveItems(ctSession)
+                    const presetCols = PRESET_COLUMNS[selectedFormat]
+                    const cols = presetCols && presetCols.length > 0 ? presetCols : PRESET_COLUMNS['universal']
+                    emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
+                      headers: cols.map(c => c.label),
+                      rows: items.map(item => cols.map(c => c.extract(item))),
+                      title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
+                      existingFrameId: stageFrameIdRef.current,
+                      columnKeys: cols.map(c => c.key)
+                    })
+                  }}
+                  disabled={!ctSession}
+                  style={{
+                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: !ctSession ? 'var(--muted)' : 'var(--accent)',
+                    color: !ctSession ? 'var(--fg)' : 'var(--accent-text)',
+                    cursor: !ctSession ? 'not-allowed' : 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    opacity: !ctSession ? 0.6 : 1
+                  }}
+                >
+                  Add to Stage
+                </button>
                 {CONFIG.dev.enableClipboardDebugLogging && (
                   <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
                     <button
@@ -3973,6 +4220,65 @@ ${htmlTable}
         </div>
       )}
       
+      {showRescanConfirm && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'var(--overlay-scrim)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100
+        }} onClick={() => { setShowRescanConfirm(false); pendingRescanActionRef.current = null }}>
+          <div style={{
+            backgroundColor: 'var(--surface-modal)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-lg)',
+            maxWidth: '360px', width: '90%',
+            display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)',
+            boxShadow: 'var(--shadow-elevation)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}>
+              Rescan confirmation
+            </div>
+            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--fg)' }}>
+              You've scanned this item before. Proceed?
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowRescanConfirm(false); pendingRescanActionRef.current = null }}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--fg)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-sm)'
+                }}
+              >No</button>
+              <button
+                onClick={() => {
+                  const actionId = pendingRescanActionRef.current
+                  setShowRescanConfirm(false)
+                  pendingRescanActionRef.current = null
+                  if (actionId) {
+                    emit<RunQuickActionHandler>('RUN_QUICK_ACTION', actionId, assistant.id)
+                  }
+                }}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--accent)',
+                  color: 'var(--accent-text)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 'var(--font-weight-medium)'
+                }}
+              >Yes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SEND JSON Modal */}
       {showSendJsonModal && (
         <div style={{

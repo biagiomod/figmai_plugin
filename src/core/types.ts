@@ -25,6 +25,8 @@ export interface SelectionState {
   summary: string
   hasSelection: boolean
   names: string[]
+  /** Node IDs of selected items (used for rescan detection in CT-A). */
+  nodeIds?: string[]
 }
 
 // ============================================================================
@@ -226,6 +228,28 @@ export interface CopyTableStatusHandler extends EventHandler {
 export interface ExportContentTableRefImageHandler extends EventHandler {
   name: 'EXPORT_CONTENT_TABLE_REF_IMAGE'
   handler: (rootNodeId: string) => void
+}
+
+export interface RenderTableOnStagePayload {
+  headers: string[]
+  rows: string[][]
+  title: string
+  existingFrameId: string | null
+  columnKeys?: string[]
+}
+
+export interface RenderTableOnStageHandler extends EventHandler {
+  name: 'RENDER_TABLE_ON_STAGE'
+  handler: (payload: RenderTableOnStagePayload) => void
+}
+
+export interface RenderPluginUIPreviewPayload {
+  theme: 'light' | 'dark'
+}
+
+export interface RenderPluginUIPreviewHandler extends EventHandler {
+  name: 'RENDER_PLUGIN_UI_PREVIEW'
+  handler: (payload: RenderPluginUIPreviewPayload) => void
 }
 
 // ============================================================================
