@@ -778,8 +778,17 @@ function Plugin() {
             const dupResults = classifyCandidates(rawItems, [])
             const { items: filtered, flaggedIds, skippedCount } = filterByDuplicates(dupResults)
             const dedupedTable = { ...message.table, items: filtered }
+            const ignoreFlagIds = new Set<string>(Array.isArray(message.flaggedIgnoreIds) ? message.flaggedIgnoreIds : [])
+            const ignoreRuleByItemId = (message.ignoreRuleByItemId && typeof message.ignoreRuleByItemId === 'object')
+              ? message.ignoreRuleByItemId as Record<string, string>
+              : {}
             setContentTable(dedupedTable)
-            setCtSession(createSession(dedupedTable, { flaggedDuplicateIds: flaggedIds, skippedCount }))
+            setCtSession(createSession(dedupedTable, {
+              flaggedDuplicateIds: flaggedIds,
+              flaggedIgnoreIds: ignoreFlagIds,
+              ignoreRuleByItemId,
+              skippedCount
+            }))
             const genContainerIds: string[] = message.scannedContainerNodeIds || []
             for (const cid of genContainerIds) scannedContainerIdsRef.current.add(cid)
             if (genContainerIds.length === 0 && message.table.meta?.rootNodeId) {
@@ -792,14 +801,29 @@ function Plugin() {
         case 'CONTENT_TABLE_APPEND':
           if (message.table) {
             setCtSession(prev => {
-              if (!prev) return createSession(message.table)
+              const appendIgnoreFlags = new Set<string>(Array.isArray(message.flaggedIgnoreIds) ? message.flaggedIgnoreIds : [])
+              const appendIgnoreRules = (message.ignoreRuleByItemId && typeof message.ignoreRuleByItemId === 'object')
+                ? message.ignoreRuleByItemId as Record<string, string>
+                : {}
+              if (!prev) return createSession(message.table, {
+                flaggedIgnoreIds: appendIgnoreFlags,
+                ignoreRuleByItemId: appendIgnoreRules
+              })
               const existing = getEffectiveItems(prev)
               if (prev.scanEnabled) {
                 const dupResults = classifyCandidates(message.table.items, existing)
                 const { items: filtered, flaggedIds, skippedCount } = filterByDuplicates(dupResults)
-                return appendItems(prev, filtered, { flaggedDuplicateIds: flaggedIds, skippedCount })
+                return appendItems(prev, filtered, {
+                  flaggedDuplicateIds: flaggedIds,
+                  flaggedIgnoreIds: appendIgnoreFlags,
+                  ignoreRuleByItemId: appendIgnoreRules,
+                  skippedCount
+                })
               }
-              return appendItems(prev, message.table.items)
+              return appendItems(prev, message.table.items, {
+                flaggedIgnoreIds: appendIgnoreFlags,
+                ignoreRuleByItemId: appendIgnoreRules
+              })
             })
             setContentTable(prev => {
               if (!prev) return message.table

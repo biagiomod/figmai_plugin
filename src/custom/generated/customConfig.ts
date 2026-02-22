@@ -8,6 +8,25 @@
  */
 
 export interface CustomConfig {
+  contentTable?: {
+    exclusionRules?: {
+      enabled?: boolean
+      rules?: Array<{
+        name?: string
+        enabled?: boolean
+        note?: string
+        matchTarget?: 'content' | 'layerName' | 'both'
+        matchType?: 'exact' | 'contains' | 'regex'
+        pattern?: string
+        action?: 'exclude' | 'flag'
+        confidence?: 'high' | 'med' | 'low'
+        label?: string
+        field?: 'component.name' | 'component.kind' | 'field.label' | 'field.role' | 'content.value' | 'textLayerName'
+        match?: 'equals' | 'contains' | 'startsWith' | 'regex'
+      }>
+    }
+    exclusionRulesDebug?: boolean
+  }
   ui?: {
     defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
@@ -178,6 +197,44 @@ export const customConfig: CustomConfig | null = {
   },
   "accessibility": {
     "hatRequiredComponents": []
+  },
+  "contentTable": {
+    "exclusionRulesDebug": true,
+    "exclusionRules": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "Date/time stamp",
+          "enabled": true,
+          "matchTarget": "content",
+          "matchType": "regex",
+          "pattern": "\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\s+\\d{1,2}(?:,\\s*\\d{2,4})?(?:\\s+\\d{1,2}:\\d{2}(?:\\s?[AP]M)?)?(?:\\s+[A-Z]{2,4})?\\b",
+          "action": "exclude",
+          "confidence": "high",
+          "note": ""
+        },
+        {
+          "name": "Dash placeholder",
+          "enabled": true,
+          "matchTarget": "content",
+          "matchType": "regex",
+          "pattern": "^[\\s\\-–—]{2,}$",
+          "action": "exclude",
+          "confidence": "high",
+          "note": ""
+        },
+        {
+          "name": "Ticker-like uppercase",
+          "enabled": true,
+          "matchTarget": "content",
+          "matchType": "regex",
+          "pattern": "^[A-Z]{2,5}$",
+          "action": "flag",
+          "confidence": "low",
+          "note": ""
+        }
+      ]
+    }
   },
   "detectors": {
     "elementClassifier": {

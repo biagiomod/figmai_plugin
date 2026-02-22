@@ -99,12 +99,23 @@ export const configSchema = z
         exclusionRules: z
           .object({
             enabled: z.boolean().optional(),
-            rules: z.array(z.object({
-              label: z.string(),
-              field: z.enum(['component.name', 'component.kind', 'field.label', 'field.role', 'content.value', 'textLayerName']),
-              match: z.enum(['equals', 'contains', 'startsWith', 'regex']),
-              pattern: z.string()
-            }).passthrough()).optional()
+            rules: z.array(
+              z.object({
+                // New rule shape (ACE ignore list v1)
+                name: z.string().optional(),
+                enabled: z.boolean().optional(),
+                note: z.string().optional(),
+                matchTarget: z.enum(['content', 'layerName', 'both']).optional(),
+                matchType: z.enum(['exact', 'contains', 'regex']).optional(),
+                pattern: z.string().optional(),
+                action: z.enum(['exclude', 'flag']).optional(),
+                confidence: z.enum(['high', 'med', 'low']).optional(),
+                // Legacy shape (backward compatibility)
+                label: z.string().optional(),
+                field: z.enum(['component.name', 'component.kind', 'field.label', 'field.role', 'content.value', 'textLayerName']).optional(),
+                match: z.enum(['equals', 'contains', 'startsWith', 'regex']).optional()
+              }).passthrough()
+            ).optional()
           })
           .passthrough()
           .optional()

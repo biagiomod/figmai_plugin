@@ -12,6 +12,28 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 interface CustomConfig {
+  contentTable?: {
+    exclusionRules?: {
+      enabled?: boolean
+      rules?: Array<{
+        // New ACE ignore-list rule shape
+        name?: string
+        enabled?: boolean
+        note?: string
+        matchTarget?: 'content' | 'layerName' | 'both'
+        matchType?: 'exact' | 'contains' | 'regex'
+        pattern?: string
+        action?: 'exclude' | 'flag'
+        confidence?: 'high' | 'med' | 'low'
+        // Legacy backward-compatible shape
+        label?: string
+        field?: 'component.name' | 'component.kind' | 'field.label' | 'field.role' | 'content.value' | 'textLayerName'
+        match?: 'equals' | 'contains' | 'startsWith' | 'regex'
+      }>
+    }
+    // Dev-only runtime diagnostics switch (off by default)
+    exclusionRulesDebug?: boolean
+  }
   ui?: {
     defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean
@@ -277,6 +299,25 @@ function generateConfigModule(config: CustomConfig | null): string {
  */
 
 export interface CustomConfig {
+  contentTable?: {
+    exclusionRules?: {
+      enabled?: boolean
+      rules?: Array<{
+        name?: string
+        enabled?: boolean
+        note?: string
+        matchTarget?: 'content' | 'layerName' | 'both'
+        matchType?: 'exact' | 'contains' | 'regex'
+        pattern?: string
+        action?: 'exclude' | 'flag'
+        confidence?: 'high' | 'med' | 'low'
+        label?: string
+        field?: 'component.name' | 'component.kind' | 'field.label' | 'field.role' | 'content.value' | 'textLayerName'
+        match?: 'equals' | 'contains' | 'startsWith' | 'regex'
+      }>
+    }
+    exclusionRulesDebug?: boolean
+  }
   ui?: {
     defaultMode?: 'content-mvp' | 'simple' | 'advanced'
     hideContentMvpMode?: boolean

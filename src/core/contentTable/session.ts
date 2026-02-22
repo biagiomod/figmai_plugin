@@ -23,6 +23,10 @@ export interface ContentTableSession {
   scanEnabled: boolean
   /** Item IDs flagged as possible (MED-confidence) duplicates. */
   flaggedDuplicateIds: Set<string>
+  /** Item IDs flagged by ACE ignore-list rules with action=flag. */
+  flaggedIgnoreIds: Set<string>
+  /** Optional rule name by item id for ignore-flag tooltip/context. */
+  ignoreRuleByItemId: Record<string, string>
   /** Count of HIGH-confidence duplicates skipped in the most recent scan/add. */
   lastSkippedCount: number
 }
@@ -32,8 +36,23 @@ export interface ContentTableSession {
  */
 export function createSession(
   table: UniversalContentTableV1,
-  opts?: { flaggedDuplicateIds?: Set<string>; skippedCount?: number }
+  opts?: {
+    flaggedDuplicateIds?: Set<string>
+    flaggedIgnoreIds?: Set<string>
+    ignoreRuleByItemId?: Record<string, string>
+    skippedCount?: number
+  }
 ): ContentTableSession {
+  const validIds = new Set(table.items.map(item => item.id))
+  const ignoreFlags = new Set<string>()
+  opts?.flaggedIgnoreIds?.forEach(id => { if (validIds.has(id)) ignoreFlags.add(id) })
+  const ignoreRuleByItemId: Record<string, string> = {}
+  if (opts?.ignoreRuleByItemId) {
+    const initialRuleMap = opts.ignoreRuleByItemId
+    Object.keys(opts.ignoreRuleByItemId).forEach((id) => {
+      if (validIds.has(id)) ignoreRuleByItemId[id] = initialRuleMap[id]
+    })
+  }
   return {
     baseTable: table,
     editedItems: {},
@@ -41,6 +60,8 @@ export function createSession(
     duplicates: new Map(),
     scanEnabled: true,
     flaggedDuplicateIds: opts?.flaggedDuplicateIds ?? new Set(),
+    flaggedIgnoreIds: ignoreFlags,
+    ignoreRuleByItemId,
     lastSkippedCount: opts?.skippedCount ?? 0
   }
 }
@@ -101,7 +122,16 @@ export function applyEdit(
 export function deleteItem(session: ContentTableSession, itemId: string): ContentTableSession {
   const newDeleted = new Set(session.deletedIds)
   newDeleted.add(itemId)
-  const newSession = { ...session, deletedIds: newDeleted }
+  const newIgnoreFlags = new Set(session.flaggedIgnoreIds)
+  newIgnoreFlags.delete(itemId)
+  const newRuleMap = { ...session.ignoreRuleByItemId }
+  delete newRuleMap[itemId]
+  const newSession = {
+    ...session,
+    deletedIds: newDeleted,
+    flaggedIgnoreIds: newIgnoreFlags,
+    ignoreRuleByItemId: newRuleMap
+  }
 
   if (newSession.scanEnabled) {
     newSession.duplicates = detectDuplicates(newSession)
@@ -117,7 +147,12 @@ export function deleteItem(session: ContentTableSession, itemId: string): Conten
 export function appendItems(
   session: ContentTableSession,
   newItems: ContentItemV1[],
-  opts?: { flaggedDuplicateIds?: Set<string>; skippedCount?: number }
+  opts?: {
+    flaggedDuplicateIds?: Set<string>
+    flaggedIgnoreIds?: Set<string>
+    ignoreRuleByItemId?: Record<string, string>
+    skippedCount?: number
+  }
 ): ContentTableSession {
   const updatedTable: UniversalContentTableV1 = {
     ...session.baseTable,
@@ -127,10 +162,24 @@ export function appendItems(
   if (opts?.flaggedDuplicateIds) {
     opts.flaggedDuplicateIds.forEach(id => mergedFlags.add(id))
   }
+  const mergedIgnoreFlags = new Set(session.flaggedIgnoreIds)
+  if (opts?.flaggedIgnoreIds) {
+    opts.flaggedIgnoreIds.forEach(id => mergedIgnoreFlags.add(id))
+  }
+  const mergedIgnoreRules = { ...session.ignoreRuleByItemId, ...(opts?.ignoreRuleByItemId || {}) }
+  const validIds = new Set(updatedTable.items.map(item => item.id))
+  const prunedIgnoreFlags = new Set<string>()
+  mergedIgnoreFlags.forEach(id => { if (validIds.has(id)) prunedIgnoreFlags.add(id) })
+  const prunedIgnoreRules: Record<string, string> = {}
+  Object.keys(mergedIgnoreRules).forEach((id) => {
+    if (validIds.has(id)) prunedIgnoreRules[id] = mergedIgnoreRules[id]
+  })
   const newSession: ContentTableSession = {
     ...session,
     baseTable: updatedTable,
     flaggedDuplicateIds: mergedFlags,
+    flaggedIgnoreIds: prunedIgnoreFlags,
+    ignoreRuleByItemId: prunedIgnoreRules,
     lastSkippedCount: opts?.skippedCount ?? 0
   }
   if (newSession.scanEnabled) {

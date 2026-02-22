@@ -163,6 +163,8 @@ export function ContentTableView({
               /* Items mode: 1 item → 1 row, editable, with # and Tools columns */
               items.map((item, idx) => {
                 const isFlagged = session.flaggedDuplicateIds.has(item.id)
+                const isIgnoreFlagged = session.flaggedIgnoreIds.has(item.id)
+                const ignoreRuleName = session.ignoreRuleByItemId[item.id] || ''
                 const row = projected.rows[idx]
                 return (
                   <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -205,6 +207,9 @@ export function ContentTableView({
                       )
                     })}
                     <td style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {isIgnoreFlagged && (
+                        <span title={ignoreRuleName ? `Matched ignore rule: ${ignoreRuleName}` : 'Matched ignore-list rule'} style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Ignore?</span>
+                      )}
                       {isFlagged && (
                         <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
                       )}

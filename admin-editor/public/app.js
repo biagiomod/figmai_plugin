@@ -239,7 +239,14 @@
   }
 
   function getEditedModel () {
-    return state.editedModel ? deepClone(state.editedModel) : null
+    if (!state.editedModel) return null
+    var cloned = deepClone(state.editedModel)
+    if (!cloned.config) cloned.config = {}
+    if (!cloned.config.contentTable) cloned.config.contentTable = {}
+    if (!cloned.config.contentTable.exclusionRules) cloned.config.contentTable.exclusionRules = { enabled: false, rules: [] }
+    if (!Array.isArray(cloned.config.contentTable.exclusionRules.rules)) cloned.config.contentTable.exclusionRules.rules = []
+    if (typeof cloned.config.contentTable.exclusionRules.enabled !== 'boolean') cloned.config.contentTable.exclusionRules.enabled = false
+    return cloned
   }
 
   function setEditedModel (model) {
@@ -1018,26 +1025,73 @@
       '</div></div>',
       expandedMap['accessibility-hat'])
     var ctExcl = (m.config.contentTable && m.config.contentTable.exclusionRules) || { enabled: false, rules: [] }
-    var exclRulesHtml = '<div class="ace-card"><p class="ace-card-subtext">Pattern-based exclusion rules for Content Table scans. Standalone numeric/currency handling is always active when enabled.</p>'
+    function normalizeExclRuleForEditor (rule, i) {
+      var r = (rule && typeof rule === 'object') ? rule : {}
+      var name = typeof r.name === 'string' && r.name.trim() ? r.name : (typeof r.label === 'string' && r.label.trim() ? r.label : ('Rule ' + (i + 1)))
+      var enabled = (typeof r.enabled === 'boolean') ? r.enabled : true
+      var note = typeof r.note === 'string' ? r.note : ''
+      var pattern = typeof r.pattern === 'string' ? r.pattern : ''
+      var matchTarget = 'content'
+      if (r.matchTarget === 'layerName' || r.matchTarget === 'both' || r.matchTarget === 'content') {
+        matchTarget = r.matchTarget
+      } else if (r.field === 'textLayerName') {
+        matchTarget = 'layerName'
+      }
+      var matchType = 'contains'
+      if (r.matchType === 'exact' || r.matchType === 'contains' || r.matchType === 'regex') {
+        matchType = r.matchType
+      } else if (r.match === 'equals') {
+        matchType = 'exact'
+      } else if (r.match === 'regex') {
+        matchType = 'regex'
+      } else if (r.match === 'startsWith') {
+        matchType = 'contains'
+      }
+      var action = (r.action === 'flag') ? 'flag' : 'exclude'
+      var confidence = (r.confidence === 'med' || r.confidence === 'low' || r.confidence === 'high') ? r.confidence : 'high'
+      return {
+        name: name,
+        enabled: enabled,
+        note: note,
+        matchTarget: matchTarget,
+        matchType: matchType,
+        pattern: pattern,
+        action: action,
+        confidence: confidence
+      }
+    }
+    var exclEditorRules = (ctExcl.rules || []).map(function (rule, i) { return normalizeExclRuleForEditor(rule, i) })
+    var exclRulesHtml = '<div class="ace-card"><p class="ace-card-subtext">ACE-managed ignore list for CT-A. Exclude removes rows; Flag keeps rows and marks them for review.</p>'
     exclRulesHtml += '<div class="field-row"><label><input type="checkbox" id="ct-excl-enabled" ' + (ctExcl.enabled ? 'checked' : '') + '> Enabled</label></div>'
-    exclRulesHtml += '<table class="ace-excl-rules-table" id="ct-excl-rules-table"><thead><tr><th>Label</th><th>Field</th><th>Match</th><th>Pattern</th><th></th></tr></thead><tbody>'
-    var exclFields = ['component.name', 'component.kind', 'field.label', 'field.role', 'content.value', 'textLayerName']
-    var exclMatches = ['equals', 'contains', 'startsWith', 'regex']
-    ;(ctExcl.rules || []).forEach(function (rule, i) {
+    exclRulesHtml += '<table class="ace-excl-rules-table" id="ct-excl-rules-table"><thead><tr><th>Name</th><th>Enabled</th><th>Target</th><th>Match</th><th>Pattern</th><th>Action</th><th>Conf.</th><th>Note</th><th></th></tr></thead><tbody>'
+    var exclTargets = ['content', 'layerName', 'both']
+    var exclMatches = ['exact', 'contains', 'regex']
+    var exclActions = ['exclude', 'flag']
+    var exclConf = ['high', 'med', 'low']
+    ;exclEditorRules.forEach(function (rule, i) {
       exclRulesHtml += '<tr data-i="' + i + '">'
-      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-label" data-i="' + i + '" value="' + escapeHtml(rule.label || '') + '"></td>'
-      exclRulesHtml += '<td><select class="ct-excl-field" data-i="' + i + '">'
-      exclFields.forEach(function (f) { exclRulesHtml += '<option value="' + f + '"' + (rule.field === f ? ' selected' : '') + '>' + f + '</option>' })
+      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-name" data-i="' + i + '" value="' + escapeHtml(rule.name || '') + '"></td>'
+      exclRulesHtml += '<td style="text-align:center"><input type="checkbox" class="ct-excl-rule-enabled" data-i="' + i + '"' + (rule.enabled ? ' checked' : '') + '></td>'
+      exclRulesHtml += '<td><select class="ct-excl-target" data-i="' + i + '">'
+      exclTargets.forEach(function (t) { exclRulesHtml += '<option value="' + t + '"' + (rule.matchTarget === t ? ' selected' : '') + '>' + t + '</option>' })
       exclRulesHtml += '</select></td>'
       exclRulesHtml += '<td><select class="ct-excl-match" data-i="' + i + '">'
-      exclMatches.forEach(function (m) { exclRulesHtml += '<option value="' + m + '"' + (rule.match === m ? ' selected' : '') + '>' + m + '</option>' })
+      exclMatches.forEach(function (m) { exclRulesHtml += '<option value="' + m + '"' + (rule.matchType === m ? ' selected' : '') + '>' + m + '</option>' })
       exclRulesHtml += '</select></td>'
       exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-pattern" data-i="' + i + '" value="' + escapeHtml(rule.pattern || '') + '"></td>'
+      exclRulesHtml += '<td><select class="ct-excl-action" data-i="' + i + '">'
+      exclActions.forEach(function (a) { exclRulesHtml += '<option value="' + a + '"' + (rule.action === a ? ' selected' : '') + '>' + a + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><select class="ct-excl-confidence" data-i="' + i + '">'
+      exclConf.forEach(function (c) { exclRulesHtml += '<option value="' + c + '"' + (rule.confidence === c ? ' selected' : '') + '>' + c + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-note" data-i="' + i + '" value="' + escapeHtml(rule.note || '') + '"></td>'
       exclRulesHtml += '<td><button type="button" class="btn-small ct-excl-remove" data-i="' + i + '">Remove</button></td>'
       exclRulesHtml += '</tr>'
     })
     exclRulesHtml += '</tbody></table>'
     exclRulesHtml += '<button type="button" class="btn-small add-btn" id="ct-excl-add">Add rule</button>'
+    exclRulesHtml += ' <button type="button" class="btn-small" id="ct-excl-add-presets">Add presets</button>'
     exclRulesHtml += '</div>'
     html += collapsibleSection('content-table-exclusion', 'Content Table — Exclusion Rules', exclRulesHtml, expandedMap['content-table-exclusion'])
     html += collapsibleSection('advanced-raw-json', 'Advanced: Raw JSON Config',
@@ -1269,17 +1323,24 @@
       if (!state.editedModel.config.contentTable) state.editedModel.config.contentTable = {}
       if (!state.editedModel.config.contentTable.exclusionRules) state.editedModel.config.contentTable.exclusionRules = { enabled: false, rules: [] }
       if (!Array.isArray(state.editedModel.config.contentTable.exclusionRules.rules)) state.editedModel.config.contentTable.exclusionRules.rules = []
+      state.editedModel.config.contentTable.exclusionRules.rules = state.editedModel.config.contentTable.exclusionRules.rules.map(function (rule, idx) {
+        return normalizeExclRuleForEditor(rule, idx)
+      })
       return state.editedModel.config.contentTable.exclusionRules.rules
     }
-    document.querySelectorAll('.ct-excl-label, .ct-excl-field, .ct-excl-match, .ct-excl-pattern').forEach(function (el) {
+    document.querySelectorAll('.ct-excl-name, .ct-excl-rule-enabled, .ct-excl-target, .ct-excl-match, .ct-excl-pattern, .ct-excl-action, .ct-excl-confidence, .ct-excl-note').forEach(function (el) {
       el.onchange = function () {
         var i = parseInt(this.getAttribute('data-i'), 10)
         var rules = getExclRulesArr()
         if (!rules[i]) return
-        if (this.classList.contains('ct-excl-label')) rules[i].label = this.value
-        if (this.classList.contains('ct-excl-field')) rules[i].field = this.value
-        if (this.classList.contains('ct-excl-match')) rules[i].match = this.value
+        if (this.classList.contains('ct-excl-name')) rules[i].name = this.value
+        if (this.classList.contains('ct-excl-rule-enabled')) rules[i].enabled = !!this.checked
+        if (this.classList.contains('ct-excl-target')) rules[i].matchTarget = this.value
+        if (this.classList.contains('ct-excl-match')) rules[i].matchType = this.value
         if (this.classList.contains('ct-excl-pattern')) rules[i].pattern = this.value
+        if (this.classList.contains('ct-excl-action')) rules[i].action = this.value
+        if (this.classList.contains('ct-excl-confidence')) rules[i].confidence = this.value
+        if (this.classList.contains('ct-excl-note')) rules[i].note = this.value
         showUnsavedBanner()
         updateFooterButtons()
       }
@@ -1297,7 +1358,23 @@
     if (exclAddBtn) {
       exclAddBtn.onclick = function () {
         var rules = getExclRulesArr()
-        rules.push({ label: '', field: 'content.value', match: 'contains', pattern: '' })
+        rules.push({ name: '', enabled: true, matchTarget: 'content', matchType: 'contains', pattern: '', action: 'exclude', confidence: 'high', note: '' })
+        showUnsavedBanner()
+        renderConfigTab()
+      }
+    }
+    var exclPresetBtn = document.getElementById('ct-excl-add-presets')
+    if (exclPresetBtn) {
+      exclPresetBtn.onclick = function () {
+        var rules = getExclRulesArr()
+        var presets = [
+          { name: 'Empty placeholder dashes', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^[\\\\s\\\\-–—]{2,}$', action: 'exclude', confidence: 'high', note: '2+ dash-like chars (hyphen/en dash/em dash), optional spaces' },
+          { name: 'Em dash filler', enabled: true, matchTarget: 'content', matchType: 'exact', pattern: '—', action: 'exclude', confidence: 'high', note: 'Single em dash placeholder' },
+          { name: 'Date/time stamp', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '\\\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\\\s+\\\\d{1,2}(?:,\\\\s*\\\\d{2,4})?(?:\\\\s+\\\\d{1,2}:\\\\d{2}(?:\\\\s?[AP]M)?)?(?:\\\\s+[A-Z]{2,4})?\\\\b|\\\\b(?:\\\\d{1,2}[:.]\\\\d{2}(?:\\\\s?[AP]M)?|(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)|\\\\d{1,2}[/-]\\\\d{1,2}(?:[/-]\\\\d{2,4})?)\\\\b', action: 'exclude', confidence: 'high', note: 'Common date/time snippets' },
+          { name: 'Basic nav labels', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^(?:home|search|menu|settings|profile|back|next|close)$', action: 'exclude', confidence: 'high', note: 'Short navigation UI strings' },
+          { name: 'Ticker-like uppercase', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^[A-Z]{2,5}$', action: 'flag', confidence: 'low', note: 'Review, do not auto-exclude' }
+        ]
+        presets.forEach(function (p) { rules.push(p) })
         showUnsavedBanner()
         renderConfigTab()
       }

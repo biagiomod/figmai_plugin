@@ -16,7 +16,7 @@ import type { ContentItemV1 } from '../../contentTable/types'
 import { scanContentTable } from '../../contentTable/scanner'
 import { loadWorkAdapter } from '../../work/loadAdapter'
 import { normalizeContentTableV1, validateContentTableV1 } from '../../contentTable/validate'
-import { applyExclusionRules } from '../../contentTable/exclusionRules'
+import { applyExclusionRules, resolveExclusionConfigWithSource } from '../../contentTable/exclusionRules'
 import type { ExclusionRulesConfig } from '../../contentTable/exclusionRules'
 import { getCustomConfig } from '../../../custom/config'
 
@@ -98,11 +98,38 @@ export class ContentTableHandler implements AssistantHandler {
         console.warn('[ContentTableHandler] Content table validation warnings:', validation.warnings)
       }
 
-      // Post-filter: exclusion rules. Priority: Work adapter > custom config > default (enabled, no rules).
-      const workExclusion = workAdapter.getExclusionRulesConfig?.()
-      const configExclusion = (getCustomConfig() as Record<string, unknown>)?.contentTable as { exclusionRules?: ExclusionRulesConfig } | undefined
-      const exclusionConfig: ExclusionRulesConfig = workExclusion ?? configExclusion?.exclusionRules ?? { enabled: true, rules: [] }
-      contentTable = { ...contentTable, items: applyExclusionRules(contentTable.items, exclusionConfig) }
+      // Post-filter: exclusion rules. Priority: Work adapter > custom config > default.
+      const customExclusionRaw = getCustomConfig()?.contentTable?.exclusionRules
+      const customExclusion: ExclusionRulesConfig | undefined = customExclusionRaw
+        ? {
+            enabled: customExclusionRaw.enabled === true,
+            rules: Array.isArray(customExclusionRaw.rules) ? customExclusionRaw.rules : []
+          }
+        : undefined
+      const resolvedExclusion = resolveExclusionConfigWithSource(
+        workAdapter.getExclusionRulesConfig?.(),
+        customExclusion,
+        { enabled: true, rules: [] }
+      )
+      const exclusionDebugEnabled = getCustomConfig()?.contentTable?.exclusionRulesDebug === true
+      const exclusionResult = applyExclusionRules(contentTable.items, resolvedExclusion.config, exclusionDebugEnabled)
+      contentTable = { ...contentTable, items: exclusionResult.items }
+      if (exclusionDebugEnabled) {
+        const activeRuleCount = (resolvedExclusion.config.rules || []).filter((rule) => {
+          if (!rule || typeof rule !== 'object') return false
+          const enabled = !('enabled' in rule) || (rule as { enabled?: boolean }).enabled !== false
+          const pattern = 'pattern' in rule && typeof (rule as { pattern?: string }).pattern === 'string'
+            ? (rule as { pattern?: string }).pattern || ''
+            : ''
+          return enabled && !!pattern.trim()
+        }).length
+        console.info('[CT-A exclusion]', {
+          source: resolvedExclusion.source,
+          enabled: resolvedExclusion.config.enabled,
+          activeRuleCount,
+          diagnostics: exclusionResult.diagnostics
+        })
+      }
 
       // Status message
       const itemCount = contentTable.items.length
@@ -118,6 +145,23 @@ export class ContentTableHandler implements AssistantHandler {
         pluginMessage: {
           type: isAppend ? 'CONTENT_TABLE_APPEND' : 'CONTENT_TABLE_GENERATED',
           table: contentTable,
+          flaggedIgnoreIds: Array.from(exclusionResult.flaggedIds),
+          ignoreRuleByItemId: exclusionResult.matchedRuleByItemId,
+          exclusionDebug: exclusionDebugEnabled
+            ? {
+                source: resolvedExclusion.source,
+                enabled: resolvedExclusion.config.enabled,
+                activeRuleCount: (resolvedExclusion.config.rules || []).filter((rule) => {
+                  if (!rule || typeof rule !== 'object') return false
+                  const enabled = !('enabled' in rule) || (rule as { enabled?: boolean }).enabled !== false
+                  const pattern = 'pattern' in rule && typeof (rule as { pattern?: string }).pattern === 'string'
+                    ? (rule as { pattern?: string }).pattern || ''
+                    : ''
+                  return enabled && !!pattern.trim()
+                }).length,
+                diagnostics: exclusionResult.diagnostics
+              }
+            : undefined,
           scannedContainerNodeIds: validNodes.map(n => n.id)
         }
       })

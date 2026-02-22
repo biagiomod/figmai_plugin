@@ -175,6 +175,28 @@ const effectiveH = getEffectiveItems(afterHigh)
 assert(effectiveH.length === 1, 'add: HIGH dup skipped, only original remains')
 assert(afterHigh.lastSkippedCount === 1, 'add: lastSkippedCount = 1')
 
+// --- Session: ignore-list overlay retained across append ---
+
+const ignoreBase = makeTable([makeItem('ig1', 'keep me'), makeItem('ig2', 'review me')])
+const ignoreSession = createSession(ignoreBase, {
+  flaggedIgnoreIds: new Set(['ig2']),
+  ignoreRuleByItemId: { ig2: 'Ticker-like uppercase' }
+})
+assert(ignoreSession.flaggedIgnoreIds.has('ig2'), 'createSession keeps initial ignore flag')
+assert(ignoreSession.ignoreRuleByItemId.ig2 === 'Ticker-like uppercase', 'createSession keeps initial ignore rule map')
+const ignoreAfterAppend = appendItems(ignoreSession, [makeItem('ig3', 'new row')], {
+  flaggedIgnoreIds: new Set(['ig3']),
+  ignoreRuleByItemId: { ig3: 'Date/time stamp' }
+})
+assert(ignoreAfterAppend.flaggedIgnoreIds.has('ig2') && ignoreAfterAppend.flaggedIgnoreIds.has('ig3'), 'append merges ignore flags')
+assert(ignoreAfterAppend.ignoreRuleByItemId.ig3 === 'Date/time stamp', 'append merges ignore rule map')
+
+// --- Session: ignore-list overlay cleaned on delete ---
+
+const ignoreAfterDelete = deleteItem(ignoreAfterAppend, 'ig2')
+assert(!ignoreAfterDelete.flaggedIgnoreIds.has('ig2'), 'delete removes ignore-flag for deleted row')
+assert(ignoreAfterDelete.ignoreRuleByItemId.ig2 === undefined, 'delete removes ignore-rule mapping for deleted row')
+
 // --- Session: Deleted rows do not count as existing duplicates ---
 
 const baseTable3 = makeTable([makeItem('d1', 'Item that will be deleted and is long enough')])
