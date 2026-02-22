@@ -16,8 +16,9 @@ import type { ContentItemV1 } from '../../contentTable/types'
 import { scanContentTable } from '../../contentTable/scanner'
 import { loadWorkAdapter } from '../../work/loadAdapter'
 import { normalizeContentTableV1, validateContentTableV1 } from '../../contentTable/validate'
-import { applyExclusionRules, DEFAULT_EXCLUSION_CONFIG } from '../../contentTable/exclusionRules'
+import { applyExclusionRules } from '../../contentTable/exclusionRules'
 import type { ExclusionRulesConfig } from '../../contentTable/exclusionRules'
+import { getCustomConfig } from '../../../custom/config'
 
 export class ContentTableHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
@@ -97,9 +98,10 @@ export class ContentTableHandler implements AssistantHandler {
         console.warn('[ContentTableHandler] Content table validation warnings:', validation.warnings)
       }
 
-      // Post-filter: exclusion rules (enabled for CT-A; Work adapter can override with custom rules)
+      // Post-filter: exclusion rules. Priority: Work adapter > custom config > default (enabled, no rules).
       const workExclusion = workAdapter.getExclusionRulesConfig?.()
-      const exclusionConfig: ExclusionRulesConfig = workExclusion ?? { enabled: true, rules: [] }
+      const configExclusion = (getCustomConfig() as Record<string, unknown>)?.contentTable as { exclusionRules?: ExclusionRulesConfig } | undefined
+      const exclusionConfig: ExclusionRulesConfig = workExclusion ?? configExclusion?.exclusionRules ?? { enabled: true, rules: [] }
       contentTable = { ...contentTable, items: applyExclusionRules(contentTable.items, exclusionConfig) }
 
       // Status message

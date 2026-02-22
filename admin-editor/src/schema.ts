@@ -93,6 +93,23 @@ export const configSchema = z
         debug: z.boolean().optional()
       })
       .passthrough()
+      .optional(),
+    contentTable: z
+      .object({
+        exclusionRules: z
+          .object({
+            enabled: z.boolean().optional(),
+            rules: z.array(z.object({
+              label: z.string(),
+              field: z.enum(['component.name', 'component.kind', 'field.label', 'field.role', 'content.value', 'textLayerName']),
+              match: z.enum(['equals', 'contains', 'startsWith', 'regex']),
+              pattern: z.string()
+            }).passthrough()).optional()
+          })
+          .passthrough()
+          .optional()
+      })
+      .passthrough()
       .optional()
   })
   .passthrough()
@@ -143,6 +160,16 @@ const safetyOverridesSchema = z
   .passthrough()
   .optional()
 
+const toolSettingsSchema = z
+  .object({
+    defaultContentModel: z.string().optional(),
+    dedupeDefault: z.boolean().optional(),
+    quickActionsLocation: z.enum(['top', 'bottom', 'inline']).optional(),
+    showInput: z.boolean().optional()
+  })
+  .passthrough()
+  .optional()
+
 const assistantEntrySchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -154,12 +181,12 @@ const assistantEntrySchema = z.object({
   kind: z.enum(['ai', 'tool', 'hybrid']),
   quickActions: z.array(quickActionSchema),
   promptTemplate: z.string(),
-  // Optional structured config (editor-friendly; not wired to runtime in this PR)
   instructionBlocks: z.array(instructionBlockSchema).optional(),
   toneStylePreset: z.string().optional(),
   outputSchemaId: z.string().optional(),
   safetyOverrides: safetyOverridesSchema,
-  knowledgeBaseRefs: z.array(z.string()).optional()
+  knowledgeBaseRefs: z.array(z.string()).optional(),
+  toolSettings: toolSettingsSchema
 })
 
 export const assistantsManifestSchema = z.object({

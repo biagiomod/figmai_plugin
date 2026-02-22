@@ -127,6 +127,7 @@ import type {
   RunScorecardV2PlaceholderHandler,
   RequestAnalyticsTaggingSessionHandler,
   AnalyticsTaggingUpdateRowHandler,
+  AnalyticsTaggingDeleteRowHandler,
   RequestAnalyticsTaggingScreenshotHandler,
   RequestAnalyticsTaggingScreenshotByMetaHandler,
   ExportAnalyticsTaggingScreenshotsHandler,
@@ -1286,6 +1287,24 @@ on<AnalyticsTaggingUpdateRowHandler>('ANALYTICS_TAGGING_UPDATE_ROW', async funct
   }
 })
 
+on<AnalyticsTaggingDeleteRowHandler>('ANALYTICS_TAGGING_DELETE_ROW', async function (rowId: string) {
+  try {
+    const session = await loadSession()
+    if (!session) return
+    session.rows = session.rows.filter(r => r.id !== rowId)
+    session.updatedAtISO = new Date().toISOString()
+    await saveSession(session)
+    figma.ui.postMessage({
+      pluginMessage: {
+        type: 'ANALYTICS_TAGGING_SESSION_UPDATED',
+        session
+      }
+    })
+  } catch (_) {
+    // ignore
+  }
+})
+
 // Handle request analytics tagging screenshot (regenerate on demand for preview/export)
 on<RequestAnalyticsTaggingScreenshotHandler>('REQUEST_ANALYTICS_TAGGING_SCREENSHOT', async function (screenshotRef: unknown) {
   const ref = screenshotRef as ScreenshotRef
@@ -1945,17 +1964,19 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
         cellHeights.push(Math.max(MIN_ROW_H, measured + CELL_PAD))
       } else if (isFigmaRef && raw) {
         const linkLabel = 'View in Figma'
+        const url = raw.trim()
+        txt.characters = linkLabel
         txt.textAutoResize = 'NONE'
         txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
-        txt.characters = linkLabel
-        try {
-          txt.setRangeHyperlink(0, linkLabel.length, { type: 'URL', value: raw })
-          txt.setRangeTextDecoration(0, linkLabel.length, 'UNDERLINE')
-          txt.setRangeFills(0, linkLabel.length, [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1 } }])
-        } catch (_) {
-          txt.characters = 'View in Figma: ' + raw
-        }
         txt.textTruncation = 'ENDING'
+        if (url.startsWith('http')) {
+          try {
+            txt.setRangeTextDecoration(0, linkLabel.length, 'UNDERLINE')
+            txt.setRangeFills(0, linkLabel.length, [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1 } }])
+          } catch (_) { /* styling optional */ }
+          try { txt.hyperlink = { type: 'URL', value: url } } catch (_) { /* property API */ }
+          try { txt.setRangeHyperlink(0, linkLabel.length, { type: 'URL', value: url }) } catch (_) { /* range API */ }
+        }
         cellHeights.push(MIN_ROW_H)
       } else {
         txt.characters = raw.replace(/\n/g, ' ')

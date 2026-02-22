@@ -17,6 +17,7 @@ function minimalAssistant(overrides: Partial<Assistant> = {}): Assistant {
     promptMarkdown: '# Test\n\nLegacy prompt.',
     iconId: 'Icon',
     kind: 'ai',
+    uiMode: 'chat',
     quickActions: [],
     ...overrides
   }

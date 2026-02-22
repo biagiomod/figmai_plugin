@@ -89,6 +89,8 @@ import type { Assistant as AssistantType, AssistantTag, QuickAction } from './as
 import { SettingsModal } from './ui/components/SettingsModal'
 import { ConfluenceModal } from './ui/components/ConfluenceModal'
 import { AnalyticsTaggingTable } from './ui/components/AnalyticsTaggingTable'
+import { AnalyticsTaggingWelcome } from './ui/components/AnalyticsTaggingWelcome'
+import { AnalyticsTaggingView } from './ui/components/AnalyticsTaggingView'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
 import { ProviderIndicators } from './ui/components/ProviderIndicators'
 import { GenericAiIndicator } from './ui/components/GenericAiIndicator'
@@ -123,7 +125,9 @@ import type {
   RenderTableOnStageHandler,
   RequestAnalyticsTaggingSessionHandler,
   AnalyticsTaggingUpdateRowHandler,
-  ExportAnalyticsTaggingScreenshotsHandler
+  AnalyticsTaggingDeleteRowHandler,
+  ExportAnalyticsTaggingScreenshotsHandler,
+  ExportAnalyticsTaggingOneRowHandler
 } from './core/types'
 import type { AnalyticsTaggingExportCompactRow } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
@@ -133,6 +137,8 @@ import type { ContentTableSession } from './core/contentTable/session'
 import { createSession, getEffectiveItems, applyEdit, deleteItem, appendItems, toggleDuplicateScan } from './core/contentTable/session'
 import { classifyCandidates, filterByDuplicates } from './core/contentTable/duplicates'
 import type { ContentItemV1 } from './core/contentTable/types'
+import { ContentTableWelcome } from './ui/components/ContentTableWelcome'
+import { ContentTableView } from './ui/components/ContentTableView'
 import { sessionToTable } from './core/analyticsTagging/sessionToTable'
 import type { Session, Row } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
@@ -171,7 +177,8 @@ import {
   SpellCheckIcon,
   TrashIcon,
   LightBulbRaysIcon,
-  PathIcon
+  PathIcon,
+  AnalyticsIcon
 } from './ui/icons'
 
 // --- Ingest fetch tracer (dev-safe): log if any code tries to hit debug ingest ---
@@ -450,6 +457,7 @@ function Plugin() {
   const [showPromptDiagDetails, setShowPromptDiagDetails] = useState(false)
   const [confluenceFormat, setConfluenceFormat] = useState<TableFormatPreset>('universal')
   // Analytics Tagging state
+  const [isCopyingAnalyticsTable, setIsCopyingAnalyticsTable] = useState(false)
   const [analyticsTaggingSession, setAnalyticsTaggingSession] = useState<Session | null>(null)
   const [analyticsTaggingAutosaveStatus, setAnalyticsTaggingAutosaveStatus] = useState<'saved' | 'saving' | 'failed'>('saved')
   const [analyticsTaggingScreenshotPreviews, setAnalyticsTaggingScreenshotPreviews] = useState<Record<string, string>>({})
@@ -1532,6 +1540,10 @@ function Plugin() {
     emit<AnalyticsTaggingUpdateRowHandler>('ANALYTICS_TAGGING_UPDATE_ROW', rowId, updates)
   }, [])
 
+  const handleAnalyticsTaggingDeleteRow = useCallback((rowId: string) => {
+    emit<AnalyticsTaggingDeleteRowHandler>('ANALYTICS_TAGGING_DELETE_ROW', rowId)
+  }, [])
+
   const downloadPngDataUrl = useCallback((filename: string, dataUrl: string) => {
     const a = document.createElement('a')
     a.href = dataUrl
@@ -1698,9 +1710,10 @@ function Plugin() {
     console.log('[Clipboard] navigator.clipboard.write available:', !!(navigator.clipboard && navigator.clipboard.write))
     
     try {
-      // Build formats based on copyFormatType using single source of truth renderers
-      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, format)
-      const tsv = universalTableToTsv(contentTable, format)
+      // Use session-effective items (with edits/deletions applied) as the single source of truth
+      const effectiveItems = ctSession ? getEffectiveItems(ctSession) : contentTable.items
+      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, format, effectiveItems)
+      const tsv = universalTableToTsv(contentTable, format, effectiveItems)
       const json = universalTableToJson(contentTable)
       
       console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length, 'JSON length:', json.length)
@@ -2015,7 +2028,7 @@ function Plugin() {
       }
       setMessages(prev => [...prev, errorMessage])
     }
-  }, [contentTable, debugLog])
+  }, [contentTable, ctSession, debugLog])
 
   // Copy Analytics Tagging table to clipboard (no modal; fixed format)
   // Uses same strategy chain as CT-A: ClipboardItem (HTML+plain) → execCommand contentEditable → writeText(TSV) → textarea execCommand
@@ -2285,7 +2298,8 @@ ${htmlTable}
       'ContentTableIcon': <ContentTableIcon width={16} height={16} />,
       'SpellCheckIcon': <SpellCheckIcon width={16} height={16} />,
       'LightBulbRaysIcon': <LightBulbRaysIcon width={16} height={16} />,
-      'PathIcon': <PathIcon width={16} height={16} />
+      'PathIcon': <PathIcon width={16} height={16} />,
+      'AnalyticsIcon': <AnalyticsIcon width={16} height={16} />
     }
     
     return iconMap[iconId] || null
@@ -2494,8 +2508,8 @@ ${htmlTable}
         minHeight: 0,
         overflow: 'hidden'
       }}>
-        {/* Trash Button - Floating Overlay */}
-        {messages.length > 0 && (
+        {/* Trash Button - Floating Overlay (hidden for tool-mode assistants) */}
+        {messages.length > 0 && assistant.uiMode !== 'tool' && (
           <button
             onClick={() => setShowClearChatModal(true)}
             style={{
@@ -2526,25 +2540,106 @@ ${htmlTable}
         {/* Chat Messages - Scrollable Container */}
         <div style={{
           flex: 1,
-          overflowY: 'auto',
-          overflowX: assistant.id === 'analytics_tagging' ? 'auto' : 'hidden',
-          padding: 'var(--spacing-md)',
-          paddingTop: (assistant.id === 'analytics_tagging' || messages.length > 0) ? 'calc(var(--spacing-md) + 32px)' : 'var(--spacing-md)',
+          overflowY: ((assistant.id === 'content_table' && ctSession) || (assistant.id === 'analytics_tagging' && analyticsTaggingSession && analyticsTaggingSession.rows.length > 0)) ? 'hidden' : 'auto',
+          overflowX: 'hidden',
+          padding: ((assistant.id === 'content_table' && ctSession) || (assistant.id === 'analytics_tagging' && analyticsTaggingSession && analyticsTaggingSession.rows.length > 0)) ? '0' : 'var(--spacing-md)',
+          paddingTop: ((assistant.id === 'content_table' && ctSession) || (assistant.id === 'analytics_tagging' && analyticsTaggingSession && analyticsTaggingSession.rows.length > 0)) ? '0' : (messages.length > 0) ? 'calc(var(--spacing-md) + 32px)' : 'var(--spacing-md)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--spacing-md)',
+          gap: ((assistant.id === 'content_table' && ctSession) || (assistant.id === 'analytics_tagging' && analyticsTaggingSession && analyticsTaggingSession.rows.length > 0)) ? '0' : 'var(--spacing-md)',
           minHeight: 0
         }}>
         {assistant.id === 'analytics_tagging' ? (
-          <AnalyticsTaggingTable
-            session={analyticsTaggingSession ?? { id: '', rows: [], draftRow: null, createdAtISO: '', updatedAtISO: '' }}
-            onUpdateRow={handleAnalyticsTaggingUpdateRow}
-            screenshotPreviews={analyticsTaggingScreenshotPreviews}
-            screenshotErrors={analyticsTaggingScreenshotErrors}
-            onExportRowThumbnail={handleExportRowThumbnail}
-            autosaveStatus={analyticsTaggingAutosaveStatus}
-            warning={analyticsTaggingWarning ?? undefined}
-          />
+          (analyticsTaggingSession && analyticsTaggingSession.rows.length > 0) ? (
+            <AnalyticsTaggingView
+              session={analyticsTaggingSession}
+              hasSelection={selectionState.hasSelection}
+              onUpdateRow={handleAnalyticsTaggingUpdateRow}
+              onDeleteRow={handleAnalyticsTaggingDeleteRow}
+              onAppend={() => handleQuickAction('append-analytics-tags')}
+              onViewOnStage={() => {
+                if (!analyticsTaggingSession) return
+                const table = sessionToTable(analyticsTaggingSession)
+                const cols = PRESET_COLUMNS['analytics-tagging'] ?? PRESET_COLUMNS['universal']
+                emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
+                  headers: cols.map(c => c.label),
+                  rows: table.items.map(item => cols.map(c => c.extract(item))),
+                  title: analyticsTaggingSession.source?.pageName || 'AT-A Table Preview',
+                  existingFrameId: stageFrameIdRef.current,
+                  columnKeys: cols.map(c => c.key)
+                })
+              }}
+              onCopyToClipboard={async () => {
+                setIsCopyingAnalyticsTable(true)
+                try {
+                  await copyAnalyticsTableToClipboard()
+                } finally {
+                  setIsCopyingAnalyticsTable(false)
+                }
+              }}
+              onRestart={() => {
+                handleQuickAction('new-session')
+                setAnalyticsTaggingSession(null)
+              }}
+              onExportRowRefImage={(row) => {
+                const compact: AnalyticsTaggingExportCompactRow = {
+                  rowId: row.id,
+                  screenId: row.screenId,
+                  actionId: row.actionId,
+                  meta: row.meta ? { containerNodeId: row.meta.containerNodeId, targetNodeId: row.meta.targetNodeId, rootScreenNodeId: row.meta.rootScreenNodeId } : undefined,
+                  screenshotRef: row.screenshotRef ? { containerNodeId: row.screenshotRef.containerNodeId, targetNodeId: row.screenshotRef.targetNodeId, rootNodeId: row.screenshotRef.rootNodeId } : undefined
+                }
+                emit<ExportAnalyticsTaggingOneRowHandler>('EXPORT_ANALYTICS_TAGGING_ONE_ROW', { row: compact })
+              }}
+              isCopying={isCopyingAnalyticsTable}
+              screenshotPreviews={analyticsTaggingScreenshotPreviews}
+              screenshotErrors={analyticsTaggingScreenshotErrors}
+            />
+          ) : (
+            <AnalyticsTaggingWelcome
+              hasSelection={selectionState.hasSelection}
+              onGetTags={() => handleQuickAction('get-analytics-tags')}
+            />
+          )
+        ) : assistant.id === 'content_table' ? (
+          ctSession ? (
+            <ContentTableView
+              session={ctSession}
+              onSessionChange={setCtSession}
+              hasSelection={selectionState.hasSelection}
+              onAppend={() => handleQuickAction('add-to-table')}
+              onViewOnStage={() => {
+                if (!ctSession || !contentTable) return
+                const items = getEffectiveItems(ctSession)
+                const cols = PRESET_COLUMNS[selectedFormat] ?? PRESET_COLUMNS['universal']
+                emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
+                  headers: cols.map(c => c.label),
+                  rows: items.map(item => cols.map(c => c.extract(item))),
+                  title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
+                  existingFrameId: stageFrameIdRef.current,
+                  columnKeys: cols.map(c => c.key)
+                })
+              }}
+              onCopyToClipboard={() => handleCopyTable(selectedFormat, 'html')}
+              onRestart={() => {
+                setContentTable(null)
+                setCtSession(null)
+                setShowTableView(false)
+                setSelectedFormat('universal')
+              }}
+              onExportRowRefImage={(nodeId: string) => {
+                emit<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', nodeId)
+              }}
+              isCopying={isCopyingTable}
+              selectedFormat={selectedFormat}
+              onFormatChange={setSelectedFormat}
+            />
+          ) : (
+            <ContentTableWelcome
+              hasSelection={selectionState.hasSelection}
+              onGenerate={() => handleQuickAction('generate-table')}
+            />
+          )
         ) : (
           <div style={{ display: 'contents' }}>
             {/* Dedicated status area: one "Processing…" line when a request is in flight; not in message list */}
@@ -3042,8 +3137,8 @@ ${htmlTable}
         flexDirection: 'column',
         gap: 'var(--spacing-sm)'
       }}>
-        {/* Quick Actions - Above input */}
-        {quickActions.length > 0 && (
+        {/* Quick Actions — hidden for tool-mode assistants (actions are in the inline view) */}
+        {assistant.uiMode !== 'tool' && quickActions.length > 0 && (
           <div style={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -3205,8 +3300,8 @@ ${htmlTable}
           </div>
         )}
 
-        {/* Text Input — hidden for tool-only assistants (Content Table) */}
-        {assistant.id !== 'content_table' && (
+        {/* Text Input — hidden for tool-mode assistants (CT-A, AT-A) */}
+        {assistant.uiMode !== 'tool' && (
         <TextboxMultiline
           ref={inputRef}
           value={input}
@@ -3328,8 +3423,8 @@ ${htmlTable}
             <ChevronDownIcon width={12} height={12} />
           </button>
           
-          {/* Send Button — hidden for tool-only assistants (Content Table) */}
-          {assistant.id !== 'content_table' && (
+          {/* Send Button — hidden for tool-mode assistants (CT-A, AT-A) */}
+          {assistant.uiMode !== 'tool' && (
           <button
             type="button"
             onClick={handleSend}
@@ -3821,8 +3916,8 @@ ${htmlTable}
         </div>
       )}
       
-      {/* Table View Modal */}
-      {showTableView && contentTable && (
+      {/* Table View Modal — fallback for non-tool mode (gated; tool mode uses inline ContentTableView) */}
+      {assistant.uiMode !== 'tool' && showTableView && contentTable && (
         <div style={{
           position: 'fixed',
           top: 0,

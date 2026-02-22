@@ -14,6 +14,7 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
     if (assistantId !== 'analytics_tagging') return false
     return (
       actionId === 'get-analytics-tags' ||
+      actionId === 'append-analytics-tags' ||
       actionId === 'copy-table' ||
       actionId === 'new-session'
     )
@@ -56,7 +57,9 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
       return { handled: true }
     }
 
-    if (actionId === 'get-analytics-tags') {
+    if (actionId === 'get-analytics-tags' || actionId === 'append-analytics-tags') {
+      const isAppend = actionId === 'append-analytics-tags'
+
       const validation = await validateEligibleScreenSelections(selection)
       if (!validation.ok) {
         replaceStatusMessage(validation.message, true)
@@ -74,7 +77,7 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
         allRows.push(...screenRows)
       }
       const seen = new Set<string>()
-      const rows = allRows.filter((row) => {
+      const newRows = allRows.filter((row) => {
         const key = `${row.screenId}::${row.actionId}`
         if (seen.has(key)) return false
         seen.add(key)
@@ -86,7 +89,17 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
       if (!session) {
         session = createNewSession({ pageId: page.id, pageName: page.name })
       }
-      session.rows = rows
+
+      let keptRows = newRows
+      let skippedCount = 0
+      if (isAppend) {
+        const existingKeys = new Set(session.rows.map(r => `${r.screenId}::${r.actionId}`))
+        keptRows = newRows.filter(r => !existingKeys.has(`${r.screenId}::${r.actionId}`))
+        skippedCount = newRows.length - keptRows.length
+        session.rows = [...session.rows, ...keptRows]
+      } else {
+        session.rows = newRows
+      }
       session.draftRow = null
       session.updatedAtISO = new Date().toISOString()
       await saveSession(session)
@@ -96,15 +109,20 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
           session
         }
       })
-      if (rows.length === 0) {
+      if (keptRows.length === 0 && skippedCount === 0) {
         figma.notify('No ActionID items found.')
         replaceStatusMessage('No ActionID items found in selection.', true)
+      } else if (isAppend && keptRows.length === 0 && skippedCount > 0) {
+        figma.notify(`All ${skippedCount} row(s) already exist.`)
+        replaceStatusMessage(`${skippedCount} duplicate row(s) skipped; no new rows appended.`)
       } else {
         const screenCount = validation.screens.length
+        const verb = isAppend ? 'appended' : 'added'
+        const skipNote = skippedCount > 0 ? ` (${skippedCount} duplicate(s) skipped)` : ''
         replaceStatusMessage(
           screenCount === 1
-            ? `${rows.length} row(s) added from scan.`
-            : `${rows.length} row(s) from ${screenCount} screen(s) (duplicates removed).`
+            ? `${keptRows.length} row(s) ${verb} from scan.${skipNote}`
+            : `${keptRows.length} row(s) ${verb} from ${screenCount} screen(s).${skipNote}`
         )
       }
       return { handled: true }

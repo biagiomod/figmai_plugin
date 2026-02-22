@@ -5,10 +5,15 @@
  * into assistants.generated.ts). Modal visibility/order come from custom config.
  */
 
-import type { Assistant, QuickAction } from '../core/types'
+import type { Assistant, AssistantUIMode, QuickAction } from '../core/types'
 import { mergeKnowledgeBase, appendDesignSystemKnowledge } from '../custom/knowledge'
 import { customConfig } from '../custom/generated/customConfig'
 import { ASSISTANTS_MANIFEST } from './assistants.generated'
+
+function resolveUIMode(entry: { kind: string; toolSettings?: { showInput?: boolean } }): AssistantUIMode {
+  if (entry.kind === 'tool') return entry.toolSettings?.showInput ? 'chat' : 'tool'
+  return 'chat'
+}
 
 // Build ASSISTANTS from manifest: promptMarkdown = mergeKnowledgeBase + appendDesignSystemKnowledge
 export const ASSISTANTS: Assistant[] = ASSISTANTS_MANIFEST.map((entry) => {
@@ -16,7 +21,7 @@ export const ASSISTANTS: Assistant[] = ASSISTANTS_MANIFEST.map((entry) => {
   const promptMarkdown = appendDesignSystemKnowledge(
     mergeKnowledgeBase(entry.id, promptTemplate)
   )
-  return { ...rest, promptMarkdown }
+  return { ...rest, promptMarkdown, uiMode: resolveUIMode(entry) }
 })
 
 // Re-export types for convenience (canonical definitions are in core/types.ts)

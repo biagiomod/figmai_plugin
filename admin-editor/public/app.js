@@ -1017,6 +1017,29 @@
       '<button type="button" id="hat-add-btn" class="ace-btn">Add</button>' +
       '</div></div>',
       expandedMap['accessibility-hat'])
+    var ctExcl = (m.config.contentTable && m.config.contentTable.exclusionRules) || { enabled: false, rules: [] }
+    var exclRulesHtml = '<div class="ace-card"><p class="ace-card-subtext">Pattern-based exclusion rules for Content Table scans. Standalone numeric/currency handling is always active when enabled.</p>'
+    exclRulesHtml += '<div class="field-row"><label><input type="checkbox" id="ct-excl-enabled" ' + (ctExcl.enabled ? 'checked' : '') + '> Enabled</label></div>'
+    exclRulesHtml += '<table class="ace-excl-rules-table" id="ct-excl-rules-table"><thead><tr><th>Label</th><th>Field</th><th>Match</th><th>Pattern</th><th></th></tr></thead><tbody>'
+    var exclFields = ['component.name', 'component.kind', 'field.label', 'field.role', 'content.value', 'textLayerName']
+    var exclMatches = ['equals', 'contains', 'startsWith', 'regex']
+    ;(ctExcl.rules || []).forEach(function (rule, i) {
+      exclRulesHtml += '<tr data-i="' + i + '">'
+      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-label" data-i="' + i + '" value="' + escapeHtml(rule.label || '') + '"></td>'
+      exclRulesHtml += '<td><select class="ct-excl-field" data-i="' + i + '">'
+      exclFields.forEach(function (f) { exclRulesHtml += '<option value="' + f + '"' + (rule.field === f ? ' selected' : '') + '>' + f + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><select class="ct-excl-match" data-i="' + i + '">'
+      exclMatches.forEach(function (m) { exclRulesHtml += '<option value="' + m + '"' + (rule.match === m ? ' selected' : '') + '>' + m + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-pattern" data-i="' + i + '" value="' + escapeHtml(rule.pattern || '') + '"></td>'
+      exclRulesHtml += '<td><button type="button" class="btn-small ct-excl-remove" data-i="' + i + '">Remove</button></td>'
+      exclRulesHtml += '</tr>'
+    })
+    exclRulesHtml += '</tbody></table>'
+    exclRulesHtml += '<button type="button" class="btn-small add-btn" id="ct-excl-add">Add rule</button>'
+    exclRulesHtml += '</div>'
+    html += collapsibleSection('content-table-exclusion', 'Content Table — Exclusion Rules', exclRulesHtml, expandedMap['content-table-exclusion'])
     html += collapsibleSection('advanced-raw-json', 'Advanced: Raw JSON Config',
       '<div class="ace-card danger-zone ace-raw-json-card">' +
       '<p class="ace-raw-json-warning">Warning: Invalid JSON will fail validation</p>' +
@@ -1229,6 +1252,55 @@
           updateFooterButtons()
         }
       })
+    }
+
+    // Exclusion rules bindings
+    var exclEnabledEl = document.getElementById('ct-excl-enabled')
+    if (exclEnabledEl) {
+      exclEnabledEl.onchange = function () {
+        if (!state.editedModel.config.contentTable) state.editedModel.config.contentTable = {}
+        if (!state.editedModel.config.contentTable.exclusionRules) state.editedModel.config.contentTable.exclusionRules = { enabled: false, rules: [] }
+        state.editedModel.config.contentTable.exclusionRules.enabled = this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    function getExclRulesArr () {
+      if (!state.editedModel.config.contentTable) state.editedModel.config.contentTable = {}
+      if (!state.editedModel.config.contentTable.exclusionRules) state.editedModel.config.contentTable.exclusionRules = { enabled: false, rules: [] }
+      if (!Array.isArray(state.editedModel.config.contentTable.exclusionRules.rules)) state.editedModel.config.contentTable.exclusionRules.rules = []
+      return state.editedModel.config.contentTable.exclusionRules.rules
+    }
+    document.querySelectorAll('.ct-excl-label, .ct-excl-field, .ct-excl-match, .ct-excl-pattern').forEach(function (el) {
+      el.onchange = function () {
+        var i = parseInt(this.getAttribute('data-i'), 10)
+        var rules = getExclRulesArr()
+        if (!rules[i]) return
+        if (this.classList.contains('ct-excl-label')) rules[i].label = this.value
+        if (this.classList.contains('ct-excl-field')) rules[i].field = this.value
+        if (this.classList.contains('ct-excl-match')) rules[i].match = this.value
+        if (this.classList.contains('ct-excl-pattern')) rules[i].pattern = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    })
+    document.querySelectorAll('.ct-excl-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var i = parseInt(this.getAttribute('data-i'), 10)
+        var rules = getExclRulesArr()
+        rules.splice(i, 1)
+        showUnsavedBanner()
+        renderConfigTab()
+      }
+    })
+    var exclAddBtn = document.getElementById('ct-excl-add')
+    if (exclAddBtn) {
+      exclAddBtn.onclick = function () {
+        var rules = getExclRulesArr()
+        rules.push({ label: '', field: 'content.value', match: 'contains', pattern: '' })
+        showUnsavedBanner()
+        renderConfigTab()
+      }
     }
 
     var configRequiredIds = ['config-defaultMode', 'config-simpleModeIds-checkboxes', 'config-advancedModeIds-checkboxes', 'config-raw', 'config-raw-error', 'reset-config-btn']
@@ -1559,6 +1631,14 @@
     html += '<label>Tag variant</label><select id="ae-tag-variant"><option value="">—</option><option value="new"' + (a.tag?.variant === 'new' ? ' selected' : '') + '>new</option><option value="beta"' + (a.tag?.variant === 'beta' ? ' selected' : '') + '>beta</option><option value="alpha"' + (a.tag?.variant === 'alpha' ? ' selected' : '') + '>alpha</option></select>'
     html += '<label>Icon ID</label><input type="text" id="ae-iconId" class="ace-field" value="' + escapeHtml(a.iconId || '') + '">'
     html += '<label>Kind</label><select id="ae-kind"><option value="ai"' + (a.kind === 'ai' ? ' selected' : '') + '>ai</option><option value="tool"' + (a.kind === 'tool' ? ' selected' : '') + '>tool</option><option value="hybrid"' + (a.kind === 'hybrid' ? ' selected' : '') + '>hybrid</option></select>'
+    if (a.kind === 'tool') {
+      var ts = a.toolSettings || {}
+      html += '<div class="section-title">Tool Settings</div>'
+      html += '<label>Default content model</label><input type="text" id="ae-ts-defaultContentModel" class="ace-field" value="' + escapeHtml(ts.defaultContentModel || '') + '" placeholder="e.g. universal">'
+      html += '<div class="field-row"><label><input type="checkbox" id="ae-ts-dedupeDefault" ' + (ts.dedupeDefault ? 'checked' : '') + '> Dedupe default (on)</label></div>'
+      html += '<label>Quick actions location</label><select id="ae-ts-quickActionsLocation"><option value="inline"' + ((ts.quickActionsLocation || 'inline') === 'inline' ? ' selected' : '') + '>inline</option><option value="top"' + (ts.quickActionsLocation === 'top' ? ' selected' : '') + '>top</option><option value="bottom"' + (ts.quickActionsLocation === 'bottom' ? ' selected' : '') + '>bottom</option></select>'
+      html += '<div class="field-row"><label><input type="checkbox" id="ae-ts-showInput" ' + (ts.showInput ? 'checked' : '') + '> Show text input</label></div>'
+    }
     html += '<div class="section-title">Quick actions</div>'
     html += '<p class="ace-qa-execution-type-helper fg-secondary">Execution type: <strong>ui-only</strong> = handled in UI, does not call main; <strong>tool-only</strong> = main/handler only, no LLM; <strong>llm</strong> = calls provider (sendChatWithRecovery); <strong>hybrid</strong> = tool + LLM / mixed steps.</p>'
     html += '<ul class="quick-actions-list" id="ae-quickActions">'
@@ -1638,8 +1718,18 @@
     document.getElementById('ae-tag-label').onchange = function () { if (!a.tag) a.tag = {}; a.tag.label = this.value; showUnsavedBanner() }
     document.getElementById('ae-tag-variant').onchange = function () { if (!a.tag) a.tag = {}; a.tag.variant = this.value || undefined; showUnsavedBanner() }
     document.getElementById('ae-iconId').onchange = function () { set('ae-iconId', 'iconId', this.value) }
-    document.getElementById('ae-kind').onchange = function () { set('ae-kind', 'kind', this.value) }
+    document.getElementById('ae-kind').onchange = function () { set('ae-kind', 'kind', this.value); renderAssistantsTab() }
     document.getElementById('ae-promptTemplate').onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
+    if (a.kind === 'tool') {
+      var tsEl1 = document.getElementById('ae-ts-defaultContentModel')
+      if (tsEl1) tsEl1.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.defaultContentModel = this.value || undefined; showUnsavedBanner() }
+      var tsEl2 = document.getElementById('ae-ts-dedupeDefault')
+      if (tsEl2) tsEl2.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.dedupeDefault = this.checked; showUnsavedBanner() }
+      var tsEl3 = document.getElementById('ae-ts-quickActionsLocation')
+      if (tsEl3) tsEl3.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.quickActionsLocation = this.value; showUnsavedBanner() }
+      var tsEl4 = document.getElementById('ae-ts-showInput')
+      if (tsEl4) tsEl4.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.showInput = this.checked; showUnsavedBanner() }
+    }
     document.querySelectorAll('.ae-qa-remove').forEach(btn => {
       btn.onclick = function () {
         const i = parseInt(this.getAttribute('data-i'), 10)
@@ -2252,26 +2342,148 @@
   }
 
   // ——— Content Models tab ———
+  function parseContentModels (raw) {
+    var sections = raw.split(/^---$/m)
+    var header = ''
+    var models = []
+    for (var si = 0; si < sections.length; si++) {
+      var section = sections[si]
+      if (si === 0) { header = section; continue }
+      var lines = section.split('\n')
+      var cur = null
+      var inCols = false
+      for (var li = 0; li < lines.length; li++) {
+        var t = lines[li].trim()
+        if (t.startsWith('## ')) {
+          if (cur && cur.id) models.push(cur)
+          cur = { heading: t.replace('## ', ''), id: '', label: '', description: '', enabled: false, columns: [] }
+          inCols = false; continue
+        }
+        if (!cur) continue
+        if (t.startsWith('**id:**')) cur.id = t.replace(/^\*\*id:\*\*\s*/, '').trim()
+        else if (t.startsWith('**label:**')) cur.label = t.replace(/^\*\*label:\*\*\s*/, '').trim()
+        else if (t.startsWith('**description:**')) cur.description = t.replace(/^\*\*description:\*\*\s*/, '').trim()
+        else if (t.startsWith('**enabled:**')) cur.enabled = t.replace(/^\*\*enabled:\*\*\s*/, '').trim() === 'true'
+        else if (t === '**columns:**') inCols = true
+        else if (inCols && t.startsWith('- ')) {
+          var parts = t.replace('- ', '').split(',').map(function (p) { return p.trim() })
+          var key = '', label = '', path = ''
+          parts.forEach(function (p) { if (p.startsWith('key: ')) key = p.replace('key: ', '').trim(); else if (p.startsWith('label: ')) label = p.replace('label: ', '').trim(); else if (p.startsWith('path: ')) path = p.replace('path: ', '').trim() })
+          if (key && label && path) cur.columns.push({ key: key, label: label, path: path })
+        } else if (t === '(empty - not yet defined)') { if (cur) cur.columns = [] }
+      }
+      if (cur && cur.id) models.push(cur)
+    }
+    return { header: header, models: models }
+  }
+
+  function serializeContentModels (header, models) {
+    var out = header.replace(/\n*$/, '\n')
+    models.forEach(function (model) {
+      out += '\n---\n\n## ' + model.heading + '\n\n'
+      out += '**id:** ' + model.id + '  \n'
+      out += '**label:** ' + model.label + '  \n'
+      out += '**description:** ' + model.description + '  \n'
+      out += '**enabled:** ' + model.enabled + '\n\n'
+      out += '**columns:**\n'
+      if (model.columns.length === 0) { out += '(empty - not yet defined)\n' }
+      else { model.columns.forEach(function (c) { out += '- key: ' + c.key + ', label: ' + c.label + ', path: ' + c.path + '\n' }) }
+    })
+    return out
+  }
+
+  var cmParsedState = { header: '', models: [] }
+
   function renderContentModelsTab () {
     const panel = document.getElementById('panel-content-models')
     const m = state.editedModel
     const raw = m?.contentModelsRaw ?? ''
+    var parsed = parseContentModels(raw)
+    cmParsedState = parsed
 
     let html = '<div class="ace-section-header-row">'
     html += '<h2 class="ace-section-title">Content Models</h2>'
     html += '<button type="button" class="ace-section-header-btn" id="revert-content-models-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
-    html += '<div class="danger-zone">'
-    html += '<p class="danger-zone-label">Raw content model markdown — changing this affects generated presets. Edit with care.</p>'
-    html += '<div class="banner-warning">Changing this affects generated presets. Edit with care.</div>'
-    html += '<textarea id="content-models-raw" class="large ace-field--full" rows="24">' + escapeHtml(raw) + '</textarea>'
-    html += '</div>'
+    html += '<p class="ace-card-subtext">Each model defines which columns appear in a Content Table preset.</p>'
+
+    parsed.models.forEach(function (model, mi) {
+      html += '<div class="ace-card" style="margin-bottom:12px">'
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      html += '<strong>' + escapeHtml(model.heading) + '</strong>'
+      html += '<span class="fg-secondary" style="font-size:0.85em">id: ' + escapeHtml(model.id) + '</span>'
+      html += '</div>'
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+      html += '<label style="font-size:0.85em">Label <input type="text" class="ace-field cm-label" data-mi="' + mi + '" value="' + escapeHtml(model.label) + '" style="width:160px"></label>'
+      html += '<label style="font-size:0.85em">Description <input type="text" class="ace-field cm-desc" data-mi="' + mi + '" value="' + escapeHtml(model.description) + '" style="width:240px"></label>'
+      html += '<label style="font-size:0.85em"><input type="checkbox" class="cm-enabled" data-mi="' + mi + '" ' + (model.enabled ? 'checked' : '') + '> Enabled</label>'
+      html += '</div>'
+      if (model.columns.length > 0) {
+        html += '<table class="ace-excl-rules-table" style="font-size:0.85em"><thead><tr><th>Key</th><th>Label</th><th>Path</th><th></th></tr></thead><tbody>'
+        model.columns.forEach(function (col, ci) {
+          html += '<tr>'
+          html += '<td><input type="text" class="ace-field cm-col-key" data-mi="' + mi + '" data-ci="' + ci + '" value="' + escapeHtml(col.key) + '" style="width:100px"></td>'
+          html += '<td><input type="text" class="ace-field cm-col-label" data-mi="' + mi + '" data-ci="' + ci + '" value="' + escapeHtml(col.label) + '" style="width:140px"></td>'
+          html += '<td><input type="text" class="ace-field cm-col-path" data-mi="' + mi + '" data-ci="' + ci + '" value="' + escapeHtml(col.path) + '" style="width:140px"></td>'
+          html += '<td><button type="button" class="btn-small cm-col-remove" data-mi="' + mi + '" data-ci="' + ci + '">Remove</button></td>'
+          html += '</tr>'
+        })
+        html += '</tbody></table>'
+      } else {
+        html += '<p class="fg-secondary" style="font-size:0.85em">(no columns defined)</p>'
+      }
+      html += '<button type="button" class="btn-small add-btn cm-col-add" data-mi="' + mi + '" style="margin-top:4px">Add column</button>'
+      html += '</div>'
+    })
+
+    html += '<details style="margin-top:12px"><summary class="fg-secondary" style="cursor:pointer;font-size:0.85em">Show raw markdown (read-only)</summary>'
+    html += '<textarea class="large ace-field--full" rows="12" readonly style="margin-top:8px;opacity:0.7">' + escapeHtml(raw) + '</textarea>'
+    html += '</details>'
+
     panel.innerHTML = html
 
-    document.getElementById('content-models-raw').onchange = document.getElementById('content-models-raw').oninput = function () {
-      state.editedModel.contentModelsRaw = this.value
+    function syncToRaw () {
+      state.editedModel.contentModelsRaw = serializeContentModels(cmParsedState.header, cmParsedState.models)
       showUnsavedBanner()
     }
+    document.querySelectorAll('.cm-label').forEach(function (el) {
+      el.onchange = function () { var mi = parseInt(this.getAttribute('data-mi'), 10); cmParsedState.models[mi].label = this.value; syncToRaw() }
+    })
+    document.querySelectorAll('.cm-desc').forEach(function (el) {
+      el.onchange = function () { var mi = parseInt(this.getAttribute('data-mi'), 10); cmParsedState.models[mi].description = this.value; syncToRaw() }
+    })
+    document.querySelectorAll('.cm-enabled').forEach(function (el) {
+      el.onchange = function () { var mi = parseInt(this.getAttribute('data-mi'), 10); cmParsedState.models[mi].enabled = this.checked; syncToRaw() }
+    })
+    document.querySelectorAll('.cm-col-key, .cm-col-label, .cm-col-path').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var ci = parseInt(this.getAttribute('data-ci'), 10)
+        var col = cmParsedState.models[mi].columns[ci]
+        if (!col) return
+        if (this.classList.contains('cm-col-key')) col.key = this.value
+        if (this.classList.contains('cm-col-label')) col.label = this.value
+        if (this.classList.contains('cm-col-path')) col.path = this.value
+        syncToRaw()
+      }
+    })
+    document.querySelectorAll('.cm-col-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var ci = parseInt(this.getAttribute('data-ci'), 10)
+        cmParsedState.models[mi].columns.splice(ci, 1)
+        syncToRaw()
+        renderContentModelsTab()
+      }
+    })
+    document.querySelectorAll('.cm-col-add').forEach(function (btn) {
+      btn.onclick = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        cmParsedState.models[mi].columns.push({ key: 'newCol', label: 'New Column', path: '' })
+        syncToRaw()
+        renderContentModelsTab()
+      }
+    })
     document.getElementById('revert-content-models-btn').onclick = function () {
       if (!state.originalModel) return
       state.editedModel.contentModelsRaw = state.originalModel.contentModelsRaw

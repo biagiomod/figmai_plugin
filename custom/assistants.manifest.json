@@ -435,7 +435,7 @@
     },
     {
       "hoverSummary": "Analytics tagging from ScreenID and ActionID annotations",
-      "iconId": "ContentTableIcon",
+      "iconId": "AnalyticsIcon",
       "id": "analytics_tagging",
       "intro": "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
       "kind": "tool",
@@ -448,6 +448,13 @@
           "label": "Get Analytics Tags",
           "requiresSelection": true,
           "templateMessage": "Scan selected screen(s) for ActionID annotations and fill the table."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "append-analytics-tags",
+          "label": "Append Selection",
+          "requiresSelection": true,
+          "templateMessage": "Append additional screen(s) to the existing analytics tagging table."
         },
         {
           "executionType": "tool-only",

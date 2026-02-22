@@ -8,3 +8,9 @@
   /* Light theme uses default :root values */
 }
 
+/* CT-A Welcome: helper text in light mode.
+   Uses data-* attributes (not classes) because postcss-modules hashes class names. */
+[data-theme="light"] [data-assistant="content_table"] [data-ct-helper] {
+  color: #B85A00;
+}
+

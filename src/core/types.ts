@@ -68,6 +68,17 @@ export interface SafetyOverrides {
   safetyToggles?: Record<string, boolean>
 }
 
+/** UI layout mode: 'chat' for standard chat, 'tool' for tool-based layout (no chat input). */
+export type AssistantUIMode = 'chat' | 'tool'
+
+/** Optional settings for tool-mode assistants. */
+export interface ToolSettings {
+  defaultContentModel?: string
+  dedupeDefault?: boolean
+  quickActionsLocation?: 'top' | 'bottom' | 'inline'
+  showInput?: boolean
+}
+
 export interface Assistant {
   id: string
   label: string
@@ -81,6 +92,8 @@ export interface Assistant {
   promptMarkdown: string
   iconId: string
   kind: AssistantKind
+  /** UI layout mode: 'tool' hides chat input; 'chat' (default) shows standard chat. */
+  uiMode: AssistantUIMode
   quickActions: QuickAction[]
   /** Optional structured instructions (from manifest; not used by runtime in initial PR). */
   instructionBlocks?: InstructionBlock[]
@@ -92,6 +105,8 @@ export interface Assistant {
   safetyOverrides?: SafetyOverrides
   /** Optional KB refs by id (from manifest; not used by runtime in initial PR). */
   knowledgeBaseRefs?: string[]
+  /** Optional tool-mode settings (from manifest). */
+  toolSettings?: ToolSettings
 }
 
 // ============================================================================
@@ -359,6 +374,11 @@ export interface DiscardDraftRowHandler extends EventHandler {
 export interface AnalyticsTaggingUpdateRowHandler extends EventHandler {
   name: 'ANALYTICS_TAGGING_UPDATE_ROW'
   handler: (rowId: string, updates: Record<string, unknown>) => void
+}
+
+export interface AnalyticsTaggingDeleteRowHandler extends EventHandler {
+  name: 'ANALYTICS_TAGGING_DELETE_ROW'
+  handler: (rowId: string) => void
 }
 
 export interface RequestAnalyticsTaggingScreenshotHandler extends EventHandler {
