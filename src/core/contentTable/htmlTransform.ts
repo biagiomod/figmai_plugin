@@ -7,6 +7,7 @@
 
 import type { UniversalContentTableV1, TableFormatPreset } from './types'
 import { universalTableToHtml } from './renderers'
+import { projectContentTable } from './projection'
 
 /**
  * Convert Universal Content Table to HTML table
@@ -18,11 +19,8 @@ export function toHtmlTable(
   preset: TableFormatPreset,
   options?: { forView?: boolean }
 ): string {
-  // Use the same renderer as clipboard copy (ensures consistency)
-  const { html } = universalTableToHtml(universalJson, preset)
-  
-  // For in-plugin view, return just the table HTML
-  // For clipboard copy, the renderer already returns just the table
+  const projected = projectContentTable(preset, universalJson.items)
+  const { html } = universalTableToHtml(universalJson, projected)
   return html
 }
 

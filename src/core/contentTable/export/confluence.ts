@@ -14,6 +14,7 @@
 import type { UniversalContentTableV1, TableFormatPreset } from '../types'
 import type { WorkAdapter } from '../../work/adapter'
 import { universalTableToHtml } from '../renderers'
+import { projectContentTable } from '../projection'
 import { encodeXhtmlDocument } from '../../encoding/xhtml'
 import { normalizeContentTableV1 } from '../validate'
 
@@ -79,7 +80,8 @@ export async function buildConfluenceXhtmlFromTable(args: {
   tableUsed = normalizeContentTableV1(tableUsed)
 
   // Step 3: Convert table to HTML
-  const { html } = universalTableToHtml(tableUsed, format)
+  const projected = projectContentTable(format, tableUsed.items)
+  const { html } = universalTableToHtml(tableUsed, projected)
 
   // Step 4: XHTML-encode the HTML string
   const xhtml = encodeXhtmlDocument(html)

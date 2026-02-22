@@ -1,19 +1,20 @@
 /**
  * CT-A inline table view — replaces modal when uiMode === 'tool'.
  *
- * Column order (Universal spec):
- *   # | Figma Ref | Component | Screen | Field/Role | Content | Notes | Tools
+ * Renders from a ProjectedTable so column headers, values and link cells
+ * are consistent with clipboard and stage outputs.
  *
- * "Screen" maps to textLayerName (no new field).
- * Figma Ref renders "View in Figma" as a link.
- * Tools column: Delete + per-row ref image export.
+ * Items-mode presets: editable cells mapped back to session items via editableFieldMap.
+ * KV-mode presets (CM1): read-only — rows are synthetic labels, not 1:1 with items.
  */
 
 import { h } from 'preact'
+import { useMemo } from 'preact/hooks'
 import type { ContentTableSession } from '../../core/contentTable/session'
 import { getEffectiveItems, applyEdit, deleteItem } from '../../core/contentTable/session'
-import { PRESET_INFO, PRESET_COLUMNS } from '../../core/contentTable/presets.generated'
-import type { TableFormatPreset } from '../../core/contentTable/types'
+import { PRESET_INFO } from '../../core/contentTable/presets.generated'
+import { projectContentTable, cellText, cellHref } from '../../core/contentTable/projection'
+import type { TableFormatPreset, ContentItemV1 } from '../../core/contentTable/types'
 import { ImageDownloadIcon, CloseIcon } from '../icons'
 import { TH, TD, CELL_INPUT, TOOL_BTN, actionBtnStyle } from './toolTableStyles'
 
@@ -31,6 +32,15 @@ interface ContentTableViewProps {
   onFormatChange: (format: TableFormatPreset) => void
 }
 
+const editableFieldMap: Record<string, keyof ContentItemV1> = {
+  content: 'content',
+  notes: 'notes',
+  contentKey: 'contentKey',
+  jiraTicket: 'jiraTicket',
+  adaNotes: 'adaNotes',
+  errorMessage: 'errorMessage'
+}
+
 export function ContentTableView({
   session,
   onSessionChange,
@@ -45,16 +55,8 @@ export function ContentTableView({
   onFormatChange
 }: ContentTableViewProps) {
   const items = getEffectiveItems(session)
-  const cols = PRESET_COLUMNS[selectedFormat] ?? PRESET_COLUMNS['universal']
-  const editableFieldMap: Record<string, keyof import('../../core/contentTable/types').ContentItemV1> = {
-    content: 'content',
-    notes: 'notes',
-    contentKey: 'contentKey',
-    jiraTicket: 'jiraTicket',
-    adaNotes: 'adaNotes',
-    errorMessage: 'errorMessage'
-  }
-  const isFigmaRefCol = (key: string) => key === 'figmaRef' || key === 'nodeUrl'
+  const projected = useMemo(() => projectContentTable(selectedFormat, items), [selectedFormat, items])
+  const isKV = projected.readOnly
 
   return (
     <div style={{
@@ -124,76 +126,103 @@ export function ContentTableView({
         minHeight: 0,
         backgroundColor: '#ffffff'
       }}>
-        <table style={{ minWidth: `${cols.length * 100 + 94}px`, borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <table style={{ minWidth: `${projected.headers.length * 100 + (isKV ? 30 : 94)}px`, borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif' }}>
           <thead>
-            <tr style={{ backgroundColor: '#f5f5f5', position: 'sticky', top: 0, zIndex: 1 }}>
-              <th style={{ ...TH, width: '30px' }}>#</th>
-              {cols.map(col => (
-                <th key={col.key} style={{ ...TH, minWidth: col.key === 'content' ? '200px' : '80px' }}>{col.label}</th>
-              ))}
-              <th style={{ ...TH, width: '64px', textAlign: 'center' }}>Tools</th>
-            </tr>
+            {projected.headerRows.map((hRow, hri) => (
+              <tr key={hri} style={{ backgroundColor: '#f5f5f5', position: 'sticky', top: `${hri * 25}px`, zIndex: 2 - hri }}>
+                {!isKV && <th style={{ ...TH, width: '30px' }}>{hri === projected.headerRows.length - 1 ? '#' : ''}</th>}
+                {hRow.map((label, ci) => (
+                  <th key={ci} style={{ ...TH, minWidth: projected.columnKeys[ci] === 'content' ? '200px' : '80px' }}>{label}</th>
+                ))}
+                {!isKV && <th style={{ ...TH, width: '64px', textAlign: 'center' }}>{hri === projected.headerRows.length - 1 ? 'Tools' : ''}</th>}
+              </tr>
+            ))}
           </thead>
           <tbody>
-            {items.map((item, idx) => {
-              const isFlagged = session.flaggedDuplicateIds.has(item.id)
-              return (
-                <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ ...TD, color: '#999', fontSize: '10px' }}>{idx + 1}</td>
-                  {cols.map(col => {
-                    const fieldKey = editableFieldMap[col.key]
-                    if (isFigmaRefCol(col.key)) {
-                      const url = col.extract(item)
+            {isKV ? (
+              /* KV mode: render projected rows directly, read-only, no # or Tools columns */
+              projected.rows.map((row, ri) => (
+                <tr key={ri} style={{ borderBottom: '1px solid #eee' }}>
+                  {row.map((cell, ci) => {
+                    const href = cellHref(cell)
+                    const text = cellText(cell)
+                    if (href) {
                       return (
-                        <td key={col.key} style={TD}>
-                          {url ? (
-                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline', fontSize: '10px' }} title={url}>View in Figma</a>
-                          ) : (
-                            <span style={{ color: '#ccc', fontSize: '10px' }}>-</span>
-                          )}
-                        </td>
-                      )
-                    }
-                    if (fieldKey) {
-                      const curVal = fieldKey === 'content' ? item.content.value : (item[fieldKey] as string || '')
-                      return (
-                        <td key={col.key} style={TD}>
-                          <input
-                            type="text"
-                            defaultValue={curVal}
-                            onBlur={(e) => {
-                              const v = e.currentTarget.value
-                              if (v !== curVal) onSessionChange(applyEdit(session, item.id, fieldKey, v))
-                            }}
-                            style={CELL_INPUT}
-                            onFocus={(e) => { e.currentTarget.style.borderColor = '#0d99ff'; e.currentTarget.style.backgroundColor = '#fff' }}
-                            onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent' }}
-                          />
+                        <td key={ci} style={TD}>
+                          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline', fontSize: '10px' }} title={href}>{text}</a>
                         </td>
                       )
                     }
                     return (
-                      <td key={col.key} style={{ ...TD, color: '#666', fontSize: '10px' }}>{col.extract(item) || ''}</td>
+                      <td key={ci} style={{ ...TD, color: text ? '#000' : '#ccc', fontSize: '10px' }}>{text || ''}</td>
                     )
                   })}
-                  <td style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                    {isFlagged && (
-                      <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
-                    )}
-                    {item.nodeId && (
-                      <button onClick={() => onExportRowRefImage(item.nodeId)} title="Get ref image for this row" style={{ ...TOOL_BTN, color: '#333333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#eef' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
-                        <ImageDownloadIcon width={14} height={14} />
-                      </button>
-                    )}
-                    <button onClick={() => onSessionChange(deleteItem(session, item.id))} title="Delete row" style={{ ...TOOL_BTN, color: '#cc3333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
-                      <CloseIcon width={14} height={14} />
-                    </button>
-                  </td>
                 </tr>
-              )
-            })}
-            {items.length === 0 && (
-              <tr><td colSpan={cols.length + 2} style={{ padding: '16px', textAlign: 'center', color: '#999' }}>No items. All rows have been deleted.</td></tr>
+              ))
+            ) : (
+              /* Items mode: 1 item → 1 row, editable, with # and Tools columns */
+              items.map((item, idx) => {
+                const isFlagged = session.flaggedDuplicateIds.has(item.id)
+                const row = projected.rows[idx]
+                return (
+                  <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ ...TD, color: '#999', fontSize: '10px' }}>{idx + 1}</td>
+                    {row.map((cell, ci) => {
+                      const colKey = projected.columnKeys[ci]
+                      const href = cellHref(cell)
+                      const text = cellText(cell)
+
+                      if (href) {
+                        return (
+                          <td key={colKey} style={TD}>
+                            <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline', fontSize: '10px' }} title={href}>{text}</a>
+                          </td>
+                        )
+                      }
+
+                      const fieldKey = editableFieldMap[colKey]
+                      if (fieldKey) {
+                        const curVal = fieldKey === 'content' ? item.content.value : (item[fieldKey] as string || '')
+                        return (
+                          <td key={colKey} style={TD}>
+                            <input
+                              type="text"
+                              defaultValue={curVal}
+                              onBlur={(e) => {
+                                const v = e.currentTarget.value
+                                if (v !== curVal) onSessionChange(applyEdit(session, item.id, fieldKey, v))
+                              }}
+                              style={CELL_INPUT}
+                              onFocus={(e) => { e.currentTarget.style.borderColor = '#0d99ff'; e.currentTarget.style.backgroundColor = '#fff' }}
+                              onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent' }}
+                            />
+                          </td>
+                        )
+                      }
+
+                      return (
+                        <td key={colKey} style={{ ...TD, color: '#666', fontSize: '10px' }}>{text || ''}</td>
+                      )
+                    })}
+                    <td style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {isFlagged && (
+                        <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
+                      )}
+                      {item.nodeId && (
+                        <button onClick={() => onExportRowRefImage(item.nodeId)} title="Get ref image for this row" style={{ ...TOOL_BTN, color: '#333333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#eef' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
+                          <ImageDownloadIcon width={14} height={14} />
+                        </button>
+                      )}
+                      <button onClick={() => onSessionChange(deleteItem(session, item.id))} title="Delete row" style={{ ...TOOL_BTN, color: '#cc3333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
+                        <CloseIcon width={14} height={14} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+            {projected.rows.length === 0 && (
+              <tr><td colSpan={projected.headers.length + (isKV ? 0 : 2)} style={{ padding: '16px', textAlign: 'center', color: '#999' }}>No items. All rows have been deleted.</td></tr>
             )}
           </tbody>
         </table>
@@ -225,4 +254,3 @@ export function ContentTableView({
     </div>
   )
 }
-

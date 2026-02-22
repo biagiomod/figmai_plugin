@@ -132,6 +132,7 @@ import type {
 import type { AnalyticsTaggingExportCompactRow } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
+import { projectContentTable } from './core/contentTable/projection'
 import { PRESET_INFO, PRESET_COLUMNS } from './core/contentTable/presets.generated'
 import type { ContentTableSession } from './core/contentTable/session'
 import { createSession, getEffectiveItems, applyEdit, deleteItem, appendItems, toggleDuplicateScan } from './core/contentTable/session'
@@ -1712,8 +1713,9 @@ function Plugin() {
     try {
       // Use session-effective items (with edits/deletions applied) as the single source of truth
       const effectiveItems = ctSession ? getEffectiveItems(ctSession) : contentTable.items
-      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, format, effectiveItems)
-      const tsv = universalTableToTsv(contentTable, format, effectiveItems)
+      const projected = projectContentTable(format, effectiveItems)
+      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, projected)
+      const tsv = universalTableToTsv(contentTable, projected)
       const json = universalTableToJson(contentTable)
       
       console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length, 'JSON length:', json.length)
@@ -2039,8 +2041,9 @@ function Plugin() {
       return
     }
     const table = sessionToTable(session)
-    const { html: htmlTable } = universalTableToHtml(table, 'analytics-tagging')
-    const tsv = universalTableToTsv(table, 'analytics-tagging')
+    const atProjected = projectContentTable('analytics-tagging', table.items)
+    const { html: htmlTable } = universalTableToHtml(table, atProjected)
+    const tsv = universalTableToTsv(table, atProjected)
 
     const onSuccess = (msg?: string) => {
       emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', msg || 'Successfully copied table to clipboard')
@@ -2160,7 +2163,8 @@ function Plugin() {
   const handleDownloadHtml = useCallback((format: TableFormatPreset) => {
     if (!contentTable) return
     
-    const { html: htmlTable } = universalTableToHtml(contentTable, format)
+    const dlProjected = projectContentTable(format, contentTable.items)
+    const { html: htmlTable } = universalTableToHtml(contentTable, dlProjected)
     const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -2192,7 +2196,8 @@ ${htmlTable}
     }
     
     try {
-      const tsv = universalTableToTsv(contentTable, format)
+      const tsvProjected = projectContentTable(format, contentTable.items)
+      const tsv = universalTableToTsv(contentTable, tsvProjected)
       
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(tsv)
@@ -2560,13 +2565,14 @@ ${htmlTable}
               onViewOnStage={() => {
                 if (!analyticsTaggingSession) return
                 const table = sessionToTable(analyticsTaggingSession)
-                const cols = PRESET_COLUMNS['analytics-tagging'] ?? PRESET_COLUMNS['universal']
+                const atStageProjected = projectContentTable('analytics-tagging', table.items)
                 emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
-                  headers: cols.map(c => c.label),
-                  rows: table.items.map(item => cols.map(c => c.extract(item))),
+                  headers: atStageProjected.headers,
+                  headerRows: atStageProjected.headerRows,
+                  rows: atStageProjected.rows,
                   title: analyticsTaggingSession.source?.pageName || 'AT-A Table Preview',
                   existingFrameId: stageFrameIdRef.current,
-                  columnKeys: cols.map(c => c.key)
+                  columnKeys: atStageProjected.columnKeys
                 })
               }}
               onCopyToClipboard={async () => {
@@ -2611,13 +2617,14 @@ ${htmlTable}
               onViewOnStage={() => {
                 if (!ctSession || !contentTable) return
                 const items = getEffectiveItems(ctSession)
-                const cols = PRESET_COLUMNS[selectedFormat] ?? PRESET_COLUMNS['universal']
+                const ctStageProjected = projectContentTable(selectedFormat, items)
                 emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
-                  headers: cols.map(c => c.label),
-                  rows: items.map(item => cols.map(c => c.extract(item))),
+                  headers: ctStageProjected.headers,
+                  headerRows: ctStageProjected.headerRows,
+                  rows: ctStageProjected.rows,
                   title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
                   existingFrameId: stageFrameIdRef.current,
-                  columnKeys: cols.map(c => c.key)
+                  columnKeys: ctStageProjected.columnKeys
                 })
               }}
               onCopyToClipboard={() => handleCopyTable(selectedFormat, 'html')}
@@ -4225,14 +4232,14 @@ ${htmlTable}
                   onClick={() => {
                     if (!ctSession || !contentTable) return
                     const items = getEffectiveItems(ctSession)
-                    const presetCols = PRESET_COLUMNS[selectedFormat]
-                    const cols = presetCols && presetCols.length > 0 ? presetCols : PRESET_COLUMNS['universal']
+                    const modalStageProjected = projectContentTable(selectedFormat, items)
                     emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
-                      headers: cols.map(c => c.label),
-                      rows: items.map(item => cols.map(c => c.extract(item))),
+                      headers: modalStageProjected.headers,
+                      headerRows: modalStageProjected.headerRows,
+                      rows: modalStageProjected.rows,
                       title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
                       existingFrameId: stageFrameIdRef.current,
-                      columnKeys: cols.map(c => c.key)
+                      columnKeys: modalStageProjected.columnKeys
                     })
                   }}
                   disabled={!ctSession}

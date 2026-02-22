@@ -1900,15 +1900,11 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
   await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
   await figma.loadFontAsync({ family: 'Inter', style: 'Bold' })
 
-  const colKeys = payload.columnKeys || []
+  const allHeaderRows = payload.headerRows && payload.headerRows.length > 0
+    ? payload.headerRows
+    : [headers]
+
   const contentColIdx = headers.findIndex(h => h === 'Content')
-  const figmaRefColIndices = new Set<number>()
-  for (let i = 0; i < headers.length; i++) {
-    const key = colKeys[i] || ''
-    if (key === 'figmaRef' || key === 'nodeUrl' || headers[i] === 'Figma Ref' || headers[i] === 'Node URL') {
-      figmaRefColIndices.add(i)
-    }
-  }
   const colWidths = headers.map((_, i) => i === contentColIdx ? CONTENT_COL_W : BASE_COL_W)
   const totalW = colWidths.reduce((s, w) => s + w, 0)
 
@@ -1921,28 +1917,30 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
   frame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
   frame.clipsContent = true
 
-  for (let c = 0; c < headers.length; c++) {
-    const w = colWidths[c]
-    const bg = figma.createRectangle()
-    bg.x = colX(c)
-    bg.y = 0
-    bg.resize(w, MIN_ROW_H)
-    bg.fills = [{ type: 'SOLID', color: { r: 0.94, g: 0.94, b: 0.94 } }]
-    frame.appendChild(bg)
+  let yOffset = 0
+  for (const hRow of allHeaderRows) {
+    for (let c = 0; c < hRow.length; c++) {
+      const w = colWidths[c]
+      const bg = figma.createRectangle()
+      bg.x = colX(c)
+      bg.y = yOffset
+      bg.resize(w, MIN_ROW_H)
+      bg.fills = [{ type: 'SOLID', color: { r: 0.94, g: 0.94, b: 0.94 } }]
+      frame.appendChild(bg)
 
-    const txt = figma.createText()
-    txt.fontName = { family: 'Inter', style: 'Bold' }
-    txt.fontSize = FONT_SIZE
-    txt.characters = headers[c]
-    txt.x = colX(c) + CELL_PAD
-    txt.y = 5
-    txt.textAutoResize = 'NONE'
-    txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
-    txt.textTruncation = 'ENDING'
-    frame.appendChild(txt)
+      const txt = figma.createText()
+      txt.fontName = { family: 'Inter', style: 'Bold' }
+      txt.fontSize = FONT_SIZE
+      txt.characters = hRow[c]
+      txt.x = colX(c) + CELL_PAD
+      txt.y = yOffset + 5
+      txt.textAutoResize = 'NONE'
+      txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
+      txt.textTruncation = 'ENDING'
+      frame.appendChild(txt)
+    }
+    yOffset += MIN_ROW_H
   }
-
-  let yOffset = MIN_ROW_H
   for (let r = 0; r < rows.length; r++) {
     const cellTexts: TextNode[] = []
     const cellHeights: number[] = []
@@ -1950,8 +1948,9 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
     for (let c = 0; c < headers.length; c++) {
       const w = colWidths[c]
       const isContent = c === contentColIdx
-      const isFigmaRef = figmaRefColIndices.has(c)
-      const raw = rows[r][c] || ''
+      const rawCell = rows[r][c] || ''
+      const cellStr = typeof rawCell === 'string' ? rawCell : rawCell.text
+      const cellLink = typeof rawCell === 'string' ? undefined : rawCell.href
       const txt = figma.createText()
       txt.fontName = { family: 'Inter', style: 'Regular' }
       txt.fontSize = FONT_SIZE
@@ -1959,27 +1958,23 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
       if (isContent) {
         txt.resize(w - CELL_PAD * 2, MIN_ROW_H)
         txt.textAutoResize = 'HEIGHT'
-        txt.characters = raw.replace(/\r\n|\r/g, '\n')
+        txt.characters = cellStr.replace(/\r\n|\r/g, '\n')
         const measured = Math.min(txt.height, MAX_CONTENT_H)
         cellHeights.push(Math.max(MIN_ROW_H, measured + CELL_PAD))
-      } else if (isFigmaRef && raw) {
-        const linkLabel = 'View in Figma'
-        const url = raw.trim()
-        txt.characters = linkLabel
+      } else if (cellLink) {
+        txt.characters = cellStr
         txt.textAutoResize = 'NONE'
         txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
         txt.textTruncation = 'ENDING'
-        if (url.startsWith('http')) {
-          try {
-            txt.setRangeTextDecoration(0, linkLabel.length, 'UNDERLINE')
-            txt.setRangeFills(0, linkLabel.length, [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1 } }])
-          } catch (_) { /* styling optional */ }
-          try { txt.hyperlink = { type: 'URL', value: url } } catch (_) { /* property API */ }
-          try { txt.setRangeHyperlink(0, linkLabel.length, { type: 'URL', value: url }) } catch (_) { /* range API */ }
-        }
+        try {
+          txt.setRangeTextDecoration(0, cellStr.length, 'UNDERLINE')
+          txt.setRangeFills(0, cellStr.length, [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1 } }])
+        } catch (_) { /* styling optional */ }
+        try { txt.hyperlink = { type: 'URL', value: cellLink } } catch (_) { /* property API */ }
+        try { txt.setRangeHyperlink(0, cellStr.length, { type: 'URL', value: cellLink }) } catch (_) { /* range API */ }
         cellHeights.push(MIN_ROW_H)
       } else {
-        txt.characters = raw.replace(/\n/g, ' ')
+        txt.characters = cellStr.replace(/\n/g, ' ')
         txt.textAutoResize = 'NONE'
         txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
         txt.textTruncation = 'ENDING'

@@ -1,28 +1,17 @@
 /**
  * Content Table Renderers
- * Single Source of Truth for converting UniversalContentTableV1 to various formats
- * 
- * All outputs (HTML, TSV, JSON) are generated from the same UniversalContentTableV1 JSON
- * to prevent drift and ensure consistency.
- * 
- * Column definitions are generated from docs/content-models.md via presets.generated.ts
+ *
+ * Converts UniversalContentTableV1 + ProjectedTable to HTML / TSV / JSON.
+ *
+ * HTML and TSV renderers receive a ProjectedTable (from projection.ts)
+ * so that link detection is data-driven via Cell.href, not heuristic.
+ *
+ * Column definitions are generated from docs/content-models.md via presets.generated.ts.
  */
 
-import type { UniversalContentTableV1, TableFormatPreset, ContentItemV1 } from './types'
-import { PRESET_COLUMNS, type ColumnDef } from './presets.generated'
-
-/**
- * Get column definitions for a preset
- * Falls back to universal if preset not implemented or has no columns
- */
-function getColumnsForPreset(preset: TableFormatPreset): ColumnDef[] {
-  const columns = PRESET_COLUMNS[preset]
-  if (!columns || columns.length === 0) {
-    // Fallback to universal for unimplemented presets
-    return PRESET_COLUMNS['universal']
-  }
-  return columns
-}
+import type { UniversalContentTableV1 } from './types'
+import type { ProjectedTable, Cell } from './projection'
+import { cellText, cellHref } from './projection'
 
 /**
  * Escape HTML special characters
@@ -61,7 +50,6 @@ function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: n
     `Version: ${escapeHtml(meta.version)}`
   ].join(' • ')
   
-  // Cell 2 spans the remaining columns (columnCount - 1)
   const colSpan = columnCount - 1
   const metadataCell = `<td colspan="${colSpan}" style="border: 1px solid #ddd; padding: 8px; vertical-align: top; background-color: #ffffff; color: #000000;">
     <div style="font-size: 12px; line-height: 1.6; color: #000000;">
@@ -72,128 +60,84 @@ function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: n
   return `<tr>${thumbnailCell}${metadataCell}</tr>`
 }
 
-/**
- * Render "Figma Ref" column value as "View Element" hyperlink
- */
-function renderFigmaRef(value: string): string {
-  if (!value) return ''
-  return `<a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" style="color: #0066ff; text-decoration: underline;">View Element</a>`
+function renderCellHtml(cell: Cell): string {
+  const href = cellHref(cell)
+  if (href) {
+    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color: #0066ff; text-decoration: underline;">View Element</a>`
+  }
+  const cellStr = String(cellText(cell) || '')
+  return escapeHtml(cellStr).replace(/\r\n|\r|\n/g, '<br>')
 }
 
 /**
- * Convert Universal Content Table to HTML table
- * Returns both HTML table and plain text fallback
- *
- * @param itemsOverride — when provided, used instead of universalTable.items
- *   so the export reflects session edits/deletions.
+ * Convert Universal Content Table to HTML table using pre-projected data.
  */
 export function universalTableToHtml(
   universalTable: UniversalContentTableV1,
-  preset: TableFormatPreset,
-  itemsOverride?: ContentItemV1[]
+  projected: ProjectedTable
 ): { html: string; plainText: string } {
-  const columns = getColumnsForPreset(preset)
-  const headers = columns.map(col => col.label)
-  const items = itemsOverride ?? universalTable.items
+  const { headerRows, rows } = projected
 
-  // Build rows using preset column extractors (single source of truth)
-  const rows: string[][] = []
-  for (const item of items) {
-    rows.push(columns.map(col => col.extract(item)))
-  }
-  
-  // Build HTML table with minimal inline styles
-  // Format optimized for Word, Apple Notes, and Confluence
-  // Force light mode styling: white background, black text (tables are document artifacts, not UI chrome)
   let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px; background-color: #ffffff; color: #000000;">'
   
-  // <thead> containing meta row (if exists) and header row
   html += '<thead>'
   
-  // Row 1: Meta row (only if meta exists)
   if (universalTable.meta) {
-    html += renderMetaRowHtml(universalTable.meta, columns.length)
+    html += renderMetaRowHtml(universalTable.meta, headerRows[0].length)
   }
   
-  // Row 2: Header labels row
-  html += '<tr>'
-  for (const header of headers) {
-    html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+  for (const hRow of headerRows) {
+    html += '<tr>'
+    for (const header of hRow) {
+      html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+    }
+    html += '</tr>'
   }
-  html += '</tr></thead>'
+  html += '</thead>'
   
-  // Row 3+: Body rows
   html += '<tbody>'
   for (const row of rows) {
     html += '<tr>'
-    for (let i = 0; i < row.length; i++) {
-      const cell = row[i]
-      const col = columns[i]
-      let cellHtml: string
-      
-      // Special handling for Figma Ref column
-      if (col.key === 'figmaRef') {
-        cellHtml = renderFigmaRef(cell)
-      } else {
-        // Escape cell content and preserve newlines and carriage returns as <br>
-        // Handle \r\n (Windows), \n (Unix), and \r (old Mac) line breaks
-        const cellStr = String(cell || '')
-        const escapedCell = escapeHtml(cellStr).replace(/\r\n|\r|\n/g, '<br>')
-        cellHtml = escapedCell
-      }
-      
-      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${cellHtml}</td>`
+    for (const cell of row) {
+      html += `<td style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; background-color: #ffffff; color: #000000;">${renderCellHtml(cell)}</td>`
     }
     html += '</tr>'
   }
   html += '</tbody></table>'
   
-  // Build plain text fallback (tab-separated for better paste compatibility)
-  const plainText = headers.join('\t') + '\n' + rows.map(row => row.join('\t')).join('\n')
+  const primaryHeaders = headerRows[headerRows.length - 1]
+  const allHeaderLines = headerRows.map(hr => hr.join('\t')).join('\n')
+  const plainText = allHeaderLines + '\n' + rows.map(row => row.map(c => cellText(c)).join('\t')).join('\n')
   
   return { html, plainText }
 }
 
 /**
- * Convert Universal Content Table to TSV (tab-separated values)
+ * Convert Universal Content Table to TSV using pre-projected data.
  */
 export function universalTableToTsv(
   universalTable: UniversalContentTableV1,
-  preset: TableFormatPreset,
-  itemsOverride?: ContentItemV1[]
+  projected: ProjectedTable
 ): string {
-  const columns = getColumnsForPreset(preset)
-  const headers = columns.map(col => col.label)
-  const items = itemsOverride ?? universalTable.items
+  const { headerRows, rows } = projected
 
-  // Build rows
-  const rows: string[][] = []
-  for (const item of items) {
-    rows.push(
-      columns.map(col => {
-        const value = col.extract(item)
-        // Replace tabs and newlines in TSV to prevent breaking the format
-        return value.replace(/\t/g, ' ').replace(/\n/g, ' ')
-      })
-    )
-  }
-  
-  // Build TSV
-  let tsv = headers.join('\t') + '\n'
+  let tsv = headerRows.map(hr => hr.join('\t')).join('\n') + '\n'
   for (const row of rows) {
-    tsv += row.join('\t') + '\n'
+    tsv += row.map(cell => {
+      const value = cellText(cell)
+      return value.replace(/\t/g, ' ').replace(/\n/g, ' ')
+    }).join('\t') + '\n'
   }
   
   return tsv.trim()
 }
 
 /**
- * Convert Universal Content Table to JSON
- * Returns the exact JSON.stringify output
+ * Convert Universal Content Table to JSON.
+ * Returns the exact JSON.stringify output of the raw SSOT (not projected).
  */
 export function universalTableToJson(
   universalTable: UniversalContentTableV1
 ): string {
   return JSON.stringify(universalTable, null, 2)
 }
-

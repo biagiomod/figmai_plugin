@@ -247,7 +247,9 @@ export interface ExportContentTableRefImageHandler extends EventHandler {
 
 export interface RenderTableOnStagePayload {
   headers: string[]
-  rows: string[][]
+  /** Multiple header rows (top to bottom). When present, replaces `headers` for rendering. */
+  headerRows?: string[][]
+  rows: (string | { text: string; href: string })[][]
   title: string
   existingFrameId: string | null
   columnKeys?: string[]
