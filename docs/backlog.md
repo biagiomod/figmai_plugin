@@ -53,6 +53,7 @@ Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figm
 | **K — Continuous improvement** | K1 | External architecture review agent | [BL-041](#bl-041) |
 | **L — Errors assistant (post-demo bugs)** | L1 | GROUP selection → sub-screen duplication | [BL-042](#bl-042) |
 | | L2 | Intermittent "not a function" on Quick Action | [BL-043](#bl-043) |
+| **M — Scanning & enrichment** | M1 | Smart Detector as canonical scan enrichment layer | [BL-050](#bl-050) |
 
 **Strategy initiatives (2026)** — Seven prioritized initiatives aligned to backlog:
 
@@ -97,6 +98,28 @@ Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figm
    - Each Backlog ID (BL-XXX) is unique and permanent
    - Even if an item is cancelled or superseded, its ID remains
    - This ensures traceability and prevents confusion
+
+---
+
+## Scanning Policy
+
+### Canonical Rule
+
+All scan pipelines (CT-A, AT-A, Smart Selector, and any future scan/extraction tool) must pass results through Smart Detector as an enrichment step before delivering data to projections (table views, exports, stage renders).
+
+This rule is gated behind a config flag (`config.contentTable.smartDetectorEnrichment.enabled`, default OFF) until validated end-to-end. When the flag is OFF, scan behavior is unchanged.
+
+### Acceptance Checklist for New Scan Features
+
+Before a new scan feature is merged:
+
+- [ ] Scan output conforms to the canonical item schema (ContentItemV1 or equivalent)
+- [ ] Smart Detector enrichment is wired as a post-scan step
+- [ ] Enrichment is gated behind config flag (default OFF until validated)
+- [ ] Raw fields are preserved; `smart` and `derived` fields are additive only
+- [ ] Projections degrade gracefully when enrichment is absent (raw-only mode)
+- [ ] Round-trip test: scan → enrich → project produces stable, deterministic output
+- [ ] No-op test: flag OFF produces identical output to pre-enrichment baseline
 
 ---
 
@@ -212,6 +235,7 @@ Prioritized items ready for implementation. These should have clear scope and ac
 | BL-007 | Improve assistant accuracy and usefulness across all assistants | P1 | Proposed | Unassigned | Each assistant has clearer scope, fewer ambiguous responses, and better task completion rates | Umbrella. Related: [BL-026](#bl-026) (DS guardrails), [BL-044](#bl-044)–[BL-049](#bl-049) (strategy initiatives). |
 | BL-008 | Create Figma-stage UI components aligned to plugin design direction | P2 | Proposed | Unassigned | Components feel cohesive, usable, and ready for real design workflows | |
 | BL-026 | Design system KB and guardrails (first-class type + DS-only enforcement) | P1 | Backlog | Unassigned | Design system as first-class KB type; enforce DS-only components/tokens where DS is active; nearest-DS-match suggestions; DS compliance auditing (tool-only where possible). | Source: D1. Depends on BL-001 for full guardrails. See [details](#bl-026). |
+| BL-050 | Smart Detector as canonical scan enrichment layer | P1 | Proposed | Unassigned | Every scan pipeline passes through Smart Detector enrichment; SSOT schema gains optional `smart`/`derived` fields; flag-gated (default OFF); projections degrade gracefully. | Source: M1. See [details](#bl-050). |
 
 ---
 
@@ -233,7 +257,7 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | BL-018 | ACE: Upgrade strategy + visible ACE build/version number in ACE UI | P2 | Proposed | Unassigned | Upgrade strategy is documented; ACE UI displays build/version number. | |
 | BL-019 | ACE: Simple backlog page viewer/editor | P2 | Proposed | Unassigned | ACE has a dedicated page that views backlog.md; editing limited to Owner/Editor when roles exist (viewer-only acceptable initially). Scope limited to backlog.md only. | |
 | BL-020 | Full Plugin + LLM interaction audit | P1 | Backlog | Unassigned | Sequence diagram, file/module map, prompt + response pipeline breakdown; audit request packaging, KB attachment, parsing, errors, retry, token limits. | Source: A1. See [details](#bl-020). |
-| BL-021 | Editor-friendly assistant configuration model | P2 | Backlog | Unassigned | Structured fields, presets, advanced mode, inline examples for non-technical editors. | Source: B1. See [details](#bl-021). |
+| BL-021 | Editor-friendly assistant configuration model | P2 | Backlog | Unassigned | Structured fields, presets, advanced mode, inline examples for non-technical editors. | Source: B1. Partially implemented: toolSettings + structured instructions exist in manifest/ACE. See [details](#bl-021). |
 | BL-022 | Assistant query structure definition | P2 | Backlog | Unassigned | Canonical JSON prompt schema: system/task/context/KB/schema/validation. | Source: B2. See [details](#bl-022). |
 | BL-023 | KB structure standard | P2 | Backlog | Unassigned | Standard sections: purpose, scope, definitions, rules, do/don't, examples, edge, accessibility, dark-mode, compliance. | Source: C1. See [details](#bl-023). |
 | BL-024 | KB builder template | P2 | Backlog | Unassigned | ACE guided builder → markdown/JSON output. | Source: C2. See [details](#bl-024). |
@@ -248,7 +272,7 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | BL-034 | ACE analytics dashboard | P2 | Backlog | Unassigned | Charts, logs, assistant performance, adoption. | Source: H2. See [details](#bl-034). |
 | BL-035 | Assistant contribution intake | P2 | Backlog | Unassigned | Submission intake: assistant config, KB, schema, tests. | Source: I1. See [details](#bl-035). |
 | BL-036 | Contribution validation pipeline | P2 | Backlog | Unassigned | Automated tests, schema checks, safety checks, manual approval. | Source: I2. See [details](#bl-036). |
-| BL-037 | Content table manager | P2 | Backlog | Unassigned | Sync from plugin, editable, export. | Source: J1. See [details](#bl-037). |
+| BL-037 | Content table manager | P2 | Backlog | Unassigned | Sync from plugin, editable, export. | Source: J1. Partially implemented: ACE structured editor for content models exists. See [details](#bl-037). |
 | BL-038 | Analytics tag table manager | P2 | Backlog | Unassigned | Registry, rules, sync. | Source: J2. See [details](#bl-038). |
 | BL-039 | Multi-format export (content/analytics) | P2 | Backlog | Unassigned | JSON/XML/mobile/CMS export. | Source: J3. See [details](#bl-039). |
 | BL-040 | DB-level versioning (content/analytics) | P2 | Backlog | Unassigned | History, diff, rollback, attribution, locking/conflicts. | Source: J4. See [details](#bl-040). |
@@ -475,6 +499,24 @@ Standard fields for merged and newly added items: **Problem/Goal**, **Scope**, *
 - **Scope:** Plugin. Ideas/experiments; low commitment.
 - **Deliverables:** Creative Micro-Tools: optional ideas for small creative utilities (e.g. variations, naming, micro-edits). P3; may be deferred or refined into concrete items.
 - **Dependencies:** None. **Owner:** Unassigned. **Status:** Backlog.
+
+##### BL-050 {#bl-050}
+
+- **Problem / Goal:** CT-A, AT-A, Smart Selector, and future scan tools each extract raw data independently. Smart Detector classifications (element kind, confidence, content role) are not available to other scan pipelines, leading to duplicated heuristics and inconsistent enrichment. All scans must run through Smart Detector going forward.
+- **Scope — In:**
+  - Define `SmartEnrichmentBlock` type (kind, confidence, derivedRole, flags).
+  - Add optional `smart` field to `ContentItemV1` (non-breaking; existing raw fields preserved).
+  - Add optional `derived` fields (e.g. `derived.role`, `derived.category`).
+  - Create `enrichScanResults(items)` pure function that calls SD classifier.
+  - Gate behind config flag: `config.contentTable.smartDetectorEnrichment.enabled` (default OFF).
+  - Wire into CT-A handler post-scan (after exclusion rules, before UI delivery).
+  - Wire into AT-A handler post-scan (same pattern).
+  - Projections consume either raw-only or smart-enriched data.
+  - Tests: scan → enrich → projection stable and deterministic; no behavior change when flag OFF.
+- **Scope — Out:** Refactoring Smart Detector internals; changing SD classification logic; cross-session persistence; any LLM involvement.
+- **Deliverables:** SmartEnrichmentBlock type, enrichScanResults function, config flag, handler wiring, projection fallback, tests.
+- **Dependencies:** None (Smart Detector already exists and is callable). **Owner:** Unassigned. **Status:** Proposed.
+- **Risk level:** Demo-safe when flag is OFF (default). Feature-flag gated.
 
 ---
 
@@ -893,6 +935,7 @@ This section tracks significant changes to the backlog structure itself.
 | 2026-01-21 | Index (by category) added; E1–E3 merged into BL-016, G1 merged into BL-017; BL-020–BL-041 added (A1–K1); merged & new item details section; Merge notes added | Merge categorized backlog (Architect mode); preserve traceability A1–K1 ↔ BL-020–BL-041 |
 | 2026-01-21 | BL-042, BL-043 added (Errors assistant post-demo bugs); Index L1/L2 added | Architect: GROUP selection sub-screen duplication; intermittent "not a function" on Quick Action |
 | 2026-01-21 | Backlog aligned to 2026 strategy initiatives | Backlog Strategy Alignment: BL-026 expanded (Design System Guardrails, P1, moved to Next); BL-044–BL-049 added (Dev Handoff Pack, Document Ops, Prompt-to-Flow, Inline Copy Ops, Research-to-Design Bridge, Creative Micro-Tools); BL-006 marked Done (ACE); BL-007 cross-links; Index strategy subsection; Changelog entry |
+| 2026-02-22 | Scanning policy + BL-050 added; BL-021/BL-037 notes updated | Added "Scanning Policy" section (canonical rule: all scans through Smart Detector); BL-050 (Smart Detector enrichment layer) added to Next; Index category M added; BL-021 updated (partially implemented); BL-037 updated (partially implemented) |
 
 ---
 

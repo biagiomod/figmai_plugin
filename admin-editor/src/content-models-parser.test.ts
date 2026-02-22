@@ -51,5 +51,60 @@ if (!roundTrip) {
 }
 assert(roundTrip, 'serialize(parse(raw)) === raw (round-trip)')
 
+const groupedFixture = `# Content Models
+
+---
+
+## Grouped Example
+
+**id:** grouped-example  
+**label:** Grouped Example  
+**description:** grouped test model  
+**enabled:** true
+**kind:** grouped
+
+**columns:**
+- key: col1, label: Column 1, path: nodeUrl
+- key: col2, label: Column 2, path: content.value
+
+**template:**
+\`\`\`json
+{
+  "headerRows": [
+    [
+      "Column 1",
+      "Column 2"
+    ]
+  ],
+  "containerIntroRows": [
+    [
+      {
+        "type": "link",
+        "label": "View in Figma",
+        "hrefField": "nodeUrl"
+      },
+      ""
+    ]
+  ],
+  "itemRows": [
+    [
+      "",
+      {
+        "type": "field",
+        "field": "content.value"
+      }
+    ]
+  ]
+}
+\`\`\`
+`
+
+const groupedParsed = parseContentModelsMarkdown(groupedFixture)
+assert(groupedParsed.models.length === 1, 'grouped fixture parsed one model')
+assert(groupedParsed.models[0].kind === 'grouped', 'grouped fixture kind is grouped')
+assert(!!groupedParsed.models[0].template, 'grouped fixture has template')
+const groupedSerialized = serializeContentModelsMarkdown(groupedParsed.header, groupedParsed.models)
+assert(groupedSerialized === groupedFixture, 'grouped fixture round-trips byte-for-byte')
+
 console.log(`\n[content-models-parser.test] ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

@@ -120,6 +120,7 @@ If a path is missing, it returns an empty string.
 **label:** Content Model 1  
 **description:** Structured content export with merged cells and staggered rows  
 **enabled:** true
+**kind:** grouped
 
 **columns:**
 - key: figmaRef, label: Figma Ref, path: nodeUrl
@@ -131,6 +132,109 @@ If a path is missing, it returns an empty string.
 - key: content, label: Content, path: content.value
 - key: rulesComment, label: Rules/Comment, path: notes
 - key: notesJira, label: Notes/Jira, path: jiraTicket
+
+**template:**
+```json
+{
+  "headerRows": [
+    [
+      "Column 1",
+      "Column 2",
+      "Column 3",
+      "Column 4",
+      "Column 5",
+      "Column 6",
+      "Column 7",
+      "Column 8",
+      "Column 9"
+    ],
+    [
+      "Figma Ref",
+      "Tag",
+      "Source",
+      "Model",
+      "Metadata Key",
+      "Content Key",
+      "Content",
+      "Rules/Comment",
+      "Notes/Jira"
+    ]
+  ],
+  "containerIntroRows": [
+    [
+      {
+        "type": "link",
+        "label": {
+          "type": "static",
+          "text": "View in Figma"
+        },
+        "hrefField": "containerUrl"
+      },
+      "",
+      "",
+      {
+        "type": "static",
+        "text": "ContentList"
+      },
+      {
+        "type": "static",
+        "text": "id"
+      },
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "",
+      "",
+      "",
+      "",
+      "",
+      {
+        "type": "static",
+        "text": "title"
+      },
+      "",
+      "",
+      ""
+    ]
+  ],
+  "itemRows": [
+    [
+      "",
+      "",
+      "",
+      "",
+      {
+        "type": "static",
+        "text": "key"
+      },
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "",
+      "",
+      "",
+      "",
+      "",
+      {
+        "type": "static",
+        "text": "value"
+      },
+      {
+        "type": "field",
+        "field": "content"
+      },
+      "",
+      ""
+    ]
+  ]
+}
+```
 
 ---
 

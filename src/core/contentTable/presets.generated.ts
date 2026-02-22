@@ -14,6 +14,16 @@ export interface PresetInfo {
   label: string
   description: string
   enabled: boolean
+  kind: ContentModelKind
+}
+
+
+export type ContentModelKind = 'simple' | 'grouped'
+
+export interface GroupedTemplate {
+  headerRows: string[][]
+  containerIntroRows: Array<Array<Record<string, unknown> | string>>
+  itemRows: Array<Array<Record<string, unknown> | string>>
 }
 
 export const PRESET_INFO: PresetInfo[] = [
@@ -21,61 +31,71 @@ export const PRESET_INFO: PresetInfo[] = [
     id: 'universal' as TableFormatPreset,
     label: "Universal Table",
     description: "Enhanced content table with meta row, 10 columns, and thumbnail preview",
-    enabled: true
+    enabled: true,
+    kind: 'simple'
   },
   {
     id: 'content-only' as TableFormatPreset,
     label: "Content Only",
     description: "Content list with same structure as Content Model 1, but only Column 7 populated with content values",
-    enabled: true
+    enabled: true,
+    kind: 'simple'
   },
   {
     id: 'dev-only' as TableFormatPreset,
     label: "Dev Only",
     description: "Minimal columns for development handoff",
-    enabled: true
+    enabled: true,
+    kind: 'simple'
   },
   {
     id: 'ada-only' as TableFormatPreset,
     label: "ADA Only",
     description: "Accessibility-focused columns for compliance review",
-    enabled: true
+    enabled: true,
+    kind: 'simple'
   },
   {
     id: 'content-model-1' as TableFormatPreset,
     label: "Content Model 1",
     description: "Structured content export with merged cells and staggered rows",
-    enabled: true
+    enabled: true,
+    kind: 'grouped'
   },
   {
     id: 'content-model-2' as TableFormatPreset,
     label: "Content Model 2",
     description: "Schema-style export with rowspans and staggered rows for Dialog and Links sections",
-    enabled: true
+    enabled: true,
+    kind: 'simple'
   },
   {
     id: 'content-model-3' as TableFormatPreset,
     label: "Content Model 3",
     description: "Placeholder for future content model",
-    enabled: false
+    enabled: false,
+    kind: 'simple'
   },
   {
     id: 'content-model-4' as TableFormatPreset,
     label: "Content Model 4",
     description: "Placeholder for future content model",
-    enabled: false
+    enabled: false,
+    kind: 'simple'
   },
   {
     id: 'content-model-5' as TableFormatPreset,
     label: "Content Model 5",
     description: "Placeholder for future content model",
-    enabled: false
+    enabled: false,
+    kind: 'simple'
   },
   {
     id: 'analytics-tagging' as TableFormatPreset,
     label: "Analytics Tagging",
     description: "Screen ID, screenshot, description, action type, component, Action ID, Figma link, population, note",
-    enabled: true
+    enabled: true,
+    kind: 'simple'
   }
 ]
 
@@ -429,5 +449,107 @@ export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
       extract: (item) => resolvePath(item, "note")
     }
   ]
+}
+
+export const PRESET_TEMPLATES: Record<string, GroupedTemplate> = {
+  'content-model-1': {
+    "headerRows": [
+      [
+        "Column 1",
+        "Column 2",
+        "Column 3",
+        "Column 4",
+        "Column 5",
+        "Column 6",
+        "Column 7",
+        "Column 8",
+        "Column 9"
+      ],
+      [
+        "Figma Ref",
+        "Tag",
+        "Source",
+        "Model",
+        "Metadata Key",
+        "Content Key",
+        "Content",
+        "Rules/Comment",
+        "Notes/Jira"
+      ]
+    ],
+    "containerIntroRows": [
+      [
+        {
+          "type": "link",
+          "label": {
+            "type": "static",
+            "text": "View in Figma"
+          },
+          "hrefField": "containerUrl"
+        },
+        "",
+        "",
+        {
+          "type": "static",
+          "text": "ContentList"
+        },
+        {
+          "type": "static",
+          "text": "id"
+        },
+        "",
+        "",
+        "",
+        ""
+      ],
+      [
+        "",
+        "",
+        "",
+        "",
+        "",
+        {
+          "type": "static",
+          "text": "title"
+        },
+        "",
+        "",
+        ""
+      ]
+    ],
+    "itemRows": [
+      [
+        "",
+        "",
+        "",
+        "",
+        {
+          "type": "static",
+          "text": "key"
+        },
+        "",
+        "",
+        "",
+        ""
+      ],
+      [
+        "",
+        "",
+        "",
+        "",
+        "",
+        {
+          "type": "static",
+          "text": "value"
+        },
+        {
+          "type": "field",
+          "field": "content"
+        },
+        "",
+        ""
+      ]
+    ]
+  }
 }
 

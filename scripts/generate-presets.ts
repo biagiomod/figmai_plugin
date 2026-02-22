@@ -15,11 +15,21 @@ interface ColumnDef {
   path: string
 }
 
+type ContentModelKind = 'simple' | 'grouped'
+
+interface GroupedTemplate {
+  headerRows: string[][]
+  containerIntroRows: Array<Array<Record<string, unknown> | string>>
+  itemRows: Array<Array<Record<string, unknown> | string>>
+}
+
 interface ModelDef {
   id: string
   label: string
   description: string
   enabled: boolean
+  kind: ContentModelKind
+  template?: GroupedTemplate
   columns: ColumnDef[]
 }
 
@@ -29,27 +39,28 @@ interface ModelDef {
 function parseMarkdown(filePath: string): ModelDef[] {
   const content = fs.readFileSync(filePath, 'utf-8')
   const models: ModelDef[] = []
-  
+
   // Split by model separator (---)
   const sections = content.split(/^---$/m).filter(s => s.trim())
-  
+
   for (const section of sections) {
     // Skip the header section (first section with # Content Models)
     if (section.includes('# Content Models') && !section.includes('## ')) {
       continue
     }
-    
-    const lines = section.split('\n').map(l => l.trim())
-    
+
+    const lines = section.split('\n')
+
     let currentModel: Partial<ModelDef> | null = null
     let inColumns = false
-    
-    for (const line of lines) {
+
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li].trim()
       // Skip empty lines and top-level headers
       if (!line || line === '---' || (line.startsWith('#') && !line.startsWith('##'))) {
         continue
       }
-      
+
       // Model header (## ModelName)
       if (line.startsWith('## ')) {
         // Save previous model
@@ -62,17 +73,18 @@ function parseMarkdown(filePath: string): ModelDef[] {
           label: '',
           description: '',
           enabled: false,
+          kind: 'simple',
           columns: []
         }
         inColumns = false
         continue
       }
-      
+
       // Skip if no model initialized
       if (!currentModel) {
         continue
       }
-      
+
       // Parse key-value pairs (handle both **key:** and **key:** formats)
       if (line.startsWith('**id:**')) {
         currentModel.id = line.replace(/^\*\*id:\*\*\s*/, '').trim()
@@ -83,8 +95,33 @@ function parseMarkdown(filePath: string): ModelDef[] {
       } else if (line.startsWith('**enabled:**')) {
         const enabledStr = line.replace(/^\*\*enabled:\*\*\s*/, '').trim()
         currentModel.enabled = enabledStr === 'true'
+      } else if (line.startsWith('**kind:**')) {
+        const kindStr = line.replace(/^\*\*kind:\*\*\s*/, '').trim()
+        currentModel.kind = kindStr === 'grouped' ? 'grouped' : 'simple'
       } else if (line === '**columns:**') {
         inColumns = true
+      } else if (line === '**template:**') {
+        inColumns = false
+        let fenceIdx = li + 1
+        while (fenceIdx < lines.length && lines[fenceIdx].trim() === '') fenceIdx++
+        if (fenceIdx >= lines.length || !lines[fenceIdx].trim().startsWith('```')) {
+          throw new Error(`Invalid template block for model "${currentModel.id}" (missing opening fence)`)
+        }
+        const jsonLines: string[] = []
+        let closeIdx = fenceIdx + 1
+        while (closeIdx < lines.length && lines[closeIdx].trim() !== '```') {
+          jsonLines.push(lines[closeIdx])
+          closeIdx++
+        }
+        if (closeIdx >= lines.length) {
+          throw new Error(`Invalid template block for model "${currentModel.id}" (missing closing fence)`)
+        }
+        const jsonRaw = jsonLines.join('\n').trim()
+        if (jsonRaw) {
+          currentModel.template = JSON.parse(jsonRaw) as GroupedTemplate
+          currentModel.kind = 'grouped'
+        }
+        li = closeIdx
       } else if (inColumns && line.startsWith('- ')) {
         // Parse column: key: id, label: ID, path: id
         const columnLine = line.replace('- ', '')
@@ -114,13 +151,13 @@ function parseMarkdown(filePath: string): ModelDef[] {
         }
       }
     }
-    
+
     // Push last model in section
     if (currentModel && currentModel.id) {
       models.push(currentModel as ModelDef)
     }
   }
-  
+
   return models
 }
 
@@ -136,6 +173,16 @@ export interface PresetInfo {
   label: string
   description: string
   enabled: boolean
+  kind: ContentModelKind
+}
+`
+  const groupedTemplateType = `
+export type ContentModelKind = 'simple' | 'grouped'
+
+export interface GroupedTemplate {
+  headerRows: string[][]
+  containerIntroRows: Array<Array<Record<string, unknown> | string>>
+  itemRows: Array<Array<Record<string, unknown> | string>>
 }
 `
   
@@ -153,7 +200,8 @@ ${models.map(m => `  {
     id: '${m.id}' as TableFormatPreset,
     label: ${JSON.stringify(m.label)},
     description: ${JSON.stringify(m.description)},
-    enabled: ${m.enabled}
+    enabled: ${m.enabled},
+    kind: '${m.kind || 'simple'}'
   }`).join(',\n')}
 ]
 `
@@ -225,6 +273,12 @@ ${columns}
 ${columnDefs.join(',\n')}
 }
 `
+
+  const groupedModels = models.filter(model => model.kind === 'grouped' && model.template)
+  const presetTemplates = `export const PRESET_TEMPLATES: Record<string, GroupedTemplate> = {
+${groupedModels.map(model => `  '${model.id}': ${JSON.stringify(model.template, null, 2).split('\n').join('\n  ')}`).join(',\n')}
+}
+`
   
   return `/**
  * Generated Content Table Presets
@@ -237,10 +291,12 @@ ${columnDefs.join(',\n')}
 
 ${imports}
 ${presetInfoType}
+${groupedTemplateType}
 ${presetInfoArray}
 ${columnDefType}
 ${pathResolver}
 ${presetColumns}
+${presetTemplates}
 `
 }
 

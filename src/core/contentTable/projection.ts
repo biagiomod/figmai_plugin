@@ -16,7 +16,7 @@
  */
 
 import type { ContentItemV1, TableFormatPreset } from './types'
-import { PRESET_COLUMNS } from './presets.generated'
+import { PRESET_COLUMNS, PRESET_INFO, PRESET_TEMPLATES } from './presets.generated'
 
 /** A projected cell: plain string or rich text + hyperlink. */
 export type Cell = string | { text: string; href: string }
@@ -54,20 +54,24 @@ const LINK_COLUMN_KEYS = new Set([
   'figmaElementLink'
 ])
 
-const KV_PRESET_IDS = new Set<TableFormatPreset>(['content-model-1'])
-
 function getColumnsForPreset(presetId: TableFormatPreset) {
   const cols = PRESET_COLUMNS[presetId]
   if (!cols || cols.length === 0) return PRESET_COLUMNS['universal']
   return cols
 }
 
+function getPresetKind(presetId: TableFormatPreset): 'simple' | 'grouped' {
+  const info = PRESET_INFO.find(p => p.id === presetId)
+  return info?.kind === 'grouped' ? 'grouped' : 'simple'
+}
+
 export function projectContentTable(
   presetId: TableFormatPreset,
   items: ContentItemV1[]
 ): ProjectedTable {
-  if (KV_PRESET_IDS.has(presetId)) {
-    return projectKV(presetId, items)
+  if (getPresetKind(presetId) === 'grouped') {
+    if (!PRESET_TEMPLATES[presetId]) return projectItems(presetId, items)
+    return projectGrouped(presetId, items)
   }
   return projectItems(presetId, items)
 }
@@ -94,7 +98,7 @@ function projectItems(
 }
 
 // ---------------------------------------------------------------------------
-// KV projection for Content Model 1
+// Grouped/template projection
 // ---------------------------------------------------------------------------
 
 /**
@@ -110,8 +114,8 @@ function containerKey(item: ContentItemV1): string {
 
 interface ContainerGroup {
   name: string
-  /** URL of first item in the group (best available proxy for container URL). */
-  firstItemUrl: string
+  /** URL of first item in the group; used as best available container URL proxy. */
+  containerUrl: string
   items: ContentItemV1[]
 }
 
@@ -128,7 +132,7 @@ function groupByContainer(items: ContentItemV1[]): ContainerGroup[] {
   for (const item of items) {
     const key = containerKey(item)
     if (!current || current.name !== key) {
-      current = { name: key, firstItemUrl: item.nodeUrl || '', items: [] }
+      current = { name: key, containerUrl: item.nodeUrl || '', items: [] }
       groups.push(current)
     }
     current.items.push(item)
@@ -144,24 +148,85 @@ function blankRow(colCount: number): Cell[] {
   return Array.from({ length: colCount }, () => '')
 }
 
-/**
- * Project items in KV mode for Content Model 1.
- *
- * Per container block:
- *   Row 1 (header): Col0=View in Figma link, Col3="ContentList", Col4="id"
- *   Row 2:          Col5="title"
- *   Then for each content item:
- *     Row A:         Col4="key"
- *     Row B:         Col5="value", Col6=<content text>
- *
- * Column indices (0-based):
- *   0=Figma Ref, 1=Tag, 2=Source, 3=Model, 4=Metadata Key,
- *   5=Content Key, 6=Content, 7=Rules/Comment, 8=Notes/Jira
- *
- * headerRows includes an extra "Column 1..Column 9" row above the
- * semantic labels row.
- */
-function projectKV(
+interface TemplateStaticCell {
+  type: 'static'
+  text: string
+}
+
+interface TemplateFieldCell {
+  type: 'field'
+  field: string
+}
+
+interface TemplateLinkCell {
+  type: 'link'
+  label: string | { type: 'static'; text: string } | { type: 'field'; field: string }
+  hrefField: string
+}
+
+type TemplateCell = string | TemplateStaticCell | TemplateFieldCell | TemplateLinkCell | null
+
+interface GroupedTemplateDef {
+  headerRows?: string[][]
+  containerIntroRows?: TemplateCell[][]
+  itemRows?: TemplateCell[][]
+}
+
+function pathValue(source: unknown, path: string): string {
+  if (!source || !path) return ''
+  const parts = path.split('.')
+  let current: unknown = source
+  for (const part of parts) {
+    if (!current || typeof current !== 'object') return ''
+    current = (current as Record<string, unknown>)[part]
+  }
+  if (current === null || current === undefined) return ''
+  return String(current)
+}
+
+function resolveField(field: string, group: ContainerGroup, item?: ContentItemV1): string {
+  switch (field) {
+    case 'containerUrl':
+      return group.containerUrl
+    case 'containerName':
+      return group.name
+    case 'content':
+      return item?.content?.value ?? ''
+    case 'nodeUrl':
+      return item?.nodeUrl ?? group.containerUrl
+    default:
+      return pathValue(item ?? group, field)
+  }
+}
+
+function normalizeTemplateCell(raw: TemplateCell): TemplateCell {
+  if (raw === null || raw === undefined) return ''
+  return raw
+}
+
+function resolveTemplateCell(cell: TemplateCell, group: ContainerGroup, item?: ContentItemV1): Cell {
+  const normalized = normalizeTemplateCell(cell)
+  if (typeof normalized === 'string') return normalized
+  if (!normalized || typeof normalized !== 'object') return ''
+  if (normalized.type === 'static') return normalized.text || ''
+  if (normalized.type === 'field') return resolveField(normalized.field, group, item)
+  if (normalized.type === 'link') {
+    const href = resolveField(normalized.hrefField, group, item)
+    let text = ''
+    if (typeof normalized.label === 'string') {
+      text = normalized.label
+    } else if (normalized.label?.type === 'static') {
+      text = normalized.label.text || ''
+    } else if (normalized.label?.type === 'field') {
+      text = resolveField(normalized.label.field, group, item)
+    }
+    if (!href || !text) return text || ''
+    return { text, href }
+  }
+  return ''
+}
+
+function projectGrouped(
   presetId: TableFormatPreset,
   items: ContentItemV1[]
 ): ProjectedTable {
@@ -169,45 +234,36 @@ function projectKV(
   const headers = cols.map(c => c.label)
   const columnKeys = cols.map(c => c.key)
   const colCount = cols.length
+  const template = (PRESET_TEMPLATES[presetId] ?? {}) as GroupedTemplateDef
 
-  const numberedRow = cols.map((_, i) => `Column ${i + 1}`)
-
-  const COL_FIGMA_REF = 0
-  const COL_MODEL = 3
-  const COL_METADATA_KEY = 4
-  const COL_CONTENT_KEY = 5
-  const COL_CONTENT = 6
-
+  const headerRows = Array.isArray(template.headerRows) && template.headerRows.length > 0
+    ? template.headerRows
+    : [headers]
   const groups = groupByContainer(items)
   const rows: Cell[][] = []
 
   for (const group of groups) {
-    const headerRow = blankRow(colCount)
-    if (group.firstItemUrl) {
-      headerRow[COL_FIGMA_REF] = { text: 'View in Figma', href: group.firstItemUrl }
+    for (const templateRow of template.containerIntroRows ?? []) {
+      const row = blankRow(colCount)
+      templateRow.forEach((cell, idx) => {
+        if (idx < colCount) row[idx] = resolveTemplateCell(cell, group)
+      })
+      rows.push(row)
     }
-    headerRow[COL_MODEL] = 'ContentList'
-    headerRow[COL_METADATA_KEY] = 'id'
-    rows.push(headerRow)
-
-    const titleRow = blankRow(colCount)
-    titleRow[COL_CONTENT_KEY] = 'title'
-    rows.push(titleRow)
 
     for (const item of group.items) {
-      const keyRow = blankRow(colCount)
-      keyRow[COL_METADATA_KEY] = 'key'
-      rows.push(keyRow)
-
-      const valueRow = blankRow(colCount)
-      valueRow[COL_CONTENT_KEY] = 'value'
-      valueRow[COL_CONTENT] = item.content?.value ?? ''
-      rows.push(valueRow)
+      for (const templateRow of template.itemRows ?? []) {
+        const row = blankRow(colCount)
+        templateRow.forEach((cell, idx) => {
+          if (idx < colCount) row[idx] = resolveTemplateCell(cell, group, item)
+        })
+        rows.push(row)
+      }
     }
   }
 
   return {
-    headerRows: [numberedRow, headers],
+    headerRows,
     headers,
     columnKeys,
     rows,

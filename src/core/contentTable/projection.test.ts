@@ -317,5 +317,16 @@ test('CM1 readOnly is true', () => {
   assert.strictEqual(p.readOnly, true)
 })
 
+test('preset switching does not mutate SSOT items', () => {
+  const items = [
+    makeItem({ id: 's1', field: { label: 'H1', path: 'CardA / H1' }, content: { type: 'text', value: 'A' } }),
+    makeItem({ id: 's2', field: { label: 'H2', path: 'CardB / H2' }, content: { type: 'text', value: 'B' } })
+  ]
+  const before = JSON.parse(JSON.stringify(items))
+  projectContentTable('universal', items)
+  projectContentTable('content-model-1', items)
+  assert.deepStrictEqual(items, before)
+})
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

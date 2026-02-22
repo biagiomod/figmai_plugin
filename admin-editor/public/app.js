@@ -2356,7 +2356,7 @@
         var t = lines[li].trim()
         if (t.startsWith('## ')) {
           if (cur && cur.id) models.push(cur)
-          cur = { heading: t.replace('## ', ''), id: '', label: '', description: '', enabled: false, columns: [] }
+          cur = { heading: t.replace('## ', ''), id: '', label: '', description: '', enabled: false, kind: 'simple', template: null, columns: [] }
           inCols = false; continue
         }
         if (!cur) continue
@@ -2364,7 +2364,31 @@
         else if (t.startsWith('**label:**')) cur.label = t.replace(/^\*\*label:\*\*\s*/, '').trim()
         else if (t.startsWith('**description:**')) cur.description = t.replace(/^\*\*description:\*\*\s*/, '').trim()
         else if (t.startsWith('**enabled:**')) cur.enabled = t.replace(/^\*\*enabled:\*\*\s*/, '').trim() === 'true'
+        else if (t.startsWith('**kind:**')) cur.kind = t.replace(/^\*\*kind:\*\*\s*/, '').trim() === 'grouped' ? 'grouped' : 'simple'
         else if (t === '**columns:**') inCols = true
+        else if (t === '**template:**') {
+          inCols = false
+          var fenceIdx = li + 1
+          while (fenceIdx < lines.length && lines[fenceIdx].trim() === '') fenceIdx++
+          if (fenceIdx < lines.length && lines[fenceIdx].trim().startsWith('```')) {
+            var jsonLines = []
+            var closeIdx = fenceIdx + 1
+            while (closeIdx < lines.length && lines[closeIdx].trim() !== '```') {
+              jsonLines.push(lines[closeIdx])
+              closeIdx++
+            }
+            var jsonRaw = jsonLines.join('\n').trim()
+            if (jsonRaw) {
+              try {
+                cur.template = JSON.parse(jsonRaw)
+                cur.kind = 'grouped'
+              } catch (_) {
+                cur.template = null
+              }
+            }
+            li = closeIdx
+          }
+        }
         else if (inCols && t.startsWith('- ')) {
           var parts = t.replace('- ', '').split(',').map(function (p) { return p.trim() })
           var key = '', label = '', path = ''
@@ -2384,15 +2408,177 @@
       out += '**id:** ' + model.id + '  \n'
       out += '**label:** ' + model.label + '  \n'
       out += '**description:** ' + model.description + '  \n'
-      out += '**enabled:** ' + model.enabled + '\n\n'
+      out += '**enabled:** ' + model.enabled + '\n'
+      if (model.kind === 'grouped') out += '**kind:** grouped\n'
+      out += '\n'
       out += '**columns:**\n'
       if (model.columns.length === 0) { out += '(empty - not yet defined)\n' }
       else { model.columns.forEach(function (c) { out += '- key: ' + c.key + ', label: ' + c.label + ', path: ' + c.path + '\n' }) }
+      if (model.kind === 'grouped') {
+        out += '\n**template:**\n'
+        out += '```json\n'
+        out += JSON.stringify(model.template || {}, null, 2) + '\n'
+        out += '```\n'
+      }
     })
     return out
   }
 
   var cmParsedState = { header: '', models: [] }
+  var CM_FIELD_OPTIONS = ['containerUrl', 'containerName', 'nodeUrl', 'content', 'content.value', 'field.path', 'field.label', 'component.name', 'component.kind', 'notes', 'contentKey', 'jiraTicket', 'adaNotes', 'errorMessage']
+
+  function cmEmptyRow (count) {
+    var row = []
+    for (var i = 0; i < count; i++) row.push('')
+    return row
+  }
+
+  function cmEnsureTemplate (model) {
+    if (!model.template || typeof model.template !== 'object') model.template = {}
+    var cols = Math.max(1, (model.columns || []).length)
+    if (!Array.isArray(model.template.headerRows) || model.template.headerRows.length === 0) {
+      model.template.headerRows = [model.columns.map(function (c) { return c.label || '' })]
+    }
+    if (!Array.isArray(model.template.containerIntroRows)) model.template.containerIntroRows = [cmEmptyRow(cols)]
+    if (!Array.isArray(model.template.itemRows)) model.template.itemRows = [cmEmptyRow(cols)]
+    model.template.headerRows = model.template.headerRows.map(function (row) {
+      if (!Array.isArray(row)) return cmEmptyRow(cols)
+      var copy = row.slice(0, cols)
+      while (copy.length < cols) copy.push('')
+      return copy
+    })
+    model.template.containerIntroRows = model.template.containerIntroRows.map(function (row) {
+      if (!Array.isArray(row)) return cmEmptyRow(cols)
+      var copy = row.slice(0, cols)
+      while (copy.length < cols) copy.push('')
+      return copy
+    })
+    model.template.itemRows = model.template.itemRows.map(function (row) {
+      if (!Array.isArray(row)) return cmEmptyRow(cols)
+      var copy = row.slice(0, cols)
+      while (copy.length < cols) copy.push('')
+      return copy
+    })
+    return model.template
+  }
+
+  function cmCellType (cell) {
+    if (!cell) return 'blank'
+    if (typeof cell === 'string') return cell ? 'static' : 'blank'
+    if (typeof cell !== 'object') return 'blank'
+    if (cell.type === 'field') return 'field'
+    if (cell.type === 'link') return 'link'
+    if (cell.type === 'static') return cell.text ? 'static' : 'blank'
+    return 'blank'
+  }
+
+  function cmRenderCellEditor (mi, section, ri, ci, cell) {
+    var type = cmCellType(cell)
+    var html = '<div style="display:flex;flex-direction:column;gap:4px">'
+    html += '<select class="ace-field cm-cell-type" data-mi="' + mi + '" data-section="' + section + '" data-ri="' + ri + '" data-ci="' + ci + '">'
+    html += '<option value="blank"' + (type === 'blank' ? ' selected' : '') + '>Blank</option>'
+    html += '<option value="static"' + (type === 'static' ? ' selected' : '') + '>Static</option>'
+    html += '<option value="field"' + (type === 'field' ? ' selected' : '') + '>Field</option>'
+    html += '<option value="link"' + (type === 'link' ? ' selected' : '') + '>Link</option>'
+    html += '</select>'
+    if (type === 'static') {
+      var textVal = typeof cell === 'string' ? cell : ((cell && cell.text) || '')
+      html += '<input type="text" class="ace-field cm-cell-static" data-mi="' + mi + '" data-section="' + section + '" data-ri="' + ri + '" data-ci="' + ci + '" value="' + escapeHtml(textVal) + '" placeholder="Text">'
+    } else if (type === 'field') {
+      var selectedField = (cell && cell.field) || 'content'
+      html += '<select class="ace-field cm-cell-field" data-mi="' + mi + '" data-section="' + section + '" data-ri="' + ri + '" data-ci="' + ci + '">'
+      CM_FIELD_OPTIONS.forEach(function (f) { html += '<option value="' + escapeHtml(f) + '"' + (selectedField === f ? ' selected' : '') + '>' + escapeHtml(f) + '</option>' })
+      html += '</select>'
+    } else if (type === 'link') {
+      var label = ''
+      if (cell && cell.label) {
+        if (typeof cell.label === 'string') label = cell.label
+        else if (cell.label.type === 'static') label = cell.label.text || ''
+      }
+      var hrefField = (cell && cell.hrefField) || 'containerUrl'
+      html += '<input type="text" class="ace-field cm-cell-link-label" data-mi="' + mi + '" data-section="' + section + '" data-ri="' + ri + '" data-ci="' + ci + '" value="' + escapeHtml(label) + '" placeholder="Link label">'
+      html += '<select class="ace-field cm-cell-link-href" data-mi="' + mi + '" data-section="' + section + '" data-ri="' + ri + '" data-ci="' + ci + '">'
+      CM_FIELD_OPTIONS.forEach(function (f2) { html += '<option value="' + escapeHtml(f2) + '"' + (hrefField === f2 ? ' selected' : '') + '>' + escapeHtml(f2) + '</option>' })
+      html += '</select>'
+    }
+    html += '</div>'
+    return html
+  }
+
+  function cmResolvePreviewField (field, container, item) {
+    if (field === 'containerUrl') return container.containerUrl
+    if (field === 'containerName') return container.containerName
+    if (field === 'content') return item ? item.content : ''
+    var target = item || container
+    var cur = target
+    var parts = (field || '').split('.')
+    for (var i = 0; i < parts.length; i++) {
+      if (!cur || typeof cur !== 'object') return ''
+      cur = cur[parts[i]]
+    }
+    return cur == null ? '' : String(cur)
+  }
+
+  function cmResolvePreviewCell (cell, container, item) {
+    var type = cmCellType(cell)
+    if (type === 'blank') return ''
+    if (type === 'static') {
+      if (typeof cell === 'string') return cell
+      return (cell && cell.text) || ''
+    }
+    if (type === 'field') return cmResolvePreviewField(cell.field, container, item)
+    if (type === 'link') {
+      var href = cmResolvePreviewField(cell.hrefField || 'containerUrl', container, item)
+      var label = ''
+      if (typeof cell.label === 'string') label = cell.label
+      else if (cell.label && cell.label.type === 'field') label = cmResolvePreviewField(cell.label.field, container, item)
+      else if (cell.label && cell.label.type === 'static') label = cell.label.text || ''
+      if (!label) return ''
+      if (!href) return escapeHtml(label)
+      return '<a href="' + escapeHtml(href) + '" target="_blank" rel="noreferrer">' + escapeHtml(label) + '</a>'
+    }
+    return ''
+  }
+
+  function cmRenderPreviewTable (model) {
+    if (model.kind !== 'grouped') return '<p class="fg-secondary" style="font-size:0.82em">Simple model preview uses current table runtime behavior.</p>'
+    var tpl = cmEnsureTemplate(model)
+    var headers = tpl.headerRows || []
+    var cols = Math.max(1, (model.columns || []).length)
+    var sampleContainers = [
+      { containerName: 'HeroCard', containerUrl: 'https://www.figma.com/file/demo?node-id=1%3A1', items: [{ content: 'Welcome to FigmAI' }, { content: 'Get Started' }] },
+      { containerName: 'Checkout', containerUrl: 'https://www.figma.com/file/demo?node-id=2%3A2', items: [{ content: 'Pay now' }, { content: 'Use saved card' }] }
+    ]
+    var html = '<div style="overflow:auto;border:1px solid #e0e0e0;border-radius:8px;background:#fff"><table style="border-collapse:collapse;min-width:100%"><thead>'
+    headers.forEach(function (row) {
+      html += '<tr>'
+      for (var i = 0; i < cols; i++) {
+        html += '<th style="border-bottom:1px solid #e0e0e0;padding:6px 8px;text-align:left;font-size:12px;background:#f8f8f8">' + escapeHtml((row && row[i]) || '') + '</th>'
+      }
+      html += '</tr>'
+    })
+    html += '</thead><tbody>'
+    sampleContainers.forEach(function (container) {
+      ;(tpl.containerIntroRows || []).forEach(function (row) {
+        html += '<tr>'
+        for (var i = 0; i < cols; i++) {
+          html += '<td style="border-bottom:1px solid #f0f0f0;padding:6px 8px;font-size:12px">' + cmResolvePreviewCell(row && row[i], container, null) + '</td>'
+        }
+        html += '</tr>'
+      })
+      container.items.forEach(function (item) {
+        ;(tpl.itemRows || []).forEach(function (row) {
+          html += '<tr>'
+          for (var i = 0; i < cols; i++) {
+            html += '<td style="border-bottom:1px solid #f0f0f0;padding:6px 8px;font-size:12px">' + cmResolvePreviewCell(row && row[i], container, item) + '</td>'
+          }
+          html += '</tr>'
+        })
+      })
+    })
+    html += '</tbody></table></div>'
+    return html
+  }
 
   function renderContentModelsTab () {
     const panel = document.getElementById('panel-content-models')
@@ -2417,6 +2603,7 @@
       html += '<label style="font-size:0.85em">Label <input type="text" class="ace-field cm-label" data-mi="' + mi + '" value="' + escapeHtml(model.label) + '" style="width:160px"></label>'
       html += '<label style="font-size:0.85em">Description <input type="text" class="ace-field cm-desc" data-mi="' + mi + '" value="' + escapeHtml(model.description) + '" style="width:240px"></label>'
       html += '<label style="font-size:0.85em"><input type="checkbox" class="cm-enabled" data-mi="' + mi + '" ' + (model.enabled ? 'checked' : '') + '> Enabled</label>'
+      html += '<label style="font-size:0.85em">Wizard Mode <select class="ace-field cm-kind" data-mi="' + mi + '"><option value="simple"' + ((model.kind || 'simple') === 'simple' ? ' selected' : '') + '>Simple</option><option value="grouped"' + ((model.kind || 'simple') === 'grouped' ? ' selected' : '') + '>Grouped</option></select></label>'
       html += '</div>'
       if (model.columns.length > 0) {
         html += '<table class="ace-excl-rules-table" style="font-size:0.85em"><thead><tr><th>Key</th><th>Label</th><th>Path</th><th></th></tr></thead><tbody>'
@@ -2433,6 +2620,42 @@
         html += '<p class="fg-secondary" style="font-size:0.85em">(no columns defined)</p>'
       }
       html += '<button type="button" class="btn-small add-btn cm-col-add" data-mi="' + mi + '" style="margin-top:4px">Add column</button>'
+      if ((model.kind || 'simple') === 'grouped') {
+        var tpl = cmEnsureTemplate(model)
+        var colCount = Math.max(1, model.columns.length)
+        html += '<div style="margin-top:10px;border-top:1px solid #ececec;padding-top:10px">'
+        html += '<h4 style="margin:0 0 8px 0">Grouped Template Wizard</h4>'
+        html += '<label style="font-size:0.85em;display:block;margin-bottom:8px">Header Rows <select class="ace-field cm-header-row-count" data-mi="' + mi + '" style="width:100px"><option value="1"' + (tpl.headerRows.length === 1 ? ' selected' : '') + '>1</option><option value="2"' + (tpl.headerRows.length === 2 ? ' selected' : '') + '>2</option></select></label>'
+        html += '<div style="margin-bottom:8px"><strong style="font-size:0.9em">Header Rows</strong>'
+        tpl.headerRows.forEach(function (headerRow, hri) {
+          html += '<div style="display:grid;grid-template-columns:repeat(' + colCount + ', minmax(120px, 1fr));gap:6px;margin-top:6px">'
+          for (var hci = 0; hci < colCount; hci++) {
+            html += '<input type="text" class="ace-field cm-header-cell" data-mi="' + mi + '" data-hri="' + hri + '" data-hci="' + hci + '" value="' + escapeHtml(headerRow[hci] || '') + '" placeholder="Header ' + (hci + 1) + '">'
+          }
+          html += '</div>'
+        })
+        html += '</div>'
+
+        ;['containerIntroRows', 'itemRows'].forEach(function (sectionName) {
+          var sectionLabel = sectionName === 'containerIntroRows' ? 'Container Intro Rows' : 'Per-Item Rows'
+          var rows = tpl[sectionName] || []
+          html += '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong style="font-size:0.9em">' + sectionLabel + '</strong><button type="button" class="btn-small add-btn cm-row-add" data-mi="' + mi + '" data-section="' + sectionName + '">Add Row</button></div>'
+          rows.forEach(function (row, ri) {
+            html += '<div style="border:1px solid #ececec;border-radius:6px;padding:8px;margin-top:8px">'
+            html += '<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button type="button" class="btn-small cm-row-remove" data-mi="' + mi + '" data-section="' + sectionName + '" data-ri="' + ri + '">Remove Row</button></div>'
+            html += '<div style="display:grid;grid-template-columns:repeat(' + colCount + ', minmax(140px, 1fr));gap:8px">'
+            for (var ci = 0; ci < colCount; ci++) {
+              html += cmRenderCellEditor(mi, sectionName, ri, ci, row[ci])
+            }
+            html += '</div></div>'
+          })
+          html += '</div>'
+        })
+        html += '<div style="margin-top:8px"><strong style="font-size:0.9em">Live Preview</strong>'
+        html += cmRenderPreviewTable(model)
+        html += '</div>'
+        html += '</div>'
+      }
       html += '</div>'
     })
 
@@ -2455,6 +2678,39 @@
     document.querySelectorAll('.cm-enabled').forEach(function (el) {
       el.onchange = function () { var mi = parseInt(this.getAttribute('data-mi'), 10); cmParsedState.models[mi].enabled = this.checked; syncToRaw() }
     })
+    document.querySelectorAll('.cm-kind').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var model = cmParsedState.models[mi]
+        model.kind = this.value === 'grouped' ? 'grouped' : 'simple'
+        if (model.kind === 'grouped') cmEnsureTemplate(model)
+        syncToRaw()
+        renderContentModelsTab()
+      }
+    })
+    document.querySelectorAll('.cm-header-row-count').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var model = cmParsedState.models[mi]
+        var tpl = cmEnsureTemplate(model)
+        var count = parseInt(this.value, 10) === 2 ? 2 : 1
+        while (tpl.headerRows.length < count) tpl.headerRows.push(cmEmptyRow(Math.max(1, model.columns.length)))
+        if (tpl.headerRows.length > count) tpl.headerRows = tpl.headerRows.slice(0, count)
+        syncToRaw()
+        renderContentModelsTab()
+      }
+    })
+    document.querySelectorAll('.cm-header-cell').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var hri = parseInt(this.getAttribute('data-hri'), 10)
+        var hci = parseInt(this.getAttribute('data-hci'), 10)
+        var tpl = cmEnsureTemplate(cmParsedState.models[mi])
+        if (!tpl.headerRows[hri]) tpl.headerRows[hri] = cmEmptyRow(Math.max(1, cmParsedState.models[mi].columns.length))
+        tpl.headerRows[hri][hci] = this.value
+        syncToRaw()
+      }
+    })
     document.querySelectorAll('.cm-col-key, .cm-col-label, .cm-col-path').forEach(function (el) {
       el.onchange = function () {
         var mi = parseInt(this.getAttribute('data-mi'), 10)
@@ -2471,7 +2727,9 @@
       btn.onclick = function () {
         var mi = parseInt(this.getAttribute('data-mi'), 10)
         var ci = parseInt(this.getAttribute('data-ci'), 10)
-        cmParsedState.models[mi].columns.splice(ci, 1)
+        var model = cmParsedState.models[mi]
+        model.columns.splice(ci, 1)
+        if (model.kind === 'grouped') cmEnsureTemplate(model)
         syncToRaw()
         renderContentModelsTab()
       }
@@ -2479,9 +2737,105 @@
     document.querySelectorAll('.cm-col-add').forEach(function (btn) {
       btn.onclick = function () {
         var mi = parseInt(this.getAttribute('data-mi'), 10)
-        cmParsedState.models[mi].columns.push({ key: 'newCol', label: 'New Column', path: '' })
+        var model = cmParsedState.models[mi]
+        model.columns.push({ key: 'newCol', label: 'New Column', path: '' })
+        if (model.kind === 'grouped') cmEnsureTemplate(model)
         syncToRaw()
         renderContentModelsTab()
+      }
+    })
+    document.querySelectorAll('.cm-row-add').forEach(function (btn) {
+      btn.onclick = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var section = this.getAttribute('data-section')
+        var model = cmParsedState.models[mi]
+        var tpl = cmEnsureTemplate(model)
+        tpl[section].push(cmEmptyRow(Math.max(1, model.columns.length)))
+        syncToRaw()
+        renderContentModelsTab()
+      }
+    })
+    document.querySelectorAll('.cm-row-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var section = this.getAttribute('data-section')
+        var ri = parseInt(this.getAttribute('data-ri'), 10)
+        var model = cmParsedState.models[mi]
+        var tpl = cmEnsureTemplate(model)
+        tpl[section].splice(ri, 1)
+        syncToRaw()
+        renderContentModelsTab()
+      }
+    })
+    document.querySelectorAll('.cm-cell-type').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var section = this.getAttribute('data-section')
+        var ri = parseInt(this.getAttribute('data-ri'), 10)
+        var ci = parseInt(this.getAttribute('data-ci'), 10)
+        var model = cmParsedState.models[mi]
+        var tpl = cmEnsureTemplate(model)
+        if (!tpl[section][ri]) tpl[section][ri] = cmEmptyRow(Math.max(1, model.columns.length))
+        if (this.value === 'blank') tpl[section][ri][ci] = ''
+        else if (this.value === 'static') tpl[section][ri][ci] = { type: 'static', text: '' }
+        else if (this.value === 'field') tpl[section][ri][ci] = { type: 'field', field: 'content' }
+        else if (this.value === 'link') tpl[section][ri][ci] = { type: 'link', label: { type: 'static', text: 'View in Figma' }, hrefField: 'containerUrl' }
+        syncToRaw()
+        renderContentModelsTab()
+      }
+    })
+    document.querySelectorAll('.cm-cell-static').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var section = this.getAttribute('data-section')
+        var ri = parseInt(this.getAttribute('data-ri'), 10)
+        var ci = parseInt(this.getAttribute('data-ci'), 10)
+        var tpl = cmEnsureTemplate(cmParsedState.models[mi])
+        var cell = tpl[section][ri][ci]
+        if (typeof cell === 'string') tpl[section][ri][ci] = this.value
+        else tpl[section][ri][ci] = { type: 'static', text: this.value }
+        syncToRaw()
+      }
+    })
+    document.querySelectorAll('.cm-cell-field').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var section = this.getAttribute('data-section')
+        var ri = parseInt(this.getAttribute('data-ri'), 10)
+        var ci = parseInt(this.getAttribute('data-ci'), 10)
+        var tpl = cmEnsureTemplate(cmParsedState.models[mi])
+        tpl[section][ri][ci] = { type: 'field', field: this.value || 'content' }
+        syncToRaw()
+      }
+    })
+    document.querySelectorAll('.cm-cell-link-label').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var section = this.getAttribute('data-section')
+        var ri = parseInt(this.getAttribute('data-ri'), 10)
+        var ci = parseInt(this.getAttribute('data-ci'), 10)
+        var tpl = cmEnsureTemplate(cmParsedState.models[mi])
+        var current = tpl[section][ri][ci]
+        var hrefField = (current && current.hrefField) || 'containerUrl'
+        tpl[section][ri][ci] = { type: 'link', label: { type: 'static', text: this.value }, hrefField: hrefField }
+        syncToRaw()
+      }
+    })
+    document.querySelectorAll('.cm-cell-link-href').forEach(function (el) {
+      el.onchange = function () {
+        var mi = parseInt(this.getAttribute('data-mi'), 10)
+        var section = this.getAttribute('data-section')
+        var ri = parseInt(this.getAttribute('data-ri'), 10)
+        var ci = parseInt(this.getAttribute('data-ci'), 10)
+        var tpl = cmEnsureTemplate(cmParsedState.models[mi])
+        var current = tpl[section][ri][ci]
+        var label = 'View in Figma'
+        if (current && current.label) {
+          if (typeof current.label === 'string') label = current.label
+          else if (current.label.type === 'static') label = current.label.text || label
+        }
+        tpl[section][ri][ci] = { type: 'link', label: { type: 'static', text: label }, hrefField: this.value || 'containerUrl' }
+        syncToRaw()
       }
     })
     document.getElementById('revert-content-models-btn').onclick = function () {
