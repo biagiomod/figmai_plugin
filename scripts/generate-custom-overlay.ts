@@ -12,6 +12,11 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 interface CustomConfig {
+  branding?: {
+    appName?: string
+    appTagline?: string
+    logoKey?: 'default' | 'work' | 'none'
+  }
   contentTable?: {
     exclusionRules?: {
       enabled?: boolean
@@ -112,6 +117,18 @@ interface CustomConfig {
   }
 }
 
+interface BrandingLocalConfig {
+  appName?: string
+  appTagline?: string
+  logoKey?: 'default' | 'work' | 'none'
+}
+
+const DEFAULT_BRANDING: Required<NonNullable<CustomConfig['branding']>> = {
+  appName: 'FigmAI',
+  appTagline: 'AI Powered',
+  logoKey: 'default'
+}
+
 /**
  * Load custom config from /custom/config.json
  */
@@ -127,6 +144,47 @@ function loadCustomConfig(rootDir: string): CustomConfig | null {
     console.warn('[Custom Overlay] Error loading custom/config.json:', error)
     return null
   }
+}
+
+/**
+ * Load local branding override from /custom/branding.local.json
+ * This file is optional and gitignored.
+ */
+function loadBrandingLocal(rootDir: string): BrandingLocalConfig | null {
+  const brandingLocalPath = path.join(rootDir, 'custom', 'branding.local.json')
+  try {
+    if (!fs.existsSync(brandingLocalPath)) {
+      return null
+    }
+    const content = fs.readFileSync(brandingLocalPath, 'utf-8')
+    return JSON.parse(content) as BrandingLocalConfig
+  } catch (error) {
+    console.warn('[Custom Overlay] Error loading custom/branding.local.json:', error)
+    return null
+  }
+}
+
+function normalizeBranding(branding?: CustomConfig['branding'] | BrandingLocalConfig | null): Required<NonNullable<CustomConfig['branding']>> {
+  const b = branding || {}
+  return {
+    appName: typeof b.appName === 'string' && b.appName.trim() ? b.appName : DEFAULT_BRANDING.appName,
+    appTagline: typeof b.appTagline === 'string' && b.appTagline.trim() ? b.appTagline : DEFAULT_BRANDING.appTagline,
+    logoKey: b.logoKey === 'work' || b.logoKey === 'none' || b.logoKey === 'default' ? b.logoKey : DEFAULT_BRANDING.logoKey
+  }
+}
+
+/**
+ * Branding precedence:
+ * defaults < ACE config (custom/config.json) < branding.local.json
+ */
+function mergeBrandingConfig(config: CustomConfig | null, brandingLocal: BrandingLocalConfig | null): CustomConfig | null {
+  if (!config && !brandingLocal) return null
+  const merged: CustomConfig = config ? { ...config } : {}
+  merged.branding = normalizeBranding({
+    ...(config?.branding || {}),
+    ...(brandingLocal || {})
+  })
+  return merged
 }
 
 /**
@@ -219,6 +277,7 @@ const DEFAULT_CONTENT_MVP_ASSISTANT_ID = 'content_table'
  */
 function normalizeConfigForEmit(config: CustomConfig): CustomConfig {
   const out = { ...config }
+  out.branding = normalizeBranding(out.branding)
   if (out.ui) {
     out.ui = { ...out.ui }
     if (!Array.isArray(out.ui.simpleModeIds) || out.ui.simpleModeIds.length === 0) {
@@ -299,6 +358,11 @@ function generateConfigModule(config: CustomConfig | null): string {
  */
 
 export interface CustomConfig {
+  branding?: {
+    appName?: string
+    appTagline?: string
+    logoKey?: 'default' | 'work' | 'none'
+  }
   contentTable?: {
     exclusionRules?: {
       enabled?: boolean
@@ -459,18 +523,21 @@ function main() {
   console.log('[Custom Overlay] Generating custom overlay modules...')
   
   const config = loadCustomConfig(rootDir)
+  const brandingLocal = loadBrandingLocal(rootDir)
+  const mergedConfig = mergeBrandingConfig(config, brandingLocal)
   const knowledgeBases = loadCustomKnowledgeBases(rootDir)
   const registries = loadDesignSystemRegistries(rootDir)
   
-  if (!config && Object.keys(knowledgeBases).length === 0 && Object.keys(registries).length === 0) {
+  if (!mergedConfig && Object.keys(knowledgeBases).length === 0 && Object.keys(registries).length === 0) {
     console.log('[Custom Overlay] No custom overlay found, generating empty modules')
   } else {
     console.log(`[Custom Overlay] Loaded custom config: ${config ? 'yes' : 'no'}`)
+    console.log(`[Custom Overlay] Loaded branding.local override: ${brandingLocal ? 'yes' : 'no'}`)
     console.log(`[Custom Overlay] Loaded ${Object.keys(knowledgeBases).length} knowledge base files`)
     console.log(`[Custom Overlay] Loaded ${Object.keys(registries).length} design system registries`)
   }
   
-  const configCode = generateConfigModule(config)
+  const configCode = generateConfigModule(mergedConfig)
   const knowledgeCode = generateKnowledgeModule(knowledgeBases)
   const registriesCode = generateRegistriesModule(registries)
   

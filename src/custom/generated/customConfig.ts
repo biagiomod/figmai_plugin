@@ -8,6 +8,11 @@
  */
 
 export interface CustomConfig {
+  branding?: {
+    appName?: string
+    appTagline?: string
+    logoKey?: 'default' | 'work' | 'none'
+  }
   contentTable?: {
     exclusionRules?: {
       enabled?: boolean
@@ -235,6 +240,11 @@ export const customConfig: CustomConfig | null = {
         }
       ]
     }
+  },
+  "branding": {
+    "appName": "FigmAI",
+    "appTagline": "AI Powered",
+    "logoKey": "default"
   },
   "detectors": {
     "elementClassifier": {

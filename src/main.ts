@@ -73,7 +73,7 @@ import { on, once, showUI } from '@create-figma-plugin/utilities'
 import { getAnalytics } from './core/analytics'
 import { categorizeError } from './core/analytics/errorCodes'
 
-import { BRAND } from './core/brand'
+import { getDisplayBrand } from './core/brand'
 import { CONFIG } from './core/config'
 import { debug } from './core/debug/logger'
 import { sanitizeForChat } from './core/richText/reportFormat'
@@ -1650,7 +1650,7 @@ export default function () {
   showUI({
     height: 600,
     width: 400,
-    title: BRAND.brandName
+    title: getDisplayBrand().appName
   })
   
   // Set up selection change listener

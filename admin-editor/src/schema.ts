@@ -94,6 +94,14 @@ export const configSchema = z
       })
       .passthrough()
       .optional(),
+    branding: z
+      .object({
+        appName: z.string().optional(),
+        appTagline: z.string().optional(),
+        logoKey: z.enum(['default', 'work', 'none']).optional()
+      })
+      .passthrough()
+      .optional(),
     contentTable: z
       .object({
         exclusionRules: z

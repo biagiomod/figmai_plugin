@@ -82,7 +82,7 @@ import { emit, on } from '@create-figma-plugin/utilities'
 import { h } from 'preact'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { BRAND } from './core/brand'
+import { getDisplayBrand } from './core/brand'
 import { CONFIG } from './core/config'
 import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant, getHoverSummary } from './assistants'
 import type { Assistant as AssistantType, AssistantTag, QuickAction } from './assistants'
@@ -92,8 +92,6 @@ import { AnalyticsTaggingTable } from './ui/components/AnalyticsTaggingTable'
 import { AnalyticsTaggingWelcome } from './ui/components/AnalyticsTaggingWelcome'
 import { AnalyticsTaggingView } from './ui/components/AnalyticsTaggingView'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
-import { ProviderIndicators } from './ui/components/ProviderIndicators'
-import { GenericAiIndicator } from './ui/components/GenericAiIndicator'
 import { parseRichText } from './core/richText/parseRichText'
 import { enhanceRichText, estimateEnhancedTextLength } from './core/richText/enhancers'
 import type { RichTextNode } from './core/richText/types'
@@ -103,7 +101,6 @@ import type {
   SendMessageHandler,
   SetAssistantHandler,
   SetModeHandler,
-  SetLlmProviderHandler,
   RunQuickActionHandler,
   RunToolHandler,
   ResetDoneHandler,
@@ -118,7 +115,6 @@ import type {
   Message,
   SelectionState,
   Mode,
-  LlmProviderId,
   Assistant,
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
@@ -179,7 +175,8 @@ import {
   TrashIcon,
   LightBulbRaysIcon,
   PathIcon,
-  AnalyticsIcon
+  AnalyticsIcon,
+  AppLogo
 } from './ui/icons'
 
 // --- Ingest fetch tracer (dev-safe): log if any code tries to hit debug ingest ---
@@ -309,17 +306,6 @@ function getBlockHash(node: RichTextNode): string {
 }
 
 /**
- * Navigation Indicator Mode Gating Switch
- * 
- * Controls which type of AI indicator is shown in the top navigation:
- * - 'generic': Shows vendor-neutral "AI Powered" tag (for external/corporate builds)
- * - 'provider-specific': Shows vendor-specific indicators (OpenAI, Claude, Copilot) for internal builds
- * 
- * To re-enable provider-specific indicators, change this to 'provider-specific'
- */
-const NAV_INDICATOR_MODE: 'generic' | 'provider-specific' = 'generic'
-
-/**
  * Memoized rich-text renderer: caches parseRichText + enhanceRichText output.
  * Used inside the message .map() where hooks cannot be called directly.
  * Re-parses only when content or assistantId changes.
@@ -377,6 +363,7 @@ function Plugin() {
     debugLog('mode', 'Plugin mount: mode initialized', { mode: initialMode, context: 'initialization' })
     return initialMode
   })
+  const displayBrand = getDisplayBrand()
   
   // Stable ref for mode (used in message handlers to avoid stale closures)
   const modeRef = useRef<Mode>(mode)
@@ -394,8 +381,6 @@ function Plugin() {
       prevModeRef.current = mode
     }
   }, [mode])
-  
-  const [provider, setProvider] = useState<LlmProviderId>('openai')
   
   // Default assistant: Content Table in content-mvp mode, General in simple mode, General in advanced mode
   const [assistant, setAssistant] = useState<AssistantType>(() => {
@@ -1194,14 +1179,6 @@ function Plugin() {
     setMessages([])
     setActiveStatus(null)
     setShowClearChatModal(false)
-  }, [])
-  
-  const handleProviderClick = useCallback((providerId: LlmProviderId) => {
-    if (providerId === 'openai') {
-      setProvider(providerId)
-      emit<SetLlmProviderHandler>('SET_LLM_PROVIDER', providerId)
-    }
-    // Claude and Copilot are disabled for now
   }, [])
   
   const handleModeSelect = useCallback((selectedMode: Mode) => {
@@ -2466,16 +2443,29 @@ ${htmlTable}
           </button>
         </div>
         
-        {/* Center: AI Indicator - Gated by NAV_INDICATOR_MODE */}
-        {NAV_INDICATOR_MODE === 'provider-specific' ? (
-          <ProviderIndicators 
-            mode={mode} 
-            provider={provider} 
-            onProviderClick={handleProviderClick} 
-          />
-        ) : (
-          <GenericAiIndicator mode={mode} />
-        )}
+        {/* Center: Branding */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          minWidth: 0,
+          flex: '1 1 auto'
+        }}>
+          <div style={{ color: 'var(--fg)', display: 'inline-flex', alignItems: 'center' }}>
+            <AppLogo logoKey={displayBrand.logoKey} width={16} height={16} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+              {displayBrand.appName}
+            </span>
+            {displayBrand.appTagline ? (
+              <span style={{ fontSize: '10px', color: 'var(--fg-secondary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                {displayBrand.appTagline}
+              </span>
+            ) : null}
+          </div>
+        </div>
         
         {/* Right: Mode Toggle */}
         <div style={{ 

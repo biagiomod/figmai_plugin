@@ -18,6 +18,22 @@ export function getCustomConfig(): CustomConfig | null {
 }
 
 /**
+ * Get display branding config with safe defaults.
+ */
+export function getBranding(): {
+  appName: string
+  appTagline: string
+  logoKey: 'default' | 'work' | 'none'
+} {
+  const branding = customConfig?.branding
+  return {
+    appName: typeof branding?.appName === 'string' && branding.appName.trim() ? branding.appName : 'FigmAI',
+    appTagline: typeof branding?.appTagline === 'string' && branding.appTagline.trim() ? branding.appTagline : 'AI Powered',
+    logoKey: branding?.logoKey === 'work' || branding?.logoKey === 'none' || branding?.logoKey === 'default' ? branding.logoKey : 'default'
+  }
+}
+
+/**
  * Check if Content-MVP mode should be hidden in the UI
  */
 export function shouldHideContentMvpMode(): boolean {

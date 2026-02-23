@@ -952,6 +952,23 @@
       })() +
       '</div></div></div></div>',
       expandedMap['mode-settings'])
+    var branding = (m.config && m.config.branding) ? m.config.branding : {}
+    var brandingLogoKey = branding.logoKey === 'work' ? 'work' : (branding.logoKey === 'none' ? 'none' : 'default')
+    html += collapsibleSection('branding', 'Branding',
+      '<div class="ace-card">' +
+      '<p class="ace-card-subtext">Configure display branding shown in plugin header.</p>' +
+      '<label for="config-branding-appName" class="ace-field-label">App Name</label>' +
+      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="FigmAI" value="' + escapeHtml(typeof branding.appName === 'string' ? branding.appName : '') + '">' +
+      '<label for="config-branding-appTagline" class="ace-field-label">Tagline</label>' +
+      '<input type="text" id="config-branding-appTagline" class="ace-text-input ace-field" placeholder="AI Powered" value="' + escapeHtml(typeof branding.appTagline === 'string' ? branding.appTagline : '') + '">' +
+      '<label for="config-branding-logoKey" class="ace-field-label">Logo</label>' +
+      '<select id="config-branding-logoKey" class="ace-text-input ace-field">' +
+      '<option value="default"' + (brandingLogoKey === 'default' ? ' selected' : '') + '>default</option>' +
+      '<option value="work"' + (brandingLogoKey === 'work' ? ' selected' : '') + '>work</option>' +
+      '<option value="none"' + (brandingLogoKey === 'none' ? ' selected' : '') + '>none</option>' +
+      '</select>' +
+      '</div>',
+      expandedMap['branding'])
     var RESOURCE_LINK_KEYS = ['about', 'feedback', 'meetup']
     var RESOURCE_LINK_BUTTON_LABELS = ['Button 1', 'Button 2', 'Button 3']
     var resourcesLinks = (m.config.resources && m.config.resources.links) ? m.config.resources.links : {}
@@ -1306,6 +1323,38 @@
           updateFooterButtons()
         }
       })
+    }
+
+    // Branding bindings
+    function ensureBrandingConfig () {
+      if (!state.editedModel.config) state.editedModel.config = {}
+      if (!state.editedModel.config.branding) state.editedModel.config.branding = {}
+      return state.editedModel.config.branding
+    }
+    var brandingNameEl = document.getElementById('config-branding-appName')
+    if (brandingNameEl) {
+      brandingNameEl.oninput = brandingNameEl.onchange = function () {
+        ensureBrandingConfig().appName = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    var brandingTaglineEl = document.getElementById('config-branding-appTagline')
+    if (brandingTaglineEl) {
+      brandingTaglineEl.oninput = brandingTaglineEl.onchange = function () {
+        ensureBrandingConfig().appTagline = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    var brandingLogoEl = document.getElementById('config-branding-logoKey')
+    if (brandingLogoEl) {
+      brandingLogoEl.onchange = function () {
+        var v = this.value === 'work' ? 'work' : (this.value === 'none' ? 'none' : 'default')
+        ensureBrandingConfig().logoKey = v
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
     }
 
     // Exclusion rules bindings

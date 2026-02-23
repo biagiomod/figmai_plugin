@@ -13,6 +13,41 @@ interface IconProps {
   style?: h.JSX.CSSProperties
 }
 
+// App Branding Logos
+export function DefaultLogo(props: IconProps = {}) {
+  const { width = 20, height = 20, ...rest } = props
+  return (
+    <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...rest}>
+      <rect x="2" y="2" width="20" height="20" rx="6" fill="currentColor" />
+      <path d="M8 7H16V10H11V12H15V15H11V18H8V7Z" fill="#FFFFFF" />
+    </svg>
+  )
+}
+
+export function WorkLogo(props: IconProps = {}) {
+  const { width = 20, height = 20, ...rest } = props
+  return (
+    <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...rest}>
+      <rect x="2" y="2" width="20" height="20" rx="6" fill="currentColor" opacity="0.16" />
+      <path d="M7.5 8L10.2 16H11.8L14.5 8H12.9L11 14L9.1 8H7.5Z" fill="currentColor" />
+      <path d="M15.5 8H17V16H15.5V8Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function AppLogo(
+  {
+    logoKey = 'default',
+    width = 20,
+    height = 20,
+    ...rest
+  }: IconProps & { logoKey?: 'default' | 'work' | 'none' } = {}
+) {
+  if (logoKey === 'none') return null
+  if (logoKey === 'work') return <WorkLogo width={width} height={height} {...rest} />
+  return <DefaultLogo width={width} height={height} {...rest} />
+}
+
 // Provider Icons
 export function OpenAIIcon(props: IconProps = {}) {
   const { width = 24, height = 24, ...rest } = props
