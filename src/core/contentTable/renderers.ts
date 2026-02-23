@@ -63,7 +63,10 @@ function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: n
 function renderCellHtml(cell: Cell): string {
   const href = cellHref(cell)
   if (href) {
-    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color: #0066ff; text-decoration: underline;">View Element</a>`
+    const linkText = typeof cell === 'string' ? 'View in Figma' : (cell.text || 'View in Figma')
+    const suffix = typeof cell === 'string' ? '' : (cell.suffix || '')
+    const suffixHtml = suffix ? escapeHtml(suffix).replace(/\r\n|\r|\n/g, '<br>') : ''
+    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color: #0066ff; text-decoration: underline;">${escapeHtml(linkText)}</a>${suffixHtml}`
   }
   const cellStr = String(cellText(cell) || '')
   return escapeHtml(cellStr).replace(/\r\n|\r|\n/g, '<br>')
@@ -125,7 +128,7 @@ export function universalTableToTsv(
   for (const row of rows) {
     tsv += row.map(cell => {
       const value = cellText(cell)
-      return value.replace(/\t/g, ' ').replace(/\n/g, ' ')
+      return value.replace(/\t/g, ' ')
     }).join('\t') + '\n'
   }
   

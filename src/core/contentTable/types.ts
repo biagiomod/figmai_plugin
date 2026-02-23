@@ -92,6 +92,8 @@ export type ContentItemV1 = {
  */
 export type TableFormatPreset = 
   | "universal"
+  | "mobile"
+  | "simple-worksheet"
   | "content-only"
   | "content-model-1"
   | "content-model-2"

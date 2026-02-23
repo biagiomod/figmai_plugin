@@ -74,12 +74,12 @@ test('content-only HTML export contains content value', () => {
   assert.ok(html.includes('My Content'), 'Content value must appear in exported HTML')
 })
 
-test('content-only HTML export contains component name (Tag column)', () => {
+test('content-only HTML export does not include legacy Tag column content', () => {
   const item = makeItem({ component: { kind: 'instance', name: 'CardTitle' } })
   const table = makeTable([item])
   const projected = projectContentTable('content-only', [item])
   const { html } = universalTableToHtml(table, projected)
-  assert.ok(html.includes('CardTitle'), 'Tag/component name must appear in exported HTML')
+  assert.ok(!html.includes('CardTitle'), 'Legacy Tag/component value must not appear in content-only HTML')
 })
 
 test('content-only HTML export contains Figma Ref as View Element link', () => {
@@ -87,7 +87,7 @@ test('content-only HTML export contains Figma Ref as View Element link', () => {
   const table = makeTable([item])
   const projected = projectContentTable('content-only', [item])
   const { html } = universalTableToHtml(table, projected)
-  assert.ok(html.includes('View Element'), 'Figma Ref column must render as View Element link')
+  assert.ok(html.includes('View in Figma'), 'Figma Ref column must render as View in Figma link')
   assert.ok(html.includes('href='), 'Figma Ref column must have an href attribute')
 })
 
@@ -97,6 +97,44 @@ test('content-only TSV export contains content value', () => {
   const projected = projectContentTable('content-only', [item])
   const tsv = universalTableToTsv(table, projected)
   assert.ok(tsv.includes('TSV Content'), 'Content value must appear in TSV export')
+})
+
+test('simple-worksheet projects 2 columns and figmaRef renders link cell', () => {
+  const item = makeItem()
+  const projected = projectContentTable('simple-worksheet', [item])
+  assert.strictEqual(projected.columnKeys.length, 2, 'Simple Worksheet must project exactly 2 columns')
+  assert.strictEqual(projected.columnKeys[0], 'figmaRef', 'First column must be figmaRef')
+  assert.strictEqual(projected.columnKeys[1], 'content', 'Second column must be content')
+  const figmaRefCell = projected.rows[0]?.[0]
+  assert.ok(typeof figmaRefCell === 'object' && !!figmaRefCell?.href, 'figmaRef cell must include a link')
+})
+
+test('mobile HTML export renders linked first line and plain suffix line', () => {
+  const item = makeItem({
+    id: 'm1',
+    nodeUrl: 'https://www.figma.com/file/mobile?node-id=1',
+    field: { label: 'Title', path: 'Mobile Screen / Title', role: 'Header' },
+    content: { type: 'text', value: 'Welcome title' }
+  })
+  const table = makeTable([item])
+  const projected = projectContentTable('mobile', [item])
+  const { html } = universalTableToHtml(table, projected)
+  assert.ok(html.includes('Section 1: [User will add]'), 'section row must be present')
+  assert.ok(html.includes('>View in Figma</a><br>Place Image Here'), 'mobile intro cell must render link + suffix line break')
+  assert.ok(html.includes('Welcome title'), 'item content must be rendered')
+})
+
+test('mobile TSV export keeps newline in link+suffix cell', () => {
+  const item = makeItem({
+    id: 'm1',
+    nodeUrl: 'https://www.figma.com/file/mobile?node-id=1',
+    field: { label: 'Title', path: 'Mobile Screen / Title', role: 'Header' },
+    content: { type: 'text', value: 'Welcome title' }
+  })
+  const table = makeTable([item])
+  const projected = projectContentTable('mobile', [item])
+  const tsv = universalTableToTsv(table, projected)
+  assert.ok(tsv.includes('View in Figma\nPlace Image Here'), 'TSV cell should include newline suffix text')
 })
 
 // --- Universal ---
@@ -179,7 +217,7 @@ test('dev-only nodeUrl column renders as View Element link in HTML', () => {
   const table = makeTable([item])
   const projected = projectContentTable('dev-only', [item])
   const { html } = universalTableToHtml(table, projected)
-  assert.ok(html.includes('View Element'), 'dev-only nodeUrl must render as View Element link')
+  assert.ok(html.includes('View in Figma'), 'dev-only nodeUrl must render as View in Figma link')
   assert.ok(html.includes('href="https://www.figma.com/file/test"'), 'dev-only nodeUrl must have correct href')
 })
 
@@ -189,7 +227,7 @@ test('ada-only nodeUrl column renders as View Element link in HTML', () => {
   const table = makeTable([item])
   const projected = projectContentTable('ada-only', [item])
   const { html } = universalTableToHtml(table, projected)
-  assert.ok(html.includes('View Element'), 'ada-only nodeUrl must render as View Element link')
+  assert.ok(html.includes('View in Figma'), 'ada-only nodeUrl must render as View in Figma link')
   assert.ok(html.includes('href="https://www.figma.com/file/ada-test"'), 'ada-only nodeUrl must have correct href')
 })
 

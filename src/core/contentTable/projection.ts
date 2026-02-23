@@ -18,8 +18,8 @@
 import type { ContentItemV1, TableFormatPreset } from './types'
 import { PRESET_COLUMNS, PRESET_INFO, PRESET_TEMPLATES } from './presets.generated'
 
-/** A projected cell: plain string or rich text + hyperlink. */
-export type Cell = string | { text: string; href: string }
+/** A projected cell: plain string or rich text + hyperlink (+ optional plain suffix line). */
+export type Cell = string | { text: string; href: string; suffix?: string }
 
 export interface ProjectedTable {
   /**
@@ -36,11 +36,16 @@ export interface ProjectedTable {
 }
 
 export function cellText(cell: Cell): string {
-  return typeof cell === 'string' ? cell : cell.text
+  if (typeof cell === 'string') return cell
+  return cell.suffix ? `${cell.text}${cell.suffix}` : cell.text
 }
 
 export function cellHref(cell: Cell): string | undefined {
   return typeof cell === 'string' ? undefined : cell.href
+}
+
+export function cellSuffix(cell: Cell): string {
+  return typeof cell === 'string' ? '' : (cell.suffix || '')
 }
 
 /**
@@ -119,6 +124,16 @@ interface ContainerGroup {
   items: ContentItemV1[]
 }
 
+function pickContainerUrl(item: ContentItemV1): string {
+  const anyItem = item as unknown as Record<string, unknown>
+  const direct = typeof anyItem.containerUrl === 'string' ? anyItem.containerUrl : ''
+  const containerNodeUrl = typeof anyItem.containerNodeUrl === 'string' ? anyItem.containerNodeUrl : ''
+  const rootNodeUrl = typeof anyItem.rootNodeUrl === 'string' ? anyItem.rootNodeUrl : ''
+  const meta = (anyItem.meta && typeof anyItem.meta === 'object') ? anyItem.meta as Record<string, unknown> : null
+  const metaContainerUrl = meta && typeof meta.containerUrl === 'string' ? meta.containerUrl : ''
+  return direct || containerNodeUrl || rootNodeUrl || metaContainerUrl || item.nodeUrl || ''
+}
+
 /**
  * Group items by container, preserving scan order.
  * Items from the same container are contiguous (scanner appends in order).
@@ -131,9 +146,12 @@ function groupByContainer(items: ContentItemV1[]): ContainerGroup[] {
 
   for (const item of items) {
     const key = containerKey(item)
+    const containerUrl = pickContainerUrl(item)
     if (!current || current.name !== key) {
-      current = { name: key, containerUrl: item.nodeUrl || '', items: [] }
+      current = { name: key, containerUrl, items: [] }
       groups.push(current)
+    } else if (!current.containerUrl && containerUrl) {
+      current.containerUrl = containerUrl
     }
     current.items.push(item)
   }
@@ -162,6 +180,7 @@ interface TemplateLinkCell {
   type: 'link'
   label: string | { type: 'static'; text: string } | { type: 'field'; field: string }
   hrefField: string
+  suffix?: string
 }
 
 type TemplateCell = string | TemplateStaticCell | TemplateFieldCell | TemplateLinkCell | null
@@ -204,11 +223,13 @@ function normalizeTemplateCell(raw: TemplateCell): TemplateCell {
   return raw
 }
 
-function resolveTemplateCell(cell: TemplateCell, group: ContainerGroup, item?: ContentItemV1): Cell {
+function resolveTemplateCell(cell: TemplateCell, group: ContainerGroup, sectionIndex: number, item?: ContentItemV1): Cell {
   const normalized = normalizeTemplateCell(cell)
   if (typeof normalized === 'string') return normalized
   if (!normalized || typeof normalized !== 'object') return ''
-  if (normalized.type === 'static') return normalized.text || ''
+  if (normalized.type === 'static') {
+    return (normalized.text || '').replace(/\{sectionIndex\}/g, String(sectionIndex))
+  }
   if (normalized.type === 'field') return resolveField(normalized.field, group, item)
   if (normalized.type === 'link') {
     const href = resolveField(normalized.hrefField, group, item)
@@ -220,8 +241,11 @@ function resolveTemplateCell(cell: TemplateCell, group: ContainerGroup, item?: C
     } else if (normalized.label?.type === 'field') {
       text = resolveField(normalized.label.field, group, item)
     }
-    if (!href || !text) return text || ''
-    return { text, href }
+    const suffix = typeof normalized.suffix === 'string'
+      ? normalized.suffix.replace(/\{sectionIndex\}/g, String(sectionIndex))
+      : ''
+    if (!href || !text) return text ? `${text}${suffix}` : ''
+    return suffix ? { text, href, suffix } : { text, href }
   }
   return ''
 }
@@ -242,11 +266,13 @@ function projectGrouped(
   const groups = groupByContainer(items)
   const rows: Cell[][] = []
 
-  for (const group of groups) {
+  for (let gi = 0; gi < groups.length; gi++) {
+    const group = groups[gi]
+    const sectionIndex = gi + 1
     for (const templateRow of template.containerIntroRows ?? []) {
       const row = blankRow(colCount)
       templateRow.forEach((cell, idx) => {
-        if (idx < colCount) row[idx] = resolveTemplateCell(cell, group)
+        if (idx < colCount) row[idx] = resolveTemplateCell(cell, group, sectionIndex)
       })
       rows.push(row)
     }
@@ -255,10 +281,27 @@ function projectGrouped(
       for (const templateRow of template.itemRows ?? []) {
         const row = blankRow(colCount)
         templateRow.forEach((cell, idx) => {
-          if (idx < colCount) row[idx] = resolveTemplateCell(cell, group, item)
+          if (idx < colCount) row[idx] = resolveTemplateCell(cell, group, sectionIndex, item)
         })
         rows.push(row)
       }
+    }
+  }
+
+  if (presetId === 'mobile') {
+    const mobileHeaderRows = headerRows.map((row, ri) => {
+      const isPrimary = ri === headerRows.length - 1
+      return [isPrimary ? '#' : '', ...row, isPrimary ? 'Tools' : '']
+    })
+    const mobileHeaders = mobileHeaderRows[mobileHeaderRows.length - 1]
+    const mobileColumnKeys = ['rowNumber', ...columnKeys, 'tools']
+    const mobileRows: Cell[][] = rows.map((row, idx) => [String(idx + 1), ...row, ''])
+    return {
+      headerRows: mobileHeaderRows,
+      headers: mobileHeaders,
+      columnKeys: mobileColumnKeys,
+      rows: mobileRows,
+      readOnly: true
     }
   }
 

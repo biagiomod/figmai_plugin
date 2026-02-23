@@ -64,12 +64,107 @@ If a path is missing, it returns an empty string.
 
 ---
 
+## Mobile
+
+**id:** mobile  
+**label:** Mobile  
+**description:** Sectioned mobile worksheet with container intro rows and UI Label (English) content rows  
+**enabled:** true
+**kind:** grouped
+
+**columns:**
+- key: wireframe, label: Wireframe (For example purposes ONLY. Final content to be found in UI Label column.), path: nodeUrl
+- key: elementType, label: Element type (e.g. Header / Text / Button / HAT), path: field.role
+- key: uiLabelEnglish, label: UI label (English), path: content.value
+- key: uiLabelSpanish, label: UI label (Spanish), path: content.value
+- key: contentKeyOrIdentifier, label: Content Key (or Identifier) (Developer string/key reference if necessary), path: contentKey
+- key: notesRules, label: Notes/rules, path: notes
+- key: jiraLinks, label: JIRA Links (Release / Epic / Editor Subtask / Story (ies)) (Listed in reverse order Newest to Oldest), path: jiraTicket
+
+**template:**
+```json
+{
+  "headerRows": [
+    [
+      "Wireframe (For example purposes ONLY. Final content to be found in UI Label column.)",
+      "Element type (e.g. Header / Text / Button / HAT)",
+      "UI label (English)",
+      "UI label (Spanish)",
+      "Content Key (or Identifier) (Developer string/key reference if necessary)",
+      "Notes/rules",
+      "JIRA Links (Release / Epic / Editor Subtask / Story (ies)) (Listed in reverse order Newest to Oldest)"
+    ]
+  ],
+  "containerIntroRows": [
+    [
+      {
+        "type": "static",
+        "text": "Section {sectionIndex}: [User will add]"
+      },
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      {
+        "type": "link",
+        "label": {
+          "type": "static",
+          "text": "View in Figma"
+        },
+        "hrefField": "containerUrl",
+        "suffix": "\nPlace Image Here"
+      },
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  ],
+  "itemRows": [
+    [
+      "",
+      "",
+      {
+        "type": "field",
+        "field": "content"
+      },
+      "",
+      "",
+      "",
+      ""
+    ]
+  ]
+}
+```
+
+---
+
+## Simple Worksheet
+
+**id:** simple-worksheet  
+**label:** Simple Worksheet  
+**description:** Minimal worksheet with only Figma reference and content values  
+**enabled:** true
+
+**columns:**
+- key: figmaRef, label: Figma Ref, path: nodeUrl
+- key: content, label: Content, path: content.value
+
+---
+
 ## Content Only
 
 **id:** content-only  
 **label:** Content Only  
-**description:** Content list with same structure as Content Model 1, but only Column 7 populated with content values  
+**description:** Grouped worksheet export with container intro row and content-only item rows  
 **enabled:** true
+**kind:** grouped
 
 **columns:**
 - key: figmaRef, label: Figma Ref, path: nodeUrl
@@ -81,6 +176,75 @@ If a path is missing, it returns an empty string.
 - key: content, label: Content, path: content.value
 - key: rulesComment, label: Rules/Comment, path: notes
 - key: notesJira, label: Notes/Jira, path: jiraTicket
+
+**template:**
+```json
+{
+  "headerRows": [
+    [
+      "Column 1",
+      "Column 2",
+      "Column 3",
+      "Column 4",
+      "Column 5",
+      "Column 6",
+      "Column 7",
+      "Column 8",
+      "Column 9"
+    ],
+    [
+      "Figma Ref",
+      "Tag",
+      "Source",
+      "Model",
+      "Metadata Key",
+      "Content Key",
+      "Content",
+      "Rules/Comment",
+      "Notes/Jira"
+    ]
+  ],
+  "containerIntroRows": [
+    [
+      {
+        "type": "link",
+        "label": {
+          "type": "static",
+          "text": "View in Figma"
+        },
+        "hrefField": "containerUrl"
+      },
+      "",
+      "",
+      {
+        "type": "static",
+        "text": "Content Only"
+      },
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  ],
+  "itemRows": [
+    [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      {
+        "type": "field",
+        "field": "content"
+      },
+      "",
+      ""
+    ]
+  ]
+}
+```
 
 ---
 
@@ -243,7 +407,7 @@ If a path is missing, it returns an empty string.
 **id:** content-model-2  
 **label:** Content Model 2  
 **description:** Schema-style export with rowspans and staggered rows for Dialog and Links sections  
-**enabled:** true
+**enabled:** false
 
 **columns:**
 - key: figmaRef, label: Figma Ref, path: nodeUrl

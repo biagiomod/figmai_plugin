@@ -242,6 +242,15 @@
     if (!state.editedModel) return null
     var cloned = deepClone(state.editedModel)
     if (!cloned.config) cloned.config = {}
+    if (!cloned.config.ui) cloned.config.ui = {}
+    if (!cloned.config.ui.branding || typeof cloned.config.ui.branding !== 'object') cloned.config.ui.branding = {}
+    if (typeof cloned.config.ui.branding.showLogo !== 'boolean') cloned.config.ui.branding.showLogo = true
+    if (typeof cloned.config.ui.branding.showAppName !== 'boolean') cloned.config.ui.branding.showAppName = (typeof cloned.config.ui.branding.showName === 'boolean') ? cloned.config.ui.branding.showName : true
+    if (typeof cloned.config.ui.branding.showName !== 'boolean') cloned.config.ui.branding.showName = cloned.config.ui.branding.showAppName
+    if (typeof cloned.config.ui.branding.appName !== 'string') cloned.config.ui.branding.appName = ''
+    if (typeof cloned.config.ui.branding.logline !== 'string') cloned.config.ui.branding.logline = ''
+    if (typeof cloned.config.ui.branding.showLogline !== 'boolean') cloned.config.ui.branding.showLogline = !!cloned.config.ui.branding.logline.trim()
+    if (typeof cloned.config.ui.branding.logoPath !== 'string') cloned.config.ui.branding.logoPath = ''
     if (!cloned.config.contentTable) cloned.config.contentTable = {}
     if (!cloned.config.contentTable.exclusionRules) cloned.config.contentTable.exclusionRules = { enabled: false, rules: [] }
     if (!Array.isArray(cloned.config.contentTable.exclusionRules.rules)) cloned.config.contentTable.exclusionRules.rules = []
@@ -952,21 +961,46 @@
       })() +
       '</div></div></div></div>',
       expandedMap['mode-settings'])
-    var branding = (m.config && m.config.branding) ? m.config.branding : {}
-    var brandingLogoKey = branding.logoKey === 'work' ? 'work' : (branding.logoKey === 'none' ? 'none' : 'default')
+    var legacyBranding = (m.config && m.config.branding && typeof m.config.branding === 'object') ? m.config.branding : {}
+    var uiBranding = (m.config && m.config.ui && m.config.ui.branding && typeof m.config.ui.branding === 'object') ? m.config.ui.branding : null
+    var brandingShowLogo = true
+    var brandingShowAppName = true
+    var brandingShowLogline = false
+    var brandingAppName = ''
+    var brandingLogline = ''
+    var brandingLogoPath = ''
+    if (uiBranding) {
+      if (typeof uiBranding.showLogo === 'boolean') brandingShowLogo = uiBranding.showLogo
+      if (typeof uiBranding.showAppName === 'boolean') brandingShowAppName = uiBranding.showAppName
+      else if (typeof uiBranding.showName === 'boolean') brandingShowAppName = uiBranding.showName
+      if (typeof uiBranding.showLogline === 'boolean') brandingShowLogline = uiBranding.showLogline
+      if (typeof uiBranding.appName === 'string') brandingAppName = uiBranding.appName
+      if (typeof uiBranding.logline === 'string') brandingLogline = uiBranding.logline
+      if (typeof uiBranding.logoPath === 'string') brandingLogoPath = uiBranding.logoPath
+    } else {
+      if (legacyBranding.logoKey === 'none') brandingShowLogo = false
+      if (typeof legacyBranding.appName === 'string') brandingAppName = legacyBranding.appName
+      if (typeof legacyBranding.appTagline === 'string') brandingLogline = legacyBranding.appTagline
+    }
+    if (typeof uiBranding?.showLogline !== 'boolean') brandingShowLogline = !!(brandingLogline || '').trim()
     html += collapsibleSection('branding', 'Branding',
       '<div class="ace-card">' +
       '<p class="ace-card-subtext">Configure display branding shown in plugin header.</p>' +
+      '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showLogo" ' + (brandingShowLogo ? 'checked' : '') + '> Show Logo</label></div>' +
+      '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showAppName" ' + (brandingShowAppName ? 'checked' : '') + '> Show App Name</label></div>' +
+      '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showLogline" ' + (brandingShowLogline ? 'checked' : '') + '> Show Logline</label></div>' +
       '<label for="config-branding-appName" class="ace-field-label">App Name</label>' +
-      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="FigmAI" value="' + escapeHtml(typeof branding.appName === 'string' ? branding.appName : '') + '">' +
-      '<label for="config-branding-appTagline" class="ace-field-label">Tagline</label>' +
-      '<input type="text" id="config-branding-appTagline" class="ace-text-input ace-field" placeholder="AI Powered" value="' + escapeHtml(typeof branding.appTagline === 'string' ? branding.appTagline : '') + '">' +
-      '<label for="config-branding-logoKey" class="ace-field-label">Logo</label>' +
-      '<select id="config-branding-logoKey" class="ace-text-input ace-field">' +
-      '<option value="default"' + (brandingLogoKey === 'default' ? ' selected' : '') + '>default</option>' +
-      '<option value="work"' + (brandingLogoKey === 'work' ? ' selected' : '') + '>work</option>' +
-      '<option value="none"' + (brandingLogoKey === 'none' ? ' selected' : '') + '>none</option>' +
-      '</select>' +
+      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="FigmAI" value="' + escapeHtml(brandingAppName) + '">' +
+      '<label for="config-branding-logline" class="ace-field-label">Logline</label>' +
+      '<input type="text" id="config-branding-logline" class="ace-text-input ace-field" placeholder="AI Powered" value="' + escapeHtml(brandingLogline) + '">' +
+      '<label for="config-branding-logoPath" class="ace-field-label">Logo Path</label>' +
+      '<input type="text" id="config-branding-logoPath" class="ace-text-input ace-field ace-field--lg" placeholder="/assets/logo.svg" value="' + escapeHtml(brandingLogoPath) + '">' +
+      '<div class="ace-card-subtext" style="margin-top:8px">Current Logo Preview</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' +
+      '<img id="config-branding-logoPreview" src="' + escapeHtml(brandingLogoPath || '') + '" alt="Current logo preview" style="max-width:32px;max-height:32px;border:1px solid #ddd;border-radius:4px;object-fit:contain;' + (brandingLogoPath ? '' : 'display:none;') + '">' +
+      '<span id="config-branding-logoMissing" class="inline-error" style="' + (brandingLogoPath ? 'display:none;' : 'display:inline;') + '">Logo not found at path</span>' +
+      '</div>' +
+      '<div class="ace-card-subtext" style="margin-top:6px">Resolved path: <code id="config-branding-logoPathRaw">' + escapeHtml(brandingLogoPath || '') + '</code></div>' +
       '</div>',
       expandedMap['branding'])
     var RESOURCE_LINK_KEYS = ['about', 'feedback', 'meetup']
@@ -1041,76 +1075,6 @@
       '<button type="button" id="hat-add-btn" class="ace-btn">Add</button>' +
       '</div></div>',
       expandedMap['accessibility-hat'])
-    var ctExcl = (m.config.contentTable && m.config.contentTable.exclusionRules) || { enabled: false, rules: [] }
-    function normalizeExclRuleForEditor (rule, i) {
-      var r = (rule && typeof rule === 'object') ? rule : {}
-      var name = typeof r.name === 'string' && r.name.trim() ? r.name : (typeof r.label === 'string' && r.label.trim() ? r.label : ('Rule ' + (i + 1)))
-      var enabled = (typeof r.enabled === 'boolean') ? r.enabled : true
-      var note = typeof r.note === 'string' ? r.note : ''
-      var pattern = typeof r.pattern === 'string' ? r.pattern : ''
-      var matchTarget = 'content'
-      if (r.matchTarget === 'layerName' || r.matchTarget === 'both' || r.matchTarget === 'content') {
-        matchTarget = r.matchTarget
-      } else if (r.field === 'textLayerName') {
-        matchTarget = 'layerName'
-      }
-      var matchType = 'contains'
-      if (r.matchType === 'exact' || r.matchType === 'contains' || r.matchType === 'regex') {
-        matchType = r.matchType
-      } else if (r.match === 'equals') {
-        matchType = 'exact'
-      } else if (r.match === 'regex') {
-        matchType = 'regex'
-      } else if (r.match === 'startsWith') {
-        matchType = 'contains'
-      }
-      var action = (r.action === 'flag') ? 'flag' : 'exclude'
-      var confidence = (r.confidence === 'med' || r.confidence === 'low' || r.confidence === 'high') ? r.confidence : 'high'
-      return {
-        name: name,
-        enabled: enabled,
-        note: note,
-        matchTarget: matchTarget,
-        matchType: matchType,
-        pattern: pattern,
-        action: action,
-        confidence: confidence
-      }
-    }
-    var exclEditorRules = (ctExcl.rules || []).map(function (rule, i) { return normalizeExclRuleForEditor(rule, i) })
-    var exclRulesHtml = '<div class="ace-card"><p class="ace-card-subtext">ACE-managed ignore list for CT-A. Exclude removes rows; Flag keeps rows and marks them for review.</p>'
-    exclRulesHtml += '<div class="field-row"><label><input type="checkbox" id="ct-excl-enabled" ' + (ctExcl.enabled ? 'checked' : '') + '> Enabled</label></div>'
-    exclRulesHtml += '<table class="ace-excl-rules-table" id="ct-excl-rules-table"><thead><tr><th>Name</th><th>Enabled</th><th>Target</th><th>Match</th><th>Pattern</th><th>Action</th><th>Conf.</th><th>Note</th><th></th></tr></thead><tbody>'
-    var exclTargets = ['content', 'layerName', 'both']
-    var exclMatches = ['exact', 'contains', 'regex']
-    var exclActions = ['exclude', 'flag']
-    var exclConf = ['high', 'med', 'low']
-    ;exclEditorRules.forEach(function (rule, i) {
-      exclRulesHtml += '<tr data-i="' + i + '">'
-      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-name" data-i="' + i + '" value="' + escapeHtml(rule.name || '') + '"></td>'
-      exclRulesHtml += '<td style="text-align:center"><input type="checkbox" class="ct-excl-rule-enabled" data-i="' + i + '"' + (rule.enabled ? ' checked' : '') + '></td>'
-      exclRulesHtml += '<td><select class="ct-excl-target" data-i="' + i + '">'
-      exclTargets.forEach(function (t) { exclRulesHtml += '<option value="' + t + '"' + (rule.matchTarget === t ? ' selected' : '') + '>' + t + '</option>' })
-      exclRulesHtml += '</select></td>'
-      exclRulesHtml += '<td><select class="ct-excl-match" data-i="' + i + '">'
-      exclMatches.forEach(function (m) { exclRulesHtml += '<option value="' + m + '"' + (rule.matchType === m ? ' selected' : '') + '>' + m + '</option>' })
-      exclRulesHtml += '</select></td>'
-      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-pattern" data-i="' + i + '" value="' + escapeHtml(rule.pattern || '') + '"></td>'
-      exclRulesHtml += '<td><select class="ct-excl-action" data-i="' + i + '">'
-      exclActions.forEach(function (a) { exclRulesHtml += '<option value="' + a + '"' + (rule.action === a ? ' selected' : '') + '>' + a + '</option>' })
-      exclRulesHtml += '</select></td>'
-      exclRulesHtml += '<td><select class="ct-excl-confidence" data-i="' + i + '">'
-      exclConf.forEach(function (c) { exclRulesHtml += '<option value="' + c + '"' + (rule.confidence === c ? ' selected' : '') + '>' + c + '</option>' })
-      exclRulesHtml += '</select></td>'
-      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-note" data-i="' + i + '" value="' + escapeHtml(rule.note || '') + '"></td>'
-      exclRulesHtml += '<td><button type="button" class="btn-small ct-excl-remove" data-i="' + i + '">Remove</button></td>'
-      exclRulesHtml += '</tr>'
-    })
-    exclRulesHtml += '</tbody></table>'
-    exclRulesHtml += '<button type="button" class="btn-small add-btn" id="ct-excl-add">Add rule</button>'
-    exclRulesHtml += ' <button type="button" class="btn-small" id="ct-excl-add-presets">Add presets</button>'
-    exclRulesHtml += '</div>'
-    html += collapsibleSection('content-table-exclusion', 'Content Table — Exclusion Rules', exclRulesHtml, expandedMap['content-table-exclusion'])
     html += collapsibleSection('advanced-raw-json', 'Advanced: Raw JSON Config',
       '<div class="ace-card danger-zone ace-raw-json-card">' +
       '<p class="ace-raw-json-warning">Warning: Invalid JSON will fail validation</p>' +
@@ -1326,106 +1290,109 @@
     }
 
     // Branding bindings
-    function ensureBrandingConfig () {
+    function ensureUiBrandingConfig () {
       if (!state.editedModel.config) state.editedModel.config = {}
-      if (!state.editedModel.config.branding) state.editedModel.config.branding = {}
-      return state.editedModel.config.branding
+      if (!state.editedModel.config.ui) state.editedModel.config.ui = {}
+      if (!state.editedModel.config.ui.branding || typeof state.editedModel.config.ui.branding !== 'object') {
+        var legacy = (state.editedModel.config.branding && typeof state.editedModel.config.branding === 'object') ? state.editedModel.config.branding : {}
+        state.editedModel.config.ui.branding = {
+          showLogo: legacy.logoKey === 'none' ? false : true,
+          showName: true,
+          showAppName: true,
+          showLogline: typeof legacy.appTagline === 'string' ? !!legacy.appTagline.trim() : false,
+          appName: typeof legacy.appName === 'string' ? legacy.appName : '',
+          logline: typeof legacy.appTagline === 'string' ? legacy.appTagline : '',
+          logoPath: ''
+        }
+      }
+      if (typeof state.editedModel.config.ui.branding.showAppName !== 'boolean') {
+        state.editedModel.config.ui.branding.showAppName = (typeof state.editedModel.config.ui.branding.showName === 'boolean')
+          ? state.editedModel.config.ui.branding.showName
+          : true
+      }
+      if (typeof state.editedModel.config.ui.branding.showName !== 'boolean') {
+        state.editedModel.config.ui.branding.showName = state.editedModel.config.ui.branding.showAppName
+      }
+      if (typeof state.editedModel.config.ui.branding.showLogline !== 'boolean') {
+        var loglineValue = typeof state.editedModel.config.ui.branding.logline === 'string' ? state.editedModel.config.ui.branding.logline : ''
+        state.editedModel.config.ui.branding.showLogline = !!loglineValue.trim()
+      }
+      if (typeof state.editedModel.config.ui.branding.logline !== 'string') state.editedModel.config.ui.branding.logline = ''
+      if (typeof state.editedModel.config.ui.branding.logoPath !== 'string') state.editedModel.config.ui.branding.logoPath = ''
+      return state.editedModel.config.ui.branding
+    }
+    var brandingShowLogoEl = document.getElementById('config-ui-branding-showLogo')
+    if (brandingShowLogoEl) {
+      brandingShowLogoEl.onchange = function () {
+        ensureUiBrandingConfig().showLogo = !!this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    var brandingShowNameEl = document.getElementById('config-ui-branding-showAppName')
+    if (brandingShowNameEl) {
+      brandingShowNameEl.onchange = function () {
+        ensureUiBrandingConfig().showAppName = !!this.checked
+        ensureUiBrandingConfig().showName = !!this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    var brandingShowLoglineEl = document.getElementById('config-ui-branding-showLogline')
+    if (brandingShowLoglineEl) {
+      brandingShowLoglineEl.onchange = function () {
+        ensureUiBrandingConfig().showLogline = !!this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
     }
     var brandingNameEl = document.getElementById('config-branding-appName')
     if (brandingNameEl) {
       brandingNameEl.oninput = brandingNameEl.onchange = function () {
-        ensureBrandingConfig().appName = this.value
+        ensureUiBrandingConfig().appName = this.value
         showUnsavedBanner()
         updateFooterButtons()
       }
     }
-    var brandingTaglineEl = document.getElementById('config-branding-appTagline')
-    if (brandingTaglineEl) {
-      brandingTaglineEl.oninput = brandingTaglineEl.onchange = function () {
-        ensureBrandingConfig().appTagline = this.value
+    var brandingLoglineEl = document.getElementById('config-branding-logline')
+    if (brandingLoglineEl) {
+      brandingLoglineEl.oninput = brandingLoglineEl.onchange = function () {
+        ensureUiBrandingConfig().logline = this.value
         showUnsavedBanner()
         updateFooterButtons()
       }
     }
-    var brandingLogoEl = document.getElementById('config-branding-logoKey')
-    if (brandingLogoEl) {
-      brandingLogoEl.onchange = function () {
-        var v = this.value === 'work' ? 'work' : (this.value === 'none' ? 'none' : 'default')
-        ensureBrandingConfig().logoKey = v
+    var brandingLogoPathEl = document.getElementById('config-branding-logoPath')
+    if (brandingLogoPathEl) {
+      brandingLogoPathEl.oninput = brandingLogoPathEl.onchange = function () {
+        ensureUiBrandingConfig().logoPath = this.value
+        var previewEl = document.getElementById('config-branding-logoPreview')
+        var missingEl = document.getElementById('config-branding-logoMissing')
+        var rawEl = document.getElementById('config-branding-logoPathRaw')
+        if (previewEl) {
+          if (this.value) {
+            previewEl.style.display = 'inline-block'
+            previewEl.src = this.value
+          } else {
+            previewEl.style.display = 'none'
+          }
+        }
+        if (missingEl) missingEl.style.display = this.value ? 'none' : 'inline'
+        if (rawEl) rawEl.textContent = this.value || ''
         showUnsavedBanner()
         updateFooterButtons()
       }
     }
-
-    // Exclusion rules bindings
-    var exclEnabledEl = document.getElementById('ct-excl-enabled')
-    if (exclEnabledEl) {
-      exclEnabledEl.onchange = function () {
-        if (!state.editedModel.config.contentTable) state.editedModel.config.contentTable = {}
-        if (!state.editedModel.config.contentTable.exclusionRules) state.editedModel.config.contentTable.exclusionRules = { enabled: false, rules: [] }
-        state.editedModel.config.contentTable.exclusionRules.enabled = this.checked
-        showUnsavedBanner()
-        updateFooterButtons()
+    var brandingLogoPreviewEl = document.getElementById('config-branding-logoPreview')
+    if (brandingLogoPreviewEl) {
+      brandingLogoPreviewEl.onerror = function () {
+        this.style.display = 'none'
+        var missingEl = document.getElementById('config-branding-logoMissing')
+        if (missingEl) missingEl.style.display = 'inline'
       }
-    }
-    function getExclRulesArr () {
-      if (!state.editedModel.config.contentTable) state.editedModel.config.contentTable = {}
-      if (!state.editedModel.config.contentTable.exclusionRules) state.editedModel.config.contentTable.exclusionRules = { enabled: false, rules: [] }
-      if (!Array.isArray(state.editedModel.config.contentTable.exclusionRules.rules)) state.editedModel.config.contentTable.exclusionRules.rules = []
-      state.editedModel.config.contentTable.exclusionRules.rules = state.editedModel.config.contentTable.exclusionRules.rules.map(function (rule, idx) {
-        return normalizeExclRuleForEditor(rule, idx)
-      })
-      return state.editedModel.config.contentTable.exclusionRules.rules
-    }
-    document.querySelectorAll('.ct-excl-name, .ct-excl-rule-enabled, .ct-excl-target, .ct-excl-match, .ct-excl-pattern, .ct-excl-action, .ct-excl-confidence, .ct-excl-note').forEach(function (el) {
-      el.onchange = function () {
-        var i = parseInt(this.getAttribute('data-i'), 10)
-        var rules = getExclRulesArr()
-        if (!rules[i]) return
-        if (this.classList.contains('ct-excl-name')) rules[i].name = this.value
-        if (this.classList.contains('ct-excl-rule-enabled')) rules[i].enabled = !!this.checked
-        if (this.classList.contains('ct-excl-target')) rules[i].matchTarget = this.value
-        if (this.classList.contains('ct-excl-match')) rules[i].matchType = this.value
-        if (this.classList.contains('ct-excl-pattern')) rules[i].pattern = this.value
-        if (this.classList.contains('ct-excl-action')) rules[i].action = this.value
-        if (this.classList.contains('ct-excl-confidence')) rules[i].confidence = this.value
-        if (this.classList.contains('ct-excl-note')) rules[i].note = this.value
-        showUnsavedBanner()
-        updateFooterButtons()
-      }
-    })
-    document.querySelectorAll('.ct-excl-remove').forEach(function (btn) {
-      btn.onclick = function () {
-        var i = parseInt(this.getAttribute('data-i'), 10)
-        var rules = getExclRulesArr()
-        rules.splice(i, 1)
-        showUnsavedBanner()
-        renderConfigTab()
-      }
-    })
-    var exclAddBtn = document.getElementById('ct-excl-add')
-    if (exclAddBtn) {
-      exclAddBtn.onclick = function () {
-        var rules = getExclRulesArr()
-        rules.push({ name: '', enabled: true, matchTarget: 'content', matchType: 'contains', pattern: '', action: 'exclude', confidence: 'high', note: '' })
-        showUnsavedBanner()
-        renderConfigTab()
-      }
-    }
-    var exclPresetBtn = document.getElementById('ct-excl-add-presets')
-    if (exclPresetBtn) {
-      exclPresetBtn.onclick = function () {
-        var rules = getExclRulesArr()
-        var presets = [
-          { name: 'Empty placeholder dashes', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^[\\\\s\\\\-–—]{2,}$', action: 'exclude', confidence: 'high', note: '2+ dash-like chars (hyphen/en dash/em dash), optional spaces' },
-          { name: 'Em dash filler', enabled: true, matchTarget: 'content', matchType: 'exact', pattern: '—', action: 'exclude', confidence: 'high', note: 'Single em dash placeholder' },
-          { name: 'Date/time stamp', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '\\\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\\\s+\\\\d{1,2}(?:,\\\\s*\\\\d{2,4})?(?:\\\\s+\\\\d{1,2}:\\\\d{2}(?:\\\\s?[AP]M)?)?(?:\\\\s+[A-Z]{2,4})?\\\\b|\\\\b(?:\\\\d{1,2}[:.]\\\\d{2}(?:\\\\s?[AP]M)?|(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)|\\\\d{1,2}[/-]\\\\d{1,2}(?:[/-]\\\\d{2,4})?)\\\\b', action: 'exclude', confidence: 'high', note: 'Common date/time snippets' },
-          { name: 'Basic nav labels', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^(?:home|search|menu|settings|profile|back|next|close)$', action: 'exclude', confidence: 'high', note: 'Short navigation UI strings' },
-          { name: 'Ticker-like uppercase', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^[A-Z]{2,5}$', action: 'flag', confidence: 'low', note: 'Review, do not auto-exclude' }
-        ]
-        presets.forEach(function (p) { rules.push(p) })
-        showUnsavedBanner()
-        renderConfigTab()
+      brandingLogoPreviewEl.onload = function () {
+        var missingEl = document.getElementById('config-branding-logoMissing')
+        if (missingEl) missingEl.style.display = 'none'
       }
     }
 
@@ -2718,6 +2685,76 @@
     html += '<button type="button" class="ace-section-header-btn" id="revert-content-models-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
     html += '<p class="ace-card-subtext">Each model defines which columns appear in a Content Table preset.</p>'
+    function normalizeExclRuleForEditor (rule, i) {
+      var r = (rule && typeof rule === 'object') ? rule : {}
+      var name = typeof r.name === 'string' && r.name.trim() ? r.name : (typeof r.label === 'string' && r.label.trim() ? r.label : ('Rule ' + (i + 1)))
+      var enabled = (typeof r.enabled === 'boolean') ? r.enabled : true
+      var note = typeof r.note === 'string' ? r.note : ''
+      var pattern = typeof r.pattern === 'string' ? r.pattern : ''
+      var matchTarget = 'content'
+      if (r.matchTarget === 'layerName' || r.matchTarget === 'both' || r.matchTarget === 'content') {
+        matchTarget = r.matchTarget
+      } else if (r.field === 'textLayerName') {
+        matchTarget = 'layerName'
+      }
+      var matchType = 'contains'
+      if (r.matchType === 'exact' || r.matchType === 'contains' || r.matchType === 'regex') {
+        matchType = r.matchType
+      } else if (r.match === 'equals') {
+        matchType = 'exact'
+      } else if (r.match === 'regex') {
+        matchType = 'regex'
+      } else if (r.match === 'startsWith') {
+        matchType = 'contains'
+      }
+      var action = (r.action === 'flag') ? 'flag' : 'exclude'
+      var confidence = (r.confidence === 'med' || r.confidence === 'low' || r.confidence === 'high') ? r.confidence : 'high'
+      return {
+        name: name,
+        enabled: enabled,
+        note: note,
+        matchTarget: matchTarget,
+        matchType: matchType,
+        pattern: pattern,
+        action: action,
+        confidence: confidence
+      }
+    }
+    var ctExcl = (m.config.contentTable && m.config.contentTable.exclusionRules) || { enabled: false, rules: [] }
+    var exclEditorRules = (ctExcl.rules || []).map(function (rule, i) { return normalizeExclRuleForEditor(rule, i) })
+    var exclRulesHtml = '<div class="ace-card"><p class="ace-card-subtext">ACE-managed ignore list for CT-A. Exclude removes rows; Flag keeps rows and marks them for review.</p>'
+    exclRulesHtml += '<div class="field-row"><label><input type="checkbox" id="ct-excl-enabled" ' + (ctExcl.enabled ? 'checked' : '') + '> Enabled</label></div>'
+    exclRulesHtml += '<table class="ace-excl-rules-table" id="ct-excl-rules-table"><thead><tr><th>Name</th><th>Enabled</th><th>Target</th><th>Match</th><th>Pattern</th><th>Action</th><th>Conf.</th><th>Note</th><th></th></tr></thead><tbody>'
+    var exclTargets = ['content', 'layerName', 'both']
+    var exclMatches = ['exact', 'contains', 'regex']
+    var exclActions = ['exclude', 'flag']
+    var exclConf = ['high', 'med', 'low']
+    ;exclEditorRules.forEach(function (rule, i) {
+      exclRulesHtml += '<tr data-i="' + i + '">'
+      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-name" data-i="' + i + '" value="' + escapeHtml(rule.name || '') + '"></td>'
+      exclRulesHtml += '<td style="text-align:center"><input type="checkbox" class="ct-excl-rule-enabled" data-i="' + i + '"' + (rule.enabled ? ' checked' : '') + '></td>'
+      exclRulesHtml += '<td><select class="ct-excl-target" data-i="' + i + '">'
+      exclTargets.forEach(function (t) { exclRulesHtml += '<option value="' + t + '"' + (rule.matchTarget === t ? ' selected' : '') + '>' + t + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><select class="ct-excl-match" data-i="' + i + '">'
+      exclMatches.forEach(function (mt) { exclRulesHtml += '<option value="' + mt + '"' + (rule.matchType === mt ? ' selected' : '') + '>' + mt + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-pattern" data-i="' + i + '" value="' + escapeHtml(rule.pattern || '') + '"></td>'
+      exclRulesHtml += '<td><select class="ct-excl-action" data-i="' + i + '">'
+      exclActions.forEach(function (a) { exclRulesHtml += '<option value="' + a + '"' + (rule.action === a ? ' selected' : '') + '>' + a + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><select class="ct-excl-confidence" data-i="' + i + '">'
+      exclConf.forEach(function (c) { exclRulesHtml += '<option value="' + c + '"' + (rule.confidence === c ? ' selected' : '') + '>' + c + '</option>' })
+      exclRulesHtml += '</select></td>'
+      exclRulesHtml += '<td><input type="text" class="ace-field ct-excl-note" data-i="' + i + '" value="' + escapeHtml(rule.note || '') + '"></td>'
+      exclRulesHtml += '<td><button type="button" class="btn-small ct-excl-remove" data-i="' + i + '">Remove</button></td>'
+      exclRulesHtml += '</tr>'
+    })
+    exclRulesHtml += '</tbody></table>'
+    exclRulesHtml += '<button type="button" class="btn-small add-btn" id="ct-excl-add">Add rule</button>'
+    exclRulesHtml += ' <button type="button" class="btn-small" id="ct-excl-add-presets">Add presets</button>'
+    exclRulesHtml += '</div>'
+    html += collapsibleSection('content-table-exclusion', 'Content Table — Exclusion Rules', exclRulesHtml, true)
 
     parsed.models.forEach(function (model, mi) {
       html += '<div class="ace-card" style="margin-bottom:12px">'
@@ -2790,6 +2827,78 @@
     html += '</details>'
 
     panel.innerHTML = html
+
+    // Exclusion rules bindings (moved from General to Content Tables)
+    var exclEnabledEl = document.getElementById('ct-excl-enabled')
+    if (exclEnabledEl) {
+      exclEnabledEl.onchange = function () {
+        if (!state.editedModel.config.contentTable) state.editedModel.config.contentTable = {}
+        if (!state.editedModel.config.contentTable.exclusionRules) state.editedModel.config.contentTable.exclusionRules = { enabled: false, rules: [] }
+        state.editedModel.config.contentTable.exclusionRules.enabled = this.checked
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+    function getExclRulesArr () {
+      if (!state.editedModel.config.contentTable) state.editedModel.config.contentTable = {}
+      if (!state.editedModel.config.contentTable.exclusionRules) state.editedModel.config.contentTable.exclusionRules = { enabled: false, rules: [] }
+      if (!Array.isArray(state.editedModel.config.contentTable.exclusionRules.rules)) state.editedModel.config.contentTable.exclusionRules.rules = []
+      state.editedModel.config.contentTable.exclusionRules.rules = state.editedModel.config.contentTable.exclusionRules.rules.map(function (rule, idx) {
+        return normalizeExclRuleForEditor(rule, idx)
+      })
+      return state.editedModel.config.contentTable.exclusionRules.rules
+    }
+    document.querySelectorAll('.ct-excl-name, .ct-excl-rule-enabled, .ct-excl-target, .ct-excl-match, .ct-excl-pattern, .ct-excl-action, .ct-excl-confidence, .ct-excl-note').forEach(function (el) {
+      el.onchange = function () {
+        var i = parseInt(this.getAttribute('data-i'), 10)
+        var rules = getExclRulesArr()
+        if (!rules[i]) return
+        if (this.classList.contains('ct-excl-name')) rules[i].name = this.value
+        if (this.classList.contains('ct-excl-rule-enabled')) rules[i].enabled = !!this.checked
+        if (this.classList.contains('ct-excl-target')) rules[i].matchTarget = this.value
+        if (this.classList.contains('ct-excl-match')) rules[i].matchType = this.value
+        if (this.classList.contains('ct-excl-pattern')) rules[i].pattern = this.value
+        if (this.classList.contains('ct-excl-action')) rules[i].action = this.value
+        if (this.classList.contains('ct-excl-confidence')) rules[i].confidence = this.value
+        if (this.classList.contains('ct-excl-note')) rules[i].note = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    })
+    document.querySelectorAll('.ct-excl-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var i = parseInt(this.getAttribute('data-i'), 10)
+        var rules = getExclRulesArr()
+        rules.splice(i, 1)
+        showUnsavedBanner()
+        renderContentModelsTab()
+      }
+    })
+    var exclAddBtn = document.getElementById('ct-excl-add')
+    if (exclAddBtn) {
+      exclAddBtn.onclick = function () {
+        var rules = getExclRulesArr()
+        rules.push({ name: '', enabled: true, matchTarget: 'content', matchType: 'contains', pattern: '', action: 'exclude', confidence: 'high', note: '' })
+        showUnsavedBanner()
+        renderContentModelsTab()
+      }
+    }
+    var exclPresetBtn = document.getElementById('ct-excl-add-presets')
+    if (exclPresetBtn) {
+      exclPresetBtn.onclick = function () {
+        var rules = getExclRulesArr()
+        var presets = [
+          { name: 'Empty placeholder dashes', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^[\\\\s\\\\-–—]{2,}$', action: 'exclude', confidence: 'high', note: '2+ dash-like chars (hyphen/en dash/em dash), optional spaces' },
+          { name: 'Em dash filler', enabled: true, matchTarget: 'content', matchType: 'exact', pattern: '—', action: 'exclude', confidence: 'high', note: 'Single em dash placeholder' },
+          { name: 'Date/time stamp', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '\\\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\\\s+\\\\d{1,2}(?:,\\\\s*\\\\d{2,4})?(?:\\\\s+\\\\d{1,2}:\\\\d{2}(?:\\\\s?[AP]M)?)?(?:\\\\s+[A-Z]{2,4})?\\\\b|\\\\b(?:\\\\d{1,2}[:.]\\\\d{2}(?:\\\\s?[AP]M)?|(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)|\\\\d{1,2}[/-]\\\\d{1,2}(?:[/-]\\\\d{2,4})?)\\\\b', action: 'exclude', confidence: 'high', note: 'Common date/time snippets' },
+          { name: 'Basic nav labels', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^(?:home|search|menu|settings|profile|back|next|close)$', action: 'exclude', confidence: 'high', note: 'Short navigation UI strings' },
+          { name: 'Ticker-like uppercase', enabled: true, matchTarget: 'content', matchType: 'regex', pattern: '^[A-Z]{2,5}$', action: 'flag', confidence: 'low', note: 'Review, do not auto-exclude' }
+        ]
+        presets.forEach(function (p) { rules.push(p) })
+        showUnsavedBanner()
+        renderContentModelsTab()
+      }
+    }
 
     function syncToRaw () {
       state.editedModel.contentModelsRaw = serializeContentModels(cmParsedState.header, cmParsedState.models)

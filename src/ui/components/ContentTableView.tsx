@@ -13,8 +13,9 @@ import { useMemo } from 'preact/hooks'
 import type { ContentTableSession } from '../../core/contentTable/session'
 import { getEffectiveItems, applyEdit, deleteItem } from '../../core/contentTable/session'
 import { PRESET_INFO } from '../../core/contentTable/presets.generated'
-import { projectContentTable, cellText, cellHref } from '../../core/contentTable/projection'
+import { projectContentTable, cellText, cellHref, cellSuffix } from '../../core/contentTable/projection'
 import type { TableFormatPreset, ContentItemV1 } from '../../core/contentTable/types'
+import { getOrderedCtaPresets } from '../../core/contentTable/presetOrder'
 import { ImageDownloadIcon, CloseIcon } from '../icons'
 import { TH, TD, CELL_INPUT, TOOL_BTN, actionBtnStyle } from './toolTableStyles'
 
@@ -41,6 +42,16 @@ const editableFieldMap: Record<string, keyof ContentItemV1> = {
   errorMessage: 'errorMessage'
 }
 
+function isToolsColumnKey(key: string): boolean {
+  const normalized = (key || '').trim().toLowerCase()
+  return normalized === 'tools' || normalized === 'tool'
+}
+
+function isRowNumberColumnKey(key: string): boolean {
+  const normalized = (key || '').trim().toLowerCase()
+  return normalized === 'rownumber' || normalized === '#'
+}
+
 export function ContentTableView({
   session,
   onSessionChange,
@@ -56,7 +67,30 @@ export function ContentTableView({
 }: ContentTableViewProps) {
   const items = getEffectiveItems(session)
   const projected = useMemo(() => projectContentTable(selectedFormat, items), [selectedFormat, items])
+  const orderedPresets = useMemo(() => getOrderedCtaPresets(PRESET_INFO), [])
   const isKV = projected.readOnly
+  const isMobilePreset = selectedFormat === 'mobile'
+  const hasToolsDataColumn = projected.columnKeys.some(isToolsColumnKey)
+  const showTrailingToolsColumn = !isKV && !hasToolsDataColumn
+  const showRowNumberColumn = !isKV
+  const showToolsActions = isMobilePreset || !isKV
+  const ROW_NUMBER_COL_W = 36
+  const MOBILE_ROW_NUMBER_COL_W = 20
+  const rowNumberColW = isMobilePreset ? MOBILE_ROW_NUMBER_COL_W : ROW_NUMBER_COL_W
+  const TOOLS_COL_W = 64
+  const MOBILE_DEFAULT_COL_W = 120
+  const MOBILE_UI_LABEL_COL_W = 160
+  const mobileColWidth = (key: string): number => {
+    if (isRowNumberColumnKey(key)) return rowNumberColW
+    if (key === 'uiLabelEnglish') return MOBILE_UI_LABEL_COL_W
+    if (isToolsColumnKey(key)) return TOOLS_COL_W
+    return MOBILE_DEFAULT_COL_W
+  }
+  const tableMinWidth = isMobilePreset
+    ? (rowNumberColW + projected.columnKeys.reduce((sum, key) => {
+        return sum + mobileColWidth(key)
+      }, 0) + (showTrailingToolsColumn ? TOOLS_COL_W : 0))
+    : (projected.headers.length * 100 + (isKV ? 30 : 94))
 
   return (
     <div style={{
@@ -93,7 +127,7 @@ export function ContentTableView({
                 cursor: 'pointer'
               }}
             >
-              {PRESET_INFO.filter(p => p.enabled && p.id !== 'analytics-tagging').map(p => (
+              {orderedPresets.map(p => (
                 <option key={p.id} value={p.id}>{p.label}</option>
               ))}
             </select>
@@ -126,39 +160,113 @@ export function ContentTableView({
         minHeight: 0,
         backgroundColor: '#ffffff'
       }}>
-        <table style={{ minWidth: `${projected.headers.length * 100 + (isKV ? 30 : 94)}px`, borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <table style={{ minWidth: `${tableMinWidth}px`, borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif', tableLayout: isMobilePreset ? 'fixed' : 'auto' }}>
+          {isMobilePreset && (
+            <colgroup>
+              {projected.columnKeys.map((key) => (
+                <col
+                  key={key}
+                  style={{
+                    width: `${mobileColWidth(key)}px`,
+                    minWidth: `${mobileColWidth(key)}px`,
+                    maxWidth: `${mobileColWidth(key)}px`
+                  }}
+                />
+              ))}
+              {showTrailingToolsColumn ? <col style={{ width: `${TOOLS_COL_W}px` }} /> : null}
+            </colgroup>
+          )}
           <thead>
             {projected.headerRows.map((hRow, hri) => (
-              <tr key={hri} style={{ backgroundColor: '#f5f5f5', position: 'sticky', top: `${hri * 25}px`, zIndex: 2 - hri }}>
-                {!isKV && <th style={{ ...TH, width: '30px' }}>{hri === projected.headerRows.length - 1 ? '#' : ''}</th>}
+              <tr key={hri} style={{ backgroundColor: '#f5f5f5', position: isMobilePreset ? 'static' : 'sticky', top: isMobilePreset ? undefined : `${hri * 25}px`, zIndex: isMobilePreset ? undefined : 2 - hri }}>
+                {showRowNumberColumn && <th style={{ ...TH, width: `${rowNumberColW}px`, minWidth: `${rowNumberColW}px`, maxWidth: `${rowNumberColW}px`, padding: isMobilePreset ? '0 2px' : TH.padding, textAlign: 'center' }}>{hri === projected.headerRows.length - 1 ? '#' : ''}</th>}
                 {hRow.map((label, ci) => (
-                  <th key={ci} style={{ ...TH, minWidth: projected.columnKeys[ci] === 'content' ? '200px' : '80px' }}>{label}</th>
+                  <th
+                    key={ci}
+                    style={{
+                      ...TH,
+                      width: isMobilePreset ? `${mobileColWidth(projected.columnKeys[ci] || '')}px` : undefined,
+                      minWidth: isMobilePreset
+                        ? `${mobileColWidth(projected.columnKeys[ci] || '')}px`
+                        : (projected.columnKeys[ci] === 'content' ? '200px' : '80px'),
+                      maxWidth: isMobilePreset ? `${mobileColWidth(projected.columnKeys[ci] || '')}px` : undefined,
+                      whiteSpace: isMobilePreset ? 'normal' : TH.whiteSpace,
+                      overflowWrap: isMobilePreset ? 'anywhere' : undefined,
+                      lineHeight: isMobilePreset ? 1.25 : undefined
+                    }}
+                  >
+                    {label}
+                  </th>
                 ))}
-                {!isKV && <th style={{ ...TH, width: '64px', textAlign: 'center' }}>{hri === projected.headerRows.length - 1 ? 'Tools' : ''}</th>}
+                {showTrailingToolsColumn && <th style={{ ...TH, width: `${TOOLS_COL_W}px`, minWidth: `${TOOLS_COL_W}px`, maxWidth: `${TOOLS_COL_W}px`, textAlign: 'center' }}>{hri === projected.headerRows.length - 1 ? 'Tools' : ''}</th>}
               </tr>
             ))}
           </thead>
           <tbody>
             {isKV ? (
               /* KV mode: render projected rows directly, read-only, no # or Tools columns */
-              projected.rows.map((row, ri) => (
+              projected.rows.map((row, ri) => {
+                const mobileItem = items[ri]
+                const renderMobileToolsCell = () => {
+                  if (!showToolsActions || !mobileItem) {
+                    return <span style={{ color: '#ccc', fontSize: '10px' }}>—</span>
+                  }
+                  return (
+                    <span>
+                      {mobileItem.nodeId && (
+                        <button onClick={() => onExportRowRefImage(mobileItem.nodeId)} title="Get ref image for this row" style={{ ...TOOL_BTN, color: '#333333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#eef' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
+                          <ImageDownloadIcon width={14} height={14} />
+                        </button>
+                      )}
+                      <button onClick={() => onSessionChange(deleteItem(session, mobileItem.id))} title="Delete row" style={{ ...TOOL_BTN, color: '#cc3333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
+                        <CloseIcon width={14} height={14} />
+                      </button>
+                    </span>
+                  )
+                }
+                return (
                 <tr key={ri} style={{ borderBottom: '1px solid #eee' }}>
                   {row.map((cell, ci) => {
+                    const colKey = projected.columnKeys[ci]
+                    if (isMobilePreset && isToolsColumnKey(colKey)) {
+                      return <td key={ci} style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}>{renderMobileToolsCell()}</td>
+                    }
                     const href = cellHref(cell)
                     const text = cellText(cell)
+                    const suffix = cellSuffix(cell)
                     if (href) {
+                      const linkText = typeof cell === 'string' ? text : cell.text
                       return (
                         <td key={ci} style={TD}>
-                          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline', fontSize: '10px' }} title={href}>{text}</a>
+                          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline', fontSize: '10px' }} title={href}>{linkText}</a>
+                          {suffix ? (
+                            <div style={{ fontSize: '10px', color: '#666', whiteSpace: 'pre-wrap', marginTop: '2px' }}>
+                              {suffix.replace(/^\n/, '')}
+                            </div>
+                          ) : null}
                         </td>
                       )
                     }
                     return (
-                      <td key={ci} style={{ ...TD, color: text ? '#000' : '#ccc', fontSize: '10px' }}>{text || ''}</td>
+                      <td
+                        key={ci}
+                        style={{
+                          ...TD,
+                          color: text ? '#000' : '#ccc',
+                          fontSize: '10px',
+                          width: (isMobilePreset && isRowNumberColumnKey(colKey)) ? `${rowNumberColW}px` : undefined,
+                          minWidth: (isMobilePreset && isRowNumberColumnKey(colKey)) ? `${rowNumberColW}px` : undefined,
+                          maxWidth: (isMobilePreset && isRowNumberColumnKey(colKey)) ? `${rowNumberColW}px` : undefined,
+                          padding: (isMobilePreset && isRowNumberColumnKey(colKey)) ? '0 2px' : TD.padding,
+                          textAlign: (isMobilePreset && isRowNumberColumnKey(colKey)) ? 'center' : TD.textAlign
+                        }}
+                      >
+                        {text || ''}
+                      </td>
                     )
                   })}
                 </tr>
-              ))
+              )})
             ) : (
               /* Items mode: 1 item → 1 row, editable, with # and Tools columns */
               items.map((item, idx) => {
@@ -166,18 +274,44 @@ export function ContentTableView({
                 const isIgnoreFlagged = session.flaggedIgnoreIds.has(item.id)
                 const ignoreRuleName = session.ignoreRuleByItemId[item.id] || ''
                 const row = projected.rows[idx]
+                const renderToolsCell = () => (
+                  <span>
+                    {isIgnoreFlagged && (
+                      <span title={ignoreRuleName ? `Matched ignore rule: ${ignoreRuleName}` : 'Matched ignore-list rule'} style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Ignore?</span>
+                    )}
+                    {isFlagged && (
+                      <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
+                    )}
+                    {item.nodeId && (
+                      <button onClick={() => onExportRowRefImage(item.nodeId)} title="Get ref image for this row" style={{ ...TOOL_BTN, color: '#333333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#eef' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
+                        <ImageDownloadIcon width={14} height={14} />
+                      </button>
+                    )}
+                    <button onClick={() => onSessionChange(deleteItem(session, item.id))} title="Delete row" style={{ ...TOOL_BTN, color: '#cc3333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
+                      <CloseIcon width={14} height={14} />
+                    </button>
+                  </span>
+                )
                 return (
                   <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ ...TD, color: '#999', fontSize: '10px' }}>{idx + 1}</td>
+                    <td style={{ ...TD, color: '#999', fontSize: '10px', width: `${rowNumberColW}px`, minWidth: `${rowNumberColW}px`, maxWidth: `${rowNumberColW}px`, padding: isMobilePreset ? '0 2px' : TD.padding, textAlign: 'center' }}>{idx + 1}</td>
                     {row.map((cell, ci) => {
                       const colKey = projected.columnKeys[ci]
+                      if (showToolsActions && isToolsColumnKey(colKey)) return <td key={colKey} style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}>{renderToolsCell()}</td>
                       const href = cellHref(cell)
                       const text = cellText(cell)
+                      const suffix = cellSuffix(cell)
 
                       if (href) {
+                        const linkText = typeof cell === 'string' ? text : cell.text
                         return (
                           <td key={colKey} style={TD}>
-                            <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline', fontSize: '10px' }} title={href}>{text}</a>
+                            <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline', fontSize: '10px' }} title={href}>{linkText}</a>
+                            {suffix ? (
+                              <div style={{ fontSize: '10px', color: '#666', whiteSpace: 'pre-wrap', marginTop: '2px' }}>
+                                {suffix.replace(/^\n/, '')}
+                              </div>
+                            ) : null}
                           </td>
                         )
                       }
@@ -206,22 +340,7 @@ export function ContentTableView({
                         <td key={colKey} style={{ ...TD, color: '#666', fontSize: '10px' }}>{text || ''}</td>
                       )
                     })}
-                    <td style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      {isIgnoreFlagged && (
-                        <span title={ignoreRuleName ? `Matched ignore rule: ${ignoreRuleName}` : 'Matched ignore-list rule'} style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Ignore?</span>
-                      )}
-                      {isFlagged && (
-                        <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
-                      )}
-                      {item.nodeId && (
-                        <button onClick={() => onExportRowRefImage(item.nodeId)} title="Get ref image for this row" style={{ ...TOOL_BTN, color: '#333333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#eef' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
-                          <ImageDownloadIcon width={14} height={14} />
-                        </button>
-                      )}
-                      <button onClick={() => onSessionChange(deleteItem(session, item.id))} title="Delete row" style={{ ...TOOL_BTN, color: '#cc3333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>
-                        <CloseIcon width={14} height={14} />
-                      </button>
-                    </td>
+                    {showTrailingToolsColumn ? <td style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}>{renderToolsCell()}</td> : null}
                   </tr>
                 )
               })

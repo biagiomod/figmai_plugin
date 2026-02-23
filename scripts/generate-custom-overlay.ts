@@ -45,6 +45,15 @@ interface CustomConfig {
     simpleModeIds?: string[]
     advancedModeIds?: string[]
     contentMvpAssistantId?: string
+    branding?: {
+      showLogo?: boolean
+      showName?: boolean // legacy
+      showAppName?: boolean
+      showLogline?: boolean
+      appName?: string
+      logline?: string
+      logoPath?: string
+    }
   }
   llm?: {
     endpoint?: string
@@ -119,13 +128,32 @@ interface CustomConfig {
 
 interface BrandingLocalConfig {
   appName?: string
-  appTagline?: string
+  logline?: string
+  showLogo?: boolean
+  showName?: boolean // legacy
+  showAppName?: boolean
+  showLogline?: boolean
+  logoPath?: string
   logoKey?: 'default' | 'work' | 'none'
 }
 
-const DEFAULT_BRANDING: Required<NonNullable<CustomConfig['branding']>> = {
+type EffectiveBranding = {
+  appName: string
+  logline: string
+  showLogo: boolean
+  showAppName: boolean
+  showLogline: boolean
+  logoPath: string
+  logoKey: 'default' | 'work' | 'none'
+}
+
+const DEFAULT_BRANDING: EffectiveBranding = {
   appName: 'FigmAI',
-  appTagline: 'AI Powered',
+  logline: 'AI Powered',
+  showLogo: true,
+  showAppName: true,
+  showLogline: true,
+  logoPath: '',
   logoKey: 'default'
 }
 
@@ -164,12 +192,32 @@ function loadBrandingLocal(rootDir: string): BrandingLocalConfig | null {
   }
 }
 
-function normalizeBranding(branding?: CustomConfig['branding'] | BrandingLocalConfig | null): Required<NonNullable<CustomConfig['branding']>> {
+function normalizeBranding(branding?: {
+  appName?: string
+  logline?: string
+  showLogo?: boolean
+  showName?: boolean // legacy
+  showAppName?: boolean
+  showLogline?: boolean
+  logoPath?: string
+  logoKey?: 'default' | 'work' | 'none'
+} | BrandingLocalConfig | null): EffectiveBranding {
   const b = branding || {}
+  const logoKey = b.logoKey === 'work' || b.logoKey === 'none' || b.logoKey === 'default' ? b.logoKey : DEFAULT_BRANDING.logoKey
+  const showLogo = typeof b.showLogo === 'boolean' ? b.showLogo : logoKey !== 'none'
+  const showAppName = typeof b.showAppName === 'boolean'
+    ? b.showAppName
+    : (typeof b.showName === 'boolean' ? b.showName : DEFAULT_BRANDING.showAppName)
+  const logline = typeof b.logline === 'string' ? b.logline : DEFAULT_BRANDING.logline
+  const showLogline = typeof b.showLogline === 'boolean' ? b.showLogline : !!logline.trim()
   return {
     appName: typeof b.appName === 'string' && b.appName.trim() ? b.appName : DEFAULT_BRANDING.appName,
-    appTagline: typeof b.appTagline === 'string' && b.appTagline.trim() ? b.appTagline : DEFAULT_BRANDING.appTagline,
-    logoKey: b.logoKey === 'work' || b.logoKey === 'none' || b.logoKey === 'default' ? b.logoKey : DEFAULT_BRANDING.logoKey
+    logline,
+    showLogo,
+    showAppName,
+    showLogline,
+    logoPath: typeof b.logoPath === 'string' ? b.logoPath : DEFAULT_BRANDING.logoPath,
+    logoKey: showLogo ? (logoKey === 'none' ? 'default' : logoKey) : 'none'
   }
 }
 
@@ -180,10 +228,28 @@ function normalizeBranding(branding?: CustomConfig['branding'] | BrandingLocalCo
 function mergeBrandingConfig(config: CustomConfig | null, brandingLocal: BrandingLocalConfig | null): CustomConfig | null {
   if (!config && !brandingLocal) return null
   const merged: CustomConfig = config ? { ...config } : {}
-  merged.branding = normalizeBranding({
+  const effectiveBranding = normalizeBranding({
     ...(config?.branding || {}),
+    ...(config?.ui?.branding || {}),
     ...(brandingLocal || {})
   })
+  merged.branding = {
+    appName: effectiveBranding.appName,
+    appTagline: effectiveBranding.logline,
+    logoKey: effectiveBranding.logoKey
+  }
+  merged.ui = {
+    ...(merged.ui || {}),
+    branding: {
+      showLogo: effectiveBranding.showLogo,
+      showName: effectiveBranding.showAppName,
+      showAppName: effectiveBranding.showAppName,
+      showLogline: effectiveBranding.showLogline,
+      appName: effectiveBranding.appName,
+      logline: effectiveBranding.logline,
+      logoPath: effectiveBranding.logoPath
+    }
+  }
   return merged
 }
 
@@ -277,9 +343,26 @@ const DEFAULT_CONTENT_MVP_ASSISTANT_ID = 'content_table'
  */
 function normalizeConfigForEmit(config: CustomConfig): CustomConfig {
   const out = { ...config }
-  out.branding = normalizeBranding(out.branding)
+  const effectiveBranding = normalizeBranding({
+    ...(out.branding || {}),
+    ...(out.ui?.branding || {})
+  })
+  out.branding = {
+    appName: effectiveBranding.appName,
+    appTagline: effectiveBranding.logline,
+    logoKey: effectiveBranding.logoKey
+  }
   if (out.ui) {
     out.ui = { ...out.ui }
+    out.ui.branding = {
+      showLogo: effectiveBranding.showLogo,
+      showName: effectiveBranding.showAppName,
+      showAppName: effectiveBranding.showAppName,
+      showLogline: effectiveBranding.showLogline,
+      appName: effectiveBranding.appName,
+      logline: effectiveBranding.logline,
+      logoPath: effectiveBranding.logoPath
+    }
     if (!Array.isArray(out.ui.simpleModeIds) || out.ui.simpleModeIds.length === 0) {
       out.ui.simpleModeIds = DEFAULT_SIMPLE_MODE_IDS
     }
@@ -288,6 +371,15 @@ function normalizeConfigForEmit(config: CustomConfig): CustomConfig {
     }
   } else {
     out.ui = {
+      branding: {
+        showLogo: effectiveBranding.showLogo,
+        showName: effectiveBranding.showAppName,
+        showAppName: effectiveBranding.showAppName,
+        showLogline: effectiveBranding.showLogline,
+        appName: effectiveBranding.appName,
+        logline: effectiveBranding.logline,
+        logoPath: effectiveBranding.logoPath
+      },
       simpleModeIds: DEFAULT_SIMPLE_MODE_IDS,
       contentMvpAssistantId: DEFAULT_CONTENT_MVP_ASSISTANT_ID
     }
@@ -388,6 +480,15 @@ export interface CustomConfig {
     simpleModeIds?: string[]
     advancedModeIds?: string[]
     contentMvpAssistantId?: string
+    branding?: {
+      showLogo?: boolean
+      showName?: boolean
+      showAppName?: boolean
+      showLogline?: boolean
+      appName?: string
+      logline?: string
+      logoPath?: string
+    }
   }
   llm?: {
     endpoint?: string

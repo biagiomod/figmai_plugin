@@ -1,5 +1,13 @@
 {
   "ui": {
+    "branding": {
+      "showLogo": true,
+      "showAppName": true,
+      "showLogline": true,
+      "appName": "",
+      "logline": "",
+      "logoPath": ""
+    },
     "defaultMode": "advanced",
     "hideContentMvpMode": false
   },

@@ -38,6 +38,15 @@ export interface CustomConfig {
     simpleModeIds?: string[]
     advancedModeIds?: string[]
     contentMvpAssistantId?: string
+    branding?: {
+      showLogo?: boolean
+      showName?: boolean
+      showAppName?: boolean
+      showLogline?: boolean
+      appName?: string
+      logline?: string
+      logoPath?: string
+    }
   }
   llm?: {
     endpoint?: string
@@ -121,6 +130,15 @@ export interface CustomConfig {
 
 export const customConfig: CustomConfig | null = {
   "ui": {
+    "branding": {
+      "showLogo": false,
+      "showName": true,
+      "showAppName": true,
+      "showLogline": true,
+      "appName": "FigmAI",
+      "logline": "",
+      "logoPath": ""
+    },
     "contentMvpAssistantId": "content_table",
     "defaultMode": "simple",
     "hideContentMvpMode": false,
@@ -204,47 +222,47 @@ export const customConfig: CustomConfig | null = {
     "hatRequiredComponents": []
   },
   "contentTable": {
-    "exclusionRulesDebug": true,
     "exclusionRules": {
       "enabled": true,
       "rules": [
         {
+          "action": "exclude",
+          "confidence": "high",
+          "enabled": true,
+          "matchTarget": "content",
+          "matchType": "regex",
           "name": "Date/time stamp",
+          "note": "",
+          "pattern": "\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\s+\\d{1,2}(?:,\\s*\\d{2,4})?(?:\\s+\\d{1,2}:\\d{2}(?:\\s?[AP]M)?)?(?:\\s+[A-Z]{2,4})?\\b"
+        },
+        {
+          "action": "exclude",
+          "confidence": "high",
           "enabled": true,
           "matchTarget": "content",
           "matchType": "regex",
-          "pattern": "\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\s+\\d{1,2}(?:,\\s*\\d{2,4})?(?:\\s+\\d{1,2}:\\d{2}(?:\\s?[AP]M)?)?(?:\\s+[A-Z]{2,4})?\\b",
-          "action": "exclude",
-          "confidence": "high",
-          "note": ""
-        },
-        {
           "name": "Dash placeholder",
-          "enabled": true,
-          "matchTarget": "content",
-          "matchType": "regex",
-          "pattern": "^[\\s\\-–—]{2,}$",
-          "action": "exclude",
-          "confidence": "high",
-          "note": ""
+          "note": "",
+          "pattern": "^[\\s\\-–—]{2,}$"
         },
         {
-          "name": "Ticker-like uppercase",
-          "enabled": true,
-          "matchTarget": "content",
-          "matchType": "regex",
-          "pattern": "^[A-Z]{2,5}$",
           "action": "flag",
           "confidence": "low",
-          "note": ""
+          "enabled": true,
+          "matchTarget": "content",
+          "matchType": "regex",
+          "name": "Ticker-like uppercase",
+          "note": "",
+          "pattern": "^[A-Z]{2,5}$"
         }
       ]
-    }
+    },
+    "exclusionRulesDebug": true
   },
   "branding": {
     "appName": "FigmAI",
-    "appTagline": "AI Powered",
-    "logoKey": "default"
+    "appTagline": "",
+    "logoKey": "none"
   },
   "detectors": {
     "elementClassifier": {

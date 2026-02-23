@@ -21,15 +21,45 @@ export function getCustomConfig(): CustomConfig | null {
  * Get display branding config with safe defaults.
  */
 export function getBranding(): {
+  showLogo: boolean
+  showAppName: boolean
+  showLogline: boolean
   appName: string
-  appTagline: string
+  logline: string
+  logoPath: string
   logoKey: 'default' | 'work' | 'none'
 } {
-  const branding = customConfig?.branding
+  const uiBranding = customConfig?.ui?.branding
+  const legacyBranding = customConfig?.branding
+  const hasUiBranding = !!uiBranding && typeof uiBranding === 'object'
+  const showLogo = typeof uiBranding?.showLogo === 'boolean'
+    ? uiBranding.showLogo
+    : (legacyBranding?.logoKey === 'none' ? false : true)
+  const showAppName = typeof uiBranding?.showAppName === 'boolean'
+    ? uiBranding.showAppName
+    : (typeof uiBranding?.showName === 'boolean' ? uiBranding.showName : true)
+  const appName = typeof uiBranding?.appName === 'string' && uiBranding.appName.trim()
+    ? uiBranding.appName
+    : (typeof legacyBranding?.appName === 'string' && legacyBranding.appName.trim() ? legacyBranding.appName : 'FigmAI')
+  const logline = typeof uiBranding?.logline === 'string'
+    ? uiBranding.logline
+    : (typeof legacyBranding?.appTagline === 'string' ? legacyBranding.appTagline : 'AI Powered')
+  const showLogline = typeof uiBranding?.showLogline === 'boolean'
+    ? uiBranding.showLogline
+    : !!(typeof logline === 'string' && logline.trim())
+  const logoPath = typeof uiBranding?.logoPath === 'string' ? uiBranding.logoPath : ''
+  const legacyLogoKey = legacyBranding?.logoKey
+  const legacyValidLogoKey = legacyLogoKey === 'work' || legacyLogoKey === 'none' || legacyLogoKey === 'default'
+    ? legacyLogoKey
+    : 'default'
   return {
-    appName: typeof branding?.appName === 'string' && branding.appName.trim() ? branding.appName : 'FigmAI',
-    appTagline: typeof branding?.appTagline === 'string' && branding.appTagline.trim() ? branding.appTagline : 'AI Powered',
-    logoKey: branding?.logoKey === 'work' || branding?.logoKey === 'none' || branding?.logoKey === 'default' ? branding.logoKey : 'default'
+    showLogo,
+    showAppName,
+    showLogline,
+    appName,
+    logline,
+    logoPath,
+    logoKey: showLogo ? (hasUiBranding ? 'default' : (legacyValidLogoKey === 'none' ? 'default' : legacyValidLogoKey)) : 'none'
   }
 }
 

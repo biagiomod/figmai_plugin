@@ -11,8 +11,12 @@ export const BRAND = {
 } as const
 
 export function getDisplayBrand(): {
+  showLogo: boolean
+  showAppName: boolean
+  showLogline: boolean
   appName: string
-  appTagline: string
+  logline: string
+  logoPath: string
   logoKey: 'default' | 'work' | 'none'
 } {
   return getBranding()

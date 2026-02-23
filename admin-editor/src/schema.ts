@@ -17,7 +17,19 @@ export const configSchema = z
         defaultMode: z.enum(['content-mvp', 'simple', 'advanced']).optional(),
         hideContentMvpMode: z.boolean().optional(),
         simpleModeIds: z.array(z.string()).optional(),
-        contentMvpAssistantId: z.string().optional()
+        contentMvpAssistantId: z.string().optional(),
+        branding: z
+          .object({
+            showLogo: z.boolean().optional(),
+            showName: z.boolean().optional(), // legacy
+            showAppName: z.boolean().optional(),
+            showLogline: z.boolean().optional(),
+            appName: z.string().optional(),
+            logline: z.string().optional(),
+            logoPath: z.string().optional()
+          })
+          .passthrough()
+          .optional()
       })
       .passthrough()
       .optional(),

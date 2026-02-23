@@ -105,14 +105,77 @@ test('non-link columns produce plain string cells', () => {
   assert.strictEqual(cell, 'Test Value')
 })
 
-test('content-only preset projects correctly', () => {
-  const item = makeItem({ content: { type: 'text', value: 'CO Test' } })
+test('content-only grouped preset emits intro row + item row', () => {
+  const item = makeItem({
+    field: { label: 'Title', path: 'Container A / Title', role: 'Headline' },
+    content: { type: 'text', value: 'CO Test' }
+  })
   const p = projectContentTable('content-only', [item])
-  const contentIdx = p.columnKeys.indexOf('content')
-  assert.ok(contentIdx >= 0)
-  assert.strictEqual(cellText(p.rows[0][contentIdx]), 'CO Test')
-  const refIdx = p.columnKeys.indexOf('figmaRef')
-  assert.ok(cellHref(p.rows[0][refIdx]) !== undefined, 'content-only figmaRef should have href')
+  assert.strictEqual(p.rows.length, 2, 'content-only grouped preset should emit 2 rows for one item')
+  const introRow = p.rows[0]
+  const itemRow = p.rows[1]
+  assert.strictEqual(cellText(introRow[0]), 'View in Figma', 'intro row col1 must be View in Figma')
+  assert.ok(cellHref(introRow[0]) !== undefined, 'intro row col1 must include href')
+  assert.strictEqual(cellText(introRow[3]), 'Content Only', 'intro row col4 must be static Content Only')
+  for (let i = 0; i < introRow.length; i++) {
+    if (i !== 0 && i !== 3) assert.strictEqual(cellText(introRow[i]), '', `intro row col ${i} should be blank`)
+  }
+  assert.strictEqual(cellText(itemRow[6]), 'CO Test', 'item row col7 must contain content value')
+  for (let i = 0; i < itemRow.length; i++) {
+    if (i !== 6) assert.strictEqual(cellText(itemRow[i]), '', `item row col ${i} should be blank`)
+  }
+})
+
+test('mobile grouped preset emits section row, link+suffix row, and item row', () => {
+  const item = makeItem({
+    id: 'm1',
+    nodeUrl: 'https://www.figma.com/file/mobile?node-id=1',
+    field: { label: 'Title', path: 'Mobile Screen / Title', role: 'Header' },
+    content: { type: 'text', value: 'Welcome screen title' }
+  })
+  const p = projectContentTable('mobile', [item])
+  assert.strictEqual(p.readOnly, true, 'mobile should be grouped/read-only')
+  assert.strictEqual(p.headerRows.length, 1, 'mobile should have one header row')
+  assert.strictEqual(p.columnKeys[0], 'rowNumber', 'mobile should prepend rowNumber column')
+  assert.strictEqual(p.columnKeys[p.columnKeys.length - 1], 'tools', 'mobile should append tools column')
+  assert.strictEqual(p.headers[0], '#', 'mobile primary header should start with #')
+  assert.strictEqual(p.headers[p.headers.length - 1], 'Tools', 'mobile primary header should end with Tools')
+  assert.strictEqual(p.rows.length, 3, 'mobile should emit 2 intro rows + 1 item row for one item')
+
+  const sectionRow = p.rows[0]
+  const linkRow = p.rows[1]
+  const itemRow = p.rows[2]
+
+  assert.strictEqual(cellText(sectionRow[0]), '1')
+  assert.strictEqual(cellText(sectionRow[1]), 'Section 1: [User will add]')
+  for (let i = 2; i < sectionRow.length - 1; i++) {
+    assert.strictEqual(cellText(sectionRow[i]), '', `section row col ${i} should be blank`)
+  }
+  assert.strictEqual(cellText(sectionRow[sectionRow.length - 1]), '', 'section row tools cell should be blank')
+
+  assert.strictEqual(cellText(linkRow[0]), '2')
+  assert.strictEqual(cellHref(linkRow[1]), 'https://www.figma.com/file/mobile?node-id=1')
+  assert.strictEqual(cellText(linkRow[1]), 'View in Figma\nPlace Image Here')
+  for (let i = 2; i < linkRow.length - 1; i++) {
+    assert.strictEqual(cellText(linkRow[i]), '', `link row col ${i} should be blank`)
+  }
+  assert.strictEqual(cellText(linkRow[linkRow.length - 1]), '', 'link row tools cell should be blank')
+
+  assert.strictEqual(cellText(itemRow[0]), '3')
+  assert.strictEqual(cellText(itemRow[3]), 'Welcome screen title', 'only UI label English column should be populated')
+  for (let i = 0; i < itemRow.length; i++) {
+    if (i !== 0 && i !== 3) assert.strictEqual(cellText(itemRow[i]), '', `item row col ${i} should be blank`)
+  }
+})
+
+test('mobile sectionIndex token increments per container group', () => {
+  const items = [
+    makeItem({ id: 'm1', field: { label: 'A', path: 'Screen A / Title' }, nodeUrl: 'https://figma.com/a', content: { type: 'text', value: 'A title' } }),
+    makeItem({ id: 'm2', field: { label: 'B', path: 'Screen B / Title' }, nodeUrl: 'https://figma.com/b', content: { type: 'text', value: 'B title' } })
+  ]
+  const p = projectContentTable('mobile', items)
+  assert.strictEqual(cellText(p.rows[0][1]), 'Section 1: [User will add]')
+  assert.strictEqual(cellText(p.rows[3][1]), 'Section 2: [User will add]')
 })
 
 test('fallback to universal for disabled preset', () => {
@@ -128,6 +191,10 @@ test('cellText helper extracts text from string cell', () => {
 
 test('cellText helper extracts text from rich cell', () => {
   assert.strictEqual(cellText({ text: 'View', href: 'http://x' }), 'View')
+})
+
+test('cellText helper appends suffix for rich cell', () => {
+  assert.strictEqual(cellText({ text: 'View', href: 'http://x', suffix: '\nPlace Image Here' }), 'View\nPlace Image Here')
 })
 
 test('cellHref helper returns undefined for string cell', () => {
@@ -290,9 +357,30 @@ test('universal readOnly is false', () => {
   assert.strictEqual(p.readOnly, false)
 })
 
-test('content-only headerRows has 1 row', () => {
+test('content-only headerRows has 2 rows', () => {
   const p = projectContentTable('content-only', [makeItem()])
-  assert.strictEqual(p.headerRows.length, 1)
+  assert.strictEqual(p.headerRows.length, 2)
+  const expectedTop = Array.from({ length: 9 }, (_, i) => `Column ${i + 1}`)
+  assert.deepStrictEqual(p.headerRows[0], expectedTop)
+})
+
+test('content-only grouped rows are always 9 columns', () => {
+  const items = [
+    makeItem({ id: 'a1', field: { label: 'A1', path: 'Container A / A1' }, content: { type: 'text', value: 'Alpha' } }),
+    makeItem({ id: 'a2', field: { label: 'A2', path: 'Container A / A2' }, content: { type: 'text', value: 'Beta' } }),
+    makeItem({ id: 'b1', field: { label: 'B1', path: 'Container B / B1' }, content: { type: 'text', value: 'Gamma' } })
+  ]
+  const p = projectContentTable('content-only', items)
+  p.rows.forEach((row, idx) => {
+    assert.strictEqual(row.length, 9, `content-only row ${idx} must have 9 columns`)
+  })
+})
+
+test('simple-worksheet remains simple 2-column preset', () => {
+  const p = projectContentTable('simple-worksheet', [makeItem({ content: { type: 'text', value: 'Simple' } })])
+  assert.strictEqual(p.headerRows.length, 1, 'simple-worksheet must have one header row')
+  assert.strictEqual(p.columnKeys.length, 2, 'simple-worksheet must have 2 columns')
+  assert.deepStrictEqual(p.columnKeys, ['figmaRef', 'content'])
 })
 
 test('CM1 headerRows has 2 rows', () => {

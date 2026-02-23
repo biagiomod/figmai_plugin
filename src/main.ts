@@ -76,6 +76,7 @@ import { categorizeError } from './core/analytics/errorCodes'
 import { getDisplayBrand } from './core/brand'
 import { CONFIG } from './core/config'
 import { debug } from './core/debug/logger'
+import { buildLinkedCellText } from './core/figma/textLinkRanges'
 import { sanitizeForChat } from './core/richText/reportFormat'
 import { getDefaultAssistant, getAssistant, getWelcomeMessage, listAssistants, getShortInstructions } from './assistants'
 import { buildAssistantInstructionSegments } from './core/assistants/instructionAssembly'
@@ -1872,7 +1873,7 @@ on<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', async fu
 
 on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: RenderTableOnStagePayload) {
   const FRAME_NAME = 'CT-A Table Preview'
-  const { headers, rows, existingFrameId } = payload
+  const { headers, rows, existingFrameId, presetId } = payload
 
   let frame: FrameNode | null = null
 
@@ -1891,6 +1892,10 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
 
   const BASE_COL_W = 130
   const CONTENT_COL_W = BASE_COL_W * 3
+  const INDEX_COL_W = 36
+  const TOOLS_COL_W = 64
+  const MOBILE_DEFAULT_COL_W = 120
+  const MOBILE_LABEL_COL_W = 160
   const MIN_ROW_H = 24
   const MAX_CONTENT_H = 80
   const PAD = 8
@@ -1903,9 +1908,21 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
   const allHeaderRows = payload.headerRows && payload.headerRows.length > 0
     ? payload.headerRows
     : [headers]
-
-  const contentColIdx = headers.findIndex(h => h === 'Content')
-  const colWidths = headers.map((_, i) => i === contentColIdx ? CONTENT_COL_W : BASE_COL_W)
+  const stageColumnKeys = payload.columnKeys && payload.columnKeys.length === headers.length
+    ? payload.columnKeys
+    : headers.map((_, i) => `col_${i}`)
+  const isMobilePreset = presetId === 'mobile'
+  const contentColIdx = isMobilePreset
+    ? stageColumnKeys.findIndex(k => k === 'uiLabelEnglish')
+    : headers.findIndex(h => h === 'Content')
+  const colWidths = headers.map((_, i) => {
+    if (!isMobilePreset) return i === contentColIdx ? CONTENT_COL_W : BASE_COL_W
+    const key = stageColumnKeys[i]
+    if (key === 'rowNumber') return INDEX_COL_W
+    if (key === 'tools') return TOOLS_COL_W
+    if (key === 'uiLabelEnglish') return MOBILE_LABEL_COL_W
+    return MOBILE_DEFAULT_COL_W
+  })
   const totalW = colWidths.reduce((s, w) => s + w, 0)
 
   const colX = (colIdx: number) => {
@@ -1951,6 +1968,9 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
       const rawCell = rows[r][c] || ''
       const cellStr = typeof rawCell === 'string' ? rawCell : rawCell.text
       const cellLink = typeof rawCell === 'string' ? undefined : rawCell.href
+      const cellSuffix = typeof rawCell === 'string' ? '' : (rawCell.suffix || '')
+      const hasLinkSuffix = !!(cellLink && cellSuffix)
+      const linkText = typeof rawCell === 'string' ? cellStr : rawCell.text
       const txt = figma.createText()
       txt.fontName = { family: 'Inter', style: 'Regular' }
       txt.fontSize = FONT_SIZE
@@ -1962,17 +1982,27 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
         const measured = Math.min(txt.height, MAX_CONTENT_H)
         cellHeights.push(Math.max(MIN_ROW_H, measured + CELL_PAD))
       } else if (cellLink) {
-        txt.characters = cellStr
-        txt.textAutoResize = 'NONE'
-        txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
-        txt.textTruncation = 'ENDING'
+        const { characters, linkStart, linkEnd } = buildLinkedCellText(linkText, cellSuffix.replace(/^\n/, ''))
+        txt.characters = characters.replace(/\r\n|\r/g, '\n')
+        if (hasLinkSuffix) {
+          txt.resize(w - CELL_PAD * 2, MIN_ROW_H)
+          txt.textAutoResize = 'HEIGHT'
+          const measured = Math.min(txt.height, MAX_CONTENT_H)
+          cellHeights.push(Math.max(MIN_ROW_H, measured + CELL_PAD))
+        } else {
+          txt.textAutoResize = 'NONE'
+          txt.resize(w - CELL_PAD * 2, MIN_ROW_H - CELL_PAD)
+          txt.textTruncation = 'ENDING'
+          cellHeights.push(MIN_ROW_H)
+        }
         try {
-          txt.setRangeTextDecoration(0, cellStr.length, 'UNDERLINE')
-          txt.setRangeFills(0, cellStr.length, [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1 } }])
+          txt.setRangeTextDecoration(linkStart, linkEnd, 'UNDERLINE')
+          txt.setRangeFills(linkStart, linkEnd, [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1 } }])
         } catch (_) { /* styling optional */ }
-        try { txt.hyperlink = { type: 'URL', value: cellLink } } catch (_) { /* property API */ }
-        try { txt.setRangeHyperlink(0, cellStr.length, { type: 'URL', value: cellLink }) } catch (_) { /* range API */ }
-        cellHeights.push(MIN_ROW_H)
+        if (!hasLinkSuffix) {
+          try { txt.hyperlink = { type: 'URL', value: cellLink } } catch (_) { /* property API */ }
+        }
+        try { txt.setRangeHyperlink(linkStart, linkEnd, { type: 'URL', value: cellLink }) } catch (_) { /* range API */ }
       } else {
         txt.characters = cellStr.replace(/\n/g, ' ')
         txt.textAutoResize = 'NONE'
@@ -1988,11 +2018,13 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
     for (let c = 0; c < headers.length; c++) {
       const w = colWidths[c]
       const isContent = c === contentColIdx
+      const rawCell = rows[r][c] || ''
+      const hasLinkSuffix = typeof rawCell !== 'string' && !!rawCell.href && !!rawCell.suffix
       const txt = cellTexts[c]
       txt.x = colX(c) + CELL_PAD
       txt.y = yOffset + CELL_PAD
 
-      if (isContent) {
+      if (isContent || hasLinkSuffix) {
         const clampH = Math.min(txt.height, MAX_CONTENT_H)
         txt.resize(w - CELL_PAD * 2, clampH)
         txt.textAutoResize = 'NONE'

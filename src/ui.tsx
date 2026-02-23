@@ -130,6 +130,7 @@ import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { projectContentTable } from './core/contentTable/projection'
 import { PRESET_INFO, PRESET_COLUMNS } from './core/contentTable/presets.generated'
+import { getOrderedCtaPresets } from './core/contentTable/presetOrder'
 import type { ContentTableSession } from './core/contentTable/session'
 import { createSession, getEffectiveItems, applyEdit, deleteItem, appendItems, toggleDuplicateScan } from './core/contentTable/session'
 import { classifyCandidates, filterByDuplicates } from './core/contentTable/duplicates'
@@ -364,6 +365,11 @@ function Plugin() {
     return initialMode
   })
   const displayBrand = getDisplayBrand()
+  const orderedCtaPresets = useMemo(() => getOrderedCtaPresets(PRESET_INFO), [])
+  const [brandLogoFailed, setBrandLogoFailed] = useState(false)
+  useEffect(() => {
+    setBrandLogoFailed(false)
+  }, [displayBrand.logoPath, displayBrand.showLogo])
   
   // Stable ref for mode (used in message handlers to avoid stale closures)
   const modeRef = useRef<Mode>(mode)
@@ -2448,23 +2454,36 @@ ${htmlTable}
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '8px',
+          gap: displayBrand.showLogo && displayBrand.showAppName ? '8px' : '0',
           minWidth: 0,
           flex: '1 1 auto'
         }}>
-          <div style={{ color: 'var(--fg)', display: 'inline-flex', alignItems: 'center' }}>
-            <AppLogo logoKey={displayBrand.logoKey} width={16} height={16} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
-              {displayBrand.appName}
-            </span>
-            {displayBrand.appTagline ? (
-              <span style={{ fontSize: '10px', color: 'var(--fg-secondary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
-                {displayBrand.appTagline}
+          {displayBrand.showLogo ? (
+            <div style={{ color: 'var(--fg)', display: 'inline-flex', alignItems: 'center' }}>
+              {displayBrand.logoPath && !brandLogoFailed ? (
+                <img
+                  src={displayBrand.logoPath}
+                  alt="Logo"
+                  style={{ width: '16px', height: '16px', objectFit: 'contain', display: 'block' }}
+                  onError={() => setBrandLogoFailed(true)}
+                />
+              ) : (
+                <AppLogo logoKey={displayBrand.logoKey} width={16} height={16} />
+              )}
+            </div>
+          ) : null}
+          {displayBrand.showAppName ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                {displayBrand.appName}
               </span>
-            ) : null}
-          </div>
+              {displayBrand.showLogline && displayBrand.logline ? (
+                <span style={{ fontSize: '10px', color: 'var(--fg-secondary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                  {displayBrand.logline}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         
         {/* Right: Mode Toggle */}
@@ -2638,7 +2657,8 @@ ${htmlTable}
                   rows: ctStageProjected.rows,
                   title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
                   existingFrameId: stageFrameIdRef.current,
-                  columnKeys: ctStageProjected.columnKeys
+                  columnKeys: ctStageProjected.columnKeys,
+                  presetId: selectedFormat
                 })
               }}
               onCopyToClipboard={() => handleCopyTable(selectedFormat, 'html')}
@@ -3753,7 +3773,7 @@ ${htmlTable}
               What table format do you want?
             </div>
             
-            {PRESET_INFO.map(preset => {
+            {orderedCtaPresets.map(preset => {
               const format = preset.id
               const isEnabled = preset.enabled
               
@@ -4253,7 +4273,8 @@ ${htmlTable}
                       rows: modalStageProjected.rows,
                       title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
                       existingFrameId: stageFrameIdRef.current,
-                      columnKeys: modalStageProjected.columnKeys
+                      columnKeys: modalStageProjected.columnKeys,
+                      presetId: selectedFormat
                     })
                   }}
                   disabled={!ctSession}

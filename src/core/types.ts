@@ -249,10 +249,11 @@ export interface RenderTableOnStagePayload {
   headers: string[]
   /** Multiple header rows (top to bottom). When present, replaces `headers` for rendering. */
   headerRows?: string[][]
-  rows: (string | { text: string; href: string })[][]
+  rows: (string | { text: string; href: string; suffix?: string })[][]
   title: string
   existingFrameId: string | null
   columnKeys?: string[]
+  presetId?: string
 }
 
 export interface RenderTableOnStageHandler extends EventHandler {

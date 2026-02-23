@@ -35,11 +35,25 @@ export const PRESET_INFO: PresetInfo[] = [
     kind: 'simple'
   },
   {
-    id: 'content-only' as TableFormatPreset,
-    label: "Content Only",
-    description: "Content list with same structure as Content Model 1, but only Column 7 populated with content values",
+    id: 'mobile' as TableFormatPreset,
+    label: "Mobile",
+    description: "Sectioned mobile worksheet with container intro rows and UI Label (English) content rows",
+    enabled: true,
+    kind: 'grouped'
+  },
+  {
+    id: 'simple-worksheet' as TableFormatPreset,
+    label: "Simple Worksheet",
+    description: "Minimal worksheet with only Figma reference and content values",
     enabled: true,
     kind: 'simple'
+  },
+  {
+    id: 'content-only' as TableFormatPreset,
+    label: "Content Only",
+    description: "Grouped worksheet export with container intro row and content-only item rows",
+    enabled: true,
+    kind: 'grouped'
   },
   {
     id: 'dev-only' as TableFormatPreset,
@@ -66,7 +80,7 @@ export const PRESET_INFO: PresetInfo[] = [
     id: 'content-model-2' as TableFormatPreset,
     label: "Content Model 2",
     description: "Schema-style export with rowspans and staggered rows for Dialog and Links sections",
-    enabled: true,
+    enabled: false,
     kind: 'simple'
   },
   {
@@ -201,6 +215,55 @@ export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
       key: "errorMessage",
       label: "Error Message",
       extract: (item) => resolvePath(item, "errorMessage")
+    }
+  ],
+  'mobile': [
+    {
+      key: "wireframe",
+      label: "Wireframe (For example purposes ONLY. Final content to be found in UI Label column.)",
+      extract: (item) => resolvePath(item, "nodeUrl")
+    },
+    {
+      key: "elementType",
+      label: "Element type (e.g. Header / Text / Button / HAT)",
+      extract: (item) => resolvePath(item, "field.role")
+    },
+    {
+      key: "uiLabelEnglish",
+      label: "UI label (English)",
+      extract: (item) => resolvePath(item, "content.value")
+    },
+    {
+      key: "uiLabelSpanish",
+      label: "UI label (Spanish)",
+      extract: (item) => resolvePath(item, "content.value")
+    },
+    {
+      key: "contentKeyOrIdentifier",
+      label: "Content Key (or Identifier) (Developer string/key reference if necessary)",
+      extract: (item) => resolvePath(item, "contentKey")
+    },
+    {
+      key: "notesRules",
+      label: "Notes/rules",
+      extract: (item) => resolvePath(item, "notes")
+    },
+    {
+      key: "jiraLinks",
+      label: "JIRA Links (Release / Epic / Editor Subtask / Story (ies)) (Listed in reverse order Newest to Oldest)",
+      extract: (item) => resolvePath(item, "jiraTicket")
+    }
+  ],
+  'simple-worksheet': [
+    {
+      key: "figmaRef",
+      label: "Figma Ref",
+      extract: (item) => resolvePath(item, "nodeUrl")
+    },
+    {
+      key: "content",
+      label: "Content",
+      extract: (item) => resolvePath(item, "content.value")
     }
   ],
   'content-only': [
@@ -452,6 +515,129 @@ export const PRESET_COLUMNS: Record<TableFormatPreset, ColumnDef[]> = {
 }
 
 export const PRESET_TEMPLATES: Record<string, GroupedTemplate> = {
+  'mobile': {
+    "headerRows": [
+      [
+        "Wireframe (For example purposes ONLY. Final content to be found in UI Label column.)",
+        "Element type (e.g. Header / Text / Button / HAT)",
+        "UI label (English)",
+        "UI label (Spanish)",
+        "Content Key (or Identifier) (Developer string/key reference if necessary)",
+        "Notes/rules",
+        "JIRA Links (Release / Epic / Editor Subtask / Story (ies)) (Listed in reverse order Newest to Oldest)"
+      ]
+    ],
+    "containerIntroRows": [
+      [
+        {
+          "type": "static",
+          "text": "Section {sectionIndex}: [User will add]"
+        },
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      [
+        {
+          "type": "link",
+          "label": {
+            "type": "static",
+            "text": "View in Figma"
+          },
+          "hrefField": "containerUrl",
+          "suffix": "\nPlace Image Here"
+        },
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    ],
+    "itemRows": [
+      [
+        "",
+        "",
+        {
+          "type": "field",
+          "field": "content"
+        },
+        "",
+        "",
+        "",
+        ""
+      ]
+    ]
+  },
+  'content-only': {
+    "headerRows": [
+      [
+        "Column 1",
+        "Column 2",
+        "Column 3",
+        "Column 4",
+        "Column 5",
+        "Column 6",
+        "Column 7",
+        "Column 8",
+        "Column 9"
+      ],
+      [
+        "Figma Ref",
+        "Tag",
+        "Source",
+        "Model",
+        "Metadata Key",
+        "Content Key",
+        "Content",
+        "Rules/Comment",
+        "Notes/Jira"
+      ]
+    ],
+    "containerIntroRows": [
+      [
+        {
+          "type": "link",
+          "label": {
+            "type": "static",
+            "text": "View in Figma"
+          },
+          "hrefField": "containerUrl"
+        },
+        "",
+        "",
+        {
+          "type": "static",
+          "text": "Content Only"
+        },
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    ],
+    "itemRows": [
+      [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        {
+          "type": "field",
+          "field": "content"
+        },
+        "",
+        ""
+      ]
+    ]
+  },
   'content-model-1': {
     "headerRows": [
       [
