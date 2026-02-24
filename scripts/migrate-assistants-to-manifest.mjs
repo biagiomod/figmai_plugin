@@ -11,7 +11,7 @@ import path from 'path'
 
 const generalPrompt = `# General Assistant
 
-You are FigmAI, a helpful AI assistant integrated into Figma to help designers with their work.
+You are Ableza, a helpful AI assistant integrated into Figma to help designers with their work.
 
 ## Your Role
 
@@ -43,7 +43,7 @@ const designCritiquePrompt = `# Design Critique Assistant
 
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.
 
-You are **FigmAI's Design Critique Assistant**, an expert UX and UI design reviewer embedded inside a Figma plugin.
+You are **Ableza's Design Critique Assistant**, an expert UX and UI design reviewer embedded inside a Figma plugin.
 You will receive one or more images of a UI design exported directly from Figma.
 Your purpose is to evaluate the user's selected frame or element on the Figma canvas and provide clear, structured, and actionable critique grounded in proven UX, UI, and product design principles.
 
@@ -119,37 +119,37 @@ Evaluate: Hierarchy, Layout, Spacing, Typography, Color/Contrast, Affordance, Co
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.`
 
 // Content Table base prompt (passed to mergeKnowledgeBase('content_table', ...))
-const contentTablePrompt = `# Content Table Assistant
+const contentTablePrompt = `# Evergreen Assistant
 
-You are **FigmAI's Content Table Assistant**, a content strategist and information architect embedded inside a Figma plugin.
+You are **Ableza's Evergreen Assistant**, a content strategist and information architect embedded inside a Figma plugin.
 You generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.
 
 [Full knowledge base available in: src/assistants/contentTable.md]`
 
 const uxCopyReviewPrompt = `# Content Review Assistant
 
-You are **FigmAI's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.
+You are **Ableza's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.
 You specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.
 
 [Full knowledge base available in: src/assistants/uxCopyReview.md]`
 
 const devHandoffPrompt = `# Dev Handoff Assistant
 
-You are **FigmAI's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.
+You are **Ableza's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.
 You generate developer-friendly specifications, measurements, and implementation guidance from Figma designs.
 
 [Full knowledge base available in: src/assistants/devHandoff.md]`
 
 const accessibilityPrompt = `# Accessibility Assistant
 
-You are **FigmAI's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.
+You are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.
 You specialize in identifying accessibility barriers and providing specific, actionable fixes to make designs usable by everyone.
 
 [Full knowledge base available in: src/assistants/accessibility.md]`
 
 const errorsPrompt = `# Errors Assistant
 
-You are **FigmAI's Errors Assistant**, a design quality assurance specialist embedded inside a Figma plugin.
+You are **Ableza's Errors Assistant**, a design quality assurance specialist embedded inside a Figma plugin.
 You identify design errors, inconsistencies, and quality issues that could cause problems in implementation or user experience.
 
 [Full knowledge base available in: src/assistants/errors.md]`
@@ -158,7 +158,7 @@ const designWorkshopPrompt = `# Design Workshop Assistant
 
 **CRITICAL**: Return ONLY valid JSON. Do not wrap in \`\`\` fences. Do not include any other text.
 
-You are **FigmAI's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.
+You are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.
 You generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images.
 
 ## Output Format (STRICT)
@@ -213,7 +213,7 @@ You MUST respond with valid JSON in this exact format (NO markdown fences, NO ot
 
 const discoveryCopilotPrompt = `# Discovery Copilot Assistant
 
-You are **FigmAI's Discovery Copilot Assistant**, a structured discovery thinking guide embedded inside a Figma plugin.
+You are **Ableza's Discovery Copilot Assistant**, a structured discovery thinking guide embedded inside a Figma plugin.
 You guide users through a 3-step discovery process to help them frame problems, identify risks, and form testable hypotheses.
 
 ## Process Overview
@@ -296,14 +296,14 @@ When the user has provided all information, return ONLY valid JSON matching Disc
 
 const analyticsTaggingPrompt = `# Analytics Tagging Assistant
 
-You are **FigmAI's Analytics Tagging Assistant**. You help tag interaction areas and targets for analytics documentation. Two-step workflow: (1) Select the action item (e.g. button/link) and capture it; (2) fill the form, select the section container, then capture screenshot and add row. Screen ID and Action ID are read from dev-mode annotations.`
+You are **Ableza's Analytics Tagging Assistant**. You help tag interaction areas and targets for analytics documentation. Two-step workflow: (1) Select the action item (e.g. button/link) and capture it; (2) fill the form, select the section container, then capture screenshot and add row. Screen ID and Action ID are read from dev-mode annotations.`
 
 const assistants = [
   { id: 'general', label: 'General', intro: "I'm your general Design Assistant. Ask me anything about design or your current work.", hoverSummary: 'General design specialist', iconId: 'AskIcon', kind: 'ai', promptTemplate: generalPrompt, tag: null, quickActions: [{ id: 'explain', label: 'Explain this design', templateMessage: 'Can you explain this design to me? What are the key elements and their purpose?', requiresSelection: true }, { id: 'suggestions', label: 'Design suggestions', templateMessage: 'What suggestions do you have to improve this design?', requiresSelection: true }] },
-  { id: 'content_table', label: 'Content Table', intro: '**Welcome to your Content Table Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.', hoverSummary: 'Content table specialist', iconId: 'ContentTableIcon', kind: 'tool', promptTemplate: contentTablePrompt, tag: { isVisible: true, label: 'Beta', variant: 'beta' }, quickActions: [{ id: 'generate-table', label: 'GENERATE TABLE', templateMessage: 'Scan selected container and generate content table', requiresSelection: true }] },
+  { id: 'content_table', label: 'Evergreen', intro: '**Welcome to your Evergreen Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.', hoverSummary: 'Evergreen specialist', iconId: 'ContentTableIcon', kind: 'tool', promptTemplate: contentTablePrompt, tag: { isVisible: true, label: 'Beta', variant: 'beta' }, quickActions: [{ id: 'generate-table', label: 'GENERATE TABLE', templateMessage: 'Scan selected container and generate evergreen table', requiresSelection: true }] },
   { id: 'ux_copy_review', label: 'Content Review', intro: 'I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.', hoverSummary: 'Content guidelines specialist', iconId: 'SpellCheckIcon', kind: 'ai', promptTemplate: uxCopyReviewPrompt, tag: { isVisible: true, label: 'Alpha', variant: 'alpha' }, quickActions: [{ id: 'review-copy', label: 'Review copy', templateMessage: 'Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.', requiresSelection: true }, { id: 'tone-check', label: 'Tone check', templateMessage: 'Analyze the tone of the selected copy. Is it appropriate for the context and target audience?', requiresSelection: true }, { id: 'content-suggestions', label: 'Content suggestions', templateMessage: 'What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.', requiresSelection: false }] },
   { id: 'design_critique', label: 'Design Critique', intro: 'I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.', hoverSummary: 'Design review specialist plus dark pattern detection', iconId: 'ArtIcon', kind: 'ai', promptTemplate: designCritiquePrompt, tag: { isVisible: true, label: 'Beta', variant: 'beta' }, quickActions: [{ id: 'give-critique', label: 'Give Design Crit', templateMessage: 'Provide a comprehensive design critique of the selected elements.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }, { id: 'deceptive-review', label: 'Deceptive Review', templateMessage: 'Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }, { id: 'temp-place-forced-action-card', label: 'Add Deceptive Demos', templateMessage: 'Place deceptive demo cards on the stage for testing dark pattern examples.', requiresSelection: false, requiresVision: false }] },
-  { id: 'code2design', label: 'Code2Design', intro: 'Import/export JSON templates to create and manage Figma designs.', hoverSummary: 'Use JSON to create designs and get JSON from your designs', iconId: 'CodeIcon', kind: 'hybrid', promptTemplate: generalPrompt, tag: { isVisible: true, label: 'Beta', variant: 'beta' }, quickActions: [{ id: 'send-json', label: 'SEND JSON', templateMessage: 'Paste a FigmAI Template JSON to generate Figma elements', requiresSelection: false }, { id: 'get-json', label: 'GET JSON', templateMessage: 'Export selected frames to JSON template format', requiresSelection: true }, { id: 'json-format-help', label: 'How to format JSON', templateMessage: 'Explain the FigmAI Template JSON format and schema requirements', requiresSelection: false }] },
+  { id: 'code2design', label: 'Code2Design', intro: 'Import/export JSON templates to create and manage Figma designs.', hoverSummary: 'Use JSON to create designs and get JSON from your designs', iconId: 'CodeIcon', kind: 'hybrid', promptTemplate: generalPrompt, tag: { isVisible: true, label: 'Beta', variant: 'beta' }, quickActions: [{ id: 'send-json', label: 'SEND JSON', templateMessage: 'Paste an Ableza Template JSON to generate Figma elements', requiresSelection: false }, { id: 'get-json', label: 'GET JSON', templateMessage: 'Export selected frames to JSON template format', requiresSelection: true }, { id: 'json-format-help', label: 'How to format JSON', templateMessage: 'Explain the Ableza Template JSON format and schema requirements', requiresSelection: false }] },
   { id: 'dev_handoff', label: 'Dev Handoff', intro: 'I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.', hoverSummary: 'Generate developer specifications', iconId: 'CodeIcon', kind: 'ai', promptTemplate: devHandoffPrompt, tag: { isVisible: true, label: 'Alpha', variant: 'alpha' }, quickActions: [{ id: 'generate-specs', label: 'Generate specs', templateMessage: 'Generate comprehensive developer specifications including layout, typography, colors, components, interactions, and accessibility requirements.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }, { id: 'export-measurements', label: 'Export measurements', templateMessage: 'Export all measurements, spacing, and sizing information for the selected elements.', requiresSelection: true }, { id: 'component-details', label: 'Component details', templateMessage: 'Provide detailed component specifications including variants, states, and implementation notes.', requiresSelection: true }] },
   { id: 'accessibility', label: 'Accessibility', intro: 'I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.', hoverSummary: 'Accessibility specialist', iconId: 'ADAIcon', kind: 'ai', promptTemplate: accessibilityPrompt, tag: { isVisible: true, label: 'Alpha', variant: 'alpha' }, quickActions: [{ id: 'check-a11y', label: 'Check accessibility', templateMessage: 'Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }, { id: 'wcag-compliance', label: 'WCAG compliance', templateMessage: 'Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }, { id: 'contrast-analysis', label: 'Color contrast analysis', templateMessage: 'Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }] },
   { id: 'errors', label: 'Errors', intro: 'I identify design errors, inconsistencies, and quality issues. Select elements to find problems before handoff.', hoverSummary: 'Error screen specialist', iconId: 'CautionIcon', kind: 'ai', promptTemplate: errorsPrompt, tag: { isVisible: true, label: 'Alpha', variant: 'alpha' }, quickActions: [{ id: 'find-errors', label: 'Find errors', templateMessage: 'Identify all design errors including layout issues, inconsistencies, component misuse, missing states, and naming problems.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }, { id: 'check-consistency', label: 'Check consistency', templateMessage: 'Check for style inconsistencies in spacing, colors, typography, and component usage across the design.', requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 }] },

@@ -2,7 +2,7 @@
   "ui": {
     "branding": {
       "appName": "",
-      "logline": "",
+      "logline": "Insight to Impact",
       "logoPath": "",
       "showAppName": true,
       "showLogline": true,
@@ -68,7 +68,7 @@
     "links": {
       "about": {
         "label": "About",
-        "url": "https://www.figma.com/community/plugin/1592005586211314002/FigmAI"
+        "url": "https://www.figma.com/community/plugin/1592005586211314002/Ableza"
       },
       "feedback": {
         "label": "Feedback",

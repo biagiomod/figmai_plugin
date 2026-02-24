@@ -55,7 +55,7 @@ function cleanChatContentUIStyle(raw: string): string {
     .replace(/generate:\s*\d+\/\d+/gi, '')
     .replace(/\(\d+%\)/g, '')
     .trim()
-  const welcomeLinePatterns = [/welcome to your content table assistant/i, /welcome to your design workshop assistant/i, /welcome to your/i]
+  const welcomeLinePatterns = [/welcome to your evergreens assistant/i, /welcome to your design workshop assistant/i, /welcome to your/i]
   const lines = text.split('\n')
   const uniqueLines: string[] = []
   const seen = new Set<string>()

@@ -245,6 +245,11 @@ export interface ExportContentTableRefImageHandler extends EventHandler {
   handler: (rootNodeId: string) => void
 }
 
+export interface ContentTableResetHandler extends EventHandler {
+  name: 'CONTENT_TABLE_RESET'
+  handler: () => void
+}
+
 export interface RenderTableOnStagePayload {
   headers: string[]
   /** Multiple header rows (top to bottom). When present, replaces `headers` for rendering. */
@@ -337,6 +342,11 @@ export interface ContentTableRefImageReadyHandler extends EventHandler {
 export interface ContentTableRefImageErrorHandler extends EventHandler {
   name: 'CONTENT_TABLE_REF_IMAGE_ERROR'
   handler: (message: string) => void
+}
+
+export interface ContentTableResetDoneHandler extends EventHandler {
+  name: 'CONTENT_TABLE_RESET_DONE'
+  handler: () => void
 }
 
 export interface AnalyticsTaggingSessionUpdatedHandler extends EventHandler {

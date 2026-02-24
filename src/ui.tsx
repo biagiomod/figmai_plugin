@@ -118,6 +118,7 @@ import type {
   Assistant,
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
+  ContentTableResetHandler,
   RenderTableOnStageHandler,
   RequestAnalyticsTaggingSessionHandler,
   AnalyticsTaggingUpdateRowHandler,
@@ -137,6 +138,13 @@ import { classifyCandidates, filterByDuplicates } from './core/contentTable/dupl
 import type { ContentItemV1 } from './core/contentTable/types'
 import { ContentTableWelcome } from './ui/components/ContentTableWelcome'
 import { ContentTableView } from './ui/components/ContentTableView'
+import {
+  CTA_DISPLAY_NAME,
+  CTA_STAGE_PREVIEW_TITLE,
+  CTA_WELCOME_MATCHER,
+  getCtaPresetDisplayLabel,
+  getCtaPresetDisplayOrder
+} from './ui/components/contentTableUiLabels'
 import { sessionToTable } from './core/analyticsTagging/sessionToTable'
 import type { Session, Row } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
@@ -216,7 +224,7 @@ function cleanChatContent(raw: string): string {
 
   // CRITICAL: Preserve welcome lines for assistants - never remove these
   const welcomeLinePatterns = [
-    /welcome to your content table assistant/i,
+    new RegExp(CTA_WELCOME_MATCHER, 'i'),
     /welcome to your design workshop assistant/i,
     /welcome to your/i
   ]
@@ -365,7 +373,11 @@ function Plugin() {
     return initialMode
   })
   const displayBrand = getDisplayBrand()
-  const orderedCtaPresets = useMemo(() => getOrderedCtaPresets(PRESET_INFO), [])
+  const hasCustomLogoPath = !!(displayBrand.logoPath && displayBrand.logoPath.trim())
+  const orderedCtaPresets = useMemo(
+    () => getCtaPresetDisplayOrder(getOrderedCtaPresets(PRESET_INFO)),
+    []
+  )
   const [brandLogoFailed, setBrandLogoFailed] = useState(false)
   useEffect(() => {
     setBrandLogoFailed(false)
@@ -578,6 +590,9 @@ function Plugin() {
           // Use modeRef to avoid stale closure issue
           resetUIState(modeRef.current)
           break
+        case 'CONTENT_TABLE_RESET_DONE':
+          resetContentTableState()
+          break
         case 'SELECTION_STATE':
           if (message.state) {
             console.log('Received selection state:', message.state)
@@ -780,6 +795,7 @@ function Plugin() {
               ignoreRuleByItemId,
               skippedCount
             }))
+            setSelectedFormat('simple-worksheet')
             const genContainerIds: string[] = message.scannedContainerNodeIds || []
             for (const cid of genContainerIds) scannedContainerIdsRef.current.add(cid)
             if (genContainerIds.length === 0 && message.table.meta?.rootNodeId) {
@@ -1169,6 +1185,25 @@ function Plugin() {
     setResetToken(prev => prev + 1)
     
     console.log('[UI] UI state reset complete, resetToken incremented')
+  }, [])
+
+  const resetContentTableState = useCallback(() => {
+    setContentTable(null)
+    setCtSession(null)
+    setShowTableView(false)
+    setShowFormatModal(false)
+    setShowCopyFormatModal(false)
+    setShowConfluenceModal(false)
+    setSelectionRequired(false)
+    setPendingAction(null)
+    setSelectedFormat('simple-worksheet')
+    setIsCopyingTable(false)
+    setIsCopyingRefImage(false)
+    setShowRescanConfirm(false)
+    scannedContainerIdsRef.current.clear()
+    pendingRescanActionRef.current = null
+    stageFrameIdRef.current = null
+    setResetToken(prev => prev + 1)
   }, [])
 
   // Handlers
@@ -2176,7 +2211,7 @@ function Plugin() {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Content Table</title>
+  <title>{CTA_DISPLAY_NAME}</title>
 </head>
 <body>
 ${htmlTable}
@@ -2460,14 +2495,14 @@ ${htmlTable}
         }}>
           {displayBrand.showLogo ? (
             <div style={{ color: 'var(--fg)', display: 'inline-flex', alignItems: 'center' }}>
-              {displayBrand.logoPath && !brandLogoFailed ? (
+              {hasCustomLogoPath && !brandLogoFailed ? (
                 <img
                   src={displayBrand.logoPath}
                   alt="Logo"
                   style={{ width: '16px', height: '16px', objectFit: 'contain', display: 'block' }}
                   onError={() => setBrandLogoFailed(true)}
                 />
-              ) : (
+              ) : hasCustomLogoPath ? null : (
                 <AppLogo logoKey={displayBrand.logoKey} width={16} height={16} />
               )}
             </div>
@@ -2477,11 +2512,13 @@ ${htmlTable}
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
                 {displayBrand.appName}
               </span>
-              {displayBrand.showLogline && displayBrand.logline ? (
+              {displayBrand.showLogline ? (
                 <span style={{ fontSize: '10px', color: 'var(--fg-secondary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
                   {displayBrand.logline}
                 </span>
-              ) : null}
+              ) : (
+                null
+              )}
             </div>
           ) : null}
         </div>
@@ -2655,7 +2692,7 @@ ${htmlTable}
                   headers: ctStageProjected.headers,
                   headerRows: ctStageProjected.headerRows,
                   rows: ctStageProjected.rows,
-                  title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
+                  title: contentTable.meta?.rootNodeName || CTA_STAGE_PREVIEW_TITLE,
                   existingFrameId: stageFrameIdRef.current,
                   columnKeys: ctStageProjected.columnKeys,
                   presetId: selectedFormat
@@ -2663,10 +2700,7 @@ ${htmlTable}
               }}
               onCopyToClipboard={() => handleCopyTable(selectedFormat, 'html')}
               onRestart={() => {
-                setContentTable(null)
-                setCtSession(null)
-                setShowTableView(false)
-                setSelectedFormat('universal')
+                emit<ContentTableResetHandler>('CONTENT_TABLE_RESET')
               }}
               onExportRowRefImage={(nodeId: string) => {
                 emit<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', nodeId)
@@ -2739,7 +2773,7 @@ ${htmlTable}
             color: 'var(--fg-secondary)',
             border: '1px solid var(--border)'
           }}>
-            Paste a FigmAI Template JSON to generate Figma elements, or select frames and click GET JSON.
+            Paste an Ableza Template JSON to generate Figma elements, or select frames and click GET JSON.
           </div>
         )}
         {debug.isEnabled('trace:chat') && (() => {
@@ -3815,7 +3849,7 @@ ${htmlTable}
                   }}
                   title={preset.description}
                 >
-                  {preset.label}
+                  {getCtaPresetDisplayLabel(preset)}
                   {!isEnabled && <span style={{ marginLeft: 'var(--spacing-xs)', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }}>(Not implemented yet)</span>}
                 </button>
               )
@@ -3996,10 +4030,13 @@ ${htmlTable}
                   fontSize: 'var(--font-size-lg)',
                   fontWeight: 'var(--font-weight-semibold)'
                 }}>
-                  Content Table
+                  {CTA_DISPLAY_NAME}
                   {selectedFormat !== 'universal' && (
                     <span style={{ fontSize: '11px', color: '#666', fontWeight: 400 }}>
-                      {' '}({PRESET_INFO.find(p => p.id === selectedFormat)?.label || selectedFormat})
+                      {' '}({(() => {
+                        const selectedPreset = PRESET_INFO.find((p) => p.id === selectedFormat)
+                        return selectedPreset ? getCtaPresetDisplayLabel(selectedPreset) : selectedFormat
+                      })()})
                     </span>
                   )}
                 </div>
@@ -4271,7 +4308,7 @@ ${htmlTable}
                       headers: modalStageProjected.headers,
                       headerRows: modalStageProjected.headerRows,
                       rows: modalStageProjected.rows,
-                      title: contentTable.meta?.rootNodeName || 'CT-A Table Preview',
+                      title: contentTable.meta?.rootNodeName || CTA_STAGE_PREVIEW_TITLE,
                       existingFrameId: stageFrameIdRef.current,
                       columnKeys: modalStageProjected.columnKeys,
                       presetId: selectedFormat
@@ -4583,7 +4620,7 @@ ${htmlTable}
                 <TextboxMultiline
                   value={jsonInput}
                   onValueInput={setJsonInput}
-                  placeholder="Paste your FigmAI Template JSON here..."
+                  placeholder="Paste your Ableza Template JSON here..."
                   style={{
                     height: '200px',
                     maxHeight: '200px',

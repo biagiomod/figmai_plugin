@@ -267,7 +267,7 @@ app.get(['/home', '/home/'], (_req, res) => {
   <section class="ace-home-hero ace-container">
     <div class="ace-card ace-home-hero-card">
       <h1 class="ace-section-title">AI assistance for design teams that need consistency, not chaos.</h1>
-      <p class="ace-home-lead">FigmAI brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
+      <p class="ace-home-lead">Ableza brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
       <div class="ace-home-cta-row">
         <a class="btn-primary" href="/home/admin">Install the Plugin</a>
         <a class="btn-secondary" href="/demo">Watch 2-min Demo</a>
@@ -293,9 +293,9 @@ app.get(['/home', '/home/'], (_req, res) => {
   </section>
 
   <section class="ace-container ace-home-section">
-    <div class="ace-section-header-row"><h2 class="ace-section-title">What FigmAI is</h2></div>
+    <div class="ace-section-header-row"><h2 class="ace-section-title">What Ableza is</h2></div>
     <div class="ace-card">
-      <p class="ace-home-lead ace-home-lead-small">FigmAI is an AI layer inside the design workflow that helps teams move from questions to usable outputs with more consistency.</p>
+      <p class="ace-home-lead ace-home-lead-small">Ableza is an AI layer inside the design workflow that helps teams move from questions to usable outputs with more consistency.</p>
       <ul class="ace-home-bullet-list">
         <li>Chat and quick actions inside the workflow</li>
         <li>Specialized assistants by job to be done</li>
@@ -360,7 +360,7 @@ app.get(['/home', '/home/'], (_req, res) => {
   `
 
   sendMarketingPage(res, '/home', {
-    title: 'FigmAI Home',
+    title: 'Ableza Home',
     activePath: '/home',
     body
   })
@@ -371,7 +371,7 @@ app.get('/how-it-works', (_req, res) => {
     <div class="ace-section-header-row"><h1 class="ace-section-title">How It Works</h1></div>
     <div class="ace-card">
       <ol class="ace-home-number-list">
-        <li>Install the plugin and open FigmAI in Figma.</li>
+        <li>Install the plugin and open Ableza in Figma.</li>
         <li>Pick an assistant aligned to your current task.</li>
         <li>Select relevant frames, then run a quick action or ask a focused prompt.</li>
         <li>Review the output, apply changes, and capture decisions for handoff.</li>

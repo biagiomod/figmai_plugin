@@ -135,8 +135,8 @@ export const customConfig: CustomConfig | null = {
       "showName": true,
       "showAppName": true,
       "showLogline": true,
-      "appName": "FigmAI",
-      "logline": "",
+      "appName": "Ableza",
+      "logline": "Insight to Impact",
       "logoPath": ""
     },
     "contentMvpAssistantId": "content_table",
@@ -198,7 +198,7 @@ export const customConfig: CustomConfig | null = {
     "links": {
       "about": {
         "label": "About",
-        "url": "https://www.figma.com/community/plugin/1592005586211314002/FigmAI"
+        "url": "https://www.figma.com/community/plugin/1592005586211314002/Ableza"
       },
       "feedback": {
         "label": "Feedback",
@@ -260,8 +260,8 @@ export const customConfig: CustomConfig | null = {
     "exclusionRulesDebug": true
   },
   "branding": {
-    "appName": "FigmAI",
-    "appTagline": "",
+    "appName": "Ableza",
+    "appTagline": "Insight to Impact",
     "logoKey": "none"
   },
   "detectors": {

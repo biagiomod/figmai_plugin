@@ -4,6 +4,7 @@
  */
 
 import { h } from 'preact'
+import { CTA_DISPLAY_NAME } from './contentTableUiLabels'
 
 interface ContentTableWelcomeProps {
   hasSelection: boolean
@@ -23,7 +24,7 @@ export function ContentTableWelcome({ hasSelection, onGenerate }: ContentTableWe
       textAlign: 'center'
     }}>
       <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--fg)' }}>
-        Content Table
+        {CTA_DISPLAY_NAME}
       </div>
       <div style={{ fontSize: '13px', color: 'var(--fg-secondary)', maxWidth: '320px', lineHeight: '1.5' }}>
         Select one or more containers in your design, then generate a structured content inventory.

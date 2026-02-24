@@ -235,8 +235,8 @@ export class ErrorsHandler implements AssistantHandler {
 
     try {
       const categoryId = await ensureAnnotationCategory('Error screens', ANNOTATION_CATEGORY_COLOR)
-      const section = createAutoLayoutFrameSafe('FigmAI — Error Screens', 'HORIZONTAL', { gap: 24, padding: { top: 16, right: 16, bottom: 16, left: 16 } })
-      section.name = `FigmAI — Error Screens (${runId})`
+      const section = createAutoLayoutFrameSafe('Ableza — Error Screens', 'HORIZONTAL', { gap: 24, padding: { top: 16, right: 16, bottom: 16, left: 16 } })
+      section.name = `Ableza — Error Screens (${runId})`
       const fonts = await loadFonts()
 
       const labelMarkdowns: string[] = []
@@ -343,7 +343,7 @@ export class ErrorsHandler implements AssistantHandler {
       }
 
       const annotationFrame = figma.createFrame()
-      annotationFrame.name = `FigmAI — Error Screens rationale (${runId})`
+      annotationFrame.name = `Ableza — Error Screens rationale (${runId})`
       annotationFrame.layoutMode = 'VERTICAL'
       annotationFrame.primaryAxisSizingMode = 'AUTO'
       annotationFrame.counterAxisSizingMode = 'AUTO'
@@ -388,7 +388,7 @@ export class ErrorsHandler implements AssistantHandler {
     const { replaceStatusMessage } = context
     const fonts = await loadFonts()
     const annotationFrame = figma.createFrame()
-    annotationFrame.name = `FigmAI — Error Screens rationale (${runId})`
+    annotationFrame.name = `Ableza — Error Screens rationale (${runId})`
     annotationFrame.layoutMode = 'VERTICAL'
     annotationFrame.primaryAxisSizingMode = 'AUTO'
     annotationFrame.counterAxisSizingMode = 'AUTO'
@@ -476,7 +476,7 @@ export class ErrorsHandler implements AssistantHandler {
       }
       const fonts = await loadFonts()
       const annotationFrame = figma.createFrame()
-      annotationFrame.name = 'FigmAI — Errors Check'
+      annotationFrame.name = 'Ableza — Errors Check'
       annotationFrame.layoutMode = 'VERTICAL'
       annotationFrame.primaryAxisSizingMode = 'AUTO'
       annotationFrame.counterAxisSizingMode = 'AUTO'

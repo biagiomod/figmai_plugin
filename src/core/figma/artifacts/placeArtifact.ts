@@ -50,8 +50,8 @@ export function findExistingArtifactsByType(page: PageNode, type: string, versio
   function traverse(node: BaseNode) {
     if (node.type === 'FRAME') {
       const frame = node as FrameNode
-      // Check naming convention: "FigmAI Artifact — <Type>" or "FigmAI Artifact — <Type> (v2)"
-      if (frame.name.startsWith('FigmAI Artifact — ')) {
+      // Check naming convention: "FigmAI Artifact — <Type>" or "Ableza Artifact — <Type>"
+      if (frame.name.startsWith('FigmAI Artifact — ') || frame.name.startsWith('Ableza Artifact — ')) {
         // Check pluginData for type
         const artifactType = frame.getPluginData('figmai.artifactType')
         if (artifactType === type) {
@@ -97,7 +97,12 @@ export function removeExistingArtifacts(type: string, version?: string): void {
       if (node.type === 'FRAME') {
         const frame = node as FrameNode
         // Check for critique fallback frames
-        if (frame.name === 'FigmAI — Critique' || frame.name === 'FigmAI — Critique (fallback)') {
+        if (
+          frame.name === 'FigmAI — Critique' ||
+          frame.name === 'FigmAI — Critique (fallback)' ||
+          frame.name === 'Ableza — Critique' ||
+          frame.name === 'Ableza — Critique (fallback)'
+        ) {
           const artifactType = frame.getPluginData('figmai.artifactType')
           if (artifactType === 'critique' || !artifactType) {
             artifacts.push(frame)
@@ -166,8 +171,8 @@ export async function placeArtifactFrame(options: PlaceArtifactOptions): Promise
 
   const typeCapitalized = type.charAt(0).toUpperCase() + type.slice(1)
   const baseName = version
-    ? `FigmAI Artifact — ${typeCapitalized} (${version})`
-    : `FigmAI Artifact — ${typeCapitalized}`
+    ? `Ableza Artifact — ${typeCapitalized} (${version})`
+    : `Ableza Artifact — ${typeCapitalized}`
   root.name = replace ? baseName : uniqueArtifactNameOnPage(baseName)
 
   root.layoutMode = 'VERTICAL'

@@ -18,6 +18,14 @@ import type { TableFormatPreset, ContentItemV1 } from '../../core/contentTable/t
 import { getOrderedCtaPresets } from '../../core/contentTable/presetOrder'
 import { ImageDownloadIcon, CloseIcon } from '../icons'
 import { TH, TD, CELL_INPUT, TOOL_BTN, actionBtnStyle } from './toolTableStyles'
+import {
+  CTA_ACTION_LABELS,
+  CTA_DISPLAY_NAME,
+  CTA_DROPDOWN_SEPARATOR_LABEL,
+  CTA_DROPDOWN_SEPARATOR_VALUE,
+  getCtaPresetDisplayLabel,
+  getCtaPresetDisplayOrder
+} from './contentTableUiLabels'
 
 interface ContentTableViewProps {
   session: ContentTableSession
@@ -67,7 +75,10 @@ export function ContentTableView({
 }: ContentTableViewProps) {
   const items = getEffectiveItems(session)
   const projected = useMemo(() => projectContentTable(selectedFormat, items), [selectedFormat, items])
-  const orderedPresets = useMemo(() => getOrderedCtaPresets(PRESET_INFO), [])
+  const orderedPresets = useMemo(
+    () => getCtaPresetDisplayOrder(getOrderedCtaPresets(PRESET_INFO)),
+    []
+  )
   const isKV = projected.readOnly
   const isMobilePreset = selectedFormat === 'mobile'
   const hasToolsDataColumn = projected.columnKeys.some(isToolsColumnKey)
@@ -109,7 +120,7 @@ export function ContentTableView({
         marginBottom: '8px'
       }}>
         <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--fg)' }}>
-          Content Table
+          {CTA_DISPLAY_NAME}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -127,9 +138,19 @@ export function ContentTableView({
                 cursor: 'pointer'
               }}
             >
-              {orderedPresets.map(p => (
-                <option key={p.id} value={p.id}>{p.label}</option>
-              ))}
+              {orderedPresets.flatMap((preset, index) => {
+                const options = [
+                  <option key={preset.id} value={preset.id}>{getCtaPresetDisplayLabel(preset)}</option>
+                ]
+                if (index === 0) {
+                  options.push(
+                    <option key={CTA_DROPDOWN_SEPARATOR_VALUE} value={CTA_DROPDOWN_SEPARATOR_VALUE} disabled>
+                      {CTA_DROPDOWN_SEPARATOR_LABEL}
+                    </option>
+                  )
+                }
+                return options
+              })}
             </select>
           </div>
           <button
@@ -366,10 +387,10 @@ export function ContentTableView({
           title={hasSelection ? 'Add selected containers to table' : 'Select containers first'}
           style={actionBtnStyle(!hasSelection)}
         >
-          Append Selection
+          {CTA_ACTION_LABELS.appendSelection}
         </button>
         <button onClick={onViewOnStage} style={actionBtnStyle(false)}>
-          View on Stage
+          {CTA_ACTION_LABELS.viewOnStage}
         </button>
         <button onClick={onCopyToClipboard} disabled={isCopying} style={actionBtnStyle(isCopying)}>
           {isCopying ? 'Copying...' : 'Copy to Clipboard'}

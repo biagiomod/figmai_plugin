@@ -13,6 +13,7 @@ import { Button, Textbox } from '@create-figma-plugin/ui'
 import type { UniversalContentTableV1, TableFormatPreset } from '../../core/types'
 import { buildConfluenceXhtmlFromTable } from '../../core/contentTable/export/confluence'
 import { loadWorkAdapter } from '../../core/work/loadAdapter'
+import { CTA_DISPLAY_NAME } from './contentTableUiLabels'
 
 interface ConfluenceModalProps {
   contentTable: UniversalContentTableV1
@@ -165,7 +166,7 @@ export function ConfluenceModal({ contentTable, format, onClose, onSuccess }: Co
             <Textbox
               value={title}
               onInput={(e: any) => setTitle(e.target.value)}
-              placeholder="Content Table"
+              placeholder={CTA_DISPLAY_NAME}
               style={{
                 width: '100%',
                 marginBottom: 'var(--spacing-sm)'

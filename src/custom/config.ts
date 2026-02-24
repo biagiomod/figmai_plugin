@@ -40,10 +40,12 @@ export function getBranding(): {
     : (typeof uiBranding?.showName === 'boolean' ? uiBranding.showName : true)
   const appName = typeof uiBranding?.appName === 'string' && uiBranding.appName.trim()
     ? uiBranding.appName
-    : (typeof legacyBranding?.appName === 'string' && legacyBranding.appName.trim() ? legacyBranding.appName : 'FigmAI')
-  const logline = typeof uiBranding?.logline === 'string'
+    : (typeof legacyBranding?.appName === 'string' && legacyBranding.appName.trim() ? legacyBranding.appName : 'Ableza')
+  const logline = (typeof uiBranding?.logline === 'string' && uiBranding.logline.trim())
     ? uiBranding.logline
-    : (typeof legacyBranding?.appTagline === 'string' ? legacyBranding.appTagline : 'AI Powered')
+    : ((typeof legacyBranding?.appTagline === 'string' && legacyBranding.appTagline.trim())
+      ? legacyBranding.appTagline
+      : 'AI Powered')
   const showLogline = typeof uiBranding?.showLogline === 'boolean'
     ? uiBranding.showLogline
     : !!(typeof logline === 'string' && logline.trim())

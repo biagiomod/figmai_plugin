@@ -120,6 +120,7 @@ import type {
   ToolCall,
   CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
+  ContentTableResetHandler,
   RenderTableOnStageHandler,
   RenderTableOnStagePayload,
   RenderPluginUIPreviewHandler,
@@ -477,6 +478,11 @@ once<ResetHandler>('RESET', async function () {
   figma.ui.postMessage({ pluginMessage: { type: 'RESET_DONE' } })
 })
 
+on<ContentTableResetHandler>('CONTENT_TABLE_RESET', function () {
+  // CT-A reset state lives in UI/session; main thread only acknowledges reset completion.
+  figma.ui.postMessage({ pluginMessage: { type: 'CONTENT_TABLE_RESET_DONE' } })
+})
+
 // Handle selection state request
 on<RequestSelectionStateHandler>('REQUEST_SELECTION_STATE', function () {
   console.log('[Main] onmessage REQUEST_SELECTION_STATE')
@@ -495,7 +501,7 @@ function isDesignWorkshopIntroMessage(content: string): boolean {
 // Helper to check if a message looks like a Content Table Assistant intro (local to main.ts)
 function isContentTableIntroMessage(content: string): boolean {
   const normalized = content.toLowerCase()
-  return normalized.includes('welcome to your content table assistant')
+  return normalized.includes('welcome to your evergreens assistant')
 }
 
 // Handle set assistant
@@ -880,7 +886,7 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
         return
       }
       if (actionId === 'json-format-help') {
-        const helpMessage = `**FigmAI Template JSON Format**
+        const helpMessage = `**Ableza Template JSON Format**
 
 **Schema Version:** 1.0
 
@@ -1872,7 +1878,7 @@ on<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', async fu
 })
 
 on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: RenderTableOnStagePayload) {
-  const FRAME_NAME = 'CT-A Table Preview'
+  const FRAME_NAME = 'Evergreens Table Preview'
   const { headers, rows, existingFrameId, presetId } = payload
 
   let frame: FrameNode | null = null
@@ -2055,8 +2061,8 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
 on<RenderPluginUIPreviewHandler>('RENDER_PLUGIN_UI_PREVIEW', async function (payload: RenderPluginUIPreviewPayload) {
   const { theme } = payload
   const frameName = theme === 'dark'
-    ? 'FigmAI Plugin UI \u2014 Dark'
-    : 'FigmAI Plugin UI \u2014 Light'
+    ? 'Ableza Plugin UI \u2014 Dark'
+    : 'Ableza Plugin UI \u2014 Light'
 
   for (const child of [...figma.currentPage.children]) {
     if (child.name === frameName) child.remove()

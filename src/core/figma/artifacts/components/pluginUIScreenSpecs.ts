@@ -772,7 +772,7 @@ export function ctTableModalSpec(t: UIThemeTokens): DarkDemoNodeSpec {
           align: 'STRETCH'
         },
         children: [
-          text('Content Table (Universal)', 14, t.fg, 'Semi Bold')
+          text('Evergreen (Universal)', 14, t.fg, 'Semi Bold')
         ]
       },
       {
@@ -841,7 +841,7 @@ function navBar(t: UIThemeTokens): DarkDemoNodeSpec {
       strokeAlign: 'INSIDE'
     },
     children: [
-      text('FigmAI', 14, t.fg, 'Bold'),
+      text('Ableza', 14, t.fg, 'Bold'),
       text('AI Powered', 10, t.fgSecondary)
     ]
   }

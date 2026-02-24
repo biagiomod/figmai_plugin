@@ -148,7 +148,7 @@ type EffectiveBranding = {
 }
 
 const DEFAULT_BRANDING: EffectiveBranding = {
-  appName: 'FigmAI',
+  appName: 'Ableza',
   logline: 'AI Powered',
   showLogo: true,
   showAppName: true,

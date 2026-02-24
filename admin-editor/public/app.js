@@ -124,6 +124,16 @@
     return out
   }
 
+  function resolveBrandingLogoPath (rawPath) {
+    var value = (rawPath || '').trim()
+    if (!value) return ''
+    try {
+      return new URL(value, window.location.origin + '/').toString()
+    } catch (_) {
+      return value
+    }
+  }
+
   function hasUnsavedChanges () {
     return state.originalModel !== null && state.editedModel !== null && !deepEqual(state.originalModel, state.editedModel)
   }
@@ -983,6 +993,7 @@
       if (typeof legacyBranding.appTagline === 'string') brandingLogline = legacyBranding.appTagline
     }
     if (typeof uiBranding?.showLogline !== 'boolean') brandingShowLogline = !!(brandingLogline || '').trim()
+    var brandingLogoResolved = resolveBrandingLogoPath(brandingLogoPath)
     html += collapsibleSection('branding', 'Branding',
       '<div class="ace-card">' +
       '<p class="ace-card-subtext">Configure display branding shown in plugin header.</p>' +
@@ -990,17 +1001,17 @@
       '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showAppName" ' + (brandingShowAppName ? 'checked' : '') + '> Show App Name</label></div>' +
       '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showLogline" ' + (brandingShowLogline ? 'checked' : '') + '> Show Logline</label></div>' +
       '<label for="config-branding-appName" class="ace-field-label">App Name</label>' +
-      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="FigmAI" value="' + escapeHtml(brandingAppName) + '">' +
+      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="Ableza" value="' + escapeHtml(brandingAppName) + '">' +
       '<label for="config-branding-logline" class="ace-field-label">Logline</label>' +
       '<input type="text" id="config-branding-logline" class="ace-text-input ace-field" placeholder="AI Powered" value="' + escapeHtml(brandingLogline) + '">' +
       '<label for="config-branding-logoPath" class="ace-field-label">Logo Path</label>' +
-      '<input type="text" id="config-branding-logoPath" class="ace-text-input ace-field ace-field--lg" placeholder="/assets/logo.svg" value="' + escapeHtml(brandingLogoPath) + '">' +
+      '<input type="text" id="config-branding-logoPath" class="ace-text-input ace-field ace-field--lg" placeholder="/assets/logo-figmai.svg" value="' + escapeHtml(brandingLogoPath) + '">' +
       '<div class="ace-card-subtext" style="margin-top:8px">Current Logo Preview</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' +
-      '<img id="config-branding-logoPreview" src="' + escapeHtml(brandingLogoPath || '') + '" alt="Current logo preview" style="max-width:32px;max-height:32px;border:1px solid #ddd;border-radius:4px;object-fit:contain;' + (brandingLogoPath ? '' : 'display:none;') + '">' +
-      '<span id="config-branding-logoMissing" class="inline-error" style="' + (brandingLogoPath ? 'display:none;' : 'display:inline;') + '">Logo not found at path</span>' +
+      '<img id="config-branding-logoPreview" src="' + escapeHtml(brandingLogoResolved || '') + '" alt="Current logo preview" style="max-width:32px;max-height:32px;border:1px solid #ddd;border-radius:4px;object-fit:contain;' + (brandingLogoResolved ? '' : 'display:none;') + '">' +
+      '<span id="config-branding-logoMissing" class="inline-error" style="' + (brandingLogoResolved ? 'display:none;' : 'display:inline;') + '">' + (brandingLogoResolved ? '' : 'Logo path is empty') + '</span>' +
       '</div>' +
-      '<div class="ace-card-subtext" style="margin-top:6px">Resolved path: <code id="config-branding-logoPathRaw">' + escapeHtml(brandingLogoPath || '') + '</code></div>' +
+      '<div class="ace-card-subtext" style="margin-top:6px">Resolved URL: <code id="config-branding-logoPathRaw">' + escapeHtml(brandingLogoResolved || '') + '</code></div>' +
       '</div>',
       expandedMap['branding'])
     var RESOURCE_LINK_KEYS = ['about', 'feedback', 'meetup']
@@ -1366,19 +1377,23 @@
     if (brandingLogoPathEl) {
       brandingLogoPathEl.oninput = brandingLogoPathEl.onchange = function () {
         ensureUiBrandingConfig().logoPath = this.value
+        var resolvedLogo = resolveBrandingLogoPath(this.value)
         var previewEl = document.getElementById('config-branding-logoPreview')
         var missingEl = document.getElementById('config-branding-logoMissing')
         var rawEl = document.getElementById('config-branding-logoPathRaw')
         if (previewEl) {
-          if (this.value) {
+          if (resolvedLogo) {
             previewEl.style.display = 'inline-block'
-            previewEl.src = this.value
+            previewEl.src = resolvedLogo
           } else {
             previewEl.style.display = 'none'
           }
         }
-        if (missingEl) missingEl.style.display = this.value ? 'none' : 'inline'
-        if (rawEl) rawEl.textContent = this.value || ''
+        if (missingEl) {
+          missingEl.style.display = resolvedLogo ? 'none' : 'inline'
+          missingEl.textContent = resolvedLogo ? '' : 'Logo path is empty'
+        }
+        if (rawEl) rawEl.textContent = resolvedLogo || ''
         showUnsavedBanner()
         updateFooterButtons()
       }
@@ -1388,11 +1403,18 @@
       brandingLogoPreviewEl.onerror = function () {
         this.style.display = 'none'
         var missingEl = document.getElementById('config-branding-logoMissing')
-        if (missingEl) missingEl.style.display = 'inline'
+        var rawEl = document.getElementById('config-branding-logoPathRaw')
+        if (missingEl) {
+          missingEl.style.display = 'inline'
+          missingEl.textContent = 'Logo not found at resolved URL: ' + ((rawEl && rawEl.textContent) ? rawEl.textContent : '(unknown)')
+        }
       }
       brandingLogoPreviewEl.onload = function () {
         var missingEl = document.getElementById('config-branding-logoMissing')
-        if (missingEl) missingEl.style.display = 'none'
+        if (missingEl) {
+          missingEl.style.display = 'none'
+          missingEl.textContent = ''
+        }
       }
     }
 
@@ -2639,7 +2661,7 @@
     var headers = tpl.headerRows || []
     var cols = Math.max(1, (model.columns || []).length)
     var sampleContainers = [
-      { containerName: 'HeroCard', containerUrl: 'https://www.figma.com/file/demo?node-id=1%3A1', items: [{ content: 'Welcome to FigmAI' }, { content: 'Get Started' }] },
+      { containerName: 'HeroCard', containerUrl: 'https://www.figma.com/file/demo?node-id=1%3A1', items: [{ content: 'Welcome to Ableza' }, { content: 'Get Started' }] },
       { containerName: 'Checkout', containerUrl: 'https://www.figma.com/file/demo?node-id=2%3A2', items: [{ content: 'Pay now' }, { content: 'Use saved card' }] }
     ]
     var html = '<div style="overflow:auto;border:1px solid #e0e0e0;border-radius:8px;background:#fff"><table style="border-collapse:collapse;min-width:100%"><thead>'
@@ -2684,7 +2706,7 @@
     html += '<h2 class="ace-section-title">Content Models</h2>'
     html += '<button type="button" class="ace-section-header-btn" id="revert-content-models-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
-    html += '<p class="ace-card-subtext">Each model defines which columns appear in a Content Table preset.</p>'
+    html += '<p class="ace-card-subtext">Each model defines which columns appear in an Evergreens preset.</p>'
     function normalizeExclRuleForEditor (rule, i) {
       var r = (rule && typeof rule === 'object') ? rule : {}
       var name = typeof r.name === 'string' && r.name.trim() ? r.name : (typeof r.label === 'string' && r.label.trim() ? r.label : ('Rule ' + (i + 1)))
@@ -2722,7 +2744,7 @@
     }
     var ctExcl = (m.config.contentTable && m.config.contentTable.exclusionRules) || { enabled: false, rules: [] }
     var exclEditorRules = (ctExcl.rules || []).map(function (rule, i) { return normalizeExclRuleForEditor(rule, i) })
-    var exclRulesHtml = '<div class="ace-card"><p class="ace-card-subtext">ACE-managed ignore list for CT-A. Exclude removes rows; Flag keeps rows and marks them for review.</p>'
+    var exclRulesHtml = '<div class="ace-card"><p class="ace-card-subtext">ACE-managed ignore list for Evergreens. Exclude removes rows; Flag keeps rows and marks them for review.</p>'
     exclRulesHtml += '<div class="field-row"><label><input type="checkbox" id="ct-excl-enabled" ' + (ctExcl.enabled ? 'checked' : '') + '> Enabled</label></div>'
     exclRulesHtml += '<table class="ace-excl-rules-table" id="ct-excl-rules-table"><thead><tr><th>Name</th><th>Enabled</th><th>Target</th><th>Match</th><th>Pattern</th><th>Action</th><th>Conf.</th><th>Note</th><th></th></tr></thead><tbody>'
     var exclTargets = ['content', 'layerName', 'both']
@@ -2754,7 +2776,7 @@
     exclRulesHtml += '<button type="button" class="btn-small add-btn" id="ct-excl-add">Add rule</button>'
     exclRulesHtml += ' <button type="button" class="btn-small" id="ct-excl-add-presets">Add presets</button>'
     exclRulesHtml += '</div>'
-    html += collapsibleSection('content-table-exclusion', 'Content Table — Exclusion Rules', exclRulesHtml, true)
+    html += collapsibleSection('content-table-exclusion', 'Evergreens — Exclusion Rules', exclRulesHtml, true)
 
     parsed.models.forEach(function (model, mi) {
       html += '<div class="ace-card" style="margin-bottom:12px">'
@@ -3146,7 +3168,7 @@
 
   /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; excludes knowledge – not a visible nav tab). */
   const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'content-models', 'registries', 'analytics', 'users']
-  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'content-models': 'Content Tables', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
+  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
   function getRoleDefaultTabs (role) {
     if (role === 'admin' || role === 'manager' || role === 'editor') return USERS_SET_ACCESS_TAB_IDS.slice()
     return ['config', 'users']

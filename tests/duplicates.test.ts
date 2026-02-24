@@ -208,6 +208,27 @@ const delCandidates = [makeItem('d2', 'Item that will be deleted and is long eno
 const delResults = classifyCandidates(delCandidates, delEffective)
 assert(delResults[0].confidence === 'NONE', 'deleted row not considered duplicate')
 
+// --- Session reset semantics: fresh session must not retain prior overlays/state ---
+
+const resetBase = makeTable([makeItem('r1', 'Keep'), makeItem('r2', 'Review')])
+const resetSeed = createSession(resetBase, {
+  flaggedDuplicateIds: new Set(['r2']),
+  flaggedIgnoreIds: new Set(['r2']),
+  ignoreRuleByItemId: { r2: 'Rule A' },
+  skippedCount: 2
+})
+const resetMutated = deleteItem(appendItems(resetSeed, [makeItem('r3', 'New row')]), 'r1')
+assert(getEffectiveItems(resetMutated).length === 2, 'pre-reset session has mutated effective items')
+const resetFresh = createSession(makeTable([makeItem('n1', 'Fresh row')]))
+assert(getEffectiveItems(resetFresh).length === 1, 'reset: fresh session contains only new rows')
+assert(getEffectiveItems(resetFresh)[0].id === 'n1', 'reset: fresh session row is new input')
+assert(resetFresh.flaggedDuplicateIds.size === 0, 'reset: duplicate flags cleared')
+assert(resetFresh.flaggedIgnoreIds.size === 0, 'reset: ignore flags cleared')
+assert(Object.keys(resetFresh.ignoreRuleByItemId).length === 0, 'reset: ignore rule map cleared')
+assert(resetFresh.lastSkippedCount === 0, 'reset: skipped counter cleared')
+assert(resetFresh.deletedIds.size === 0, 'reset: deleted ids cleared')
+assert(Object.keys(resetFresh.editedItems).length === 0, 'reset: edited fields cleared')
+
 // --- Report ---
 
 console.log(`\n[duplicates.test] ${passed} passed, ${failed} failed`)
