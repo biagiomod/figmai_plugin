@@ -8,23 +8,13 @@ import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import { scanSelectionSmart } from '../../detection/smartDetector'
 import { debug } from '../../debug/logger'
 import { formatSmartDetectorReport, renderForChat } from '../../richText/reportFormat'
+import { resolveSelection } from '../../figma/selectionResolver'
 
 let handlerTraceCounter = 0
 function qaTraceHandler(marker: string, data: Record<string, unknown>) {
   if (!debug.isEnabled('trace:chat')) return
   handlerTraceCounter += 1
   debug.scope('trace:chat').log(`QA_TRACE ${marker}`, { n: handlerTraceCounter, ...data })
-}
-
-async function getSelectionRoots(selectionOrder: string[]): Promise<SceneNode[]> {
-  const roots: SceneNode[] = []
-  for (const id of selectionOrder) {
-    const n = await figma.getNodeByIdAsync(id)
-    if (n && n.type !== 'DOCUMENT' && n.type !== 'PAGE') {
-      roots.push(n as SceneNode)
-    }
-  }
-  return roots
 }
 
 function formatSummary(result: Awaited<ReturnType<typeof scanSelectionSmart>>): string {
@@ -49,7 +39,11 @@ export class SmartDetectorHandler implements AssistantHandler {
       qaTraceHandler('HANDLER_DONE', { requestId, messageHash: msg.slice(0, 40) + '_' + msg.length })
       return { handled: true, message: msg }
     }
-    const roots = await getSelectionRoots(selectionOrder)
+    const resolvedSelection = await resolveSelection(selectionOrder, {
+      containerStrategy: 'direct',
+      skipHidden: false
+    })
+    const roots = resolvedSelection.scanRoots
     if (roots.length === 0) {
       const msg = 'Smart Detector: no valid roots in selection.'
       qaTraceHandler('HANDLER_DONE', { requestId, messageHash: msg.slice(0, 40) + '_' + msg.length })

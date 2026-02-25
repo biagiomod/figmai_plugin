@@ -7,6 +7,7 @@
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import { getHatRequiredComponents } from '../../../custom/config'
 import { ensureAnnotationCategory, safeSetNativeAnnotations } from '../../figma/annotations'
+import { resolveSelection } from '../../figma/selectionResolver'
 
 const ACCESSIBILITY_CATEGORY_LABEL = 'Accessibility'
 const ACCESSIBILITY_CATEGORY_COLOR = 'blue'
@@ -160,17 +161,6 @@ function collectInspectableNodes(
       if (out.length >= maxCount) return
     }
   }
-}
-
-async function getSelectionRoots(selectionOrder: string[]): Promise<SceneNode[]> {
-  const roots: SceneNode[] = []
-  for (const id of selectionOrder) {
-    const n = await figma.getNodeByIdAsync(id)
-    if (n && n.type !== 'DOCUMENT' && n.type !== 'PAGE') {
-      roots.push(n as SceneNode)
-    }
-  }
-  return roots
 }
 
 const HEADING_LIKE_NAME = /heading|title|h1|h2|h3|subtitle|caption/i
@@ -386,7 +376,11 @@ export class ContentReviewHandler implements AssistantHandler {
     const hatList = getHatRequiredComponents()
     const tokens = hatList.map(s => (s || '').trim().toLowerCase()).filter(Boolean)
 
-    const roots = await getSelectionRoots(selectionOrder)
+    const resolvedSelection = await resolveSelection(selectionOrder, {
+      containerStrategy: 'direct',
+      skipHidden: false
+    })
+    const roots = resolvedSelection.scanRoots
     const inspectable: SceneNode[] = []
     for (const root of roots) {
       collectInspectableNodes(root, MAX_NODES_TO_SCAN, inspectable)

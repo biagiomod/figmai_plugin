@@ -19,6 +19,7 @@ import { normalizeContentTableV1, validateContentTableV1 } from '../../contentTa
 import { applyExclusionRules, resolveExclusionConfigWithSource } from '../../contentTable/exclusionRules'
 import type { ExclusionRulesConfig } from '../../contentTable/exclusionRules'
 import { getCustomConfig } from '../../../custom/config'
+import { resolveSelection } from '../../figma/selectionResolver'
 
 export class ContentTableHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
@@ -36,21 +37,17 @@ export class ContentTableHandler implements AssistantHandler {
       return { handled: true }
     }
 
-    // Resolve nodes — skip PAGE/DOCUMENT, collect valid containers in selection order.
-    const validNodes: SceneNode[] = []
-    const skippedNames: string[] = []
-    for (const nodeId of selectionOrder) {
-      const node = await figma.getNodeByIdAsync(nodeId)
-      if (!node) continue
-      if (node.type === 'DOCUMENT' || node.type === 'PAGE') {
-        skippedNames.push(node.name || node.id)
-        continue
-      }
-      validNodes.push(node as SceneNode)
-    }
+    const resolvedSelection = await resolveSelection(selectionOrder, {
+      containerStrategy: 'expand',
+      skipHidden: true
+    })
+    const validNodes = resolvedSelection.scanRoots
+    const skippedNames = resolvedSelection.diagnostics.excluded
+      .filter((e) => e.reason === 'page-or-document')
+      .map((e) => e.nodeName || e.nodeId)
 
     if (validNodes.length === 0) {
-      const errorMsg = 'Please select a container (frame, component, etc.), not a page or document.'
+      const errorMsg = resolvedSelection.diagnostics.hints[0] || 'No scannable containers found in selection.'
       replaceStatusMessage(errorMsg, true)
       figma.notify(errorMsg)
       return { handled: true }

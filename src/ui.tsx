@@ -774,12 +774,7 @@ function Plugin() {
           break
         case 'CONTENT_TABLE_GENERATED':
           // Receive content table from main thread
-          // Check resetToken to ignore late-arriving messages after reset
-          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
-          const shouldProcessContentTable = message.table && 
-            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
-          
-          if (shouldProcessContentTable) {
+          if (message.table) {
             const rawItems = message.table.items as ContentItemV1[]
             const dupResults = classifyCandidates(rawItems, [])
             const { items: filtered, flaggedIds, skippedCount } = filterByDuplicates(dupResults)
@@ -801,8 +796,6 @@ function Plugin() {
             if (genContainerIds.length === 0 && message.table.meta?.rootNodeId) {
               scannedContainerIdsRef.current.add(message.table.meta.rootNodeId)
             }
-          } else {
-            // Ignore stale messages
           }
           break
         case 'CONTENT_TABLE_APPEND':
@@ -845,22 +838,10 @@ function Plugin() {
           break
         case 'CONTENT_TABLE_ERROR':
           // Receive content table error from main thread
-          // Check resetToken to ignore late-arriving messages after reset
-          // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
-          const shouldProcessContentTableError = 
-            (message.resetToken === resetToken || (resetToken === 0 && message.resetToken === undefined))
-          
-          if (shouldProcessContentTableError) {
-            console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
-            console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
-            setContentTable(null)
-            setCtSession(null)
-          } else {
-            console.log('[UI] Ignoring CONTENT_TABLE_ERROR - resetToken mismatch', { 
-              messageToken: message.resetToken, 
-              currentToken: resetToken 
-            })
-          }
+          console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
+          console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
+          setContentTable(null)
+          setCtSession(null)
           break
         case 'CONTENT_TABLE_REF_IMAGE_READY':
           console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_READY, dataUrl length:', message.dataUrl?.length || 0)

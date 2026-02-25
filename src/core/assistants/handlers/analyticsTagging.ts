@@ -8,6 +8,7 @@ import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
 import { validateEligibleScreenSelections, scanVisibleActionIds, actionIdFindingsToRows } from '../../analyticsTagging/selection'
 import { loadSession, saveSession, createNewSession } from '../../analyticsTagging/storage'
 import type { Session, Row } from '../../analyticsTagging/types'
+import { resolveSelection } from '../../figma/selectionResolver'
 
 export class AnalyticsTaggingHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
@@ -21,8 +22,7 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
-    const { actionId, replaceStatusMessage } = context
-    const selection = figma.currentPage.selection as readonly SceneNode[]
+    const { actionId, replaceStatusMessage, selectionOrder } = context
 
     if (actionId === 'new-session') {
       const page = figma.currentPage
@@ -59,15 +59,29 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
 
     if (actionId === 'get-analytics-tags' || actionId === 'append-analytics-tags') {
       const isAppend = actionId === 'append-analytics-tags'
+      const resolvedSelection = await resolveSelection(selectionOrder, {
+        containerStrategy: 'expand',
+        skipHidden: true
+      })
+      if (resolvedSelection.scanRoots.length === 0) {
+        const errorMsg = resolvedSelection.diagnostics.hints[0] || 'No screens found. Select frames with ScreenID annotations.'
+        replaceStatusMessage(errorMsg, true)
+        figma.notify(errorMsg)
+        return { handled: true }
+      }
 
-      const validation = await validateEligibleScreenSelections(selection)
+      const validation = await validateEligibleScreenSelections(resolvedSelection.scanRoots)
       if (!validation.ok) {
-        replaceStatusMessage(validation.message, true)
+        const sectionHint = resolvedSelection.diagnostics.hints.find((h) => h.toLowerCase().includes('section'))
+        const finalMessage = sectionHint
+          ? `${validation.message} Tip: ${sectionHint}`
+          : validation.message
+        replaceStatusMessage(finalMessage, true)
         const notifyDetail =
           validation.invalidNames.length > 0
             ? ` Invalid: ${validation.invalidNames.slice(0, 5).join(', ')}${validation.invalidNames.length > 5 ? '…' : ''}`
             : ''
-        figma.notify(validation.message + notifyDetail)
+        figma.notify(finalMessage + notifyDetail)
         return { handled: true }
       }
       const allRows: Row[] = []
