@@ -37,3 +37,4 @@ src/work/*.override.ts
 
 # Local branding override (never committed)
 custom/branding.local.json
+custom/.config-snapshot-id

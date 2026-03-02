@@ -357,6 +357,32 @@ npm run build
 
 Generates `manifest.json` and `build/` directory.
 
+### S3 Config Sync (Phase 1 Manual)
+
+These commands sync ACE-managed config artifacts between local files and S3 without changing runtime code.
+
+```bash
+# 1) Seed S3 once from local files (requires S3_* env vars)
+npm run seed-s3
+
+# 2) Pull published snapshot to local custom/ + docs/
+npm run sync-config
+
+# 3) Build from synced files
+npm run build
+```
+
+```bash
+# Publish local changes as a new snapshot
+npm run push-config
+
+# On another machine: pull and build
+npm run sync-config
+npm run build
+```
+
+If `S3_BUCKET` is unset, `npm run sync-config` keeps local dev mode and uses local `custom/config.json`.
+
 ### Watch Mode
 
 ```bash

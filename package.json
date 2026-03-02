@@ -12,6 +12,7 @@
     "preact": "10.28.1"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1000.0",
     "@create-figma-plugin/build": "4.0.3",
     "@create-figma-plugin/tsconfig": "4.0.3",
     "@figma/plugin-typings": "1.109.0",
@@ -36,6 +37,9 @@
     "generate-dark-demo-cards": "tsx scripts/generate-dark-demo-cards.ts",
     "generate-knowledge-bases": "tsx scripts/generate-knowledge-bases.ts",
     "generate-nuxt-ds-catalog": "tsx scripts/generate-nuxt-ds-catalog.ts",
+    "sync-config": "tsx scripts/sync-config.ts",
+    "seed-s3": "tsx scripts/seed-s3.ts",
+    "push-config": "tsx scripts/push-config.ts",
     "pull-config": "npx tsx scripts/pull-ace-config.ts",
     "prebuild": "npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && npm run generate-dark-demo-cards && npm run generate-knowledge-bases && npm run generate-nuxt-ds-catalog && tsx scripts/generate-build-info.ts",
     "build": "build-figma-plugin --typecheck --minify",
