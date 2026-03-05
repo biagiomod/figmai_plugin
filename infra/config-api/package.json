@@ -1,0 +1,18 @@
+{
+  "name": "ace-config-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1000.0",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "20.14.15",
+    "typescript": "5.9.3"
+  }
+}

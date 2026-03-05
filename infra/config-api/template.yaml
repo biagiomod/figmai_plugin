@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ACE Config API (Lambda + HTTP API + S3)
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: S3 bucket for config storage
+  S3Prefix:
+    Type: String
+    Default: figmai/
+    Description: Prefix for config objects
+  ConfigApiToken:
+    Type: String
+    NoEcho: true
+    Description: Shared bearer token for Phase 0
+  CorsAllowOrigin:
+    Type: String
+    Default: "*"
+    Description: CORS origin for static ACE
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 512
+
+Resources:
+  ConfigHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref CorsAllowOrigin
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        MaxAge: 86400
+
+  ConfigApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/handler.handler
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3BucketName
+          S3_PREFIX: !Ref S3Prefix
+          CONFIG_API_TOKEN: !Ref ConfigApiToken
+          CORS_ALLOW_ORIGIN: !Ref CorsAllowOrigin
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub "arn:aws:s3:::${S3BucketName}/${S3Prefix}*"
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !Sub "arn:aws:s3:::${S3BucketName}"
+              Condition:
+                StringLike:
+                  s3:prefix: !Sub "${S3Prefix}*"
+      Events:
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ConfigHttpApi
+            Path: /
+            Method: ANY
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ConfigHttpApi
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handler.ts
+        Minify: true
+        Sourcemap: false
+        Target: "es2020"
+        Format: esm
+
+Outputs:
+  ConfigApiUrl:
+    Description: HTTP API endpoint URL
+    Value: !Sub "https://${ConfigHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
