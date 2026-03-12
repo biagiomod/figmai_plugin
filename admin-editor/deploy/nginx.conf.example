@@ -1,0 +1,60 @@
+# ACE static deployment -- nginx
+#
+# Option A: Subpath deployment with reverse proxy for API
+# Option B: Subpath deployment with cross-origin API (bearer auth)
+#
+# Pick one option and adapt paths to your environment.
+
+# ─── Option A: Reverse proxy (recommended) ───────────────────────────
+# ACE files live at /var/www/ace/. API calls proxied to Config API.
+# config.js uses: apiBase: '', authMode: 'cookie'
+
+server {
+    listen 443 ssl;
+    server_name figmai.otherdesign.com;
+
+    # ... SSL config ...
+
+    # Static ACE files
+    location /ace/ {
+        alias /var/www/ace/;
+        index index.html;
+
+        # No cache for config + app (pick up changes immediately)
+        location ~* /(config|app)\.js$ {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            alias /var/www/ace/$1.js;
+        }
+
+        # Cache fonts aggressively
+        location ~* \.(otf|woff|woff2|ttf|eot)$ {
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # Reverse proxy: /ace/api/* -> Config API
+    location /ace/api/ {
+        proxy_pass https://config-api.internal.example.com/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
+# ─── Option B: Cross-origin API (no proxy needed) ────────────────────
+# ACE files served as static. API is on a different domain.
+# config.js uses: apiBase: 'https://config-api.example.com', authMode: 'bearer'
+# Config API must return CORS headers.
+
+# server {
+#     listen 443 ssl;
+#     server_name figmai.otherdesign.com;
+#
+#     location /ace/ {
+#         alias /var/www/ace/;
+#         index index.html;
+#     }
+# }

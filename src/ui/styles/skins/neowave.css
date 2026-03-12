@@ -1,0 +1,103 @@
+/**
+ * NeoWave Skin
+ * A vibrant dark-base theme with cyan / purple accent palette
+ */
+
+[data-theme="neowave"] {
+  /* Base surfaces — deep blue-black */
+  --bg: #0b0e17;
+  --bg-secondary: #131829;
+  --bg-elevated: #1a2035;
+  --bg-modal: #151a2e;
+
+  /* Text — cool white + muted blue-grey */
+  --fg: #e4e8f7;
+  --fg-secondary: #8b93b0;
+  --fg-disabled: #4d5573;
+  --muted: #5c6485;
+
+  /* Borders */
+  --border: #2a3150;
+  --border-focus: #00d4ff;
+
+  /* Accent — electric cyan */
+  --accent: #00d4ff;
+  --accent-hover: #33ddff;
+  --accent-active: #00b8e6;
+  --accent-text: #0b0e17;
+
+  /* Semantic colors */
+  --error: #ff5e7a;
+  --error-text: #ffffff;
+  --success: #00e68a;
+  --success-text: #0b0e17;
+  --warning: #ffb347;
+  --warning-text: #0b0e17;
+
+  /* Overlays */
+  --overlay: rgba(8, 12, 24, 0.75);
+  --overlay-scrim: rgba(8, 12, 24, 0.65);
+  --focus-ring: rgba(0, 212, 255, 0.4);
+  --hint-bg: #1a2035;
+
+  /* Modal surfaces */
+  --surface-modal: #1a2035;
+  --border-subtle: #33395c;
+  --shadow-elevation: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 212, 255, 0.08);
+
+  /* Row surfaces */
+  --surface-row: transparent;
+  --surface-row-hover: #1f2744;
+  --surface-row-selected: var(--accent);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Placeholder text styling */
+[data-theme="neowave"] textarea::placeholder,
+[data-theme="neowave"] input::placeholder,
+[data-theme="neowave"] textarea::-webkit-input-placeholder,
+[data-theme="neowave"] input::-webkit-input-placeholder,
+[data-theme="neowave"] textarea::-moz-placeholder,
+[data-theme="neowave"] input::-moz-placeholder,
+[data-theme="neowave"] textarea:-ms-input-placeholder,
+[data-theme="neowave"] input:-ms-input-placeholder,
+[data-theme="neowave"] textarea[placeholder]::placeholder,
+[data-theme="neowave"] input[placeholder]::placeholder,
+[data-theme="neowave"] textarea[placeholder]::-webkit-input-placeholder,
+[data-theme="neowave"] input[placeholder]::-webkit-input-placeholder,
+[data-theme="neowave"] textarea[placeholder]::-moz-placeholder,
+[data-theme="neowave"] input[placeholder]::-moz-placeholder,
+[data-theme="neowave"] textarea[placeholder]:-ms-input-placeholder,
+[data-theme="neowave"] input[placeholder]:-ms-input-placeholder {
+  color: #8b93b0 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #8b93b0 !important;
+}
+
+/* Disabled button text */
+[data-theme="neowave"] button[disabled],
+[data-theme="neowave"] button:disabled {
+  color: #e4e8f7 !important;
+  -webkit-text-fill-color: #e4e8f7 !important;
+  opacity: 1 !important;
+}
+
+[data-theme="neowave"] button[disabled] *,
+[data-theme="neowave"] button:disabled *,
+[data-theme="neowave"] button[disabled] span,
+[data-theme="neowave"] button:disabled span,
+[data-theme="neowave"] button[disabled] .button-text,
+[data-theme="neowave"] button:disabled .button-text {
+  color: #e4e8f7 !important;
+  -webkit-text-fill-color: #e4e8f7 !important;
+  opacity: 1 !important;
+}
+
+/* CT-A Welcome: helper text in NeoWave */
+[data-theme="neowave"] [data-assistant="content_table"] [data-ct-helper] {
+  color: #ffb347 !important;
+}

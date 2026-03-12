@@ -1,4 +1,5 @@
 import { copyObject, getObjectText, listRelativeKeys, putObjectText } from '../s3'
+import { logAction } from '../logging'
 
 interface DraftMeta {
   version: number
@@ -11,7 +12,7 @@ function generateSnapshotId(): string {
   return `${iso}_${rand}`
 }
 
-export async function publishResponse() {
+export async function publishResponse(requestId: string) {
   const snapshotId = generateSnapshotId()
   const createdAt = new Date().toISOString()
   const rawMeta = await getObjectText('draft/_meta.json')
@@ -44,15 +45,45 @@ export async function publishResponse() {
     'application/json'
   )
 
+  const publishedRevision = String(draftVersion)
+  const snapshotPublishedKey = `snapshots/${snapshotId}/published.json`
+  const published = {
+    snapshotId,
+    publishedRevision,
+    publishedAt: createdAt,
+    snapshotPath: `snapshots/${snapshotId}/`,
+    snapshotKey: snapshotPublishedKey
+  }
+
   await putObjectText(
-    'published.json',
-    `${JSON.stringify({ snapshotId }, null, 2)}\n`,
+    snapshotPublishedKey,
+    `${JSON.stringify(published, null, 2)}\n`,
     'application/json'
   )
 
+  await putObjectText(
+    'published.json',
+    `${JSON.stringify(published, null, 2)}\n`,
+    'application/json'
+  )
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/publish.ts:70',message:'publish success',data:{snapshotId,publishedRevision,fileCount:copyKeys.length},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  logAction({
+    requestId,
+    action: 'publish',
+    detail: {
+      snapshotId,
+      publishedRevision,
+      fileCount: copyKeys.length
+    }
+  })
+
   return {
     snapshotId,
-    createdAt
+    createdAt,
+    publishedRevision
   }
 }
 

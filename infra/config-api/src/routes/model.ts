@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { parseJsonBody, text } from '../http'
 import { getObjectText, listRelativeKeys, putObjectText } from '../s3'
 import { saveRequestBodySchema, validateModel } from '../schemas'
+import { logAction } from '../logging'
 
 interface DraftMeta {
   version: number
@@ -78,6 +79,9 @@ export async function getModelResponse() {
 
   const validation = validateModel(model)
   const meta = await getDraftMeta()
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/model.ts:82',message:'getModelResponse built',data:{revision:String(meta.version),knowledgeCount:Object.keys(customKnowledge).length},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   return {
     model,
@@ -92,7 +96,7 @@ const savePayloadSchema = z.object({
   username: z.string().optional()
 })
 
-export async function saveModelResponse(body: string | undefined | null) {
+export async function saveModelResponse(body: string | undefined | null, requestId: string) {
   const parsedBody = saveRequestBodySchema.safeParse(parseJsonBody(body))
   if (!parsedBody.success) {
     return {
@@ -108,10 +112,27 @@ export async function saveModelResponse(body: string | undefined | null) {
   const currentMeta = await getDraftMeta()
   const currentRevision = String(currentMeta.version)
   if (request.meta.revision !== currentRevision) {
+    let lastPublishedRevision: string | null = null
+    const publishedRaw = await getObjectText('published.json')
+    if (publishedRaw) {
+      try {
+        const published = JSON.parse(publishedRaw) as { publishedRevision?: string }
+        lastPublishedRevision = published.publishedRevision || null
+      } catch {
+        lastPublishedRevision = null
+      }
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/model.ts:123',message:'save stale revision',data:{expectedRevision:request.meta.revision,currentRevision,lastPublishedRevision},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return {
       statusCode: 409,
       payload: {
-        error: 'Files changed on disk. Reload to get the latest.',
+        error: 'STALE_REVISION',
+        message: 'Files changed on disk. Reload to get the latest.',
+        expectedRevision: request.meta.revision,
+        currentRevision,
+        lastPublishedRevision,
         meta: { revision: currentRevision }
       }
     }
@@ -180,6 +201,19 @@ export async function saveModelResponse(body: string | undefined | null) {
     lastAuthor: actor.success ? actor.data.username || 'api-user' : 'api-user'
   }
   await putObjectText('draft/_meta.json', `${JSON.stringify(nextMeta, null, 2)}\n`, 'application/json')
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/model.ts:198',message:'save success',data:{revisionFrom:currentRevision,revisionTo:String(nextVersion),filesWrittenCount:filesWritten.length},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  logAction({
+    requestId,
+    action: 'save',
+    detail: {
+      filesWrittenCount: filesWritten.length,
+      revisionFrom: currentRevision,
+      revisionTo: String(nextVersion)
+    }
+  })
 
   return {
     statusCode: 200,

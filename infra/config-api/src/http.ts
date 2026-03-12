@@ -3,13 +3,16 @@ import { corsHeaders } from './cors'
 
 export function json(
   statusCode: number,
-  payload: unknown
+  payload: unknown,
+  origin?: string,
+  extraHeaders?: Record<string, string>
 ): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode,
     headers: {
-      ...corsHeaders(),
-      'Content-Type': 'application/json'
+      ...corsHeaders(origin),
+      'Content-Type': 'application/json',
+      ...(extraHeaders || {})
     },
     body: JSON.stringify(payload)
   }
@@ -18,22 +21,28 @@ export function json(
 export function text(
   statusCode: number,
   body: string,
-  contentType: string
+  contentType: string,
+  origin?: string,
+  extraHeaders?: Record<string, string>
 ): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode,
     headers: {
-      ...corsHeaders(),
-      'Content-Type': contentType
+      ...corsHeaders(origin),
+      'Content-Type': contentType,
+      ...(extraHeaders || {})
     },
     body
   }
 }
 
-export function noContent(): APIGatewayProxyStructuredResultV2 {
+export function noContent(origin?: string, extraHeaders?: Record<string, string>): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode: 204,
-    headers: corsHeaders(),
+    headers: {
+      ...corsHeaders(origin),
+      ...(extraHeaders || {})
+    },
     body: ''
   }
 }

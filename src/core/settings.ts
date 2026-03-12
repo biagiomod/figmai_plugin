@@ -24,6 +24,8 @@ export interface Settings {
   sessionToken?: string
   defaultModel: string
   requestTimeoutMs: number
+  /** Active skin / theme pack id. Falls back to DEFAULT_SKIN_ID when absent. */
+  skin?: string
 }
 
 const SETTINGS_KEY = 'figmai_settings'

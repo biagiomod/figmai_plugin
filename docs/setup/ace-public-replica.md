@@ -23,6 +23,24 @@ npm run seed-s3
 
 This writes initial `draft/*`, `snapshots/<id>/*`, and `published.json`.
 
+### Published pointer format
+
+`published.json` now tracks immutable publish metadata:
+
+```json
+{
+  "snapshotId": "20260121T143000Z_ab12",
+  "publishedRevision": "7",
+  "publishedAt": "2026-01-21T14:30:00.000Z",
+  "snapshotPath": "snapshots/20260121T143000Z_ab12/",
+  "snapshotKey": "snapshots/20260121T143000Z_ab12/published.json"
+}
+```
+
+The immutable copy is also written to:
+
+`snapshots/<snapshotId>/published.json`
+
 ## 3) Deploy SAM Config API
 
 ```bash
@@ -37,9 +55,20 @@ Use these parameters during guided deploy:
 - `S3BucketName` = your config bucket
 - `S3Prefix` = `figmai/` (or your prefix)
 - `ConfigApiToken` = long random secret
-- `CorsAllowOrigin` = `*` (or your ACE domain)
+- `CorsAllowOrigins` = comma-separated list (for example `http://localhost:3333,http://127.0.0.1:3334,https://figmai.otherdesign.com`)
 
 After deploy, note `ConfigApiUrl`.
+
+### Optional non-interactive deploy
+
+You can keep deploy settings in `infra/config-api/samconfig.example.toml` (copy to `samconfig.toml` and customize):
+
+```bash
+cd infra/config-api
+cp samconfig.example.toml samconfig.toml
+sam build
+sam deploy
+```
 
 ## 4) Build and configure static ACE
 
@@ -91,6 +120,28 @@ npm run admin:proxy
 
 Open `http://127.0.0.1:3334`.
 
+## 6b) Health check and request IDs
+
+Health endpoint:
+
+```bash
+curl -s https://<api-id>.execute-api.<region>.amazonaws.com/api/health | jq
+```
+
+Expected fields include:
+
+- `service.name`, `service.version`
+- `s3.bucket`, `s3.prefix`, `s3.region`
+- `readiness.canReadS3`, `readiness.canWriteS3`
+- `publishedRevision`
+
+Every response includes `x-request-id` for troubleshooting:
+
+```bash
+curl -i -H "Authorization: Bearer $CONFIG_API_TOKEN" \
+  https://<api-id>.execute-api.<region>.amazonaws.com/api/model
+```
+
 ## 7) Build plugin using published S3 config
 
 ```bash
@@ -98,6 +149,13 @@ export S3_BUCKET=my-figmai-config
 export S3_REGION=us-east-1
 export S3_PREFIX=figmai/
 
+npm run build:with-s3
+```
+
+To reproduce against a specific immutable snapshot:
+
+```bash
+export CONFIG_SNAPSHOT_ID=<snapshot-id>
 npm run build:with-s3
 ```
 

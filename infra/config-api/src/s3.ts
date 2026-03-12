@@ -2,6 +2,7 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   type ListObjectsV2CommandOutput,
   PutObjectCommand,
@@ -22,8 +23,21 @@ function prefix(): string {
   return normalized ? `${normalized}/` : ''
 }
 
+function region(): string {
+  return process.env.AWS_REGION || 'us-east-1'
+}
+
 export function key(relativePath: string): string {
   return `${prefix()}${relativePath.replace(/^\/+/, '')}`
+}
+
+export function s3Info() {
+  const rawBucket = (process.env.S3_BUCKET || '').trim()
+  return {
+    bucket: rawBucket || null,
+    prefix: prefix(),
+    region: region()
+  }
 }
 
 export async function getObjectText(relativePath: string): Promise<string | null> {
@@ -39,6 +53,20 @@ export async function getObjectText(relativePath: string): Promise<string | null
     return Buffer.from(bytes).toString('utf-8')
   } catch {
     return null
+  }
+}
+
+export async function headObject(relativePath: string): Promise<boolean> {
+  try {
+    await s3.send(
+      new HeadObjectCommand({
+        Bucket: bucket(),
+        Key: key(relativePath)
+      })
+    )
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -99,5 +127,80 @@ export async function copyObject(fromRelativePath: string, toRelativePath: strin
       Key: fullTarget
     })
   )
+}
+
+function statusCodeFromUnknown(error: unknown): number | undefined {
+  if (
+    error &&
+    typeof error === 'object' &&
+    '$metadata' in error &&
+    error.$metadata &&
+    typeof error.$metadata === 'object' &&
+    'httpStatusCode' in error.$metadata &&
+    typeof error.$metadata.httpStatusCode === 'number'
+  ) {
+    return error.$metadata.httpStatusCode
+  }
+  return undefined
+}
+
+export async function checkS3Readiness(): Promise<{
+  canReadS3: boolean
+  canWriteS3: boolean
+  details: string[]
+}> {
+  const details: string[] = []
+
+  let canReadS3 = false
+  try {
+    await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket(),
+        Prefix: key('draft/'),
+        MaxKeys: 1
+      })
+    )
+    canReadS3 = true
+    details.push('read:list-ok')
+  } catch (error) {
+    details.push(`read:list-failed:${statusCodeFromUnknown(error) || 'unknown'}`)
+  }
+
+  // Non-mutating write heuristic:
+  // 1) Ensure draft/_meta.json exists
+  // 2) Attempt conditional PutObject with If-None-Match:* on that existing key
+  //    - 412 => write permission present, no mutation
+  //    - 403/401/etc => no write permission
+  let canWriteS3 = false
+  const hasMeta = await headObject('draft/_meta.json')
+  if (!hasMeta) {
+    details.push('write:meta-missing')
+    return { canReadS3, canWriteS3, details }
+  }
+
+  try {
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucket(),
+        Key: key('draft/_meta.json'),
+        Body: Buffer.from('{}', 'utf-8'),
+        ContentType: 'application/json',
+        IfNoneMatch: '*'
+      })
+    )
+    // Should not happen when object exists; if it does, treat as write capability.
+    canWriteS3 = true
+    details.push('write:conditional-put-succeeded')
+  } catch (error) {
+    const status = statusCodeFromUnknown(error)
+    if (status === 412) {
+      canWriteS3 = true
+      details.push('write:conditional-put-precondition-failed-ok')
+    } else {
+      details.push(`write:conditional-put-failed:${status || 'unknown'}`)
+    }
+  }
+
+  return { canReadS3, canWriteS3, details }
 }
 

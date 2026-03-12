@@ -8,14 +8,14 @@
 
 import type { ArtifactComponent, ArtifactRenderContext } from '../index'
 import { renderDarkDemoCard } from './darkDemoCardsRenderer'
-import { LIGHT_TOKENS, DARK_TOKENS } from './pluginUIThemeTokens'
+import { getTokensForTheme } from './pluginUIThemeTokens'
 import { PHASE_A_SCREENS } from './pluginUIScreenSpecs'
 import { PLUGIN_W, CARD_GAP, LABEL_GAP, GRID_PADDING } from './pluginUISizing'
 
 const LABEL_FONT_SIZE = 14
 
 export interface PluginUIPreviewData {
-  theme: 'light' | 'dark'
+  theme: string
 }
 
 export const pluginUIPreviewComponent: ArtifactComponent = {
@@ -26,7 +26,7 @@ export const pluginUIPreviewComponent: ArtifactComponent = {
   async render(ctx: ArtifactRenderContext): Promise<void> {
     const { root } = ctx
     const data = ctx.data as PluginUIPreviewData
-    const tokens = data.theme === 'dark' ? DARK_TOKENS : LIGHT_TOKENS
+    const tokens = getTokensForTheme(data.theme)
 
     root.layoutMode = 'HORIZONTAL'
     root.primaryAxisSizingMode = 'AUTO'

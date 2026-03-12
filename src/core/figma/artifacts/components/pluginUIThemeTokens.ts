@@ -61,3 +61,28 @@ export const DARK_TOKENS: UIThemeTokens = {
   success: hex(81, 207, 102),
   warning: hex(255, 212, 59)
 }
+
+export const NEOWAVE_TOKENS: UIThemeTokens = {
+  bg: hex(11, 14, 23),
+  bgSecondary: hex(19, 24, 41),
+  bgElevated: hex(26, 32, 53),
+  bgModal: hex(21, 26, 46),
+  fg: hex(228, 232, 247),
+  fgSecondary: hex(139, 147, 176),
+  fgDisabled: hex(77, 85, 115),
+  accent: hex(0, 212, 255),
+  accentText: hex(11, 14, 23),
+  border: hex(42, 49, 80),
+  borderSubtle: hex(51, 57, 92),
+  error: hex(255, 94, 122),
+  success: hex(0, 230, 138),
+  warning: hex(255, 179, 71)
+}
+
+export function getTokensForTheme(theme: string): UIThemeTokens {
+  switch (theme) {
+    case 'dark': return DARK_TOKENS
+    case 'neowave': return NEOWAVE_TOKENS
+    default: return LIGHT_TOKENS
+  }
+}

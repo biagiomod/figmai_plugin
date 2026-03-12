@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda'
 import { json, noContent } from './http'
 import { authBootstrapAllowedResponse, authLogoutResponse, authMeResponse } from './routes/auth-stubs'
+import { healthResponse } from './routes/health'
 import {
   createKbResponse,
   deleteKbResponse,
@@ -12,67 +13,78 @@ import {
 import { getModelResponse, saveModelResponse } from './routes/model'
 import { publishResponse } from './routes/publish'
 import { validateResponse } from './routes/validate'
+import type { RequestContext } from './logging'
 
-export async function route(event: APIGatewayProxyEventV2) {
+export async function route(event: APIGatewayProxyEventV2, context: RequestContext) {
   const method = event.requestContext.http.method.toUpperCase()
   const path = event.rawPath
+  const origin = context.origin
 
   if (method === 'OPTIONS') {
-    return noContent()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H1',location:'infra/config-api/src/router.ts:24',message:'OPTIONS branch',data:{path,hasOrigin:!!origin},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    return noContent(origin)
+  }
+
+  if (method === 'GET' && path === '/api/health') {
+    return json(200, await healthResponse(), origin)
   }
 
   if (method === 'GET' && path === '/api/model') {
-    return json(200, await getModelResponse())
+    return json(200, await getModelResponse(), origin)
   }
   if (method === 'POST' && path === '/api/validate') {
     const result = await validateResponse(event.body)
-    return json(result.statusCode, result.payload)
+    return json(result.statusCode, result.payload, origin)
   }
   if (method === 'POST' && path === '/api/save') {
-    const result = await saveModelResponse(event.body)
-    return json(result.statusCode, result.payload)
+    const result = await saveModelResponse(event.body, context.requestId)
+    return json(result.statusCode, result.payload, origin)
   }
   if (method === 'POST' && path === '/api/publish') {
-    return json(200, await publishResponse())
+    return json(200, await publishResponse(context.requestId), origin)
   }
 
   if (method === 'GET' && path === '/api/kb/registry') {
     const result = await getKbRegistryResponse()
-    return json(result.statusCode, result.payload)
+    return json(result.statusCode, result.payload, origin)
   }
   if (method === 'POST' && path === '/api/kb/normalize') {
     const result = await normalizeKbResponse(event.body)
-    return json(result.statusCode, result.payload)
+    return json(result.statusCode, result.payload, origin)
   }
   if (method === 'POST' && path === '/api/kb') {
-    const result = await createKbResponse(event.body)
-    return json(result.statusCode, result.payload)
+    const result = await createKbResponse(event.body, context.requestId)
+    return json(result.statusCode, result.payload, origin)
   }
 
   if (path.startsWith('/api/kb/')) {
     const id = decodeURIComponent(path.replace('/api/kb/', ''))
     if (method === 'GET') {
       const result = await getKbByIdResponse(id)
-      return json(result.statusCode, result.payload)
+      return json(result.statusCode, result.payload, origin)
     }
     if (method === 'PATCH') {
-      const result = await patchKbResponse(id, event.body)
-      return json(result.statusCode, result.payload)
+      const result = await patchKbResponse(id, event.body, context.requestId)
+      return json(result.statusCode, result.payload, origin)
     }
     if (method === 'DELETE') {
-      const result = await deleteKbResponse(id)
-      return result.statusCode === 204 ? noContent() : json(result.statusCode, result.payload)
+      const result = await deleteKbResponse(id, context.requestId)
+      return result.statusCode === 204
+        ? noContent(origin)
+        : json(result.statusCode, result.payload, origin)
     }
   }
 
   if (method === 'GET' && path === '/api/auth/me') {
-    return json(200, authMeResponse())
+    return json(200, authMeResponse(), origin)
   }
   if (method === 'GET' && path === '/api/auth/bootstrap-allowed') {
-    return json(200, authBootstrapAllowedResponse())
+    return json(200, authBootstrapAllowedResponse(), origin)
   }
   if (method === 'POST' && path === '/api/auth/logout') {
-    return json(200, authLogoutResponse())
+    return json(200, authLogoutResponse(), origin)
   }
 
   if (method === 'GET' && path === '/api/build-info') {
@@ -80,9 +92,9 @@ export async function route(event: APIGatewayProxyEventV2) {
       version: '',
       buildId: process.env.AWS_LAMBDA_FUNCTION_VERSION || '$LATEST',
       builtAt: new Date().toISOString()
-    })
+    }, origin)
   }
 
-  return json(404, { error: 'Not found' })
+  return json(404, { error: 'Not found' }, origin)
 }
 

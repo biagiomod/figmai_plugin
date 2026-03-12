@@ -267,7 +267,7 @@ export interface RenderTableOnStageHandler extends EventHandler {
 }
 
 export interface RenderPluginUIPreviewPayload {
-  theme: 'light' | 'dark'
+  theme: string
 }
 
 export interface RenderPluginUIPreviewHandler extends EventHandler {

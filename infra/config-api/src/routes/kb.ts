@@ -7,6 +7,7 @@ import {
   type KnowledgeBaseDocument
 } from '../schemas'
 import { deleteObject, getObjectText, putObjectText } from '../s3'
+import { logAction } from '../logging'
 
 const idParamSchema = z.object({
   id: z
@@ -159,7 +160,7 @@ const createBodySchema = z.object({
   forceOverwrite: z.boolean().optional()
 })
 
-export async function createKbResponse(body: string | undefined | null) {
+export async function createKbResponse(body: string | undefined | null, requestId: string) {
   const parsed = createBodySchema.safeParse(parseJsonBody(body))
   if (!parsed.success) {
     return { statusCode: 400, payload: { errors: formatZodErrors(parsed.error) } }
@@ -182,6 +183,11 @@ export async function createKbResponse(body: string | undefined | null) {
   }
   await putObjectText(path, `${JSON.stringify(validated.data, null, 2)}\n`, 'application/json')
   await upsertRegistryEntry(validated.data)
+  logAction({
+    requestId,
+    action: 'kb.create',
+    detail: { id: validated.data.id }
+  })
   return {
     statusCode: 201,
     payload: { doc: validated.data, registry: await readRegistry() }
@@ -190,7 +196,7 @@ export async function createKbResponse(body: string | undefined | null) {
 
 const patchBodySchema = z.object({ doc: knowledgeBaseDocumentSchema })
 
-export async function patchKbResponse(id: string, body: string | undefined | null) {
+export async function patchKbResponse(id: string, body: string | undefined | null, requestId: string) {
   const parsedId = idParamSchema.safeParse({ id })
   if (!parsedId.success) {
     return {
@@ -219,13 +225,18 @@ export async function patchKbResponse(id: string, body: string | undefined | nul
   }
   await putObjectText(kbPath, `${JSON.stringify(withUpdated, null, 2)}\n`, 'application/json')
   await upsertRegistryEntry(withUpdated)
+  logAction({
+    requestId,
+    action: 'kb.patch',
+    detail: { id: withUpdated.id }
+  })
   return {
     statusCode: 200,
     payload: { doc: withUpdated }
   }
 }
 
-export async function deleteKbResponse(id: string) {
+export async function deleteKbResponse(id: string, requestId: string) {
   const parsedId = idParamSchema.safeParse({ id })
   if (!parsedId.success) {
     return {
@@ -240,6 +251,11 @@ export async function deleteKbResponse(id: string) {
   }
   await deleteObject(kbPath)
   await removeRegistryEntry(parsedId.data.id)
+  logAction({
+    requestId,
+    action: 'kb.delete',
+    detail: { id: parsedId.data.id }
+  })
   return {
     statusCode: 204,
     payload: null

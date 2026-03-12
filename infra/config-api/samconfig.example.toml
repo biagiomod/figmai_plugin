@@ -1,0 +1,32 @@
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "ace-config-api"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+stack_name = "ace-config-api"
+resolve_s3 = true
+s3_prefix = "ace-config-api"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+disable_rollback = false
+parameter_overrides = [
+  "S3BucketName=YOUR_BUCKET",
+  "S3Prefix=figmai/",
+  "ConfigApiToken=REPLACE_ME",
+  "CorsAllowOrigins=http://localhost:3333,http://127.0.0.1:3334,https://figmai.otherdesign.com",
+  "ServiceName=ace-config-api",
+  "ServiceVersion=0.1.0",
+  "BuildTimestamp=",
+  "GitCommitSha="
+]

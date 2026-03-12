@@ -14,14 +14,20 @@ import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSetti
 import { BUILD_VERSION, BUILD_ID } from '../../core/build'
 import { debugLog } from '../utils/debug'
 import { getInitialMode } from '../utils/mode'
+import { listSkins } from '../../core/themePacks/registry'
+import { DEFAULT_SKIN_ID } from '../../core/themePacks/defaults'
 
 interface SettingsModalProps {
   onClose: () => void
   currentMode?: Mode
   onModeChange?: (mode: Mode) => void
+  /** Currently active skin CSS data-theme value (e.g. 'dark', 'neowave'). */
+  currentSkin?: string
+  /** Called immediately when the user picks a new skin (live preview). */
+  onSkinChange?: (skinId: string) => void
 }
 
-export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsModalProps) {
+export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin, onSkinChange }: SettingsModalProps) {
   // Check custom config
   const hideContentMvpMode = shouldHideContentMvpMode()
   const customEndpoint = getCustomLlmEndpoint()
@@ -82,7 +88,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
     errorMessage?: string
   } | null>(null)
   const [isTesting, setIsTesting] = useState(false)
-  const [uiPreviewTheme, setUiPreviewTheme] = useState<'light' | 'dark'>('light')
+  const [skin, setSkin] = useState<string>(() => currentSkin || DEFAULT_SKIN_ID)
+  const [uiPreviewTheme, setUiPreviewTheme] = useState<string>(() => currentSkin || 'light')
   const [uiPreviewRendering, setUiPreviewRendering] = useState(false)
   const [uiPreviewError, setUiPreviewError] = useState<string | null>(null)
   // Refs for stable message handler (avoid re-registration on state changes)
@@ -209,6 +216,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
         setSharedToken(settings.sharedToken || '')
         setSessionToken(settings.sessionToken || '')
         setDefaultModel(settings.defaultModel || 'gpt-4.1-mini')
+        if (settings.skin) {
+          setSkin(settings.skin)
+        }
       } else if (message.type === 'RENDER_PLUGIN_UI_PREVIEW_DONE') {
         setUiPreviewRendering(false)
         setUiPreviewError(null)
@@ -308,7 +318,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       authMode: connectionType === 'proxy' ? authMode : undefined,
       sharedToken: connectionType === 'proxy' && authMode === 'shared_token' ? sharedToken.trim() : undefined,
       sessionToken: connectionType === 'proxy' && authMode === 'session_token' ? sessionToken.trim() : undefined,
-      defaultModel: connectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined
+      defaultModel: connectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined,
+      skin
     }
     
     emit<SaveSettingsHandler>('SAVE_SETTINGS', settings)
@@ -316,7 +327,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       onModeChange(mode)
     }
     onClose()
-  }, [mode, connectionType, proxyBaseUrl, internalApiUrl, authMode, sharedToken, sessionToken, defaultModel, onClose, onModeChange])
+  }, [mode, connectionType, proxyBaseUrl, internalApiUrl, authMode, sharedToken, sessionToken, defaultModel, skin, onClose, onModeChange])
   
   const handleTest = useCallback(() => {
     setIsTesting(true)
@@ -337,7 +348,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
       authMode: testConnectionType === 'proxy' ? authMode : undefined,
       sharedToken: testConnectionType === 'proxy' && authMode === 'shared_token' ? sharedToken.trim() : undefined,
       sessionToken: testConnectionType === 'proxy' && authMode === 'session_token' ? sessionToken.trim() : undefined,
-      defaultModel: testConnectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined
+      defaultModel: testConnectionType === 'proxy' ? (defaultModel.trim() || 'gpt-4.1-mini') : undefined,
+      skin
     }
     
     // Save settings for persistence (async, but we don't wait for it)
@@ -546,6 +558,47 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
           </div>
         </div>
         
+        {/* Skin / Theme */}
+        <div>
+          <label
+            htmlFor="skin-select"
+            style={{
+              display: 'block',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 'var(--font-weight-medium)',
+              marginBottom: 'var(--spacing-xs)',
+              color: 'var(--fg)'
+            }}
+          >
+            Skin
+          </label>
+          <select
+            id="skin-select"
+            value={skin}
+            onChange={(e) => {
+              const newSkin = (e.target as HTMLSelectElement).value
+              setSkin(newSkin)
+              if (onSkinChange) onSkinChange(newSkin)
+            }}
+            style={{
+              width: '100%',
+              fontSize: 'var(--font-size-sm)',
+              padding: '6px 8px',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--surface-modal)',
+              color: 'var(--fg)',
+              fontFamily: 'var(--font-family)',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            {listSkins().map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Divider */}
         <div style={{
           height: '1px',
@@ -1148,7 +1201,7 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
             <select
               id="ui-preview-theme"
               value={uiPreviewTheme}
-              onChange={(e) => setUiPreviewTheme((e.target as HTMLSelectElement).value as 'light' | 'dark')}
+              onChange={(e) => setUiPreviewTheme((e.target as HTMLSelectElement).value)}
               style={{
                 flex: 1,
                 fontSize: 'var(--font-size-sm)',
@@ -1160,8 +1213,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange }: SettingsMo
                 height: '28px'
               }}
             >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
+              {listSkins().map(s => (
+                <option key={s.id} value={s.cssDataThemeValue}>{s.name}</option>
+              ))}
             </select>
             <button
               type="button"

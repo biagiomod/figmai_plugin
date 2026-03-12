@@ -2060,9 +2060,8 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
 // ---------------------------------------------------------------------------
 on<RenderPluginUIPreviewHandler>('RENDER_PLUGIN_UI_PREVIEW', async function (payload: RenderPluginUIPreviewPayload) {
   const { theme } = payload
-  const frameName = theme === 'dark'
-    ? 'Ableza Plugin UI \u2014 Dark'
-    : 'Ableza Plugin UI \u2014 Light'
+  const themeLabel = theme.charAt(0).toUpperCase() + theme.slice(1)
+  const frameName = `Ableza Plugin UI \u2014 ${themeLabel}`
 
   for (const child of [...figma.currentPage.children]) {
     if (child.name === frameName) child.remove()

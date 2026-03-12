@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: ACE Config API (Lambda + HTTP API + S3)
 
@@ -14,10 +14,26 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Shared bearer token for Phase 0
-  CorsAllowOrigin:
+  CorsAllowOrigins:
+    Type: CommaDelimitedList
+    Default: "http://localhost:3333,http://127.0.0.1:3333,http://127.0.0.1:3334"
+    Description: Comma-separated allowed origins for CORS
+  ServiceName:
     Type: String
-    Default: "*"
-    Description: CORS origin for static ACE
+    Default: ace-config-api
+    Description: Service name returned by /api/health
+  ServiceVersion:
+    Type: String
+    Default: "0.1.0"
+    Description: Service version returned by /api/health
+  BuildTimestamp:
+    Type: String
+    Default: ""
+    Description: Optional build timestamp returned by /api/health
+  GitCommitSha:
+    Type: String
+    Default: ""
+    Description: Optional commit SHA returned by /api/health
 
 Globals:
   Function:
@@ -30,8 +46,7 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       CorsConfiguration:
-        AllowOrigins:
-          - !Ref CorsAllowOrigin
+        AllowOrigins: !Ref CorsAllowOrigins
         AllowMethods:
           - GET
           - POST
@@ -53,7 +68,11 @@ Resources:
           S3_BUCKET: !Ref S3BucketName
           S3_PREFIX: !Ref S3Prefix
           CONFIG_API_TOKEN: !Ref ConfigApiToken
-          CORS_ALLOW_ORIGIN: !Ref CorsAllowOrigin
+          CORS_ALLOW_ORIGINS: !Join [",", !Ref CorsAllowOrigins]
+          SERVICE_NAME: !Ref ServiceName
+          SERVICE_VERSION: !Ref ServiceVersion
+          BUILD_TIMESTAMP: !Ref BuildTimestamp
+          GIT_COMMIT_SHA: !Ref GitCommitSha
       Policies:
         - Statement:
             - Effect: Allow
@@ -90,7 +109,7 @@ Resources:
         Minify: true
         Sourcemap: false
         Target: "es2020"
-        Format: esm
+        Format: cjs
 
 Outputs:
   ConfigApiUrl:

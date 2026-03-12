@@ -124,7 +124,9 @@ import type {
   AnalyticsTaggingUpdateRowHandler,
   AnalyticsTaggingDeleteRowHandler,
   ExportAnalyticsTaggingScreenshotsHandler,
-  ExportAnalyticsTaggingOneRowHandler
+  ExportAnalyticsTaggingOneRowHandler,
+  SaveSettingsHandler,
+  RequestSettingsHandler
 } from './core/types'
 import type { AnalyticsTaggingExportCompactRow } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
@@ -152,11 +154,15 @@ import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResour
 import { BUILD_VERSION, BUILT_AT } from './core/build'
 import { debugLog } from './ui/utils/debug'
 import { debug } from './core/debug/logger'
+import { resolveTheme } from './core/themePacks/resolver'
+import { listSkins } from './core/themePacks/registry'
+import { DEFAULT_SKIN_ID } from './core/themePacks/defaults'
 
 // Import CSS
 import './ui/styles/theme.css'
 import './ui/styles/skins/base.css'
 import './ui/styles/skins/dark.css'
+import './ui/styles/skins/neowave.css'
 
 // Import Icons
 import {
@@ -359,8 +365,8 @@ function Plugin() {
   // Reset token to prevent late-arriving messages from re-hydrating stale state
   const [resetToken, setResetToken] = useState(0)
   
-  // State
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  // Skin / theme — single source of truth; persisted via settings.skin
+  const [theme, setTheme] = useState<string>(() => resolveTheme(DEFAULT_SKIN_ID).cssThemeValue)
   
   // Load mode using centralized getInitialMode() function
   // Priority: localStorage → customConfig.ui.defaultMode → CONFIG.defaultMode
@@ -539,7 +545,7 @@ function Plugin() {
     const ratio = contentLen > 0 ? domTextLen / contentLen : 0
     debug.scope('trace:chat').log('RENDER_DOM_TEXT', { messageId: lastMsg.id, domTextLen, contentLen, ratio: Math.round(ratio * 100) / 100, domTail: renderedText.slice(-60) })
   }, [messages])
-
+  
   // Auto-collapse credits after 3 seconds (only on first open)
   useEffect(() => {
     if (showCredits && !hasAutoCollapsedRef.current) {
@@ -1016,7 +1022,11 @@ function Plugin() {
           // Test result is handled in SettingsModal component
           break
         case 'SETTINGS_RESPONSE':
-          // Settings response is handled in SettingsModal component
+          if (message.settings) {
+            const skinId = (message.settings as Record<string, unknown>).skin as string | undefined
+            const resolved = resolveTheme(skinId)
+            setTheme(resolved.cssThemeValue)
+          }
           break
       }
     }
@@ -1048,6 +1058,9 @@ function Plugin() {
     // Request initial selection state
     console.log('[UI] Requesting initial selection state')
     emit<RequestSelectionStateHandler>('REQUEST_SELECTION_STATE')
+
+    // Request settings so persisted skin is applied on startup
+    emit<RequestSettingsHandler>('REQUEST_SETTINGS')
     
     // Cleanup
     return () => {
@@ -1186,7 +1199,7 @@ function Plugin() {
     stageFrameIdRef.current = null
     setResetToken(prev => prev + 1)
   }, [])
-
+  
   // Handlers
   const handleReset = useCallback(() => {
     // Perform local UI reset immediately
@@ -1250,7 +1263,14 @@ function Plugin() {
   }, [assistant.id])
   
   const handleThemeToggle = useCallback(() => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light')
+    const skins = listSkins()
+    setTheme(prev => {
+      const idx = skins.findIndex(s => s.cssDataThemeValue === prev)
+      const next = skins[(idx + 1) % skins.length]
+      const resolved = resolveTheme(next.id)
+      emit<SaveSettingsHandler>('SAVE_SETTINGS', { skin: next.id })
+      return resolved.cssThemeValue
+    })
   }, [])
   
   const handleAssistantClick = useCallback(() => {
@@ -1430,7 +1450,7 @@ function Plugin() {
       }
       return
     }
-
+    
     // Code2Design special handling
     if (assistant.id === 'code2design') {
       if (actionId === 'send-json') {
@@ -2397,7 +2417,7 @@ ${htmlTable}
           if (a.id === 'generate-table') return true
           if (a.id === 'add-to-table') return !!ctSession
           if (a.executionType === 'ui-only') return !!contentTable
-          return false
+      return false
         })
       : assistant.quickActions
   const quickActions = quickActionsSource.filter((action: QuickAction) => {
@@ -2413,7 +2433,7 @@ ${htmlTable}
     const lastLen = (lastMsg?.content && String(lastMsg.content).length) ?? 0
     debug.scope('trace:chat').log('CHAT_RENDER', { instanceId: chatInstanceId, messagesCount: messages.length, lastMessageId: lastId, lastMessageLen: lastLen })
   }
-
+  
   return (
     <div style={{
       display: 'flex',
@@ -2427,12 +2447,12 @@ ${htmlTable}
     }}>
       {/* Top Navigation */}
       <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: 'var(--spacing-md)',
-          borderBottom: '1px solid var(--border)',
-          backgroundColor: 'var(--bg)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 'var(--spacing-md)',
+        borderBottom: '1px solid var(--border)',
+        backgroundColor: 'var(--bg)',
           flexShrink: 0,
           position: 'relative',
           zIndex: 10
@@ -2467,9 +2487,9 @@ ${htmlTable}
         
         {/* Center: Branding */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
           gap: displayBrand.showLogo && displayBrand.showAppName ? '8px' : '0',
           minWidth: 0,
           flex: '1 1 auto'
@@ -2486,7 +2506,7 @@ ${htmlTable}
               ) : hasCustomLogoPath ? null : (
                 <AppLogo logoKey={displayBrand.logoKey} width={16} height={16} />
               )}
-            </div>
+          </div>
           ) : null}
           {displayBrand.showAppName ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
@@ -2527,7 +2547,7 @@ ${htmlTable}
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            title={theme === 'light' ? 'Switch to dark' : 'Switch to light'}
+            title={`Theme: ${theme}`}
           >
             {theme === 'light' ? <DarkmodeIcon width={16} height={16} /> : <LightmodeIcon width={16} height={16} />}
           </button>
@@ -2725,25 +2745,25 @@ ${htmlTable}
                 <span>{activeStatus.text}</span>
               </div>
             )}
-            {messages.length === 0 && !isCode2Design && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flex: 1,
-                textAlign: 'center',
-                color: 'var(--fg)',
-                padding: 'var(--spacing-xl)',
-                fontSize: 'var(--font-size-xl)',
-                lineHeight: '1.5'
-              }}>
-                All Your Design Tools.
-                <br />
-                One Place.
-              </div>
-            )}
-            {/* Code2Design Helper Message */}
+        {messages.length === 0 && !isCode2Design && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 1,
+            textAlign: 'center',
+            color: 'var(--fg)',
+            padding: 'var(--spacing-xl)',
+            fontSize: 'var(--font-size-xl)',
+            lineHeight: '1.5'
+          }}>
+            All Your Design Tools.
+            <br />
+            One Place.
+          </div>
+        )}
+        {/* Code2Design Helper Message */}
         {isCode2Design && hasShownCode2DesignHelper && messages.length === 0 && (
           <div style={{
             padding: 'var(--spacing-md)',
@@ -2784,19 +2804,19 @@ ${htmlTable}
           
           // Render greeting message with special styling
           if (message.isGreeting) {
-            return (
-              <div
-                key={message.id}
+          return (
+            <div
+              key={message.id}
                 data-message-id={message.id}
                 data-render-site={RENDER_SITE_PRIMARY}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--spacing-xs)',
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-xs)',
                   alignSelf: 'flex-start',
-                  maxWidth: '80%'
-                }}
-              >
+                maxWidth: '80%'
+              }}
+            >
                 <div
                   className="chat-assistant-bubble"
                   style={{
@@ -2825,7 +2845,7 @@ ${htmlTable}
           
           // Render instructions message with compact styling
           if (message.isInstructions) {
-            return (
+                      return (
               <div
                 key={message.id}
                 data-message-id={message.id}
@@ -2851,20 +2871,20 @@ ${htmlTable}
                   color: 'var(--muted)',
                   maxWidth: '100%',
                   fontSize: 'var(--font-size-xs)',
-                  userSelect: 'text',
-                  WebkitUserSelect: 'text',
-                  MozUserSelect: 'text',
-                  msUserSelect: 'text',
-                  cursor: 'text'
-                }}>
+                          userSelect: 'text',
+                          WebkitUserSelect: 'text',
+                          MozUserSelect: 'text',
+                          msUserSelect: 'text',
+                          cursor: 'text'
+                        }}>
                   <MemoRichText
                     content={message.content != null ? String(message.content) : ''}
                     assistantId={message.assistantId ?? assistant.id}
                   />
                 </div>
-              </div>
-            )
-          }
+                        </div>
+                      )
+                    }
           
           if (debug.isEnabled('trace:chat') && index === messages.length - 1) {
             const contentLen = (message.content && String(message.content).length) || 0
@@ -2949,10 +2969,10 @@ ${htmlTable}
             marginBottom: 'var(--spacing-md)'
           }}>
             {/* Overall Score */}
-            <div style={{
-              display: 'flex',
+          <div style={{
+            display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
+            alignItems: 'center',
               marginBottom: 'var(--spacing-lg)',
               paddingBottom: 'var(--spacing-md)',
               borderBottom: '1px solid var(--border)'
@@ -3004,7 +3024,7 @@ ${htmlTable}
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
-                      gap: 'var(--spacing-sm)',
+            gap: 'var(--spacing-sm)',
                       padding: 'var(--spacing-sm)',
                       marginBottom: 'var(--spacing-xs)',
                       backgroundColor: 'var(--bg-secondary)',
@@ -3019,9 +3039,9 @@ ${htmlTable}
                     }}>
                       {item.label}
                     </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
                       gap: 'var(--spacing-xs)',
                       marginRight: 'var(--spacing-sm)'
                     }}>
@@ -3057,7 +3077,7 @@ ${htmlTable}
                 marginBottom: 'var(--spacing-sm)'
               }}>
                 <summary style={{
-                  fontSize: 'var(--font-size-sm)',
+              fontSize: 'var(--font-size-sm)',
                   fontWeight: 'var(--font-weight-semibold)',
                   color: 'var(--error)',
                   cursor: 'pointer',
@@ -3066,7 +3086,7 @@ ${htmlTable}
                 }}>
                   ⚠️ Risks ({scorecard.risks.length})
                 </summary>
-                <div style={{
+              <div style={{
                   padding: 'var(--spacing-sm)',
                   marginTop: 'var(--spacing-xs)',
                   backgroundColor: 'var(--bg-secondary)',
@@ -3083,9 +3103,9 @@ ${htmlTable}
                       }}
                     >
                       • {risk}
-                    </div>
+            </div>
                   ))}
-                </div>
+          </div>
               </details>
             )}
             
@@ -3251,7 +3271,7 @@ ${htmlTable}
             This action requires a selection. Please select one or more nodes.
           </div>
         )}
-
+        
         {/* Prompt diagnostics (compact, no raw prompt) + Work mode */}
         {isPromptDiagnosticsEnabled() && lastPromptDiagnostics && (
           <div style={{
@@ -3568,9 +3588,9 @@ ${htmlTable}
               minHeight: 0
             }}>
             {listAssistantsByMode(mode).map((a: AssistantType) => (
-              <button
-                key={a.id}
-                onClick={() => handleAssistantSelect(a.id)}
+                <button
+                  key={a.id}
+                  onClick={() => handleAssistantSelect(a.id)}
                 onMouseEnter={(e) => {
                   if (assistant.id !== a.id) {
                     e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
@@ -3587,34 +3607,34 @@ ${htmlTable}
                   const description = button.querySelector('[data-description]') as HTMLElement
                   if (description) description.style.display = 'none'
                 }}
-                style={{
-                  padding: 'var(--spacing-md)',
+                  style={{
+                    padding: 'var(--spacing-md)',
                   border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
+                    borderRadius: 'var(--radius-sm)',
                   backgroundColor: assistant.id === a.id 
                     ? 'var(--surface-row-selected)' 
                     : 'var(--surface-row)',
                   color: assistant.id === a.id ? 'var(--accent-text)' : 'var(--fg)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontFamily: 'var(--font-family)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontFamily: 'var(--font-family)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
                   gap: 'var(--spacing-sm)',
                   position: 'relative',
                   transition: 'background-color 0.2s ease, border-color 0.2s ease'
-                }}
-              >
-                <div style={{
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginTop: '2px'
-                }}>
-                  {getAssistantIcon(a.iconId)}
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                  }}
+                >
                   <div style={{
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginTop: '2px'
+                  }}>
+                    {getAssistantIcon(a.iconId)}
+                  </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                    <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 'var(--spacing-xs)',
@@ -3628,7 +3648,7 @@ ${htmlTable}
                         {getAssistantTagLabel(a.tag)}
                       </span>
                     )}
-                  </div>
+                    </div>
                   <div 
                     data-description
                     style={{
@@ -3639,10 +3659,10 @@ ${htmlTable}
                     }}
                   >
                     {getHoverSummary(a)}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -3736,6 +3756,11 @@ ${htmlTable}
           onClose={() => setShowSettingsModal(false)}
           currentMode={mode}
           onModeChange={handleModeSelect}
+          currentSkin={theme}
+          onSkinChange={(skinId: string) => {
+            const resolved = resolveTheme(skinId)
+            setTheme(resolved.cssThemeValue)
+          }}
         />
       )}
       
@@ -4433,7 +4458,7 @@ ${htmlTable}
           </div>
         </div>
       )}
-
+      
       {/* SEND JSON Modal */}
       {showSendJsonModal && (
         <div style={{
@@ -5013,38 +5038,38 @@ ${htmlTable}
           }}>
             {/* Header with Hide button */}
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{
-                fontSize: 'var(--font-size-xs)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{
+              fontSize: 'var(--font-size-xs)',
                 color: 'var(--fg-secondary)',
                 fontWeight: 'var(--font-weight-medium)'
-              }}>
+            }}>
                 Resources & Credits
-              </div>
-              <button
-                onClick={handleCreditsToggle}
-                style={{
-                  padding: 'var(--spacing-xs)',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'var(--fg-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
+            </div>
+            <button
+              onClick={handleCreditsToggle}
+              style={{
+                padding: 'var(--spacing-xs)',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--fg-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
                   justifyContent: 'center',
                   gap: 'var(--spacing-xs)',
                   fontSize: 'var(--font-size-xs)',
                   fontFamily: 'var(--font-family)'
-                }}
+              }}
                 title="Hide"
-              >
+            >
                 <span>Hide</span>
-                <ChevronDownIcon width={12} height={12} />
-              </button>
-            </div>
+              <ChevronDownIcon width={12} height={12} />
+            </button>
+          </div>
             
             {/* Action Buttons Row - Render only if URL is provided */}
             {(resourcesLinks.about?.url?.trim() || resourcesLinks.feedback?.url?.trim() || resourcesLinks.meetup?.url?.trim()) && (
@@ -5172,12 +5197,12 @@ ${htmlTable}
                 
                 {/* Column 2: API Team */}
                 {resourcesCredits.apiTeam.length > 0 && (
-                  <div style={{
-                    display: 'flex',
+          <div style={{
+            display: 'flex',
                     flexDirection: 'column',
                     gap: 'var(--spacing-xs)'
-                  }}>
-                    <div style={{
+          }}>
+            <div style={{
                       fontWeight: 'var(--font-weight-semibold)',
                       color: 'var(--fg)',
                       marginBottom: 'var(--spacing-xs)'
@@ -5185,7 +5210,7 @@ ${htmlTable}
                       API Team:
                     </div>
                     <div style={{
-                      color: 'var(--fg-secondary)',
+              color: 'var(--fg-secondary)',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: 'var(--spacing-xs)'
@@ -5218,7 +5243,7 @@ ${htmlTable}
                             <div key={idx}>{credit.label}</div>
                           )
                         ))}
-                    </div>
+            </div>
                   </div>
                 )}
                 
@@ -5277,16 +5302,16 @@ ${htmlTable}
             )}
           </div>
         ) : (
-          <button
-            onClick={handleCreditsToggle}
-            style={{
+            <button
+              onClick={handleCreditsToggle}
+              style={{
               width: '100%',
               padding: 'var(--spacing-xs) var(--spacing-md)',
-              border: 'none',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
+                border: 'none',
+                backgroundColor: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
               justifyContent: 'space-between',
               fontFamily: 'var(--font-family)'
             }}
@@ -5298,7 +5323,7 @@ ${htmlTable}
               fontWeight: 'var(--font-weight-medium)'
             }}>
               Resources & Credits
-            </div>
+          </div>
             <ChevronUpIcon width={12} height={12} style={{ color: 'var(--fg-secondary)' }} />
           </button>
         )}
