@@ -1,3 +1,6 @@
+> Status: Archived
+> Reason: Historical migration note for the local/file-backed ACE implementation path.
+
 # Admin Config Editor – Phase 0 migration note
 
 ## How the manifest was derived from the prior TS source

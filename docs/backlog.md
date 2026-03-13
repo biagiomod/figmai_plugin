@@ -803,7 +803,7 @@ Add feature X to enable Y capability for users.
 
 ## Links
 - Related: BL-002 (UI polish)
-- References: [ARCHITECTURE.md](ARCHITECTURE.md)
+- References: [01-getting-started.md](01-getting-started.md)
 ```
 
 ---

@@ -1,3 +1,6 @@
+> Status: Archived
+> Reason: Historical PR note. Preserve for implementation context only.
+
 # PR11c2: ACE KB refs UX + Referenced by (no runtime JSON / contract change)
 
 ## What changed

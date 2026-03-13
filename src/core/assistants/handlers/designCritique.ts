@@ -133,7 +133,7 @@ export class DesignCritiqueHandler implements AssistantHandler {
         }
       }
 
-      // Build all 10 demo cards from refs_for_cursor/dark_demo_cards.json
+      // Build all 10 demo cards from the generated demo-card dataset
       dcDebug.log('Creating demo cards from DARK_DEMO_CARDS', { runId, count: DARK_DEMO_CARDS.length })
       const cards: FrameNode[] = []
       for (let i = 0; i < DARK_DEMO_CARDS.length; i++) {

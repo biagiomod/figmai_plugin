@@ -10,7 +10,7 @@ Read-only audit of all instruction sources that influence the **Errors** assista
 
 ## 1) Assistant Definition (SSOT)
 
-**Source:** [custom/assistants.manifest.json](custom/assistants.manifest.json)
+**Source:** [custom/assistants.manifest.json](../../custom/assistants.manifest.json)
 
 The Errors assistant is one entry in the `assistants` array. Full JSON object for that entry (verbatim):
 
@@ -61,7 +61,7 @@ The Errors assistant is one entry in the `assistants` array. Full JSON object fo
 
 ## 2) Legacy Custom Knowledge Overlay (per-assistant .md)
 
-**File merged for Errors:** [custom/knowledge/errors.md](custom/knowledge/errors.md)
+**File merged for Errors:** [custom/knowledge/errors.md](../../custom/knowledge/errors.md)
 
 **Full contents (verbatim):**
 
@@ -79,7 +79,7 @@ Add your custom knowledge base content here. This content will be merged with th
 3. Rebuild the plugin: `npm run build`
 ```
 
-**Policy for Errors in config:** Errors has **no** entry under `knowledgeBases` in [custom/config.json](custom/config.json). The config has an empty `knowledgeBases` object. Therefore no append/override policy is applied for the Errors assistant.
+**Policy for Errors in config:** Errors has **no** entry under `knowledgeBases` in [custom/config.json](../../custom/config.json). The config has an empty `knowledgeBases` object. Therefore no append/override policy is applied for the Errors assistant.
 
 **Config subsection (verbatim):**
 
@@ -87,7 +87,7 @@ Add your custom knowledge base content here. This content will be merged with th
 "knowledgeBases": {}
 ```
 
-**Runtime behavior:** [src/custom/knowledge.ts](src/custom/knowledge.ts) `mergeKnowledgeBase(assistantId, publicContent)` only merges when `customConfig?.knowledgeBases?.[assistantId]` is set. For `assistantId === "errors"` that is undefined, so `mergeKnowledgeBase("errors", promptTemplate)` returns `promptTemplate` unchanged. The content of `custom/knowledge/errors.md` is **not** merged into the Errors assistant at runtime (it exists in [src/custom/generated/customKnowledge.ts](src/custom/generated/customKnowledge.ts) as `customKnowledgeByAssistant["errors"]`, but is never used because there is no `knowledgeBases.errors` config).
+**Runtime behavior:** [src/custom/knowledge.ts](../../src/custom/knowledge.ts) `mergeKnowledgeBase(assistantId, publicContent)` only merges when `customConfig?.knowledgeBases?.[assistantId]` is set. For `assistantId === "errors"` that is undefined, so `mergeKnowledgeBase("errors", promptTemplate)` returns `promptTemplate` unchanged. The content of `custom/knowledge/errors.md` is **not** merged into the Errors assistant at runtime (it exists in [src/custom/generated/customKnowledge.ts](../../src/custom/generated/customKnowledge.ts) as `customKnowledgeByAssistant["errors"]`, but is never used because there is no `knowledgeBases.errors` config).
 
 ---
 
@@ -99,7 +99,7 @@ The Errors `promptTemplate` is **inline** in the manifest (see section 1). It al
 
 That is a reference to a file path; the plugin does **not** resolve or load that path at runtime. The file exists in the repo for documentation/reference.
 
-**Referenced file:** [src/assistants/errors.md](src/assistants/errors.md)
+**Referenced file:** [src/assistants/errors.md](../../src/assistants/errors.md)
 
 This file is **not** loaded or inlined at runtime by the plugin; the promptTemplate only references its path. Full contents (verbatim) for migration reference:
 
@@ -148,13 +148,13 @@ You will receive:
 
 ## 4) Structured Knowledge Base Inputs (if already referenced)
 
-The Errors assistant entry in [custom/assistants.manifest.json](custom/assistants.manifest.json) does **not** define `knowledgeBaseRefs`. The generated type allows `knowledgeBaseRefs?: string[]`, but the Errors entry does not include it, so at runtime `errors.knowledgeBaseRefs` is `undefined` → treated as `[]`.
+The Errors assistant entry in [custom/assistants.manifest.json](../../custom/assistants.manifest.json) does **not** define `knowledgeBaseRefs`. The generated type allows `knowledgeBaseRefs?: string[]`, but the Errors entry does not include it, so at runtime `errors.knowledgeBaseRefs` is `undefined` → treated as `[]`.
 
 **Conclusion:** No structured KB inputs are referenced for Errors. No registry or `.kb.json` entries are used for this assistant.
 
 **For completeness, registry and example KB (not used by Errors):**
 
-- [custom/knowledge-bases/registry.json](custom/knowledge-bases/registry.json):
+- [custom/knowledge-bases/registry.json](../../custom/knowledge-bases/registry.json):
 
 ```json
 {"knowledgeBases":[{"id":"test-kb","title":"Test Knowledge Base","filePath":"test-kb.kb.json","updatedAt":"2026-02-07T00:25:31.744Z"}]}
@@ -168,7 +168,7 @@ The Errors assistant entry in [custom/assistants.manifest.json](custom/assistant
 
 **Search:** `src/core/assistants/handlers` and handler registry `getHandler` for `assistantId === 'errors'` and any Errors-specific `actionId`.
 
-**Handler registry:** [src/core/assistants/handlers/index.ts](src/core/assistants/handlers/index.ts)
+**Handler registry:** [src/core/assistants/handlers/index.ts](../../src/core/assistants/handlers/index.ts)
 
 ```typescript
 const handlers: AssistantHandler[] = [
@@ -188,11 +188,11 @@ export function getHandler(assistantId: string, actionId: string | undefined): A
 
 **Evidence:**
 
-- [designCritique.ts](src/core/assistants/handlers/designCritique.ts): `canHandle(assistantId, actionId)` returns true only for `assistantId === 'design_critique'` and specific actionIds.
-- [contentTable.ts](src/core/assistants/handlers/contentTable.ts): handles `content_table`.
-- [designWorkshop.ts](src/core/assistants/handlers/designWorkshop.ts): handles `design_workshop`.
-- [discovery.ts](src/core/assistants/handlers/discovery.ts): handles `discovery_copilot`.
-- [analyticsTagging.ts](src/core/assistants/handlers/analyticsTagging.ts): handles `analytics_tagging`.
+- [designCritique.ts](../../src/core/assistants/handlers/designCritique.ts): `canHandle(assistantId, actionId)` returns true only for `assistantId === 'design_critique'` and specific actionIds.
+- [contentTable.ts](../../src/core/assistants/handlers/contentTable.ts): handles `content_table`.
+- [designWorkshop.ts](../../src/core/assistants/handlers/designWorkshop.ts): handles `design_workshop`.
+- [discovery.ts](../../src/core/assistants/handlers/discovery.ts): handles `discovery_copilot`.
+- [analyticsTagging.ts](../../src/core/assistants/handlers/analyticsTagging.ts): handles `analytics_tagging`.
 
 **Conclusion:** No Errors-specific handler exists. No handler adds instruction-like strings, schema expectations, or message preparation for Errors. Response formatting and constraints are therefore **only** from the instruction sources in sections 1–3 and 6 (and any backend behavior outside this repo).
 
@@ -202,7 +202,7 @@ export function getHandler(assistantId: string, actionId: string | undefined): A
 
 **6.1) Where `promptMarkdown` is built (merge + design system)**
 
-Source: [src/assistants/index.ts](src/assistants/index.ts)
+Source: [src/assistants/index.ts](../../src/assistants/index.ts)
 
 ```typescript
 // Build ASSISTANTS from manifest: promptMarkdown = mergeKnowledgeBase + appendDesignSystemKnowledge
@@ -219,7 +219,7 @@ Order: for each manifest entry, `promptMarkdown = appendDesignSystemKnowledge(me
 
 **6.2) `mergeKnowledgeBase` usage**
 
-Source: [src/custom/knowledge.ts](src/custom/knowledge.ts)
+Source: [src/custom/knowledge.ts](../../src/custom/knowledge.ts)
 
 ```typescript
 export function mergeKnowledgeBase(
@@ -249,7 +249,7 @@ For Errors, `assistantPolicy` is undefined, so `mergeKnowledgeBase("errors", pro
 
 **6.3) `appendDesignSystemKnowledge`**
 
-Source: [src/custom/knowledge.ts](src/custom/knowledge.ts)
+Source: [src/custom/knowledge.ts](../../src/custom/knowledge.ts)
 
 ```typescript
 export function appendDesignSystemKnowledge(baseContent: string): string {
@@ -278,7 +278,7 @@ When design systems are enabled and registries load, the DS index is appended af
 
 **6.4) Function that assembles instruction segments for the LLM (preamble path)**
 
-Source: [src/core/assistants/instructionAssembly.ts](src/core/assistants/instructionAssembly.ts)
+Source: [src/core/assistants/instructionAssembly.ts](../../src/core/assistants/instructionAssembly.ts)
 
 Relevant portion (ordering and where KB segment is appended):
 
@@ -317,7 +317,7 @@ For Errors: `instructionBlocks` is empty, so `instructionPreambleText` is set fr
 
 **6.5) Where `buildAssistantInstructionSegments` is called and what is used as legacy source**
 
-Source: [src/main.ts](src/main.ts) (chat message path, lines 553–558; quick-action path, lines 935–940).
+Source: [src/main.ts](../../src/main.ts) (chat message path, lines 553–558; quick-action path, lines 935–940).
 
 ```typescript
 const kbDocs = resolveKnowledgeBaseDocs(currentAssistant.knowledgeBaseRefs ?? [])
@@ -338,7 +338,7 @@ const preamble =
 
 **6.6) `getShortInstructions` (defines “short” legacy instructions)**
 
-Source: [src/assistants/index.ts](src/assistants/index.ts)
+Source: [src/assistants/index.ts](../../src/assistants/index.ts)
 
 ```typescript
 export function getShortInstructions(assistant: Assistant): string {
@@ -366,28 +366,28 @@ What the Errors assistant receives as instruction context at runtime, in order:
 
 1. **Preamble prefix (when provider supports preamble injection)**  
    - **Segment:** `SESSION_HEADER_SAFE` plus `"Errors context: "` plus `instructionPreambleText`.  
-   - **Source:** [src/main.ts](src/main.ts) (preamble injection block).  
+   - **Source:** [src/main.ts](../../src/main.ts) (preamble injection block).  
    - **Content of `instructionPreambleText`:** For Errors, `getShortInstructions(assistant)` (first paragraph of `promptMarkdown`, or truncated to ~200 chars).  
    - **Conditional:** Only when `currentProvider.capabilities.supportsPreambleInjection` is true and it is the first user message in the segment.
 
 2. **Legacy instruction source (short)**  
    - **Segment:** Same as above — `instructionPreambleText` = `getShortInstructions(assistant)` = first paragraph of `promptMarkdown`.  
-   - **Source:** [src/assistants/index.ts](src/assistants/index.ts) `getShortInstructions()`; `promptMarkdown` from same file (built from manifest + merge + DS).  
+   - **Source:** [src/assistants/index.ts](../../src/assistants/index.ts) `getShortInstructions()`; `promptMarkdown` from same file (built from manifest + merge + DS).  
    - **Conditional:** Always used when instructionBlocks are empty (as for Errors).
 
 3. **Full promptTemplate (inline in manifest)**  
    - **Segment:** The full Errors `promptTemplate` string from the manifest (identity + one-sentence role + reference to `src/assistants/errors.md`).  
-   - **Source:** [custom/assistants.manifest.json](custom/assistants.manifest.json) → [src/assistants/assistants.generated.ts](src/assistants/assistants.generated.ts); used as `promptMarkdown` after merge + DS.  
+   - **Source:** [custom/assistants.manifest.json](../../custom/assistants.manifest.json) → [src/assistants/assistants.generated.ts](../../src/assistants/assistants.generated.ts); used as `promptMarkdown` after merge + DS.  
    - **Conditional:** Always; it is the base of `promptMarkdown`. (Only the short version is injected into the preamble; the full `promptMarkdown` is not sent in the request payload in the code paths audited; a proxy/backend could use `assistantId` to add more context.)
 
 4. **Merged custom knowledge (legacy overlay)**  
    - **Segment:** None at runtime for Errors.  
-   - **Source:** [custom/knowledge/errors.md](custom/knowledge/errors.md) exists and is in [src/custom/generated/customKnowledge.ts](src/custom/generated/customKnowledge.ts) as `customKnowledgeByAssistant["errors"]`, but [custom/config.json](custom/config.json) has no `knowledgeBases.errors`, so `mergeKnowledgeBase` never merges it.  
+   - **Source:** [custom/knowledge/errors.md](../../custom/knowledge/errors.md) exists and is in [src/custom/generated/customKnowledge.ts](../../src/custom/generated/customKnowledge.ts) as `customKnowledgeByAssistant["errors"]`, but [custom/config.json](../../custom/config.json) has no `knowledgeBases.errors`, so `mergeKnowledgeBase` never merges it.  
    - **Conditional:** Would only apply if `config.json` had `knowledgeBases.errors` with a policy; currently not applied.
 
 5. **Design system knowledge**  
    - **Segment:** Design system component index (registry names, components, keys, purpose).  
-   - **Source:** [src/custom/knowledge.ts](src/custom/knowledge.ts) `appendDesignSystemKnowledge()`; index from [src/core/designSystem/searchIndex.ts](src/core/designSystem/searchIndex.ts) `buildComponentIndex(registries)`; registries from [src/core/designSystem/registryLoader.ts](src/core/designSystem/registryLoader.ts).  
+   - **Source:** [src/custom/knowledge.ts](../../src/custom/knowledge.ts) `appendDesignSystemKnowledge()`; index from [src/core/designSystem/searchIndex.ts](../../src/core/designSystem/searchIndex.ts) `buildComponentIndex(registries)`; registries from [src/core/designSystem/registryLoader.ts](../../src/core/designSystem/registryLoader.ts).  
    - **Conditional:** Only when `customConfig.designSystems.enabled === true` and `loadDesignSystemRegistries()` returns at least one registry.
 
 6. **Structured KB segment (ACE / .kb.json)**  
@@ -400,7 +400,7 @@ What the Errors assistant receives as instruction context at runtime, in order:
    - **Source:** No handler handles `assistantId === 'errors'`.  
    - **Conditional:** N/A.
 
-**Important:** The file [src/assistants/errors.md](src/assistants/errors.md) (output structure, categories, severity, evaluation guidelines) is **not** loaded or inlined anywhere in the plugin. Only the short manifest `promptTemplate` (and optionally the DS index) is used. To achieve behavior parity with that spec in ACE, its content must be carried into the normalized KB and used by the runtime that builds instructions or system/context messages.
+**Important:** The file [src/assistants/errors.md](../../src/assistants/errors.md) (output structure, categories, severity, evaluation guidelines) is **not** loaded or inlined anywhere in the plugin. Only the short manifest `promptTemplate` (and optionally the DS index) is used. To achieve behavior parity with that spec in ACE, its content must be carried into the normalized KB and used by the runtime that builds instructions or system/context messages.
 
 ---
 

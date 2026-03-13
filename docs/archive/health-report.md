@@ -1,4 +1,9 @@
 # Codebase Health Report
+
+> Status: Historical snapshot.
+> This file is not a current source of truth for repository health or documentation status.
+> Use `docs/README.md`, `docs/documentation-governance.md`, and current code for present-state guidance.
+
 **Date:** 2025-01-27  
 **Scope:** Public Plugin → Custom Plugin Migration Readiness  
 **Focus:** Quality, Maintainability, Correctness

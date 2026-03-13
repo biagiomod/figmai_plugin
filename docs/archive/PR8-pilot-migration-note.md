@@ -1,3 +1,6 @@
+> Status: Archived
+> Reason: Historical migration note. Preserve for implementation context only.
+
 # PR8: Pilot migration (General assistant)
 
 ## What was done

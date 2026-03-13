@@ -1,5 +1,9 @@
 # Documentation Cleanup Summary
 
+> Status: Historical cleanup note.
+> This file records an earlier cleanup pass and should not be treated as proof that current links or status claims are still valid.
+> Use `docs/README.md` and `docs/documentation-governance.md` for the current documentation surface and rules.
+
 **Date:** 2026-01-21  
 **Scope:** Documentation-only cleanup and standardization  
 **Status:** Completed

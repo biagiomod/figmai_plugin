@@ -57,7 +57,7 @@ Make Smart Detector chat output match the target formatting: clean markdown with
 
 ### 1. Add `formatSmartDetectorReport` in reportFormat.ts
 
-**File:** [src/core/richText/reportFormat.ts](src/core/richText/reportFormat.ts)
+**File:** [src/core/richText/reportFormat.ts](../../src/core/richText/reportFormat.ts)
 
 **Change:** Add a dedicated formatter that returns the target markdown using explicit `\n` and `\n\n`.
 
@@ -92,7 +92,7 @@ export interface SmartDetectorReportInput {
 
 ### 2. Update SmartDetectorHandler
 
-**File:** [src/core/assistants/handlers/smartDetector.ts](src/core/assistants/handlers/smartDetector.ts)
+**File:** [src/core/assistants/handlers/smartDetector.ts](../../src/core/assistants/handlers/smartDetector.ts)
 
 **Changes:**
 - Import `formatSmartDetectorReport` from reportFormat (remove `ReportDoc`, `toCanonicalMarkdown`)
@@ -108,7 +108,7 @@ export interface SmartDetectorReportInput {
 
 ### 3. Preserve blank lines in cleanChatContent
 
-**Files:** [src/main.ts](src/main.ts) (L273), [src/ui.tsx](src/ui.tsx) (L196)
+**Files:** [src/main.ts](../../src/main.ts) (L273), [src/ui.tsx](../../src/ui.tsx) (L196)
 
 **Change:** Allow single blank lines to survive; collapse multiple consecutive blanks to one.
 
@@ -142,7 +142,7 @@ for (const line of lines) {
 
 ### 4. Update test helpers (reportFormat.test.ts)
 
-**File:** [src/core/richText/reportFormat.test.ts](src/core/richText/reportFormat.test.ts)
+**File:** [src/core/richText/reportFormat.test.ts](../../src/core/richText/reportFormat.test.ts)
 
 The test uses `cleanChatContentMainStyle` and `cleanChatContentUIStyle` — mirror the main/ui logic. When main/ui gain blank preservation, update these helpers to match so pipeline tests stay valid.
 
@@ -150,7 +150,7 @@ The test uses `cleanChatContentMainStyle` and `cleanChatContentUIStyle` — mirr
 
 ## Tests to Add
 
-**File:** [src/core/richText/reportFormat.test.ts](src/core/richText/reportFormat.test.ts)
+**File:** [src/core/richText/reportFormat.test.ts](../../src/core/richText/reportFormat.test.ts)
 
 ### Test 1: formatSmartDetectorReport structure
 

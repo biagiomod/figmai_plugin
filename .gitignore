@@ -18,6 +18,7 @@ node_modules/
 # Admin Config Editor backups (local only)
 admin-editor/.backups/
 admin-editor/.env.deploy
+admin-editor/dist/
 
 # Generated build info (created at build time). build/build-info.json is committed so ACE has a value in dev.
 src/generated/buildInfo.ts
@@ -31,6 +32,7 @@ enterprise/ace-spring-wrapper/logs/
 enterprise/ace-spring-wrapper/.env
 infra/config-api/.aws-sam/
 infra/config-api/samconfig.toml
+infra/config-api/dist/
 
 # Work-only override files (not committed to Public repo)
 # Exception: workAdapter.override.ts has a committed no-op stub for build stability

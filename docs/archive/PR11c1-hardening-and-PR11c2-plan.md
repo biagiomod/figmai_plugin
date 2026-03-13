@@ -62,6 +62,6 @@
 3. **docs/PR11c1-QA-evidence.md** (new) — Checklist + results.
 4. **admin-editor/public/app.js** — (a) In `renderAssistantsTab` or before rendering assistant form, ensure `state.kbRegistry` is set (fetch if empty). (b) Replace `ae-knowledgeBaseRefs` input with a div containing: list of KBs with checkboxes + reorder controls for selected; bind change to `a.knowledgeBaseRefs`. (c) In KB list/detail, add "Referenced by" using `state.editedModel.assistantsManifest.assistants`.
 5. **package.json** — Add `generate-knowledge-bases.test.ts` to test script if we add it; or run generator test as part of existing test command.
-6. **docs/PR11c1-deliverable.md** or **docs/PR11c2-note.md** — Short note on what changed (generator fails fast; ACE picker + Referenced by).
+6. **docs/archive/PR11c1-deliverable.md** or **docs/archive/PR11c2-note.md** — Short note on what changed (generator fails fast; ACE picker + Referenced by).
 
-**Status:** Implemented. See docs/PR11c1-QA-evidence.md and docs/PR11c2-note.md.
+**Status:** Implemented. See docs/archive/PR11c1-QA-evidence.md and docs/archive/PR11c2-note.md.

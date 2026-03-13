@@ -6,18 +6,18 @@
 
 | Surface | Location | Current format | Notes |
 |---------|----------|----------------|-------|
-| **Chat Dialog** | [src/core/assistants/handlers/smartDetector.ts](../src/core/assistants/handlers/smartDetector.ts) | Raw `<b>Key:</b> Value` (HTML) | Renders literally; Chat does not parse HTML. |
-| **Chat Dialog** | [src/core/assistants/handlers/contentReview.ts](../src/core/assistants/handlers/contentReview.ts) | Plain string (`formatAddHatResultMessage`) | No formatting; single-line summary. |
+| **Chat Dialog** | [src/core/assistants/handlers/smartDetector.ts](../../src/core/assistants/handlers/smartDetector.ts) | Raw `<b>Key:</b> Value` (HTML) | Renders literally; Chat does not parse HTML. |
+| **Chat Dialog** | [src/core/assistants/handlers/contentReview.ts](../../src/core/assistants/handlers/contentReview.ts) | Plain string (`formatAddHatResultMessage`) | No formatting; single-line summary. |
 | **Chat Dialog** | Other handlers (designWorkshop, errors, designCritique) | Plain strings / error messages | Short, no structure. |
-| **Chat pipeline** | [src/ui.tsx](../src/ui.tsx) (lines ~2533, 2585, 2641) | `parseRichText(content)` → `enhanceRichText(ast)` → `<RichTextRenderer nodes={...} />` | Content is parsed as **markdown** (not HTML). |
-| **Annotations (native)** | [src/core/figma/annotations.ts](../src/core/figma/annotations.ts) | `label` (plain) or `labelMarkdown` | `createVisibleAnnotationCard` uses plain `lines[]`, 400 char slice per line. |
-| **Annotations (read)** | [src/core/analyticsTagging/annotations.ts](../src/core/analyticsTagging/annotations.ts) | Reads `label` / `labelMarkdown`; strips markdown to plain for parsing | `labelToPlainText` minimal strip. |
-| **Stage reports** | [src/core/figma/placeCritiqueFallback.ts](../src/core/figma/placeCritiqueFallback.ts) | Markdown → `parseMarkdownToStyledText` → styled Figma text (bold/italic spans) | **bold**, *italic*, #, lists. |
-| **Stage reports** | [src/core/stage/renderDocument.ts](../src/core/stage/renderDocument.ts), [renderScorecard.ts](../src/core/figma/renderScorecard.ts), [designWorkshop](../src/core/assistants/handlers/designWorkshop.ts) (report frame), [discovery/renderer.ts](../src/core/discovery/renderer.ts), [errors.ts](../src/core/assistants/handlers/errors.ts) | Structured data → `createTextNode(title, { fontSize, fontName: bold/regular })` | We control typography; no markdown in these paths, ad-hoc "Label:" + value. |
+| **Chat pipeline** | [src/ui.tsx](../../src/ui.tsx) (lines ~2533, 2585, 2641) | `parseRichText(content)` → `enhanceRichText(ast)` → `<RichTextRenderer nodes={...} />` | Content is parsed as **markdown** (not HTML). |
+| **Annotations (native)** | [src/core/figma/annotations.ts](../../src/core/figma/annotations.ts) | `label` (plain) or `labelMarkdown` | `createVisibleAnnotationCard` uses plain `lines[]`, 400 char slice per line. |
+| **Annotations (read)** | [src/core/analyticsTagging/annotations.ts](../../src/core/analyticsTagging/annotations.ts) | Reads `label` / `labelMarkdown`; strips markdown to plain for parsing | `labelToPlainText` minimal strip. |
+| **Stage reports** | [src/core/figma/placeCritiqueFallback.ts](../../src/core/figma/placeCritiqueFallback.ts) | Markdown → `parseMarkdownToStyledText` → styled Figma text (bold/italic spans) | **bold**, *italic*, #, lists. |
+| **Stage reports** | [src/core/stage/renderDocument.ts](../../src/core/stage/renderDocument.ts), [renderScorecard.ts](../../src/core/figma/renderScorecard.ts), [designWorkshop](../../src/core/assistants/handlers/designWorkshop.ts) (report frame), [discovery/renderer.ts](../../src/core/discovery/renderer.ts), [errors.ts](../../src/core/assistants/handlers/errors.ts) | Structured data → `createTextNode(title, { fontSize, fontName: bold/regular })` | We control typography; no markdown in these paths, ad-hoc "Label:" + value. |
 
 ### What the Chat UI renderer supports
 
-- **Input:** String content is passed to `parseRichText()` in [src/core/richText/parseRichText.ts](../src/core/richText/parseRichText.ts).
+- **Input:** String content is passed to `parseRichText()` in [src/core/richText/parseRichText.ts](../../src/core/richText/parseRichText.ts).
 - **Supported:** Markdown-like syntax only (no HTML):
   - **Bold:** `**text**`
   - *Italic:* `*text*`
@@ -28,23 +28,23 @@
   - Blockquote: `>`
   - Code block: ` ``` `
   - Divider: `---`
-- **Rendering:** AST → [RichTextRenderer.tsx](../src/ui/components/RichTextRenderer.tsx) (Preact). No HTML tags are interpreted; `<b>` appears as literal text.
+- **Rendering:** AST → [RichTextRenderer.tsx](../../src/ui/components/RichTextRenderer.tsx) (Preact). No HTML tags are interpreted; `<b>` appears as literal text.
 
 ### What annotations support
 
 - **Native Figma API:** `AnnotationEntry` has `label` (plain) or `labelMarkdown`. Figma's `labelMarkdown` supports a **subset of Markdown**: `**bold**`, `*italic*`, `##` (headings), `-`/`*` lists, `` ` `` code, `[text](url)` links. Max length and line limits are platform-defined (to be confirmed).
-- **In-plugin visible cards:** [createVisibleAnnotationCard](../src/core/figma/annotations.ts) takes `lines: string[]` (plain), each line sliced to 400 chars. No markdown rendering; plain text only.
+- **In-plugin visible cards:** [createVisibleAnnotationCard](../../src/core/figma/annotations.ts) takes `lines: string[]` (plain), each line sliced to 400 chars. No markdown rendering; plain text only.
 
 ### What stage reports can support
 
-- **Full control:** We create TextNodes via [createTextNode](../src/core/stage/primitives.ts) and [applyInlineStyles](../src/core/stage/primitives.ts) (bold/italic spans). Fonts: `fonts.regular`, `fonts.bold`; fontSize, lineHeight, etc. So we can implement "Key: Value" as bold label + regular value, section headers as larger/bold, and lists as "• " + text.
+- **Full control:** We create TextNodes via [createTextNode](../../src/core/stage/primitives.ts) and [applyInlineStyles](../../src/core/stage/primitives.ts) (bold/italic spans). Fonts: `fonts.regular`, `fonts.bold`; fontSize, lineHeight, etc. So we can implement "Key: Value" as bold label + regular value, section headers as larger/bold, and lists as "• " + text.
 
 ### Existing rich-text utilities
 
-- **[parseRichText](../src/core/richText/parseRichText.ts):** Markdown-like string → `RichTextNode[]` AST (heading, paragraph, list, code, quote, divider). Inline parsing for bold, italic, code, link.
-- **[enhancers.ts](../src/core/richText/enhancers.ts):** Assistant-scoped; injects score/scorecard/strengths/issues nodes for `design_critique`. Not used for "Key: Value" summaries.
-- **[types.ts](../src/core/richText/types.ts):** `RichTextNode`, `InlineNode` (text, bold, italic, code, link).
-- **[placeCritiqueFallback](../src/core/figma/placeCritiqueFallback.ts):** `parseMarkdownToStyledText(md)` → plain text + style spans for Figma; used only for critique fallback.
+- **[parseRichText](../../src/core/richText/parseRichText.ts):** Markdown-like string → `RichTextNode[]` AST (heading, paragraph, list, code, quote, divider). Inline parsing for bold, italic, code, link.
+- **[enhancers.ts](../../src/core/richText/enhancers.ts):** Assistant-scoped; injects score/scorecard/strengths/issues nodes for `design_critique`. Not used for "Key: Value" summaries.
+- **[types.ts](../../src/core/richText/types.ts):** `RichTextNode`, `InlineNode` (text, bold, italic, code, link).
+- **[placeCritiqueFallback](../../src/core/figma/placeCritiqueFallback.ts):** `parseMarkdownToStyledText(md)` → plain text + style spans for Figma; used only for critique fallback.
 - **No** shared "Key: Value" or "report summary" formatter; Smart Detector and Add HAT each build strings by hand.
 
 ---
@@ -75,7 +75,7 @@
 | **renderForAnnotation** | Same Markdown string | Plain text **or** Figma-safe Markdown string | Native annotations: use `labelMarkdown` with Figma's subset (no `#`, use `##`; keep **bold**, lists short). Visible cards: plain only, short lines (e.g. 400 chars), truncate to N lines. |
 | **renderForStageReport** | Same Markdown string | Structured layout **or** reuse `parseMarkdownToStyledText` | We control `createTextNode` + `applyInlineStyles`; bold labels, regular values, section titles with larger/bold font. |
 
-**Implementation:** [src/core/richText/reportFormat.ts](../src/core/richText/reportFormat.ts) provides `toCanonicalMarkdown`, `renderForChat`, `renderForAnnotation`, and `sanitizeForChat` (guardrail). Stage adapter can be added later reusing existing markdown→styled-text logic.
+**Implementation:** [src/core/richText/reportFormat.ts](../../src/core/richText/reportFormat.ts) provides `toCanonicalMarkdown`, `renderForChat`, `renderForAnnotation`, and `sanitizeForChat` (guardrail). Stage adapter can be added later reusing existing markdown→styled-text logic.
 
 ---
 
@@ -110,7 +110,7 @@
 
 ## 5) Integration plan (incremental)
 
-1. **Canonical formatter + adapters** — Done: [src/core/richText/reportFormat.ts](../src/core/richText/reportFormat.ts) with `ReportDoc`, `toCanonicalMarkdown`, `renderForChat`, `renderForAnnotation`, `sanitizeForChat`.
+1. **Canonical formatter + adapters** — Done: [src/core/richText/reportFormat.ts](../../src/core/richText/reportFormat.ts) with `ReportDoc`, `toCanonicalMarkdown`, `renderForChat`, `renderForAnnotation`, `sanitizeForChat`.
 2. **Smart Detector** — Done: Builds `ReportDoc`, uses `toCanonicalMarkdown` → `renderForChat`; no HTML.
 3. **Add HAT / other tool-only summaries** — Optional: format Add HAT as markdown and pass through `renderForChat`.
 4. **Annotations** — When setting annotation content from a report, use `renderForAnnotation(md, { maxLines: 5 })` and set `labelMarkdown` or `label` (plain).
@@ -120,8 +120,8 @@
 
 ## 6) Guardrails and tests
 
-- **Guard:** `sanitizeForChat(message)` in [reportFormat.ts](../src/core/richText/reportFormat.ts) strips raw HTML (`<b>`, `</b>`, `<br>`, etc.) from any string before it is sent to the Chat UI. Applied in [main.ts](../src/main.ts) in `replaceStatusMessage` and `sendAssistantMessage`.
-- **Unit tests:** [src/core/richText/reportFormat.test.ts](../src/core/richText/reportFormat.test.ts) — `toCanonicalMarkdown` golden-style, `renderForChat` passthrough/truncation, `renderForAnnotation` plain and markdown-lite, `sanitizeForChat` strips HTML.
+- **Guard:** `sanitizeForChat(message)` in [reportFormat.ts](../../src/core/richText/reportFormat.ts) strips raw HTML (`<b>`, `</b>`, `<br>`, etc.) from any string before it is sent to the Chat UI. Applied in [main.ts](../../src/main.ts) in `replaceStatusMessage` and `sendAssistantMessage`.
+- **Unit tests:** [src/core/richText/reportFormat.test.ts](../../src/core/richText/reportFormat.test.ts) — `toCanonicalMarkdown` golden-style, `renderForChat` passthrough/truncation, `renderForAnnotation` plain and markdown-lite, `sanitizeForChat` strips HTML.
 - **Cap:** `renderForChat(md, { maxLength: 8000 })` truncates with "... (truncated)".
 
 ---
@@ -129,7 +129,7 @@
 ## 7) Open questions
 
 - **Annotation text constraints:** Confirm Figma's max length for `label` / `labelMarkdown` and any line limits (document in code comments when known).
-- **Stage report typography:** Confirm fonts/weights in [primitives.ts](../src/core/stage/primitives.ts) (e.g. only `fonts.regular` and `fonts.bold`) and whether a second size for section headers is needed.
+- **Stage report typography:** Confirm fonts/weights in [primitives.ts](../../src/core/stage/primitives.ts) (e.g. only `fonts.regular` and `fonts.bold`) and whether a second size for section headers is needed.
 
 ---
 

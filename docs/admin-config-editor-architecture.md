@@ -1,4 +1,8 @@
-# Admin Config Editor – Architecture
+# Admin Config Editor Architecture
+
+> Status: Reference.
+> This document describes the local/file-backed ACE architecture and its original design assumptions.
+> For the current ACE migration authority use `docs/architecture/ace-static-s3-migration.md`, then current code, then `docs/setup/ace-public-replica.md`.
 
 This document defines the single editable model, sources of truth, write targets, minimal refactors, validation strategy, deterministic write rules, and a minimal security/auth recommendation for the local Admin Config Editor.
 

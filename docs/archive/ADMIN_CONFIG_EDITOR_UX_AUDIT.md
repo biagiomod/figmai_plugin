@@ -13,7 +13,7 @@
 ## 1. Top 10 UX Problems (with concrete examples)
 
 1. **Conflict “Reload” button does nothing**  
-   `#reload-after-conflict-btn` exists in [index.html](figmai_plugin/admin-editor/public/index.html) but is never bound in `bindEvents()` in [app.js](figmai_plugin/admin-editor/public/app.js). After a 409, users see “Reload required” with a Reload button that has no effect.
+   `#reload-after-conflict-btn` exists in [index.html](../../admin-editor/public/index.html) but is never bound in `bindEvents()` in [app.js](../../admin-editor/public/app.js). After a 409, users see “Reload required” with a Reload button that has no effect.
 
 2. **Registries tab crashes when there are no registries**  
    In `renderRegistriesTab()`, when `ids.length === 0` the DOM only gets “No registries present.” and no `#reset-registries-btn`. The subsequent `document.getElementById('reset-registries-btn').onclick = ...` runs anyway and throws (null.onclick), breaking the tab.
@@ -22,7 +22,7 @@
    Buttons stay clickable during API calls. Users can double-submit Save or Validate; there is no visual feedback that a request is in flight (e.g. “Validating…”, “Saving…”).
 
 4. **No visible focus styles**  
-   [styles.css](figmai_plugin/admin-editor/public/styles.css) has no `:focus` or `:focus-visible` for tabs, buttons, or inputs. Keyboard users cannot see which control is focused; contrast/accessibility suffer.
+   [styles.css](../../admin-editor/public/styles.css) has no `:focus` or `:focus-visible` for tabs, buttons, or inputs. Keyboard users cannot see which control is focused; contrast/accessibility suffer.
 
 5. **Tab navigation is mouse-only**  
    Tabs have `role="tab"` and `aria-selected` but no `tabindex`, arrow-key handling, or Enter/Space. Screen-reader and keyboard-only users cannot move between tabs without a mouse.
@@ -124,7 +124,7 @@
 - **Bind `#reload-after-conflict-btn`** in `bindEvents()`: on click, call `loadModel()` and then `showConflictBanner(false)` (or equivalent so banner hides after reload).
 - **Guard Registries tab:** In `renderRegistriesTab()`, only attach `onclick` to `#reset-registries-btn` if the element exists (`const btn = document.getElementById('reset-registries-btn'); if (btn) btn.onclick = ...`). Alternatively render the Reset button even when `ids.length === 0` (e.g. “Reset section” disabled or no-op) so the ID always exists and behavior is consistent.
 
-**Files:** [admin-editor/public/app.js](figmai_plugin/admin-editor/public/app.js) (`bindEvents`, `renderRegistriesTab`).
+**Files:** [admin-editor/public/app.js](../../admin-editor/public/app.js) (`bindEvents`, `renderRegistriesTab`).
 
 ### Step 2: Loading and Save state (P1)
 
@@ -133,14 +133,14 @@
 - In `bindEvents` (or a single `renderFooter()` if you introduce it): set button `disabled` and optionally `textContent` (e.g. “Saving…”) based on `state.loadingAction`. Re-run this after each API start/end (or from a single place that updates footer buttons).
 - Optionally disable Save when `!hasUnsavedChanges()` and show “No changes” in the button or a small hint next to it.
 
-**Files:** [app.js](figmai_plugin/admin-editor/public/app.js) (state, `loadModel`, `runValidate`, `runPreview`, `runSave`, footer button updates); optionally [index.html](figmai_plugin/admin-editor/public/index.html) if you add a wrapper for footer buttons for easier toggling.
+**Files:** [app.js](../../admin-editor/public/app.js) (state, `loadModel`, `runValidate`, `runPreview`, `runSave`, footer button updates); optionally [index.html](../../admin-editor/public/index.html) if you add a wrapper for footer buttons for easier toggling.
 
 ### Step 3: Focus and keyboard (P1)
 
-- **Focus:** In [styles.css](figmai_plugin/admin-editor/public/styles.css), add `:focus-visible` (and fallback `:focus` if needed) for `.tabs button`, `.footer-actions button`, `input`, `select`, `textarea`, and other interactive elements; use a visible outline (e.g. 2px solid `var(--accent)`).
+- **Focus:** In [styles.css](../../admin-editor/public/styles.css), add `:focus-visible` (and fallback `:focus` if needed) for `.tabs button`, `.footer-actions button`, `input`, `select`, `textarea`, and other interactive elements; use a visible outline (e.g. 2px solid `var(--accent)`).
 - **Tabs:** Set `tabindex="0"` on each tab button (or ensure they are focusable). In `bindEvents` (or a dedicated tab key handler), on keydown: Left/Right move selection and call `switchTab`; Enter/Space activate the focused tab (already handled by click). Update `aria-selected` and focus the newly selected tab.
 
-**Files:** [styles.css](figmai_plugin/admin-editor/public/styles.css), [app.js](figmai_plugin/admin-editor/public/app.js) (tab event binding), [index.html](figmai_plugin/admin-editor/public/index.html) if you add `tabindex` in markup.
+**Files:** [styles.css](../../admin-editor/public/styles.css), [app.js](../../admin-editor/public/app.js) (tab event binding), [index.html](../../admin-editor/public/index.html) if you add `tabindex` in markup.
 
 ### Step 4: Error UX and conflict (P2)
 
@@ -148,7 +148,7 @@
 - **Copy error:** For validation and save errors, add “Copy” that puts the current error text (or a small diagnostics blob) to the clipboard.
 - **409:** Ensure conflict banner Reload is fixed in Step 1; optionally add short copy: “Someone else saved or files changed on disk. Reload to get the latest, then re-apply your changes if needed.”
 
-**Files:** [app.js](figmai_plugin/admin-editor/public/app.js) (`loadModel` error block, `renderValidationMessage` or equivalent, conflict banner copy).
+**Files:** [app.js](../../admin-editor/public/app.js) (`loadModel` error block, `renderValidationMessage` or equivalent, conflict banner copy).
 
 ### Step 5: Polish and hierarchy (P2)
 
@@ -157,7 +157,7 @@
 - **Danger zone:** Wrap raw Config JSON, Content Models textarea, and each Registry JSON in a `.danger-zone` (or `.raw-editor`) block in HTML/CSS; add a label and, where feasible, inline validation (e.g. under raw JSON: “Invalid JSON” when `JSON.parse` throws). “Revert” / “Reset section” already exist; keep them.
 - **Spacing/typography:** In CSS, standardize section margins and label/body font sizes as in the visual system above; no structural DOM change required.
 
-**Files:** [styles.css](figmai_plugin/admin-editor/public/styles.css), [app.js](figmai_plugin/admin-editor/public/app.js) (subheader, preview/save hint, raw blocks), [index.html](figmai_plugin/admin-editor/public/index.html) if you add containers for danger zones.
+**Files:** [styles.css](../../admin-editor/public/styles.css), [app.js](../../admin-editor/public/app.js) (subheader, preview/save hint, raw blocks), [index.html](../../admin-editor/public/index.html) if you add containers for danger zones.
 
 ---
 
@@ -165,7 +165,7 @@
 
 ### 6.1 Conflict Reload button not bound
 
-- **Location:** [app.js](figmai_plugin/admin-editor/public/app.js) `bindEvents()`.
+- **Location:** [app.js](../../admin-editor/public/app.js) `bindEvents()`.
 - **Fix:** Add:
   ```js
   const reloadConflictBtn = document.getElementById('reload-after-conflict-btn')
@@ -177,7 +177,7 @@
 
 ### 6.2 Registries tab when there are no registries
 
-- **Location:** [app.js](figmai_plugin/admin-editor/public/app.js) `renderRegistriesTab()`.
+- **Location:** [app.js](../../admin-editor/public/app.js) `renderRegistriesTab()`.
 - **Fix:** Only bind Reset if the button exists:
   ```js
   const resetRegBtn = document.getElementById('reset-registries-btn')

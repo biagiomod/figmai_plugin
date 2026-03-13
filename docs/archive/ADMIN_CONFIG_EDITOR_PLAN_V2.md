@@ -4,7 +4,7 @@
 
 # Admin Config Editor – Revised Plan (V2)
 
-**Superseded by:** [Admin Config Editor – Plan V3](../ADMIN_CONFIG_EDITOR_PLAN_V3.md). Use the V3 plan for the current authoritative scope, classification, phases, Go/No-Go, and doc hygiene policy. This V2 document is kept as reference.
+**Superseded by:** [Admin Config Editor – Plan V3](./ADMIN_CONFIG_EDITOR_PLAN_V3.md). Use the V3 plan for the current authoritative scope, classification, phases, Go/No-Go, and doc hygiene policy. This V2 document is kept as reference.
 
 ---
 
@@ -195,7 +195,7 @@ Every setting is classified as: **Phase 1 editable**, **Read-only / documented o
 
 ### 5.2 Docs naming (uppercase vs lowercase)
 
-- **Current state:** docs/README says “Use lowercase filenames with hyphens.” Many plan/audit docs are UPPERCASE (e.g. ADMIN_CONFIG_EDITOR_*.md, ANALYTICS_TAGGING_*.md, CONTENT_SAFETY_*.md, SELECTION_POLICY_PLAN.md).
+- **Current state:** docs/README says “Use lowercase filenames with hyphens.” Many plan/audit docs are UPPERCASE (e.g. ADMIN_CONFIG_EDITOR_*.md, ANALYTICS_TAGGING_*.md, CONTENT_SAFETY_*.md, selection-policy-plan.md).
 - **Recommendation:** **Keep as-is** for existing plan/audit docs (visibility and convention for “plan” docs). For **new** docs added by this project: use **lowercase-with-hyphens** (e.g. admin-config-editor-plan-v2.md) and add to docs/README. Alternatively, **normalize** all docs to lowercase-with-hyphens and update every reference (docs/README, links from other docs, grep); do this in a single dedicated change with a strict rename list and reference update checklist. Prefer “keep as-is” for now to avoid churn; document the rule: “New docs: lowercase-with-hyphens; existing plan docs may remain UPPERCASE.”
 
 ### 5.3 work-plugin directory and “custom” terminology

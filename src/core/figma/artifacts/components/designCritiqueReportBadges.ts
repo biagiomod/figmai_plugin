@@ -1,6 +1,6 @@
 /**
  * Design Critique Report Badges
- * Shared badge/tag components for the deceptive report. Matches refs_for_cursor/design_crit_report_styling.json.
+ * Shared badge/tag components for the deceptive report. Matches the historical styling reference.
  * Badge text is HUG width (never FILL); do not call setTextFillAndHug on any badge text.
  */
 

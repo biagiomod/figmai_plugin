@@ -14,7 +14,7 @@ This document audits the Design Critique assistant and plans its migration to th
 
 ### A) Assistant definition (manifest + generated)
 
-**Manifest:** [figmai_plugin/custom/assistants.manifest.json](figmai_plugin/custom/assistants.manifest.json) — Design Critique entry (lines ~134–183).
+**Manifest:** [figmai_plugin/custom/assistants.manifest.json](../../custom/assistants.manifest.json) — Design Critique entry (lines ~134–183).
 
 | Field | Value |
 |-------|--------|
@@ -30,7 +30,7 @@ This document audits the Design Critique assistant and plans its migration to th
 | **knowledgeBaseRefs** | **None** (not present). |
 | **quickActions** | (1) **give-critique** — executionType llm, requiresSelection true, requiresVision true, maxImages 1, imageScale 2; templateMessage "Provide a comprehensive design critique of the selected elements." (2) **deceptive-review** — same; templateMessage "Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users." (3) **temp-place-forced-action-card** — executionType tool-only; label "Add Deceptive Demos"; templateMessage "Place deceptive demo cards on the stage for testing dark pattern examples." |
 
-**Generated file:** [figmai_plugin/src/assistants/assistants.generated.ts](figmai_plugin/src/assistants/assistants.generated.ts) (lines 82–98) — Design Critique entry matches manifest; no knowledgeBaseRefs.
+**Generated file:** [figmai_plugin/src/assistants/assistants.generated.ts](../../src/assistants/assistants.generated.ts) (lines 82–98) — Design Critique entry matches manifest; no knowledgeBaseRefs.
 
 ---
 
@@ -38,24 +38,24 @@ This document audits the Design Critique assistant and plans its migration to th
 
 **All instruction sources that influence Design Critique:**
 
-1. **Legacy markdown** — [figmai_plugin/src/assistants/designCritique.md](figmai_plugin/src/assistants/designCritique.md)  
+1. **Legacy markdown** — [figmai_plugin/src/assistants/designCritique.md](../../src/assistants/designCritique.md)  
    - Referenced in promptTemplate as `[Full knowledge base available in: src/assistants/designCritique.md]`.  
    - Contains: role, output format (scorecard schema), scoring guidelines (90–100 exceptional, etc.), core evaluation dimensions (Hierarchy, Layout, Spacing, Typography, Color/Contrast, Affordance, Consistency, Accessibility, States), wins/fixes/checklist rules and examples, missing-selection fallback JSON.  
    - **Not** loaded at runtime via `resolveKnowledgeBaseDocs` (no knowledgeBaseRefs). Only the first paragraph of promptMarkdown (via getShortInstructions) is used when preamble is built.
 
-2. **Custom overlay** — [figmai_plugin/custom/knowledge/design_critique.md](figmai_plugin/custom/knowledge/design_critique.md), [figmai_plugin/src/custom/generated/customKnowledge.ts](figmai_plugin/src/custom/generated/customKnowledge.ts)  
+2. **Custom overlay** — [figmai_plugin/custom/knowledge/design_critique.md](../../custom/knowledge/design_critique.md), [figmai_plugin/src/custom/generated/customKnowledge.ts](../../src/custom/generated/customKnowledge.ts)  
    - Placeholder text ("Add your custom knowledge base content here…").  
    - Applied only when `customConfig.knowledgeBases.design_critique` is set (append/override). Typically not set.
 
-3. **Handler-injected** — [figmai_plugin/src/core/assistants/handlers/designCritique.ts](figmai_plugin/src/core/assistants/handlers/designCritique.ts) `prepareMessages()`:  
+3. **Handler-injected** — [figmai_plugin/src/core/assistants/handlers/designCritique.ts](../../src/core/assistants/handlers/designCritique.ts) `prepareMessages()`:  
    - **Tool/DS path:** When last user message indicates tool request or DS availability query, prepends tool-enforcement system message and modifies last user message (CRITICAL: call DESIGN_SYSTEM_QUERY, no hallucination).  
    - **Deceptive path:** When `isDeceptiveReview` (last user content includes "Dark & Deceptive UX practices"), returns system (JSON only) + messages with prepended JSON hint + **getDarkUxEvaluationPrompt()** as final user message (full deceptive report schema, 10 dimensions, evaluation principles).  
    - **Scorecard path:** Otherwise returns system (JSON only) + messages + final user message with score/summary/wins/fixes/checklist/notes schema hint.
 
-4. **appendDesignSystemKnowledge** — [figmai_plugin/src/assistants/index.ts](figmai_plugin/src/assistants/index.ts)  
+4. **appendDesignSystemKnowledge** — [figmai_plugin/src/assistants/index.ts](../../src/assistants/index.ts)  
    - Applied to all assistants’ promptMarkdown when design systems are enabled. Design Critique receives DS component index in promptMarkdown; getShortInstructions uses first paragraph of that.
 
-5. **Runtime assembly** — [figmai_plugin/src/main.ts](figmai_plugin/src/main.ts) (chat ~553–558, quick action ~947–952):  
+5. **Runtime assembly** — [figmai_plugin/src/main.ts](../../src/main.ts) (chat ~553–558, quick action ~947–952):  
    - `buildAssistantInstructionSegments({ assistantEntry, actionId, legacyInstructionsSource: getShortInstructions(assistant), kbDocs })`.  
    - Design Critique has instructionBlocks, so preamble = enabled blocks (one system block "# Design Critique Assistant") + optional tone/schema. **No KB segment** (knowledgeBaseRefs empty; kbDocs not passed for this assistant).  
    - After preamble injection (when supportsPreambleInjection and first user message), handler.prepareMessages() overrides/extends messages with action-specific injection (tool, deceptive, or scorecard).
@@ -64,15 +64,15 @@ This document audits the Design Critique assistant and plans its migration to th
 
 ### C) Handler and runtime behavior per quick action
 
-**Handler:** [figmai_plugin/src/core/assistants/handlers/designCritique.ts](figmai_plugin/src/core/assistants/handlers/designCritique.ts)
+**Handler:** [figmai_plugin/src/core/assistants/handlers/designCritique.ts](../../src/core/assistants/handlers/designCritique.ts)
 
-**Routing:** [figmai_plugin/src/main.ts](figmai_plugin/src/main.ts) (lines 730–773): When `executionType === 'tool-only'` and `assistantId === 'design_critique'` and `actionId === 'temp-place-forced-action-card'`, main builds handlerContext (response empty), calls `handler.handleResponse(handlerContext)`, and returns after handled — **no sendChat**. LLM actions (give-critique, deceptive-review) go through normal sendChatWithRecovery then handler.handleResponse.
+**Routing:** [figmai_plugin/src/main.ts](../../src/main.ts) (lines 730–773): When `executionType === 'tool-only'` and `assistantId === 'design_critique'` and `actionId === 'temp-place-forced-action-card'`, main builds handlerContext (response empty), calls `handler.handleResponse(handlerContext)`, and returns after handled — **no sendChat**. LLM actions (give-critique, deceptive-review) go through normal sendChatWithRecovery then handler.handleResponse.
 
 | Quick action | Type | Output contract | Canvas mutation | Parsing / repair / fallback |
 |--------------|------|-----------------|-----------------|----------------------------|
-| **give-critique** | llm | Strict JSON: score (0–100), summary, wins[], fixes[], checklist[], notes[]. | On success: `createArtifact({ type: 'scorecard', assistant: 'design_critique', version: 'v2' }, result.data)`. Placement via artifacts system (placeArtifact). | `parseScorecardJson` ([figmai_plugin/src/core/output/normalize/index.ts](figmai_plugin/src/core/output/normalize/index.ts)). On failure: one repair round (sendChatWithRecovery with repair prompt); then fallback `placeCritiqueOnCanvas(response, selectedNode, runId)`. |
-| **deceptive-review** | llm | Strict JSON: summary, overallSeverity (None/Low/Medium/High), findings[], dimensionsChecklist[10]. | On success: `createArtifact({ type: 'deceptive-report', assistant: 'design_critique', version: 'v1' }, result.data)`. | `parseDeceptiveReportJson` ([figmai_plugin/src/core/output/normalize/deceptiveReport.ts](figmai_plugin/src/core/output/normalize/deceptiveReport.ts)). On failure: fallback `placeCritiqueOnCanvas(response, selectedNode, runId)` (no repair). |
-| **temp-place-forced-action-card** (Add Deceptive Demos) | tool-only | None (no LLM). | Builds frames from DARK_DEMO_CARDS ([figmai_plugin/src/core/figma/artifacts/components/darkDemoCards.generated.ts](figmai_plugin/src/core/figma/artifacts/components/darkDemoCards.generated.ts), source [refs_for_cursor/dark_demo_cards.json](figmai_plugin/refs_for_cursor/dark_demo_cards.json)); `createDemoCardContainer`, `placeBatchBelowPageContent(container, { marginTop: 24 })`. Fixed educational demo cards only. | N/A. |
+| **give-critique** | llm | Strict JSON: score (0–100), summary, wins[], fixes[], checklist[], notes[]. | On success: `createArtifact({ type: 'scorecard', assistant: 'design_critique', version: 'v2' }, result.data)`. Placement via artifacts system (placeArtifact). | `parseScorecardJson` ([figmai_plugin/src/core/output/normalize/index.ts](../../src/core/output/normalize/index.ts)). On failure: one repair round (sendChatWithRecovery with repair prompt); then fallback `placeCritiqueOnCanvas(response, selectedNode, runId)`. |
+| **deceptive-review** | llm | Strict JSON: summary, overallSeverity (None/Low/Medium/High), findings[], dimensionsChecklist[10]. | On success: `createArtifact({ type: 'deceptive-report', assistant: 'design_critique', version: 'v1' }, result.data)`. | `parseDeceptiveReportJson` ([figmai_plugin/src/core/output/normalize/deceptiveReport.ts](../../src/core/output/normalize/deceptiveReport.ts)). On failure: fallback `placeCritiqueOnCanvas(response, selectedNode, runId)` (no repair). |
+| **temp-place-forced-action-card** (Add Deceptive Demos) | tool-only | None (no LLM). | Builds frames from DARK_DEMO_CARDS ([src/core/figma/artifacts/components/darkDemoCards.generated.ts](../../src/core/figma/artifacts/components/darkDemoCards.generated.ts), source data file at the time (now removed from the repo)); `createDemoCardContainer`, `placeBatchBelowPageContent(container, { marginTop: 24 })`. Fixed educational demo cards only. | N/A. |
 
 **Caps/limits:** Scorecard and deceptive report: no explicit cap on array lengths in parser; handler uses parsed data as-is. Add Deceptive Demos: fixed set of cards from JSON (no user/LLM input to content).
 

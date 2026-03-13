@@ -161,7 +161,7 @@ Phased, step-by-step plan with exact file changes per phase and acceptance crite
 ### 3.3 README and docs
 
 - **admin-editor/README.md**: how to run the server, open the browser, use Validate and Save, and where backups live.  
-- **docs/ADMIN_CONFIG_EDITOR_AUDIT.md**, **docs/ADMIN_CONFIG_EDITOR_ARCHITECTURE.md**, **docs/ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md**: already created; keep them updated as implementation proceeds.
+- **docs/admin-config-editor-audit.md**, **docs/admin-config-editor-architecture.md**, **docs/ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md**: already created; keep them updated as implementation proceeds.
 
 **Acceptance criteria:**
 

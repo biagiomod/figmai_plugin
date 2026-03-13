@@ -1,3 +1,6 @@
+> Status: Archived
+> Reason: Historical PR delivery note. Preserve for implementation context only.
+
 # PR11c1: Runtime consumption of Knowledge Bases — Deliverable
 
 ## Goal (achieved)

@@ -94,7 +94,6 @@ Points to the active snapshot. Build-time sync reads this, then downloads the re
 
 These stay in the repo (not user-editable via ACE):
 - `custom/branding.local.json` — gitignored, local-only
-- `refs_for_cursor/dark_demo_cards.json` — static reference data
 - `custom/design-systems/nuxt-ui-v4/nuxt-ui-v4.catalog.json` and `demo-allowlist.json` — static reference data
 - `custom/*.example.*`, `custom/knowledge/README.md` — documentation/templates
 

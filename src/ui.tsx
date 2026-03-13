@@ -2354,7 +2354,7 @@ ${htmlTable}
   }
 
   /**
-   * Tag styles mirroring refs_for_cursor/tags_for_assistants.json.
+   * Tag styles matching the historical assistant-tag reference styles.
    * new = Tag - Success (green); beta = Tag - Soft Warning (amber); alpha = Tag - Warning (orange, white text).
    */
   const ASSISTANT_TAG_STYLES: Record<'new' | 'beta' | 'alpha', { [key: string]: string | number }> = {

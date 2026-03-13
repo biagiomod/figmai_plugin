@@ -1,10 +1,10 @@
 Copy these OTF files here so the ACE UI can load them:
 
-From refs_for_cursor/Protipo/
+Place the Protipo font files here:
   - Protipo-Semibold.otf
   - Protipo-Bold.otf
 
-From refs_for_cursor/Carbon/
+Place the Carbon font files here:
   - Carbon-Regular.otf
   - Carbon-Bold.otf
 

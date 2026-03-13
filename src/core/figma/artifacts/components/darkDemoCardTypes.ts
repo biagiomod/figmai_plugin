@@ -1,5 +1,5 @@
 /**
- * Types for dark demo card JSON spec (refs_for_cursor/dark_demo_cards.json).
+ * Types for the dark demo card JSON spec.
  * Used by the renderer; structure matches the generated DARK_DEMO_CARDS.
  */
 

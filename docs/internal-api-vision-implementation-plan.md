@@ -12,28 +12,28 @@
 
 | Step | Location | Behavior |
 |------|----------|----------|
-| **1. Selection context** | [src/core/context/selectionContext.ts](figmai_plugin/src/core/context/selectionContext.ts) `buildSelectionContext()` | Exports images **only when** (a) `quickAction?.requiresVision === true`, (b) `provider.capabilities.supportsImages === true`, (c) selection exists. Uses `quickAction.maxImages` / `quickAction.imageScale`; caps by `provider.capabilities.maxImages`. Calls [exportSelectionAsImages](figmai_plugin/src/core/figma/exportSelectionAsImages.ts). |
-| **2. Export** | [src/core/figma/exportSelectionAsImages.ts](figmai_plugin/src/core/figma/exportSelectionAsImages.ts) | No feature flag. Exports selected nodes as PNG → base64 data URLs (`data:image/png;base64,...`). Options: maxImages, imageScale, preferFrames, maxWidth, maxHeight, maxSizeBytes. |
-| **3. Envelope** | [src/core/contracts/requestEnvelope.ts](figmai_plugin/src/core/contracts/requestEnvelope.ts), main.ts | Envelope includes `images` from selection context. Provider is resolved via `createProvider(providerId)`; same provider instance is passed to `buildSelectionContext` and later to `sendChatWithRecovery`. |
-| **4. Safety** | [src/core/contentSafety/recovery.ts](figmai_plugin/src/core/contentSafety/recovery.ts) `sendChatWithRecovery()` | Applies `getSafetyToggles()`: if `safety.forceNoImages` is true, sets `images: undefined` on the payload before calling `provider.sendChat()`. So **forceNoImages gates at send time** regardless of provider capabilities. |
-| **5. Normalize** | [src/core/provider/normalize.ts](figmai_plugin/src/core/provider/normalize.ts) `prepareRequest()` | Calls `normalizeImageData(request.images, capabilities)`. If `capabilities.supportsImages` is false, returns `undefined` — **images are stripped before provider.sendChat()**. Also enforces `capabilities.maxImages`. |
-| **6. Provider** | Proxy: [proxyProvider.ts](figmai_plugin/src/core/provider/proxyProvider.ts) → [client.ts](figmai_plugin/src/core/proxy/client.ts). Internal API: [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) | Proxy: `capabilities.supportsImages: true`, `maxImages: undefined`; passes `normalizedRequest.images` to `proxyClient.chat()` which sends `payload.images` array. Internal API: `supportsImages: false`, `maxImages: 0`; **payload is built without any images field** (message + selection text only). |
+| **1. Selection context** | [src/core/context/selectionContext.ts](../src/core/context/selectionContext.ts) `buildSelectionContext()` | Exports images **only when** (a) `quickAction?.requiresVision === true`, (b) `provider.capabilities.supportsImages === true`, (c) selection exists. Uses `quickAction.maxImages` / `quickAction.imageScale`; caps by `provider.capabilities.maxImages`. Calls [exportSelectionAsImages](../src/core/figma/exportSelectionAsImages.ts). |
+| **2. Export** | [src/core/figma/exportSelectionAsImages.ts](../src/core/figma/exportSelectionAsImages.ts) | No feature flag. Exports selected nodes as PNG → base64 data URLs (`data:image/png;base64,...`). Options: maxImages, imageScale, preferFrames, maxWidth, maxHeight, maxSizeBytes. |
+| **3. Envelope** | [src/core/contracts/requestEnvelope.ts](../src/core/contracts/requestEnvelope.ts), main.ts | Envelope includes `images` from selection context. Provider is resolved via `createProvider(providerId)`; same provider instance is passed to `buildSelectionContext` and later to `sendChatWithRecovery`. |
+| **4. Safety** | [src/core/contentSafety/recovery.ts](../src/core/contentSafety/recovery.ts) `sendChatWithRecovery()` | Applies `getSafetyToggles()`: if `safety.forceNoImages` is true, sets `images: undefined` on the payload before calling `provider.sendChat()`. So **forceNoImages gates at send time** regardless of provider capabilities. |
+| **5. Normalize** | [src/core/provider/normalize.ts](../src/core/provider/normalize.ts) `prepareRequest()` | Calls `normalizeImageData(request.images, capabilities)`. If `capabilities.supportsImages` is false, returns `undefined` — **images are stripped before provider.sendChat()**. Also enforces `capabilities.maxImages`. |
+| **6. Provider** | Proxy: [proxyProvider.ts](../src/core/provider/proxyProvider.ts) → [client.ts](../src/core/proxy/client.ts). Internal API: [internalApiProvider.ts](../src/core/provider/internalApiProvider.ts) | Proxy: `capabilities.supportsImages: true`, `maxImages: undefined`; passes `normalizedRequest.images` to `proxyClient.chat()` which sends `payload.images` array. Internal API: `supportsImages: false`, `maxImages: 0`; **payload is built without any images field** (message + selection text only). |
 
 ### 1.2 Where Internal API is blocked today
 
-- **Capabilities:** [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) lines 71–77: `supportsImages: false`, `maxImages: 0`. So:
+- **Capabilities:** [internalApiProvider.ts](../src/core/provider/internalApiProvider.ts) lines 71–77: `supportsImages: false`, `maxImages: 0`. So:
   - `buildSelectionContext` never exports images for Internal API (because `providerSupportsImages` is false).
   - Even if images were in the envelope, `normalizeImageData(..., capabilities)` would strip them in `prepareRequest`.
 - **Payload:** Internal API `sendChat()` builds `payload` as `Record<string, string>` with only `type`, `message`, `kbName` — no `images` key. So the backend would not receive images even if we passed them through.
 
 ### 1.3 Safety and config
 
-- **forceNoImages:** From [getSafetyToggles()](figmai_plugin/src/custom/config.ts) — `forceNoImages: customConfig?.llm?.safety?.forceNoImages !== false` (default **true**). When true, [recovery.ts](figmai_plugin/src/core/contentSafety/recovery.ts) sets `images: undefined` on the payload. To enable images in work environment, deployers set `llm.safety.forceNoImages: false` in config.
+- **forceNoImages:** From [getSafetyToggles()](../src/custom/config.ts) — `forceNoImages: customConfig?.llm?.safety?.forceNoImages !== false` (default **true**). When true, [recovery.ts](../src/core/contentSafety/recovery.ts) sets `images: undefined` on the payload. To enable images in work environment, deployers set `llm.safety.forceNoImages: false` in config.
 - **No other feature flags** gate selection export PNG; the only gates are `requiresVision`, `provider.supportsImages`, and `forceNoImages`.
 
 ### 1.4 Logging (guardrails)
 
-- [selectionContext.ts](figmai_plugin/src/core/context/selectionContext.ts) lines 84–88: currently logs `preview = img.dataUrl.substring(0, 80) + '...'` — **this leaks base64**. Plan: log only counts/sizes (e.g. image count, total byte size or per-image size), and only when diagnostics are enabled or in a dedicated debug scope; never log raw dataUrl content.
+- [selectionContext.ts](../src/core/context/selectionContext.ts) lines 84–88: currently logs `preview = img.dataUrl.substring(0, 80) + '...'` — **this leaks base64**. Plan: log only counts/sizes (e.g. image count, total byte size or per-image size), and only when diagnostics are enabled or in a dedicated debug scope; never log raw dataUrl content.
 
 ---
 
@@ -41,16 +41,16 @@
 
 ### 2.1 Provider capabilities (Internal API)
 
-**File:** [src/core/provider/internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts)
+**File:** [src/core/provider/internalApiProvider.ts](../src/core/provider/internalApiProvider.ts)
 
 - Set `supportsImages: true`.
-- Set `maxImages` to a sensible limit (e.g. `1` or `2`) to match typical quick actions (Design Critique, etc. use maxImages: 1). Recommend `2` for parity with `ALLOW_IMAGES_BUDGETS.maxImages` in [promptPipeline.ts](figmai_plugin/src/core/llm/promptPipeline.ts).
+- Set `maxImages` to a sensible limit (e.g. `1` or `2`) to match typical quick actions (Design Critique, etc. use maxImages: 1). Recommend `2` for parity with `ALLOW_IMAGES_BUDGETS.maxImages` in [promptPipeline.ts](../src/core/llm/promptPipeline.ts).
 
 No other provider code path needs change for capabilities; selection context and normalize already use them.
 
 ### 2.2 Internal API request payload (add images)
 
-**File:** [src/core/provider/internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) `sendChat()`.
+**File:** [src/core/provider/internalApiProvider.ts](../src/core/provider/internalApiProvider.ts) `sendChat()`.
 
 - After building `message` (and optional `kbName`), if `request.images` is present and non-empty, add an `images` field to the payload.
 - Payload is currently `Record<string, string>`; for images we need a JSON-serializable structure. Use the **same shape as the proxy** for consistency and so the enterprise endpoint can mirror proxy semantics if desired.
@@ -70,11 +70,11 @@ Implementation detail: build payload as `Record<string, unknown>` (or a small ty
 
 ### 2.3 Logging (no raw base64)
 
-**File:** [src/core/context/selectionContext.ts](figmai_plugin/src/core/context/selectionContext.ts)
+**File:** [src/core/context/selectionContext.ts](../src/core/context/selectionContext.ts)
 
 - Replace the per-image log that uses `img.dataUrl.substring(0, 80) + '...'` with diagnostics-only, count/size-only logging. For example: log only when a diagnostics/debug scope is enabled; log `imageCount`, and for each image only `name`, `width`, `height`, and approximate size in KB (e.g. `(dataUrl.length * 0.75) / 1024`). Never log `dataUrl` or any substring of base64.
 
-Optional: use [debug.scope](figmai_plugin/src/core/debug/logger) (e.g. `subsystem:provider` or a dedicated `selectionContext` scope) so these logs appear only when diagnostics are enabled.
+Optional: use [debug.scope](../src/core/debug/logger.ts) (e.g. `subsystem:provider` or a dedicated `selectionContext` scope) so these logs appear only when diagnostics are enabled.
 
 ---
 
@@ -151,13 +151,13 @@ No changes to: response parsing, auth, proxy client, providerFactory, recovery (
 
 | Concern | File |
 |--------|------|
-| Selection → images export gating | [src/core/context/selectionContext.ts](figmai_plugin/src/core/context/selectionContext.ts) |
-| PNG export | [src/core/figma/exportSelectionAsImages.ts](figmai_plugin/src/core/figma/exportSelectionAsImages.ts) |
-| Safety forceNoImages | [src/core/contentSafety/recovery.ts](figmai_plugin/src/core/contentSafety/recovery.ts), [src/custom/config.ts](figmai_plugin/src/custom/config.ts) getSafetyToggles |
-| Request normalization / image strip by capability | [src/core/provider/normalize.ts](figmai_plugin/src/core/provider/normalize.ts) |
-| Internal API capabilities and payload | [src/core/provider/internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) |
-| Proxy image payload (reference shape) | [src/core/proxy/client.ts](figmai_plugin/src/core/proxy/client.ts), [src/core/provider/proxyProvider.ts](figmai_plugin/src/core/provider/proxyProvider.ts) |
-| Image budgets | [src/core/llm/promptPipeline.ts](figmai_plugin/src/core/llm/promptPipeline.ts) ALLOW_IMAGES_BUDGETS |
+| Selection → images export gating | [src/core/context/selectionContext.ts](../src/core/context/selectionContext.ts) |
+| PNG export | [src/core/figma/exportSelectionAsImages.ts](../src/core/figma/exportSelectionAsImages.ts) |
+| Safety forceNoImages | [src/core/contentSafety/recovery.ts](../src/core/contentSafety/recovery.ts), [src/custom/config.ts](../src/custom/config.ts) getSafetyToggles |
+| Request normalization / image strip by capability | [src/core/provider/normalize.ts](../src/core/provider/normalize.ts) |
+| Internal API capabilities and payload | [src/core/provider/internalApiProvider.ts](../src/core/provider/internalApiProvider.ts) |
+| Proxy image payload (reference shape) | [src/core/proxy/client.ts](../src/core/proxy/client.ts), [src/core/provider/proxyProvider.ts](../src/core/provider/proxyProvider.ts) |
+| Image budgets | [src/core/llm/promptPipeline.ts](../src/core/llm/promptPipeline.ts) ALLOW_IMAGES_BUDGETS |
 
 ---
 

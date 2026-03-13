@@ -1,7 +1,11 @@
 # Admin Config Editor – Plan V3
 
+> Status: Historical planning reference.
+> Current ACE migration authority: `docs/architecture/ace-static-s3-migration.md`, then current code in `infra/config-api/`, `admin-editor/`, and `scripts/`, then `docs/setup/ace-public-replica.md`.
+> Use this document as local/file-backed ACE planning context only.
+
 **Status:** Audit + planning only. No implementation yet.  
-**Supersedes:** [Admin Config Editor – Revised Plan (V2)](archive/ADMIN_CONFIG_EDITOR_PLAN_V2.md). V2 remains in archive as reference.  
+**Supersedes:** [Admin Config Editor – Revised Plan (V2)](./ADMIN_CONFIG_EDITOR_PLAN_V2.md). V2 remains in archive as reference.  
 **Audience:** Contributors (including non-technical editors) and plugin owners.
 
 This document confirms sources of truth, classifies what is editable vs out of scope, refines Phases 0–3, states Go/No-Go criteria, risks and mitigations, and a **doc hygiene policy**. The Admin Config Editor is a **local-only, browser-based, file-backed** tool so contributors can safely edit plugin customizations **without editing TypeScript**. The editor **runs generators after save** and **never compiles or publishes** the plugin; it tells the owner to build and publish.

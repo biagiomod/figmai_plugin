@@ -1,4 +1,8 @@
-# Admin Config Editor – Audit
+# Admin Config Editor Audit
+
+> Status: Reference.
+> This document captures the detailed local/file-backed ACE surface audit.
+> For current ACE migration authority use `docs/architecture/ace-static-s3-migration.md`, then current code, then `docs/setup/ace-public-replica.md`.
 
 This document lists every relevant config source, assistant source, and derived artifact in the FigmAI plugin codebase, with file paths and read/write flow. It supports the design of a local “Admin Config Editor” that lets non-technical editors safely edit plugin settings and assistant configurations.
 
@@ -245,4 +249,4 @@ So: custom KB content is editable via files; “public” prompt text is current
 - **Request timeouts / model defaults**: in `src/core/settings.ts` (clientStorage) — per user; do not edit from Admin Editor.
 - **Quick action options**: `requiresVision`, `maxImages`, `imageScale` are per quick action in index.ts; no separate config file.
 
-All of the above that are “code only” today can be represented in the single editable model and, where we add a writable source (e.g. config.json or assistants manifest), the editor can write them there; refactors required are described in ADMIN_CONFIG_EDITOR_ARCHITECTURE.md.
+All of the above that are “code only” today can be represented in the single editable model and, where we add a writable source (e.g. config.json or assistants manifest), the editor can write them there; refactors required are described in [`admin-config-editor-architecture.md`](admin-config-editor-architecture.md).

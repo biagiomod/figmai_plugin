@@ -1,5 +1,5 @@
 /**
- * Dark Demo Cards – generated from refs_for_cursor/dark_demo_cards.json
+ * Dark Demo Cards – generated from the historical demo-card source data
  * Do not edit by hand. Run: npm run generate-dark-demo-cards
  */
 

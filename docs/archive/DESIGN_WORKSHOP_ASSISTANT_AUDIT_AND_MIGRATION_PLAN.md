@@ -12,7 +12,7 @@ This document audits the Design Workshop Assistant (DW-A) and plans its migratio
 
 ### A) Assistant definition and quick action wiring
 
-**Manifest:** [figmai_plugin/custom/assistants.manifest.json](figmai_plugin/custom/assistants.manifest.json) (Design Workshop entry starts ~line 356)
+**Manifest:** [figmai_plugin/custom/assistants.manifest.json](../../custom/assistants.manifest.json) (Design Workshop entry starts ~line 356)
 
 | Field | Value |
 |-------|--------|
@@ -28,11 +28,11 @@ This document audits the Design Workshop Assistant (DW-A) and plans its migratio
 | **knowledgeBaseRefs** | **None** — no KB attachment today. |
 | **quickActions** | One: `{ id: "generate-screens", label: "Demo: Generate Screens", templateMessage: "Generating demo screen/s using medium fidelity.", executionType: "llm" }`. No requiresSelection, no requiresVision. |
 
-**Generated file:** [figmai_plugin/src/assistants/assistants.generated.ts](figmai_plugin/src/assistants/assistants.generated.ts) (lines 165–176)
+**Generated file:** [figmai_plugin/src/assistants/assistants.generated.ts](../../src/assistants/assistants.generated.ts) (lines 165–176)
 
 - The Design Workshop entry is present and matches the manifest (id, label, intro, promptTemplate, quickActions). No `instructionBlocks` or `knowledgeBaseRefs` in the generated array.
 
-**Config:** [figmai_plugin/custom/config.json](figmai_plugin/custom/config.json) lists `design_workshop` in `ui.simpleModeIds`. `knowledgeBases` is `{}`, so no per-assistant KB policy is set for design_workshop.
+**Config:** [figmai_plugin/custom/config.json](../../custom/config.json) lists `design_workshop` in `ui.simpleModeIds`. `knowledgeBases` is `{}`, so no per-assistant KB policy is set for design_workshop.
 
 ---
 
@@ -41,16 +41,16 @@ This document audits the Design Workshop Assistant (DW-A) and plans its migratio
 **All instruction sources that influence DW-A:**
 
 1. **Manifest promptTemplate (long)**  
-   - **Path:** `custom/assistants.manifest.json` → baked into `assistants.generated.ts` and then into runtime `ASSISTANTS` via [figmai_plugin/src/assistants/index.ts](figmai_plugin/src/assistants/index.ts).  
+   - **Path:** `custom/assistants.manifest.json` → baked into `assistants.generated.ts` and then into runtime `ASSISTANTS` via [figmai_plugin/src/assistants/index.ts](../../src/assistants/index.ts).  
    - **Usage:** `promptMarkdown = appendDesignSystemKnowledge(mergeKnowledgeBase(entry.id, promptTemplate))`. For DW-A, `mergeKnowledgeBase("design_workshop", promptTemplate)` returns `promptTemplate` when `customConfig.knowledgeBases.design_workshop` is absent (current config has `knowledgeBases: {}`). So `promptMarkdown` = promptTemplate + optional DS index when design systems are enabled.  
-   - **Runtime preamble:** [figmai_plugin/src/main.ts](figmai_plugin/src/main.ts) (chat ~553–558, quick action ~947–952) calls `buildAssistantInstructionSegments({ assistantEntry, actionId, legacyInstructionsSource: getShortInstructions(assistant), kbDocs })`. DW-A has **no instructionBlocks**, so `hasEnabledBlocks` is false and the built preamble is **legacy only**: `getShortInstructions(assistant)` = first paragraph (or first 200 chars) of `promptMarkdown`. So the **long promptTemplate is never sent in full** — only the short extract. The long schema and rules are **not** in the assembly output.
+   - **Runtime preamble:** [figmai_plugin/src/main.ts](../../src/main.ts) (chat ~553–558, quick action ~947–952) calls `buildAssistantInstructionSegments({ assistantEntry, actionId, legacyInstructionsSource: getShortInstructions(assistant), kbDocs })`. DW-A has **no instructionBlocks**, so `hasEnabledBlocks` is false and the built preamble is **legacy only**: `getShortInstructions(assistant)` = first paragraph (or first 200 chars) of `promptMarkdown`. So the **long promptTemplate is never sent in full** — only the short extract. The long schema and rules are **not** in the assembly output.
 
 2. **Handler-injected schema and rules**  
-   - **Path:** [figmai_plugin/src/core/assistants/handlers/designWorkshop.ts](figmai_plugin/src/core/assistants/handlers/designWorkshop.ts) `prepareMessages()`.  
+   - **Path:** [figmai_plugin/src/core/assistants/handlers/designWorkshop.ts](../../src/core/assistants/handlers/designWorkshop.ts) `prepareMessages()`.  
    - **Content:** Prepends a system message (“Return ONLY valid JSON… DesignSpecV1 schema”) and appends a long user message containing: USER REQUEST, EXTRACTED INTENT, SCHEMA REQUIREMENTS (full DesignSpecV1 shape), and **STYLING RULES** (mapping app type/tone/colors/fidelity/density/screen archetypes). This is the **effective** source of output contract and styling behavior for the model.
 
 3. **Legacy markdown / custom overlay**  
-   - **Path:** [figmai_plugin/custom/knowledge/design_workshop.md](figmai_plugin/custom/knowledge/design_workshop.md) and [figmai_plugin/src/custom/generated/customKnowledge.ts](figmai_plugin/src/custom/generated/customKnowledge.ts) (`design_workshop` key).  
+   - **Path:** [figmai_plugin/custom/knowledge/design_workshop.md](../../custom/knowledge/design_workshop.md) and [figmai_plugin/src/custom/generated/customKnowledge.ts](../../src/custom/generated/customKnowledge.ts) (`design_workshop` key).  
    - **Content:** Placeholder (“Add your custom knowledge base content here…”, merge policy instructions).  
    - **When used:** Only when `customConfig.knowledgeBases.design_workshop` is set (e.g. `policy: "append"`). Currently **not** applied because `knowledgeBases` is empty.
 
@@ -67,7 +67,7 @@ This document audits the Design Workshop Assistant (DW-A) and plans its migratio
 
 ### C) Canvas mutation pipeline audit
 
-**Handlers:** Single handler [figmai_plugin/src/core/assistants/handlers/designWorkshop.ts](figmai_plugin/src/core/assistants/handlers/designWorkshop.ts).
+**Handlers:** Single handler [figmai_plugin/src/core/assistants/handlers/designWorkshop.ts](../../src/core/assistants/handlers/designWorkshop.ts).
 
 - **canHandle:** `assistantId === 'design_workshop' && (actionId === 'generate-screens' || actionId === undefined)`. So both the quick action “Demo: Generate Screens” and **chat** (actionId undefined) are handled by the same handler.
 - **prepareMessages:** As above; injects system + schema + styling rules.
@@ -75,26 +75,26 @@ This document audits the Design Workshop Assistant (DW-A) and plans its migratio
 
 **JSON output contract (DesignSpecV1):**
 
-- **Schema:** [figmai_plugin/src/core/designWorkshop/types.ts](figmai_plugin/src/core/designWorkshop/types.ts).  
+- **Schema:** [figmai_plugin/src/core/designWorkshop/types.ts](../../src/core/designWorkshop/types.ts).  
 - **Shape:** `type: "designScreens"`, `version: 1`, `meta: { title, ... }`, `canvas.device: { kind, width, height }`, `render.intent: { fidelity, styleKeywords?, brandTone?, density? }`, `screens: Array<{ name, layout?, blocks }>`. Block types: heading, bodyText, button, input, card, spacer, image.  
 - **Versioning:** version must be 1; validation enforces it.
 
 **Parsing / validation / repair:**
 
-- **Parsing:** [designWorkshop.ts](figmai_plugin/src/core/assistants/handlers/designWorkshop.ts) uses `extractJsonFromResponse` from [figmai_plugin/src/core/output/normalize/index.ts](figmai_plugin/src/core/output/normalize/index.ts); then manual fence strip if extraction fails.  
-- **Validation:** [figmai_plugin/src/core/designWorkshop/validate.ts](figmai_plugin/src/core/designWorkshop/validate.ts) `validateDesignSpecV1(spec)` — non-throwing, returns `{ ok, warnings, errors, info, severity }`. Checks type, version, meta, canvas.device, render.intent, screens array (0 or >5 → error/warning), each block type and required fields.  
+- **Parsing:** [designWorkshop.ts](../../src/core/assistants/handlers/designWorkshop.ts) uses `extractJsonFromResponse` from [figmai_plugin/src/core/output/normalize/index.ts](../../src/core/output/normalize/index.ts); then manual fence strip if extraction fails.  
+- **Validation:** [figmai_plugin/src/core/designWorkshop/validate.ts](../../src/core/designWorkshop/validate.ts) `validateDesignSpecV1(spec)` — non-throwing, returns `{ ok, warnings, errors, info, severity }`. Checks type, version, meta, canvas.device, render.intent, screens array (0 or >5 → error/warning), each block type and required fields.  
 - **Repair:** `attemptRepair()` sends one follow-up request with minimal schema + “Convert to valid JSON… Original: <first 2000 chars>”. After repair: parse → validate again; if still failing, user-facing “Could not parse” / “validation failed” and return.
 
 **Node creation and placement:**
 
-- **Primitives:** [figmai_plugin/src/core/stage/primitives.ts](figmai_plugin/src/core/stage/primitives.ts) — `loadFonts()` (Inter → Roboto → fallback), `createTextNode`, `createAutoLayoutFrameSafe`.  
-- **Renderer:** [figmai_plugin/src/core/designWorkshop/renderer.ts](figmai_plugin/src/core/designWorkshop/renderer.ts) — `renderDesignSpecToSection()` creates one Section (FrameNode), then for each screen: `renderScreen()` (frame + layout + blocks via `renderBlock()`). Fidelity/intent drive styling (colors, corners, shadows).  
-- **Placement:** `placeBatchBelowPageContent(section, { marginTop: 24 })` from [figmai_plugin/src/core/figma/placement.ts](figmai_plugin/src/core/figma/placement.ts) — appends to page, places below existing content, scrolls into view. No selection-based anchor.  
+- **Primitives:** [figmai_plugin/src/core/stage/primitives.ts](../../src/core/stage/primitives.ts) — `loadFonts()` (Inter → Roboto → fallback), `createTextNode`, `createAutoLayoutFrameSafe`.  
+- **Renderer:** [figmai_plugin/src/core/designWorkshop/renderer.ts](../../src/core/designWorkshop/renderer.ts) — `renderDesignSpecToSection()` creates one Section (FrameNode), then for each screen: `renderScreen()` (frame + layout + blocks via `renderBlock()`). Fidelity/intent drive styling (colors, corners, shadows).  
+- **Placement:** `placeBatchBelowPageContent(section, { marginTop: 24 })` from [figmai_plugin/src/core/figma/placement.ts](../../src/core/figma/placement.ts) — appends to page, places below existing content, scrolls into view. No selection-based anchor.  
 - **Observability:** Handler creates “Design Workshop — Spec & Intent (runId)” frame with user request, intent, runId, and appends it next to the section (positioned relative to section).
 
 **Caps / limits:**
 
-- **Screens:** 1–5 enforced in [validate.ts](figmai_plugin/src/core/designWorkshop/validate.ts) `normalizeDesignSpecV1`: if `screens.length > 5`, truncate to 5 and set `meta.truncationNotice`. Validation warns if >5.  
+- **Screens:** 1–5 enforced in [validate.ts](../../src/core/designWorkshop/validate.ts) `normalizeDesignSpecV1`: if `screens.length > 5`, truncate to 5 and set `meta.truncationNotice`. Validation warns if >5.  
 - **Blocks per screen:** No explicit cap in renderer; runaway specs could create many nodes (see robustness).  
 - **Repair:** Single attempt; then fail with message.  
 - **Text/spec size:** Repair prompt uses `originalResponse.substring(0, 2000)`; no cap on total spec size before render (large specs could cause many nodes).
@@ -113,9 +113,9 @@ This document audits the Design Workshop Assistant (DW-A) and plans its migratio
 
 - **KB id:** `design_workshop`  
 - **File path:** `figmai_plugin/custom/knowledge-bases/design_workshop.kb.json`  
-- **Registry:** Add an entry in [figmai_plugin/custom/knowledge-bases/registry.json](figmai_plugin/custom/knowledge-bases/registry.json) with `id: "design_workshop"`, `title: "Design Workshop"`, `filePath: "design_workshop.kb.json"`.
+- **Registry:** Add an entry in [figmai_plugin/custom/knowledge-bases/registry.json](../../custom/knowledge-bases/registry.json) with `id: "design_workshop"`, `title: "Design Workshop"`, `filePath: "design_workshop.kb.json"`.
 
-**KB content (reference-only):** Suggested sections aligned with [errors.kb.json](figmai_plugin/custom/knowledge-bases/errors.kb.json) and existing docs:
+**KB content (reference-only):** Suggested sections aligned with [errors.kb.json](../../custom/knowledge-bases/errors.kb.json) and existing docs:
 
 - **purpose:** e.g. “Reference knowledge for generating screen layouts and UI blocks (headings, buttons, inputs, cards, etc.) from user descriptions.”
 - **scope:** Applies to screen layout, block types, fidelity, and styling guidance. Excludes output format enforcement, schema syntax, and runtime execution rules.
@@ -157,13 +157,13 @@ I can generate 1-5 Figma screens. Describe the screens you want, and I'll create
 
 **Files to update:**
 
-- [figmai_plugin/custom/assistants.manifest.json](figmai_plugin/custom/assistants.manifest.json) — `intro` field for the Design Workshop entry.
-- After regeneration, [figmai_plugin/src/assistants/assistants.generated.ts](figmai_plugin/src/assistants/assistants.generated.ts) will reflect the new intro automatically.
+- [figmai_plugin/custom/assistants.manifest.json](../../custom/assistants.manifest.json) — `intro` field for the Design Workshop entry.
+- After regeneration, [figmai_plugin/src/assistants/assistants.generated.ts](../../src/assistants/assistants.generated.ts) will reflect the new intro automatically.
 
 **Deduplication / intro detection:** The phrase “welcome to your design workshop assistant” is used in:
 
-- [figmai_plugin/src/main.ts](figmai_plugin/src/main.ts) (helper “Design Workshop intro”) — no change needed; still matches.
-- [figmai_plugin/src/ui.tsx](figmai_plugin/src/ui.tsx) (intro message deduplication) — no change needed; still matches. The second line change does not affect these checks.
+- [figmai_plugin/src/main.ts](../../src/main.ts) (helper “Design Workshop intro”) — no change needed; still matches.
+- [figmai_plugin/src/ui.tsx](../../src/ui.tsx) (intro message deduplication) — no change needed; still matches. The second line change does not affect these checks.
 
 ---
 
@@ -172,7 +172,7 @@ I can generate 1-5 Figma screens. Describe the screens you want, and I'll create
 Label: **optional**; only if time and risk allow.
 
 1. **Font loading failure (renderer)**  
-   - **Current:** [figmai_plugin/src/core/stage/primitives.ts](figmai_plugin/src/core/stage/primitives.ts) `loadFonts()` falls back Inter → Roboto → non-loading fallback (still returns an object). If all loads fail, rendering may use invalid font.  
+   - **Current:** [figmai_plugin/src/core/stage/primitives.ts](../../src/core/stage/primitives.ts) `loadFonts()` falls back Inter → Roboto → non-loading fallback (still returns an object). If all loads fail, rendering may use invalid font.  
    - **Improvement:** In renderer (or primitives), after `loadFonts()`, if font load failed, catch at first `createTextNode` and show a single “Fonts unavailable; check Figma font access.” status and skip full render (or render minimal placeholder). Deterministic, testable.
 
 2. **Runaway blocks per screen**  
@@ -180,8 +180,8 @@ Label: **optional**; only if time and risk allow.
    - **Improvement:** In `normalizeDesignSpecV1` or in renderer, cap blocks per screen (e.g. 50) and optionally set a flag or truncation notice. Reduces risk of Figma slowness; deterministic and testable.
 
 3. **Placement fallback**  
-   - **Current:** [figmai_plugin/src/core/figma/placement.ts](figmai_plugin/src/core/figma/placement.ts) `placeBatchBelowPageContent` does not catch; renderer does not try/catch around it. If `getPageContentBounds` or append fails, error propagates.  
-   - **Improvement:** In [renderer.ts](figmai_plugin/src/core/designWorkshop/renderer.ts), wrap `placeBatchBelowPageContent(section, { marginTop: 24 })` in try/catch; on failure set section.x = 0, section.y = 100 (or similar) and log. Same pattern as Errors handler. Low risk, avoids unhandled throw.
+   - **Current:** [figmai_plugin/src/core/figma/placement.ts](../../src/core/figma/placement.ts) `placeBatchBelowPageContent` does not catch; renderer does not try/catch around it. If `getPageContentBounds` or append fails, error propagates.  
+   - **Improvement:** In [renderer.ts](../../src/core/designWorkshop/renderer.ts), wrap `placeBatchBelowPageContent(section, { marginTop: 24 })` in try/catch; on failure set section.x = 0, section.y = 100 (or similar) and log. Same pattern as Errors handler. Low risk, avoids unhandled throw.
 
 4. **Invalid JSON / repair response length**  
    - **Current:** Repair uses `originalResponse.substring(0, 2000)`; repaired response is not length-capped before parse.  
@@ -191,7 +191,7 @@ Label: **optional**; only if time and risk allow.
 
 ## 5. Design System future-ready extension point (plan only)
 
-**Current:** Design systems enter only via [figmai_plugin/src/assistants/index.ts](figmai_plugin/src/assistants/index.ts) — `appendDesignSystemKnowledge(promptMarkdown)` appends a DS component index to **all** assistants’ promptMarkdown when `designSystems.enabled` and active registries exist. The Design Workshop **renderer** does not use DS: it uses primitives only ([docs/work-plugin/extension-points.md](figmai_plugin/docs/work-plugin/extension-points.md) “Design System Reference Packs” is a placeholder). No design token or style mapping in the renderer today.
+**Current:** Design systems enter only via [figmai_plugin/src/assistants/index.ts](../../src/assistants/index.ts) — `appendDesignSystemKnowledge(promptMarkdown)` appends a DS component index to **all** assistants’ promptMarkdown when `designSystems.enabled` and active registries exist. The Design Workshop **renderer** does not use DS: it uses primitives only ([docs/work-plugin/extension-points.md](../work-plugin/extension-points.md) “Design System Reference Packs” is a placeholder). No design token or style mapping in the renderer today.
 
 **Proposed extension point (do not implement in this migration):**
 

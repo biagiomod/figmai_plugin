@@ -8,15 +8,15 @@
 ## 1. Executive summary
 
 **Safe / already aligned**
-- Provider abstraction is clear: [providerFactory](figmai_plugin/src/core/provider/providerFactory.ts) selects Proxy vs Internal API by `connectionType` and URL; [provider.ts](figmai_plugin/src/core/provider/provider.ts) defines a single `Provider` interface used everywhere.
+- Provider abstraction is clear: [providerFactory](../src/core/provider/providerFactory.ts) selects Proxy vs Internal API by `connectionType` and URL; [provider.ts](../src/core/provider/provider.ts) defines a single `Provider` interface used everywhere.
 - Request lifecycle is identical for both: UI → main thread → `sendChatWithRecovery` → `provider.sendChat()` → fetch → response parsing → handler/rendering. No separate code paths that bypass the provider.
 - Error types are unified (`ProviderError` / `ProviderErrorType`); both proxy and Internal API map status codes to the same enum (auth, rate limit, timeout, content filter, network).
 - Content-safety pipeline (Tier 1/2/3, recovery on CONTENT_FILTER) and safety toggles (forceNoImages, forceNoKbName, forceNoSelectionSummary) apply to both providers; they use the same `sendChatWithRecovery` and config.
-- Settings and config: effective settings come from [getEffectiveSettings](figmai_plugin/src/core/settings.ts) (config wins when config.llm.provider is set); Internal API URL comes from config.llm.endpoint (or clientStorage fallback). No proxy-specific logic in message state or assistant behavior.
+- Settings and config: effective settings come from [getEffectiveSettings](../src/core/settings.ts) (config wins when config.llm.provider is set); Internal API URL comes from config.llm.endpoint (or clientStorage fallback). No proxy-specific logic in message state or assistant behavior.
 
 **Risky / must-address for parity**
-- **Manifest allowedDomains:** The script [update-manifest-network-access.ts](figmai_plugin/scripts/update-manifest-network-access.ts) does **not** add `config.llm.endpoint` or proxy `baseUrl` to `manifest.networkAccess.allowedDomains`. It only adds `networkAccess.baseAllowedDomains`, `networkAccess.extraAllowedDomains`, and (if enabled) `analytics.endpointUrl`. So for Internal API, the **enterprise endpoint origin must be listed in baseAllowedDomains or extraAllowedDomains** or Figma will block all LLM requests. Operational playbook must require adding the Internal API origin to config before switching provider.
-- **Internal API response shape:** Internal API expects/returns a different contract (e.g. `type: 'generalChat'`, `message`, `kbName`; response `Prompts[0].ResponseFromAssistant` or `result`). This is already implemented in [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts). Design Critique and other JSON-based assistants rely on this extraction. **Assumption:** If the enterprise API changes response shape (different wrapper or field names), parsing will break until [extractInternalApiAssistantText](figmai_plugin/src/core/provider/internalApiProvider.ts) is updated; that file is the single place to adapt.
+- **Manifest allowedDomains:** The script [update-manifest-network-access.ts](../scripts/update-manifest-network-access.ts) does **not** add `config.llm.endpoint` or proxy `baseUrl` to `manifest.networkAccess.allowedDomains`. It only adds `networkAccess.baseAllowedDomains`, `networkAccess.extraAllowedDomains`, and (if enabled) `analytics.endpointUrl`. So for Internal API, the **enterprise endpoint origin must be listed in baseAllowedDomains or extraAllowedDomains** or Figma will block all LLM requests. Operational playbook must require adding the Internal API origin to config before switching provider.
+- **Internal API response shape:** Internal API expects/returns a different contract (e.g. `type: 'generalChat'`, `message`, `kbName`; response `Prompts[0].ResponseFromAssistant` or `result`). This is already implemented in [internalApiProvider.ts](../src/core/provider/internalApiProvider.ts). Design Critique and other JSON-based assistants rely on this extraction. **Assumption:** If the enterprise API changes response shape (different wrapper or field names), parsing will break until [extractInternalApiAssistantText](../src/core/provider/internalApiProvider.ts) is updated; that file is the single place to adapt.
 - **Images:** Internal API has `supportsImages: false` and `maxImages: 0`. Assistants that use vision (e.g. Design Critique with selection image) will not send images when Internal API is selected. This is intentional but must be clearly documented for deployers (either disable vision-dependent actions in work mode or add image support to the Internal API later).
 - **Auth:** Proxy uses optional `X-FigmAI-Token` or `Authorization: Bearer` from settings. Internal API uses no custom auth headers (session/cookies are not sent; comment in code says "credentials omitted to match curl behavior and avoid CORS"). If the enterprise endpoint requires auth, it must be handled by the endpoint (e.g. API key in query, or server-side session tied to another mechanism). Token handling in UI/storage: sharedToken and sessionToken are only used by the proxy client; they are not sent by InternalApiProvider. So no new token exposure from Internal API path; ensure Internal API URL and any in-URL tokens are not logged or displayed in error messages.
 
@@ -28,8 +28,8 @@
 |------|--------|--------------|-------------------|
 | **Request payload** | POST to `{baseUrl}/v1/chat`; body: `model`, `messages[]`, optional `assistantId`, `quickActionId`, `selectionSummary`, `images`, `response_format` (Design Critique). | POST to single URL (config.llm.endpoint); body: `type: 'generalChat'`, `message` (concatenated user + selection), `kbName`. | Internal API has no model field in payload; no tool definitions sent. Acceptable if backend uses a single model or derives from headers. |
 | **Auth** | Optional `X-FigmAI-Token` or `Authorization: Bearer` from settings (sharedToken / sessionToken). | No auth headers. Credentials omitted. | Enterprise must accept unauthenticated requests from the plugin or use another mechanism (e.g. IP allowlist, gateway API key in URL). |
-| **Response parsing** | [extractResponseText](figmai_plugin/src/core/provider/normalize.ts) + proxy-specific JSON. | [extractInternalApiAssistantText](figmai_plugin/src/core/provider/internalApiProvider.ts): Format A `Prompts[0].ResponseFromAssistant`, Format B `result`. | If backend changes format, update extraction only; no change to rest of plugin. |
-| **Errors** | [ProxyError.fromResponse](figmai_plugin/src/core/proxy/client.ts): 401/403 → AUTHENTICATION, 429 → RATE_LIMIT, 4xx → INVALID_REQUEST, 5xx → PROVIDER_ERROR; AbortError → TIMEOUT. | Same mapping in [internalApiProvider](figmai_plugin/src/core/provider/internalApiProvider.ts); 400 + content-filter body → CONTENT_FILTER. | Parity. |
+| **Response parsing** | [extractResponseText](../src/core/provider/normalize.ts) + proxy-specific JSON. | [extractInternalApiAssistantText](../src/core/provider/internalApiProvider.ts): Format A `Prompts[0].ResponseFromAssistant`, Format B `result`. | If backend changes format, update extraction only; no change to rest of plugin. |
+| **Errors** | [ProxyError.fromResponse](../src/core/proxy/client.ts): 401/403 → AUTHENTICATION, 429 → RATE_LIMIT, 4xx → INVALID_REQUEST, 5xx → PROVIDER_ERROR; AbortError → TIMEOUT. | Same mapping in [internalApiProvider](../src/core/provider/internalApiProvider.ts); 400 + content-filter body → CONTENT_FILTER. | Parity. |
 | **Retry** | Proxy client: no retry loop. | Internal API: retry up to 2 times with 1s/2s delay for retryable errors. | Internal API is more resilient; proxy could add retry later if desired. |
 | **Streaming** | Not implemented; `sendChatStream` yields once with full response. | Same. | Parity. |
 | **Images** | Sent if present (proxy server enforces limits). | Stripped (capabilities.supportsImages: false). | Document; no code change for parity. |
@@ -41,7 +41,7 @@
 
 ## 3. Must-fix before migration (if any)
 
-**allowedDomains rule (critical):** Figma enforces `manifest.networkAccess.allowedDomains` at runtime. The script [update-manifest-network-access.ts](figmai_plugin/scripts/update-manifest-network-access.ts) computes this list **only** from `custom/config.json`: `networkAccess.baseAllowedDomains`, `networkAccess.extraAllowedDomains`, and (when enabled) `analytics.endpointUrl`. It does **not** add `config.llm.endpoint` or `config.llm.proxy.baseUrl`. Therefore the **Internal API origin must be present in config.networkAccess.baseAllowedDomains or extraAllowedDomains**, and the plugin must be **rebuilt** after config change so the manifest is patched. Otherwise Figma blocks all outbound requests to that origin.
+**allowedDomains rule (critical):** Figma enforces `manifest.networkAccess.allowedDomains` at runtime. The script [update-manifest-network-access.ts](../scripts/update-manifest-network-access.ts) computes this list **only** from `custom/config.json`: `networkAccess.baseAllowedDomains`, `networkAccess.extraAllowedDomains`, and (when enabled) `analytics.endpointUrl`. It does **not** add `config.llm.endpoint` or `config.llm.proxy.baseUrl`. Therefore the **Internal API origin must be present in config.networkAccess.baseAllowedDomains or extraAllowedDomains**, and the plugin must be **rebuilt** after config change so the manifest is patched. Otherwise Figma blocks all outbound requests to that origin.
 
 | Item | Severity | Description |
 |------|----------|-------------|
@@ -89,13 +89,13 @@
 
 | Concern | File(s) |
 |--------|---------|
-| Provider selection | [src/core/provider/providerFactory.ts](figmai_plugin/src/core/provider/providerFactory.ts) — `createProvider()`, precedence internal-api → proxy → by id. |
-| Proxy request/response | [src/core/proxy/client.ts](figmai_plugin/src/core/proxy/client.ts) — `ProxyClient.chat()`, healthCheck, error mapping. |
-| Internal API request/response | [src/core/provider/internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) — `sendChat()`, `extractInternalApiAssistantText()`, error mapping, retry. |
-| Normalized send path | [src/core/contentSafety/recovery.ts](figmai_plugin/src/core/contentSafety/recovery.ts) — `sendChatWithRecovery()`; [src/core/provider/normalize.ts](figmai_plugin/src/core/provider/normalize.ts) — `prepareRequest`, `extractResponseText`. |
-| Effective settings | [src/core/settings.ts](figmai_plugin/src/core/settings.ts) — `getEffectiveSettings()`; [src/custom/config.ts](figmai_plugin/src/custom/config.ts) — `getLlmProvider()`, `getCustomLlmEndpoint()`, `getConfigProxySettings()`. |
-| Manifest allowedDomains | [scripts/update-manifest-network-access.ts](figmai_plugin/scripts/update-manifest-network-access.ts) — `computeAllowedDomains()` (only networkAccess + analytics; **does not** add llm.endpoint or proxy baseUrl). |
-| Blocklist invariant | [scripts/assert-invariants.ts](figmai_plugin/scripts/assert-invariants.ts) — “Allowed domains blocklist” step. |
+| Provider selection | [src/core/provider/providerFactory.ts](../src/core/provider/providerFactory.ts) — `createProvider()`, precedence internal-api → proxy → by id. |
+| Proxy request/response | [src/core/proxy/client.ts](../src/core/proxy/client.ts) — `ProxyClient.chat()`, healthCheck, error mapping. |
+| Internal API request/response | [src/core/provider/internalApiProvider.ts](../src/core/provider/internalApiProvider.ts) — `sendChat()`, `extractInternalApiAssistantText()`, error mapping, retry. |
+| Normalized send path | [src/core/contentSafety/recovery.ts](../src/core/contentSafety/recovery.ts) — `sendChatWithRecovery()`; [src/core/provider/normalize.ts](../src/core/provider/normalize.ts) — `prepareRequest`, `extractResponseText`. |
+| Effective settings | [src/core/settings.ts](../src/core/settings.ts) — `getEffectiveSettings()`; [src/custom/config.ts](../src/custom/config.ts) — `getLlmProvider()`, `getCustomLlmEndpoint()`, `getConfigProxySettings()`. |
+| Manifest allowedDomains | [scripts/update-manifest-network-access.ts](../scripts/update-manifest-network-access.ts) — `computeAllowedDomains()` (only networkAccess + analytics; **does not** add llm.endpoint or proxy baseUrl). |
+| Blocklist invariant | [scripts/assert-invariants.ts](../scripts/assert-invariants.ts) — “Allowed domains blocklist” step. |
 | All fetch call sites | See “Networking + security” below. |
 
 ---
@@ -117,7 +117,7 @@ UI (postMessage)
   → UI (postMessage)
 ```
 
-Abstraction points: `Provider` interface ([provider.ts](figmai_plugin/src/core/provider/provider.ts)); `ChatRequest` / response as string; `prepareRequest` in normalize.ts; `extractResponseText` (proxy) vs `extractInternalApiAssistantText` (internal). Tool execution is separate: `RUN_TOOL` from UI → `routeToolCall` → local tool execution; no LLM round-trip for tool calls.
+Abstraction points: `Provider` interface ([provider.ts](../src/core/provider/provider.ts)); `ChatRequest` / response as string; `prepareRequest` in normalize.ts; `extractResponseText` (proxy) vs `extractInternalApiAssistantText` (internal). Tool execution is separate: `RUN_TOOL` from UI → `routeToolCall` → local tool execution; no LLM round-trip for tool calls.
 
 ---
 
@@ -133,10 +133,10 @@ Abstraction points: `Provider` interface ([provider.ts](figmai_plugin/src/core/p
 
 | Location | Purpose | Allowed by |
 |----------|---------|------------|
-| [src/core/proxy/client.ts](figmai_plugin/src/core/proxy/client.ts) | Proxy health + chat | manifest allowedDomains (proxy baseUrl must be in config networkAccess) |
-| [src/core/provider/internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) | Internal API chat + test | manifest allowedDomains (internal API URL must be in config networkAccess) |
-| [src/core/analytics/service.ts](figmai_plugin/src/core/analytics/service.ts) | Analytics batch upload | manifest allowedDomains (analytics endpoint added by script when enabled) |
-| [src/ui.tsx](figmai_plugin/src/ui.tsx) | `fetch(data:image/png;base64,...)` for blob | No network; data URL only |
+| [src/core/proxy/client.ts](../src/core/proxy/client.ts) | Proxy health + chat | manifest allowedDomains (proxy baseUrl must be in config networkAccess) |
+| [src/core/provider/internalApiProvider.ts](../src/core/provider/internalApiProvider.ts) | Internal API chat + test | manifest allowedDomains (internal API URL must be in config networkAccess) |
+| [src/core/analytics/service.ts](../src/core/analytics/service.ts) | Analytics batch upload | manifest allowedDomains (analytics endpoint added by script when enabled) |
+| [src/ui.tsx](../src/ui.tsx) | `fetch(data:image/png;base64,...)` for blob | No network; data URL only |
 
 No other fetch/XHR in plugin src. Scripts (admin-editor, scripts) are not in the plugin runtime.
 
@@ -146,7 +146,7 @@ No other fetch/XHR in plugin src. Scripts (admin-editor, scripts) are not in the
 
 ## 10. Error handling and resilience parity
 
-- **Proxy:** 401/403 → AUTHENTICATION; 429 → RATE_LIMIT; 4xx → INVALID_REQUEST; 5xx → PROVIDER_ERROR; AbortError → TIMEOUT. Content-filter detection via [isContentFilterResponse](figmai_plugin/src/core/contentSafety/index.ts) (status 400 + body phrase). No retry in client.
+- **Proxy:** 401/403 → AUTHENTICATION; 429 → RATE_LIMIT; 4xx → INVALID_REQUEST; 5xx → PROVIDER_ERROR; AbortError → TIMEOUT. Content-filter detection via [isContentFilterResponse](../src/core/contentSafety/index.ts) (status 400 + body phrase). No retry in client.
 - **Internal API:** Same status mapping; 400 + content-filter body → CONTENT_FILTER. Retry up to 2 times with 1s/2s delay for retryable errors. CORS (status 0) mapped to NETWORK with message about allowedDomains.
 - **Enterprise considerations:** TLS/cert errors will surface as network errors. Non-JSON or HTML error pages from a gateway should be handled by existing try/catch around response.json(); invalid JSON falls back to response.text() and may then fail extraction. No special handling for redirects (Figma plugin fetch follows redirects; ensure endpoint URL is final).
 
@@ -154,7 +154,7 @@ No other fetch/XHR in plugin src. Scripts (admin-editor, scripts) are not in the
 
 ## 11. Tooling and tool-call compatibility
 
-- **Current:** Tools are registered in [toolRegistry](figmai_plugin/src/core/tools/toolRegistry.ts); execution is [routeToolCall](figmai_plugin/src/core/tools/toolRouter.ts) (main thread). The LLM (proxy or Internal API) returns **text**; there is no parsing of OpenAI-style `tool_calls` in the response. The UI sends `RUN_TOOL` with toolId and payload when the user or flow triggers a tool (e.g. export selection to JSON). So both proxy and Internal API are “text in, text out”; no schema difference for tools.
+- **Current:** Tools are registered in [toolRegistry](../src/core/tools/toolRegistry.ts); execution is [routeToolCall](../src/core/tools/toolRouter.ts) (main thread). The LLM (proxy or Internal API) returns **text**; there is no parsing of OpenAI-style `tool_calls` in the response. The UI sends `RUN_TOOL` with toolId and payload when the user or flow triggers a tool (e.g. export selection to JSON). So both proxy and Internal API are “text in, text out”; no schema difference for tools.
 - **Internal API:** No tool definitions are sent in the payload; the backend does not need to support function calling. If a future Internal API supports tool calls in its own format, an adapter in InternalApiProvider would be needed; current design does not require it for parity.
 
 ---
@@ -171,12 +171,12 @@ No other fetch/XHR in plugin src. Scripts (admin-editor, scripts) are not in the
 
 **Go** — Proceed with migration when:
 - The Internal API endpoint origin is added to `custom/config.json` under `networkAccess.baseAllowedDomains` or `extraAllowedDomains`, and the manifest has been rebuilt (postbuild run).
-- The enterprise endpoint accepts the documented request shape (`type: 'generalChat'`, `message`, `kbName`) and returns one of the supported response shapes (Format A: `Prompts[0].ResponseFromAssistant`, Format B: `result`). See [internalApiProvider.ts](figmai_plugin/src/core/provider/internalApiProvider.ts) for exact extraction logic.
+- The enterprise endpoint accepts the documented request shape (`type: 'generalChat'`, `message`, `kbName`) and returns one of the supported response shapes (Format A: `Prompts[0].ResponseFromAssistant`, Format B: `result`). See [internalApiProvider.ts](../src/core/provider/internalApiProvider.ts) for exact extraction logic.
 - You accept that images/vision are not sent when Internal API is selected (capabilities.supportsImages: false), and that no auth headers are sent unless the endpoint uses another mechanism (e.g. API key in URL, IP allowlist).
 
 **No-Go** — Pause migration if:
 - The Internal API origin is not in config networkAccess and you cannot rebuild before rollout (Figma will block requests).
-- The enterprise API response format does not match what [extractInternalApiAssistantText](figmai_plugin/src/core/provider/internalApiProvider.ts) expects, and you cannot change the backend or update the extractor before cutover.
+- The enterprise API response format does not match what [extractInternalApiAssistantText](../src/core/provider/internalApiProvider.ts) expects, and you cannot change the backend or update the extractor before cutover.
 - You require vision/image support for Internal API and the backend does not yet support it (no code path today sends images for internal-api).
 
 ---

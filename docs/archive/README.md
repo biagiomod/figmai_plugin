@@ -28,3 +28,9 @@
 ## 3. Finding Current Documentation
 
 Always start at the main documentation index: [FigmAI Plugin Documentation Index](../README.md)
+
+For current ACE migration and hosting topics, use:
+
+1. [architecture/ace-static-s3-migration.md](../architecture/ace-static-s3-migration.md)
+2. current code in `infra/config-api/`, `admin-editor/`, and `scripts/`
+3. [setup/ace-public-replica.md](../setup/ace-public-replica.md)

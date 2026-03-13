@@ -1,7 +1,7 @@
 # Nuxt Components Catalog Audit
 
-**File audited:** `refs_for_cursor/NuxtComponents.json`  
-**Canonical output:** `refs_for_cursor/NuxtComponents.fixed.json`  
+**Historical source:** Nuxt components export used during the audit (no longer kept in the repo)  
+**Historical normalized output:** normalized catalog artifact produced during the audit (no longer kept in the repo)  
 **Date:** 2026-01-21
 
 ---
@@ -132,12 +132,12 @@ The plugin’s `ComponentEntry` (see `src/core/designSystem/types.ts`) expects `
 
 | Deliverable | Path |
 |-------------|------|
-| Fixed canonical JSON | `figmai_plugin/refs_for_cursor/NuxtComponents.fixed.json` |
-| Audit report | `figmai_plugin/docs/NUXT_COMPONENTS_CATALOG_AUDIT.md` (this file) |
+| Historical normalized catalog artifact | Removed from the repo after the audit cleanup pass |
+| Audit report | `figmai_plugin/docs/nuxt-components-catalog-audit.md` (this file) |
 
 ---
 
 ## 5. Verification
 
-- `node -e "JSON.parse(require('fs').readFileSync('figmai_plugin/refs_for_cursor/NuxtComponents.fixed.json','utf8')); console.log('OK')"` → **OK**  
-- Build: Only `refs_for_cursor/` and `docs/` were changed; no plugin code change. Parsing check is sufficient. If you run `npm run build`, it should succeed.
+- Parsing of the normalized catalog artifact was verified at audit time before the reference files were removed from the repo.
+- This document is retained as historical audit context only; there is no current in-repo artifact to re-parse.

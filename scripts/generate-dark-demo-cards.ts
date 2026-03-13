@@ -1,5 +1,5 @@
 /**
- * Generate dark demo cards module from refs_for_cursor/dark_demo_cards.json
+ * Generate the dark demo cards module from the source dataset
  *
  * The JSON file contains line comments (// ### Card N Name ###) and 10 separate
  * JSON objects. This script strips comment lines, splits and parses each object,
@@ -39,7 +39,7 @@ function main() {
   console.log(`[generate-dark-demo-cards] Parsed ${cards.length} cards from ${INPUT}`)
 
   const content = `/**
- * Dark Demo Cards – generated from refs_for_cursor/dark_demo_cards.json
+ * Dark Demo Cards – generated from the source dataset
  * Do not edit by hand. Run: npm run generate-dark-demo-cards
  */
 
