@@ -66,9 +66,6 @@ export async function publishResponse(requestId: string) {
     `${JSON.stringify(published, null, 2)}\n`,
     'application/json'
   )
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/publish.ts:70',message:'publish success',data:{snapshotId,publishedRevision,fileCount:copyKeys.length},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   logAction({
     requestId,

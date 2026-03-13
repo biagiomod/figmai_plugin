@@ -35,6 +35,10 @@ function loadAndParseCards(): unknown[] {
 }
 
 function main() {
+  if (!fs.existsSync(INPUT)) {
+    console.log(`[generate-dark-demo-cards] Source not found, skipping: ${INPUT}`)
+    return
+  }
   const cards = loadAndParseCards()
   console.log(`[generate-dark-demo-cards] Parsed ${cards.length} cards from ${INPUT}`)
 

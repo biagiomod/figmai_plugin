@@ -130,17 +130,7 @@ export interface CustomConfig {
 
 export const customConfig: CustomConfig | null = {
   "ui": {
-    "branding": {
-      "showLogo": false,
-      "showName": true,
-      "showAppName": true,
-      "showLogline": true,
-      "appName": "Ableza",
-      "logline": "Insight to Impact",
-      "logoPath": ""
-    },
-    "contentMvpAssistantId": "content_table",
-    "defaultMode": "simple",
+    "defaultMode": "advanced",
     "hideContentMvpMode": false,
     "simpleModeIds": [
       "general",
@@ -149,30 +139,40 @@ export const customConfig: CustomConfig | null = {
       "design_workshop",
       "design_critique",
       "errors"
-    ]
+    ],
+    "contentMvpAssistantId": "content_table",
+    "branding": {
+      "showLogo": false,
+      "showName": true,
+      "showAppName": true,
+      "showLogline": true,
+      "appName": "Ableza",
+      "logline": "Insight to Impact",
+      "logoPath": ""
+    }
   },
   "llm": {
     "endpoint": "",
-    "hideInternalApiSettings": false,
     "hideModelSettings": false,
-    "hideProxySettings": false,
-    "promptDiagnostics": {
-      "enabled": false,
-      "level": "compact"
-    },
+    "uiMode": "full",
     "provider": "proxy",
+    "showTestConnection": true,
+    "hideInternalApiSettings": false,
+    "hideProxySettings": false,
     "proxy": {
       "baseUrl": "https://overobedient-buddy-leathern.ngrok-free.dev",
       "defaultModel": "gpt-4.1-mini",
       "sharedToken": "some-long-random-token"
     },
+    "promptDiagnostics": {
+      "enabled": false,
+      "level": "compact"
+    },
     "safety": {
       "forceNoImages": false,
       "forceNoKbName": false,
       "forceNoSelectionSummary": false
-    },
-    "showTestConnection": true,
-    "uiMode": "full"
+    }
   },
   "knowledgeBases": {},
   "networkAccess": {
@@ -185,16 +185,6 @@ export const customConfig: CustomConfig | null = {
     ]
   },
   "resources": {
-    "credits": {
-      "apiTeam": [],
-      "createdBy": [
-        {
-          "label": "Biagio G",
-          "url": ""
-        }
-      ],
-      "llmInstruct": []
-    },
     "links": {
       "about": {
         "label": "About",
@@ -208,14 +198,24 @@ export const customConfig: CustomConfig | null = {
         "label": "Join Meetup",
         "url": ""
       }
+    },
+    "credits": {
+      "createdBy": [
+        {
+          "label": "Biagio G",
+          "url": ""
+        }
+      ],
+      "apiTeam": [],
+      "llmInstruct": []
     }
   },
   "designSystems": {
+    "enabled": true,
     "activeRegistries": [
       "example"
     ],
     "denylist": [],
-    "enabled": true,
     "strictMode": true
   },
   "accessibility": {
@@ -226,34 +226,34 @@ export const customConfig: CustomConfig | null = {
       "enabled": true,
       "rules": [
         {
-          "action": "exclude",
-          "confidence": "high",
-          "enabled": true,
-          "matchTarget": "content",
-          "matchType": "regex",
           "name": "Date/time stamp",
+          "enabled": true,
           "note": "",
-          "pattern": "\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\s+\\d{1,2}(?:,\\s*\\d{2,4})?(?:\\s+\\d{1,2}:\\d{2}(?:\\s?[AP]M)?)?(?:\\s+[A-Z]{2,4})?\\b"
-        },
-        {
+          "matchTarget": "content",
+          "matchType": "regex",
+          "pattern": "\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\s+\\d{1,2}(?:,\\s*\\d{2,4})?(?:\\s+\\d{1,2}:\\d{2}(?:\\s?[AP]M)?)?(?:\\s+[A-Z]{2,4})?\\b",
           "action": "exclude",
-          "confidence": "high",
-          "enabled": true,
-          "matchTarget": "content",
-          "matchType": "regex",
-          "name": "Dash placeholder",
-          "note": "",
-          "pattern": "^[\\s\\-–—]{2,}$"
+          "confidence": "high"
         },
         {
-          "action": "flag",
-          "confidence": "low",
+          "name": "Dash placeholder",
           "enabled": true,
+          "note": "",
           "matchTarget": "content",
           "matchType": "regex",
+          "pattern": "^[\\s\\-–—]{2,}$",
+          "action": "exclude",
+          "confidence": "high"
+        },
+        {
           "name": "Ticker-like uppercase",
+          "enabled": true,
           "note": "",
-          "pattern": "^[A-Z]{2,5}$"
+          "matchTarget": "content",
+          "matchType": "regex",
+          "pattern": "^[A-Z]{2,5}$",
+          "action": "flag",
+          "confidence": "low"
         }
       ]
     },

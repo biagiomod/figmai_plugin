@@ -79,9 +79,6 @@ export async function getModelResponse() {
 
   const validation = validateModel(model)
   const meta = await getDraftMeta()
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/model.ts:82',message:'getModelResponse built',data:{revision:String(meta.version),knowledgeCount:Object.keys(customKnowledge).length},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   return {
     model,
@@ -122,9 +119,6 @@ export async function saveModelResponse(body: string | undefined | null, request
         lastPublishedRevision = null
       }
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/model.ts:123',message:'save stale revision',data:{expectedRevision:request.meta.revision,currentRevision,lastPublishedRevision},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return {
       statusCode: 409,
       payload: {
@@ -201,9 +195,6 @@ export async function saveModelResponse(body: string | undefined | null, request
     lastAuthor: actor.success ? actor.data.username || 'api-user' : 'api-user'
   }
   await putObjectText('draft/_meta.json', `${JSON.stringify(nextMeta, null, 2)}\n`, 'application/json')
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H3',location:'infra/config-api/src/routes/model.ts:198',message:'save success',data:{revisionFrom:currentRevision,revisionTo:String(nextVersion),filesWrittenCount:filesWritten.length},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   logAction({
     requestId,
