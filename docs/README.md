@@ -35,7 +35,8 @@ The following are build artifacts, not maintained documentation:
 
 ### ACE / S3 / hosting
 - [`architecture/ace-static-s3-migration.md`](architecture/ace-static-s3-migration.md) — target ACE + Config API + S3 architecture
-- [`setup/ace-public-replica.md`](setup/ace-public-replica.md) — current static ACE + remote API setup
+- [`setup/ace-private-env-setup.md`](setup/ace-private-env-setup.md) — current generic private/work environment setup for static ACE + Config API + S3
+- [`setup/ace-public-replica.md`](setup/ace-public-replica.md) — thinner public/static reference retained for compatibility
 - [`../admin-editor/README.md`](../admin-editor/README.md) — local ACE server workflow (`npm run admin`)
 - [`security/config-api-auth.md`](security/config-api-auth.md) — current bearer-token auth model
 - [`ai-context.md`](ai-context.md) — active migration context for AI/code-steward work

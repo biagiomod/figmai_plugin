@@ -130,7 +130,7 @@ export interface CustomConfig {
 
 export const customConfig: CustomConfig | null = {
   "ui": {
-    "defaultMode": "advanced",
+    "defaultMode": "simple",
     "hideContentMvpMode": false,
     "simpleModeIds": [
       "general",

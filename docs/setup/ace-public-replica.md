@@ -1,55 +1,60 @@
 # ACE Public Replica Setup
 
-This guide deploys ACE as a static SPA and uses the AWS Config API (Lambda + API Gateway + S3) as the backend.
+> Status: Secondary setup reference.
+> For the reusable private/work environment package, use `docs/setup/ace-private-env-setup.md`.
 
-## 1) Create S3 bucket + prefix
+This document stays in the repo as a thinner public/static reference for the current ACE deployment shape:
 
-- Create a private bucket (example: `my-figmai-config`)
-- Use a prefix (default: `figmai/`)
-- Enable versioning on the bucket
+- ACE is built from `admin-editor/public/` into `admin-editor/dist/`
+- hosted runtime configuration is supplied by `admin-editor/dist/config.js`
+- hosted auth mode is `bearer`
+- current Config API routes live under `/api/*`
+- plugin S3 sync consumes the published snapshot, not the draft
 
-## 2) Seed initial draft data
+## What this guide is for
 
-From repo root:
+Use this guide when you only need the high-level hosted/static ACE flow without the fuller private/work environment packaging.
+
+If you need:
+
+- a reusable env file template
+- a deploy-time `config.js` writer
+- generic static-host guidance
+- a durable setup package for another developer
+
+use `docs/setup/ace-private-env-setup.md` instead.
+
+## Minimal hosted/static flow
+
+### 1. Seed S3
 
 ```bash
-export S3_BUCKET=my-figmai-config
+export S3_BUCKET=your-bucket-name
 export S3_REGION=us-east-1
 export S3_PREFIX=figmai/
-export CONFIG_AUTHOR=dev-user@example.com
+export CONFIG_AUTHOR=your-name-or-team
 
 npm run seed-s3
 ```
 
-This writes initial `draft/*`, `snapshots/<id>/*`, and `published.json`.
+### 2. Deploy the Config API
 
-## 3) Deploy SAM Config API
+Current implementation:
 
-```bash
-cd infra/config-api
-npm install
-sam build
-sam deploy --guided
-```
+- SAM template: `infra/config-api/template.yaml`
+- CORS parameter: `CorsAllowOrigins`
+- runtime env variable: `CORS_ALLOW_ORIGINS`
+- exact-origin CORS only
 
-Use these parameters during guided deploy:
+The generic deploy flow is documented in `docs/setup/ace-private-env-setup.md`.
 
-- `S3BucketName` = your config bucket
-- `S3Prefix` = `figmai/` (or your prefix)
-- `ConfigApiToken` = long random secret
-- `CorsAllowOrigin` = `*` or your ACE origin
-
-After deploy, note `ConfigApiUrl`.
-
-## 4) Build and configure static ACE
-
-From repo root:
+### 3. Build ACE and write `config.js`
 
 ```bash
 npm run ace:build
 ```
 
-Set `admin-editor/dist/config.js` for hosted mode:
+Hosted config shape:
 
 ```js
 window.__ACE_CONFIG__ = {
@@ -58,32 +63,43 @@ window.__ACE_CONFIG__ = {
 }
 ```
 
-Current MVP code expects ACE API routes under `/api/*`.
+### 4. Upload `admin-editor/dist/`
 
-## 5) Deploy static ACE to host
+Upload the built `admin-editor/dist/` contents to your static host.
 
-Option A: automated HostGator deploy
+The repo still contains a thin historical/public helper script for one specific provider path:
+
+- `npm run ace:deploy:hostgator`
+
+It is not the primary generic recommendation. Prefer the provider-neutral setup in `docs/setup/ace-private-env-setup.md`.
+
+### 5. Publish before building the plugin from S3
+
+Current behavior:
+
+- `POST /api/save` updates draft state
+- `POST /api/publish` updates the published snapshot pointer
+- `npm run build:with-s3` reads the published snapshot
+
+Build from published S3 config:
 
 ```bash
-cp admin-editor/.env.deploy.example admin-editor/.env.deploy
-# fill env values in your shell (or source file)
-export ACE_API_BASE=https://<api-id>.execute-api.<region>.amazonaws.com
-export HOSTGATOR_HOST=...
-export HOSTGATOR_USER=...
-export HOSTGATOR_PASS=...
-export HOSTGATOR_PATH=/public_html/figmai/ace
+export S3_BUCKET=your-bucket-name
+export S3_REGION=us-east-1
+export S3_PREFIX=figmai/
 
-npm run ace:deploy:hostgator
+npm run build:with-s3
 ```
 
-Option B: manual upload
+Local/offline fallback remains available:
 
-- Upload all files in `admin-editor/dist/` to your host web root/subpath
-- Ensure `.htaccess` from `admin-editor/deploy/.htaccess` is present
+```bash
+npm run build:offline
+```
 
-## 6) Local proxy workflow (optional)
+## Local proxy workflow
 
-Use this when testing the static UI locally against the remote API while avoiding browser CORS issues:
+Use this when testing the static UI locally against the remote API without browser CORS issues:
 
 ```bash
 export ACE_API_URL=https://<api-id>.execute-api.<region>.amazonaws.com
@@ -92,19 +108,3 @@ npm run admin:proxy
 ```
 
 Open `http://127.0.0.1:3334`.
-
-## 7) Build plugin using published S3 config
-
-```bash
-export S3_BUCKET=my-figmai-config
-export S3_REGION=us-east-1
-export S3_PREFIX=figmai/
-
-npm run build:with-s3
-```
-
-Offline/local fallback remains available:
-
-```bash
-npm run build:offline
-```

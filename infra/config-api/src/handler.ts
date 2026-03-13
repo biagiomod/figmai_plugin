@@ -7,9 +7,6 @@ import { route } from './router'
 
 export async function handler(event: APIGatewayProxyEventV2) {
   const context = createRequestContext(event)
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H1',location:'infra/config-api/src/handler.ts:10',message:'handler entry',data:{method:context.method,path:context.path,hasOrigin:!!context.origin},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   let status = 500
   let errorCode: string | undefined
 
@@ -22,9 +19,6 @@ export async function handler(event: APIGatewayProxyEventV2) {
         'x-request-id': context.requestId
       }
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H1',location:'infra/config-api/src/handler.ts:22',message:'response wrapped with x-request-id',data:{status:wrapped.statusCode,hasRequestId:!!wrapped.headers?.['x-request-id']},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return wrapped
   }
 

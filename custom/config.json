@@ -1,6 +1,6 @@
 {
   "ui": {
-    "defaultMode": "advanced",
+    "defaultMode": "simple",
     "hideContentMvpMode": false,
     "simpleModeIds": [
       "general",

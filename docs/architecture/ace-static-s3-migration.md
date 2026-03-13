@@ -1,6 +1,7 @@
 # ACE Static + S3 Migration Spec
 
-> **Status**: Approved — single source of truth for this migration.
+> **Status**: Architecture authority for this migration.
+> **Current implementation note**: when this document drifts from the current working code, use `infra/config-api/`, `admin-editor/`, and `scripts/` as the tie-breaker, then `docs/setup/ace-private-env-setup.md` for the current reusable setup flow.
 > **Supersedes**: all prior plan files in `.cursor/plans/` related to S3, ACE static, or Config API migration.
 
 ---
@@ -16,7 +17,7 @@ ACE (Admin Config Editor) is an Express server that reads and writes config file
 ```
 ┌──────────────┐       REST        ┌──────────────┐      S3 API      ┌───────────┐
 │  ACE SPA     │ ───────────────── │  Config API  │ ────────────────  │  S3       │
-│  (static)    │   /api/v1/*       │  (stateless) │   read/write     │  (private)│
+│  (static)    │    /api/*         │  (stateless) │   read/write     │  (private)│
 └──────────────┘                   └──────────────┘                   └───────────┘
                                           │
                                           │  (future, P3+)
@@ -67,7 +68,7 @@ Bucket: private, versioning enabled. All keys under a configurable prefix (defau
       content-models.md
       design-systems/...
       knowledge-bases/...
-  published.json                       # { "snapshotId": "..." }
+  published.json                       # snapshot pointer + publish metadata
 ```
 
 ### Key Objects
@@ -76,7 +77,7 @@ Bucket: private, versioning enabled. All keys under a configurable prefix (defau
 ```json
 { "version": 1, "lastModified": "2026-01-21T14:30:00Z", "lastAuthor": "user@example.com" }
 ```
-Integer `version` incremented on every save. Used for optimistic concurrency (replaces current `meta.revision` which depends on `fs.statSync`).
+Integer `version` is incremented on every save and exposed to the current ACE UI as `meta.revision`.
 
 **`snapshots/<id>/_manifest.json`**
 ```json
@@ -86,9 +87,15 @@ Written last during publish. Presence = snapshot is complete and immutable. Conf
 
 **`published.json`**
 ```json
-{ "snapshotId": "20260121T143000Z_a1b2" }
+{
+  "snapshotId": "20260121T143000Z_a1b2",
+  "publishedRevision": "5",
+  "publishedAt": "2026-01-21T14:30:00Z",
+  "snapshotPath": "snapshots/20260121T143000Z_a1b2/",
+  "snapshotKey": "snapshots/20260121T143000Z_a1b2/published.json"
+}
 ```
-Points to the active snapshot. Build-time sync reads this, then downloads the referenced snapshot. Rollback = PUT a different `snapshotId`.
+Points to the active snapshot. Build-time sync reads this, then downloads the referenced snapshot. The current implementation only requires `snapshotId`; the extra metadata is informational and publish-related.
 
 ### What Does NOT Go to S3
 
@@ -101,39 +108,63 @@ These stay in the repo (not user-editable via ACE):
 
 ## 4. Config API Surface
 
-Base path: `/api/v1`. Auth: `Authorization: Bearer <token>` on all routes.
+### Current implementation snapshot
+
+The current code in `infra/config-api/` is a working MVP / prototype. It does not yet match every future-normalized route or payload described in older plan drafts.
+
+Current working behavior:
+
+- base path is `/api/*`
+- hosted auth is bearer-token based
+- save concurrency uses `meta.revision` as a string token
+- hosted ACE writes only to draft state until publish
+- `POST /api/publish` updates `published.json`, which is what `npm run build:with-s3` consumes
+
+### Implemented routes
+
+Base path: `/api`. Auth: `Authorization: Bearer <token>` on all stateful routes; `/api/health` is the health probe.
 
 ### Model CRUD
 
 | Method | Path | Purpose | S3 Ops |
 |--------|------|---------|--------|
-| GET | `/api/v1/model` | Load draft model + meta | GetObject `draft/*`, ListObjectsV2 for `knowledge/`, `design-systems/` |
-| POST | `/api/v1/save` | Save draft (optimistic lock) | Read `_meta.json` -> compare `expectedVersion` -> write changed files -> increment version |
-| POST | `/api/v1/validate` | Validate model (stateless) | None |
+| GET | `/api/model` | Load draft model + meta | GetObject `draft/*`, ListObjectsV2 for `knowledge/`, `design-systems/` |
+| POST | `/api/save` | Save draft (optimistic lock) | Read `_meta.json` -> compare `meta.revision` -> write changed files -> increment version |
+| POST | `/api/validate` | Validate model (stateless) | None |
 
 ### Publish / Rollback
 
 | Method | Path | Purpose | S3 Ops |
 |--------|------|---------|--------|
-| POST | `/api/v1/publish` | Copy draft to new snapshot, update pointer | CopyObject `draft/*` -> `snapshots/<newId>/*`, PutObject `_manifest.json`, PutObject `published.json` |
-| GET | `/api/v1/snapshots` | List available snapshots | ListObjectsV2 `snapshots/*/`, GetObject each `_manifest.json` |
-| POST | `/api/v1/rollback` | Re-point published to a different snapshot | PutObject `published.json` |
+| POST | `/api/publish` | Copy draft to new snapshot, update pointer | CopyObject `draft/*` -> `snapshots/<newId>/*`, PutObject `_manifest.json`, PutObject `published.json` |
+
+The current MVP does not expose snapshot listing or rollback endpoints yet.
 
 ### Knowledge Base CRUD
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/v1/kb/registry` | Get KB registry |
-| GET | `/api/v1/kb/:id` | Get KB document |
-| POST | `/api/v1/kb` | Create KB document |
-| PATCH | `/api/v1/kb/:id` | Update KB document |
-| DELETE | `/api/v1/kb/:id` | Delete KB document |
-| POST | `/api/v1/kb/normalize` | Normalize KB content (stateless) |
+| GET | `/api/kb/registry` | Get KB registry |
+| GET | `/api/kb/:id` | Get KB document |
+| POST | `/api/kb` | Create KB document |
+| PATCH | `/api/kb/:id` | Update KB document |
+| DELETE | `/api/kb/:id` | Delete KB document |
+| POST | `/api/kb/normalize` | Normalize KB content (stateless) |
+
+### Health and auth support routes
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/health` | Health probe for deployment and smoke checks |
+| GET | `/api/auth/me` | Hosted ACE auth stub for bearer-token mode |
+| GET | `/api/auth/bootstrap-allowed` | Hosted ACE bootstrap/auth-mode hint |
+| POST | `/api/auth/logout` | Hosted ACE logout stub |
+| GET | `/api/build-info` | Basic build metadata for the UI |
 
 ### Request/Response Shapes
 
 ```typescript
-// GET /api/v1/model -> 200
+// GET /api/model -> 200
 {
   model: {
     config: Config
@@ -142,34 +173,34 @@ Base path: `/api/v1`. Auth: `Authorization: Bearer <token>` on all routes.
     contentModelsRaw?: string
     designSystemRegistries?: Record<string, unknown>
   }
-  meta: { version: number, lastModified: string, lastAuthor?: string }
+  meta: { revision: string, capabilities?: { hasUnpublished: boolean, canPublish: boolean } }
+  validation: { errors: string[], warnings: string[] }
 }
 
-// POST /api/v1/save -> 200 | 409
+// POST /api/save -> 200 | 409
 // Request:
-{ model: AdminEditableModel, meta: { expectedVersion: number } }
+{ model: AdminEditableModel, meta: { revision: string } }
 // 200:
-{ success: true, meta: { version: number, lastModified: string }, filesWritten: string[] }
+{ success: true, meta: { revision: string }, filesWritten: string[], generatorsRun: [] }
 // 409:
-{ error: "Draft has been modified. Reload to see changes.", currentVersion: number }
+{
+  error: "STALE_REVISION",
+  message: "Files changed on disk. Reload to get the latest.",
+  expectedRevision: string,
+  currentRevision: string,
+  lastPublishedRevision?: string | null,
+  meta: { revision: string }
+}
 
-// POST /api/v1/publish -> 200
-{ snapshotId: string, createdAt: string }
-
-// GET /api/v1/snapshots -> 200
-{ snapshots: Array<{ snapshotId: string, createdAt: string, author?: string, draftVersion: number }> }
-
-// POST /api/v1/rollback -> 200
-// Request:
-{ snapshotId: string }
-// 200:
-{ success: true }
+// POST /api/publish -> 200
+{ snapshotId: string, createdAt: string, publishedRevision: string }
 ```
 
 ### Concurrency
 
-- `draft/_meta.json.version` is the single concurrency token.
-- Client receives `version` from GET, sends `expectedVersion` with save.
+- `draft/_meta.json.version` is the single stored concurrency token.
+- The current API exposes that token to the frontend as `meta.revision` (string).
+- Client receives `meta.revision` from GET, sends `meta.revision` with save.
 - Server compares before writing. Mismatch -> 409. Match -> writes files, bumps version, writes `_meta.json` last.
 - KB CRUD is independent of the version guard (same as today: KB files are not in the model revision).
 
@@ -284,10 +315,10 @@ Uploads local config as a new snapshot and updates `published.json`. Used during
 - Deployable as container or serverless
 
 **3c. ACE frontend refactor** (`admin-editor/public/`)
-- `app.js`: `API_BASE` becomes configurable (`window.__ACE_API_BASE__ || ''`)
+- `app.js`: keep deploy-time API base configurable via `window.__ACE_CONFIG__.apiBase`
 - `FETCH_OPTS`: adds `Authorization: Bearer <token>` header (replaces cookie-based auth)
-- All paths become `/api/v1/*`
-- `state.meta.revision` (string) -> `state.meta.version` (number)
+- Keep `/api/*` routes unless the frontend and Config API are normalized together in the same change
+- Keep `state.meta.revision` (string) unless the API contract is deliberately migrated in the same change
 - New UI: Publish button, Snapshots list, Rollback action
 - Removed: generator status in save response, `nextSteps` text about `npm run build`
 
@@ -299,12 +330,12 @@ Uploads local config as a new snapshot and updates `published.json`. Used during
 - Marketing routes (`/home`, `/assistants`, etc.): drop or convert to static HTML
 
 **Acceptance criteria:**
-- [ ] `GET /api/v1/model` returns same `AdminEditableModel` shape as current `GET /api/model`
-- [ ] `POST /api/v1/save` with correct `expectedVersion` succeeds; stale version returns 409
-- [ ] `POST /api/v1/publish` creates immutable snapshot and updates `published.json`
-- [ ] `POST /api/v1/rollback` re-points `published.json`; subsequent `sync-config && build` produces older bundle
+- [ ] `GET /api/model` returns the expected `AdminEditableModel` shape from S3-backed draft state
+- [ ] `POST /api/save` with correct `meta.revision` succeeds; stale revision returns 409
+- [ ] `POST /api/publish` creates immutable snapshot data and updates `published.json`
+- [ ] A later rollback capability, if added, re-points `published.json`; subsequent `sync-config && build` produces the older bundle
 - [ ] ACE SPA deployed to static hosting, pointed at Config API: full edit/save/publish flow works
-- [ ] KB CRUD via `/api/v1/kb/*` is functionally identical to current routes
+- [ ] KB CRUD via `/api/kb/*` is functionally identical to the current routes
 - [ ] No `spawnSync` or generator execution in Config API save path
 - [ ] `sync-config.ts` continues to work unchanged (reads `published.json` from S3)
 - [ ] Admin-editor Express server still works for local dev when `API_BASE` is empty
@@ -355,12 +386,12 @@ The following are explicitly NOT part of this spec:
 | Add `configSnapshotId` to build-info | P2 | XS | `scripts/generate-build-info.ts` | `build-info.json` includes snapshot ID |
 | CI/CD integration | P2 | S | CI config | CI builds from S3; pinned snapshots tested |
 | Extract `packages/config-schema/` | P3 | M | `packages/config-schema/`, `admin-editor/src/schema.ts` | Package exports schemas + validation; tests pass |
-| Scaffold Config API + model read | P3 | M | `services/config-api/` | `GET /api/v1/model` reads S3 draft; returns correct shape |
+| Scaffold Config API + model read | P3 | M | `services/config-api/` | `GET /api/model` reads S3 draft; returns correct shape |
 | Add save endpoint | P3 | M | `services/config-api/` | Version guard works; writes to S3 |
 | Add publish + snapshots + rollback | P3 | M | `services/config-api/` | Publish creates snapshot; rollback re-points |
 | Add KB CRUD to Config API | P3 | M | `services/config-api/` | All 6 routes work against S3 |
 | Add auth + CORS to Config API | P3 | S | `services/config-api/` | Bearer token validation; CORS for SPA |
-| Refactor ACE frontend | P3 | M | `admin-editor/public/app.js`, `index.html` | Configurable `API_BASE`; bearer auth; `/api/v1/`; `meta.version` |
+| Refactor ACE frontend | P3 | M | `admin-editor/public/app.js`, `index.html` | Configurable `API_BASE`; bearer auth; current `/api/*` contract remains explicit; revision token handling stays aligned with API |
 | Add publish/snapshots UI | P3 | M | `admin-editor/public/app.js` | Publish button; snapshot list; rollback |
 | Remove spawnSync from save | P3 | S | `admin-editor/src/save.ts` | No generator execution in save path |
 | End-to-end validation | P3 | S | Manual/CI | Edit -> publish -> sync -> build cycle works |

@@ -78,12 +78,29 @@ export async function getModelResponse() {
   }
 
   const validation = validateModel(model)
-  const meta = await getDraftMeta()
+  const [meta, publishedRaw] = await Promise.all([getDraftMeta(), getObjectText('published.json')])
+
+  let lastPublishedRevision: number | null = null
+  if (publishedRaw) {
+    try {
+      const p = JSON.parse(publishedRaw) as { publishedRevision?: string }
+      const n = Number(p.publishedRevision)
+      if (Number.isFinite(n)) lastPublishedRevision = n
+    } catch {
+      // ignore
+    }
+  }
+
+  const capabilities = {
+    hasUnpublished: lastPublishedRevision === null || meta.version > lastPublishedRevision,
+    canPublish: true
+  }
 
   return {
     model,
     meta: {
-      revision: String(meta.version)
+      revision: String(meta.version),
+      capabilities
     },
     validation
   }
