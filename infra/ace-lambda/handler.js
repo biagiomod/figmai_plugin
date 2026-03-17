@@ -52,7 +52,10 @@ const BUILD_TIMESTAMP = process.env.BUILD_TIMESTAMP || "";
 const GIT_COMMIT_SHA = process.env.GIT_COMMIT_SHA || "";
 
 // Paths that bypass Bearer-token auth
-const PUBLIC_PATHS = new Set(["/api/health", "/api/build-info"]);
+const PUBLIC_PATHS = new Set([
+  "/figma-admin/api/health",
+  "/figma-admin/api/build-info",
+]);
 const AUTH_PATHS = new Set([
   "/figma-admin/api/auth/me",
   "/figma-admin/api/auth/bootstrap-allowed",
