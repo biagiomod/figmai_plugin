@@ -53,12 +53,12 @@ function formatZodErrors(err) {
 
 async function handleKb(method, path, body, requestId, origin) {
   // GET /api/kb/registry
-  if (method === 'GET' && path === '/api/kb/registry') {
+  if (method === 'GET' && path === '/figma-admin/api/kb/registry') {
     return json(200, await readRegistry(), origin);
   }
 
   // POST /api/kb/normalize
-  if (method === 'POST' && path === '/api/kb/normalize') {
+  if (method === 'POST' && path === '/figma-admin/api/kb/normalize') {
     let payload;
     try { payload = parseBody(body); } catch (e) { return errorResponse(400, e.message, origin); }
 
@@ -80,7 +80,7 @@ async function handleKb(method, path, body, requestId, origin) {
   }
 
   // POST /api/kb — create
-  if (method === 'POST' && path === '/api/kb') {
+  if (method === 'POST' && path === '/figma-admin/api/kb') {
     let payload;
     try { payload = parseBody(body); } catch (e) { return errorResponse(400, e.message, origin); }
 
@@ -108,7 +108,7 @@ async function handleKb(method, path, body, requestId, origin) {
   }
 
   // /:id routes
-  const idMatch = path.match(/^\/api\/kb\/([^/]+)$/);
+  const idMatch = path.match(/^\/figma-admin\/api\/kb\/([^/]+)$/);
   if (idMatch) {
     const id = idMatch[1];
     if (!KB_ID_REGEX.test(id))

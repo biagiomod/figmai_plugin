@@ -152,7 +152,7 @@ function buildSystemPrompt(payload) {
 }
 
 async function handleTest(method, path, body, origin) {
-  if (method === 'POST' && path === '/api/test/connection') {
+  if (method === 'POST' && path === '/figma-admin/api/test/connection') {
     let payload = null;
     if (body) {
       try { payload = parseBody(body); } catch {}
@@ -160,7 +160,7 @@ async function handleTest(method, path, body, origin) {
     return testConnection(payload, origin);
   }
 
-  if (method === 'POST' && path === '/api/test/assistant') {
+  if (method === 'POST' && path === '/figma-admin/api/test/assistant') {
     let payload;
     try { payload = parseBody(body); } catch (e) { return errorResponse(400, e.message, origin); }
     return testAssistant(payload, origin);

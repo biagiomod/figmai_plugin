@@ -74,7 +74,8 @@ exports.lambdaHandler = async (event) => {
 
   const rawPath = event.path || event.rawPath || "/";
   const path = rawPath.replace(/\/$/, "") || "/";
-  const origin = event.headers?.origin || event.headers?.Origin || "";
+  const headers = event.headers || {};
+  const origin = headers.origin || headers.Origin || "";
   const body = event.body || null;
   const requestId = event.requestContext?.requestId || `req-${Date.now()}`;
   const startMs = Date.now();
@@ -103,7 +104,7 @@ exports.lambdaHandler = async (event) => {
 
   let response;
   try {
-    response = await dispatch(method, path, body, requestId, origin);
+    response = await dispatch(method, path, body, requestId, origin, headers);
   } catch (err) {
     console.error("[handler] Unhandled error:", err);
     response = json(
@@ -124,34 +125,34 @@ exports.lambdaHandler = async (event) => {
   return response;
 };
 
-async function dispatch(method, path, body, requestId, origin) {
+async function dispatch(method, path, body, requestId, origin, headers) {
   // Health / build info
-  if (path === "/api/health") return handleHealth(origin);
-  if (path === "/api/build-info") return handleBuildInfo(origin);
+  if (path === "/figma-admin/api/health") return handleHealth(origin);
+  if (path === "/figma-admin/api/build-info") return handleBuildInfo(origin);
 
   // Auth
-  if (path.startsWith("/api/auth/"))
-    return handleAuth(method, path, body, origin);
+  if (path.startsWith("/figma-admin/api/auth/"))
+    return handleAuth(method, path, body, origin, headers);
 
   // Config
-  if (method === "GET" && path === "/api/model") return getModel(origin);
-  if (method === "POST" && path === "/api/validate")
+  if (method === "GET" && path === "/figma-admin/api/model") return getModel(origin);
+  if (method === "POST" && path === "/figma-admin/api/validate")
     return validate(body, origin);
-  if (method === "POST" && path === "/api/save")
+  if (method === "POST" && path === "/figma-admin/api/save")
     return saveModel(body, requestId, origin);
-  if (method === "POST" && path === "/api/publish")
+  if (method === "POST" && path === "/figma-admin/api/publish")
     return publishModel(requestId, origin);
 
   // Knowledge bases
-  if (path.startsWith("/api/kb"))
+  if (path.startsWith("/figma-admin/api/kb"))
     return handleKb(method, path, body, requestId, origin);
 
   // Users
-  if (path.startsWith("/api/users"))
+  if (path.startsWith("/figma-admin/api/users"))
     return handleUsers(method, path, body, requestId, origin);
 
   // Test routes
-  if (path.startsWith("/api/test/"))
+  if (path.startsWith("/figma-admin/api/test/"))
     return handleTest(method, path, body, origin);
 
   return json(404, { error: "Not found", path }, origin);

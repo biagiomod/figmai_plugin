@@ -70,13 +70,13 @@ function safeUser(u) {
 
 async function handleUsers(method, path, body, requestId, origin) {
   // GET /api/users
-  if (method === 'GET' && path === '/api/users') {
+  if (method === 'GET' && path === '/figma-admin/api/users') {
     const data = await readUsers();
     return json(200, { users: data.users.map(safeUser) }, origin);
   }
 
   // POST /api/users — create
-  if (method === 'POST' && path === '/api/users') {
+  if (method === 'POST' && path === '/figma-admin/api/users') {
     let payload;
     try { payload = parseBody(body); } catch (e) { return errorResponse(400, e.message, origin); }
 
@@ -110,7 +110,7 @@ async function handleUsers(method, path, body, requestId, origin) {
   }
 
   // PATCH /api/users/:id
-  const idMatch = path.match(/^\/api\/users\/([^/]+)$/);
+  const idMatch = path.match(/^\/figma-admin\/api\/users\/([^/]+)$/);
   if (method === 'PATCH' && idMatch) {
     const id = idMatch[1];
     let payload;

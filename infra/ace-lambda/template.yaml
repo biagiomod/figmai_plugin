@@ -47,6 +47,19 @@ Parameters:
     Default: ""
     Description: Optional Git commit SHA
 
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: >
+      Secret used to sign and verify user JWTs (min 32 chars recommended).
+      Set to a long random string; rotate by redeploying with a new value
+      (all active sessions will be invalidated).
+
+  JwtExpiryHours:
+    Type: String
+    Default: "8"
+    Description: JWT lifetime in hours (default 8). Increase for longer sessions.
+
   LlmApiEndpoint:
     Type: String
     Default: ""
@@ -81,7 +94,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Handler: handler.handler
+      Handler: handler.lambdaHandler
       Environment:
         Variables:
           S3_BUCKET: !Ref S3BucketName
@@ -94,6 +107,8 @@ Resources:
           BUILD_TIMESTAMP: !Ref BuildTimestamp
           GIT_COMMIT_SHA: !Ref GitCommitSha
           LLM_API_ENDPOINT: !Ref LlmApiEndpoint
+          JWT_SECRET: !Ref JwtSecret
+          JWT_EXPIRY_HOURS: !Ref JwtExpiryHours
       Policies:
         - Statement:
             - Effect: Allow

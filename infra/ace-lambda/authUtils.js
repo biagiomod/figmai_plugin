@@ -1,17 +1,48 @@
 'use strict';
 
 /**
- * Validate Bearer token from Lambda event headers.
- * Expected env var: CONFIG_API_TOKEN
+ * Request authorization helpers.
+ *
+ * A request is authorized if its Bearer token is either:
+ *   (a) the shared service token  — CONFIG_API_TOKEN env var
+ *   (b) a valid, unexpired user JWT — signed with JWT_SECRET
+ *
+ * The service token is for scripts / CI. User JWTs are issued by POST /api/auth/login.
+ */
+
+const { verifyToken, extractBearerToken } = require('./jwtService');
+
+/**
+ * Returns true if the event carries a valid service token or user JWT.
  */
 function isAuthorized(event) {
-  const token = process.env.CONFIG_API_TOKEN;
+  const token = extractBearerToken(
+    (event.headers || {})['authorization'] || (event.headers || {})['Authorization'] || ''
+  );
   if (!token) return false;
-  const headers = event.headers || {};
-  const authHeader = headers['authorization'] || headers['Authorization'] || '';
-  if (!authHeader.toLowerCase().startsWith('bearer ')) return false;
-  const provided = authHeader.slice(7).trim();
-  return provided === token;
+
+  // Service token check (fast path — no crypto)
+  const serviceToken = process.env.CONFIG_API_TOKEN;
+  if (serviceToken && token === serviceToken) return true;
+
+  // JWT check
+  return verifyToken(token) !== null;
 }
 
-module.exports = { isAuthorized };
+/**
+ * Returns the decoded JWT payload for a user request, or null.
+ * Returns null for service-token requests (no per-user identity).
+ */
+function getTokenUser(event) {
+  const token = extractBearerToken(
+    (event.headers || {})['authorization'] || (event.headers || {})['Authorization'] || ''
+  );
+  if (!token) return null;
+
+  const serviceToken = process.env.CONFIG_API_TOKEN;
+  if (serviceToken && token === serviceToken) return null;
+
+  return verifyToken(token);
+}
+
+module.exports = { isAuthorized, getTokenUser };
