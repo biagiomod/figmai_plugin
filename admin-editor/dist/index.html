@@ -11,19 +11,24 @@
   <!-- Login view (shown when not authenticated and bootstrap not allowed) -->
   <div id="login-view" class="ace-auth-view" style="display: none;">
     <div class="ace-auth-card">
-      <h1 class="ace-auth-title">ACE — Admin Config Editor</h1>
-      <p class="ace-auth-subtitle">Sign in to continue</p>
+      <h1 class="ace-auth-title">ACE (Admin Config Editor)</h1>
       <form id="login-form" class="ace-auth-form">
-        <label for="login-username" class="ace-auth-label">Username</label>
-        <input type="text" id="login-username" name="username" class="ace-auth-input" required autocomplete="username" />
-        <label for="login-password" class="ace-auth-label">Password</label>
-        <input type="password" id="login-password" name="password" class="ace-auth-input" required autocomplete="current-password" />
+        <p class="ace-auth-section-label">Sign in</p>
+        <input type="text" id="login-username" name="username" class="ace-auth-input" placeholder="Username" required autocomplete="username" />
+        <input type="password" id="login-password" name="password" class="ace-auth-input" placeholder="Password" required autocomplete="current-password" />
         <p id="login-error" class="ace-auth-error" style="display: none;"></p>
-        <button type="submit" id="login-submit" class="btn btn-primary">Sign in</button>
+        <button type="submit" id="login-submit" class="btn btn-primary ace-auth-btn">Sign in</button>
         <p class="ace-auth-footer" id="login-create-first-wrap" style="display: none;">
           <a href="#" id="create-first-account-link">Create first account</a>
         </p>
       </form>
+      <hr class="ace-auth-rule" />
+      <div class="ace-auth-request">
+        <p class="ace-auth-section-label">Request access</p>
+        <input type="email" class="ace-auth-input" placeholder="Email" autocomplete="email" />
+        <input type="text" class="ace-auth-input" placeholder="Note" />
+        <button type="button" class="btn btn-secondary ace-auth-btn" disabled>Send request</button>
+      </div>
     </div>
   </div>
 
@@ -51,12 +56,6 @@
         <img src="assets/logo-figmai.svg" alt="" class="ace-logo" width="117" height="36" />
         <span class="ace-topbar-label" id="ace-label">ACE (Admin Config Editor)</span>
       </div>
-      <div class="ace-topbar-actions ace-topbar-actions-editor">
-        <button type="button" id="reload-btn">Reset</button>
-        <button type="button" id="validate-btn">Validate</button>
-        <button type="button" id="preview-btn">Preview changes</button>
-        <button type="button" id="save-btn">Save</button>
-      </div>
     </div>
   </header>
 
@@ -79,7 +78,7 @@
             </button>
             <button type="button" role="tab" class="ace-nav-item" id="tab-knowledge-bases" data-tab="knowledge-bases" aria-selected="false" aria-controls="panel-knowledge-bases" tabindex="0">
               <img src="assets/icons/ACEKnowledgeBaseIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
-              <span class="ace-nav-label">Knowledge Bases</span>
+              <span class="ace-nav-label">Resources</span>
             </button>
             <button type="button" role="tab" class="ace-nav-item" id="tab-registries" data-tab="registries" aria-selected="false" aria-controls="panel-registries" tabindex="-1" style="display: none;">
               <img src="assets/icons/ACEDesignSystemsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
@@ -121,6 +120,16 @@
       </aside>
 
       <div class="ace-main">
+      <div id="ace-page-header-bar" class="ace-page-header-bar">
+        <div class="ace-page-header-left">
+          <h1 id="ace-page-title-text" class="ace-page-header-title">General</h1>
+        </div>
+        <div class="ace-page-header-actions">
+          <button type="button" id="reload-btn" class="ace-page-action-btn">Reset</button>
+          <button type="button" id="validate-btn" class="ace-page-action-btn">Validate</button>
+          <button type="button" id="save-btn" class="ace-page-action-btn ace-page-action-btn--primary" disabled>Save</button>
+        </div>
+      </div>
       <div id="unsaved-banner" class="unsaved-banner" style="display: none;">
         Unsaved changes
         <button type="button" id="discard-all-btn">Discard all changes</button>

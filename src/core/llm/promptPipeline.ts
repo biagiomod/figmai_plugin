@@ -364,7 +364,8 @@ export function diagnose(input: DiagnoseInput): { compact: string; details: Reco
     ctx: f?.noCtx ? '0-forced' : (a.ctx?.length ?? 0),
     imagesCount: f?.noImages ? '0-forced' : imageCount,
     imagesBytes: f?.noImages ? '0-forced' : imageBytes,
-    kbName: kbLabel,
+    
+    : kbLabel,
     flags: flagsStr,
     trims: trimsStr,
     fallback: input.fallback,

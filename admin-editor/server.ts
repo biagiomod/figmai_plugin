@@ -778,6 +778,221 @@ app.post('/api/save', requireAuth(dataDir), requireRoleValidateSave, (req, res) 
   }
 })
 
+// ——— Test: connection (draft-aware, no save required) ———
+// Accepts draft LLM settings and makes a real test call to verify connectivity.
+app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, async (req, res) => {
+  const { provider, endpoint, proxy } = req.body || {}
+  const providerType = provider === 'proxy' ? 'proxy' : 'internal-api'
+
+  if (providerType === 'internal-api') {
+    const url = (typeof endpoint === 'string' ? endpoint : '').trim().replace(/\/+$/, '')
+    if (!url) {
+      return res.json({
+        success: false,
+        message: 'No Internal API endpoint configured. Enter an endpoint URL in the AI page first.'
+      })
+    }
+    try {
+      const payload = { type: 'generalChat', message: 'test', kbName: 'figma' }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(15000)
+      })
+      let responseBody = ''
+      try { responseBody = (await response.text()).slice(0, 300) } catch { /* ignore */ }
+      const diagnostics = { url, statusCode: response.status, responseBody }
+      if (!response.ok) {
+        let message = `Connection failed: ${response.status} ${response.statusText}`
+        if (response.status === 401) message = 'Authentication failed. Check that you are on your organization network and the endpoint is correct.'
+        return res.json({ success: false, message, diagnostics })
+      }
+      return res.json({ success: true, message: 'Connection successful. The Internal API endpoint responded.', diagnostics })
+    } catch (err: any) {
+      const msg: string = err?.message ?? String(err)
+      let message = `Connection test failed: ${msg}`
+      if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND')) {
+        message = `Cannot reach endpoint: ${msg}. Check that the URL is correct and the service is running.`
+      } else if (err?.name === 'TimeoutError' || msg.includes('timeout')) {
+        message = 'Connection timed out. The endpoint did not respond within 15 seconds.'
+      }
+      return res.json({ success: false, message, diagnostics: { url, error: msg } })
+    }
+  } else {
+    const baseUrl = (typeof proxy?.baseUrl === 'string' ? proxy.baseUrl : '').trim().replace(/\/+$/, '')
+    if (!baseUrl) {
+      return res.json({
+        success: false,
+        message: 'No Proxy base URL configured. Enter a Proxy base URL in the AI page first.'
+      })
+    }
+    // figmai-proxy health check: GET /health (no auth required, no body)
+    const healthUrl = baseUrl + '/health'
+    try {
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(15000)
+      })
+      let responseBody = ''
+      try { responseBody = (await response.text()).slice(0, 300) } catch { /* ignore */ }
+      const diagnostics = { url: healthUrl, statusCode: response.status, responseBody }
+      if (!response.ok) {
+        let message = `Connection failed: ${response.status} ${response.statusText}`
+        if (response.status === 401 || response.status === 403) message = 'Authentication failed. Check your proxy shared token configuration.'
+        return res.json({ success: false, message, diagnostics })
+      }
+      return res.json({ success: true, message: 'Connection successful. The Proxy /health endpoint responded.', diagnostics })
+    } catch (err: any) {
+      const msg: string = err?.message ?? String(err)
+      let message = `Connection test failed: ${msg}`
+      if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND')) {
+        message = `Cannot reach proxy: ${msg}. Check that the base URL is correct.`
+      } else if (err?.name === 'TimeoutError' || msg.includes('timeout')) {
+        message = 'Connection timed out. The proxy did not respond within 15 seconds.'
+      }
+      return res.json({ success: false, message, diagnostics: { url: healthUrl, error: msg } })
+    }
+  }
+})
+
+// ——— Test: assistant (draft-aware, no save required) ———
+// Accepts draft assistant + LLM settings and runs a real test request.
+app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, async (req, res) => {
+  const { provider, endpoint, proxy, assistant, message, kbName } = req.body || {}
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ success: false, message: 'No test message provided.' })
+  }
+  if (!assistant || typeof assistant !== 'object') {
+    return res.status(400).json({ success: false, message: 'No assistant data provided.' })
+  }
+
+  const providerType = provider === 'proxy' ? 'proxy' : 'internal-api'
+  const resolvedKbName: string = (typeof kbName === 'string' && kbName) ? kbName : 'figma'
+
+  // Build system prompt from draft assistant (promptTemplate + enabled instructionBlocks)
+  const systemParts: string[] = []
+  if (typeof assistant.promptTemplate === 'string' && assistant.promptTemplate.trim()) {
+    systemParts.push(assistant.promptTemplate.trim())
+  }
+  if (Array.isArray(assistant.instructionBlocks)) {
+    for (const block of assistant.instructionBlocks) {
+      if (block.enabled !== false && typeof block.content === 'string' && block.content.trim()) {
+        systemParts.push(block.content.trim())
+      }
+    }
+  }
+  const systemPrompt = systemParts.join('\n\n')
+
+  function extractInternalApiText (body: string): string {
+    try {
+      const json = JSON.parse(body)
+      if (json?.Prompts?.[0]?.ResponseFromAssistant) return String(json.Prompts[0].ResponseFromAssistant)
+      if (typeof json?.result === 'string') return json.result
+      if (json?.result && typeof json.result === 'object' && !Array.isArray(json.result)) return JSON.stringify(json.result, null, 2)
+    } catch { /* fallback to raw body */ }
+    return body
+  }
+
+  // Mirrors normalize.ts extractResponseText for figmai-proxy responses.
+  // figmai-proxy may return: { text }, { content }, { message }, { response }, or OpenAI choices shape.
+  function extractProxyText (body: string): string {
+    try {
+      const json = JSON.parse(body)
+      if (typeof json?.text === 'string') return json.text
+      if (typeof json?.content === 'string') return json.content
+      if (typeof json?.message === 'string') return json.message
+      if (typeof json?.response === 'string') return json.response
+      if (json?.choices?.[0]?.message?.content) return String(json.choices[0].message.content)
+      if (typeof json?.choices?.[0]?.text === 'string') return String(json.choices[0].text)
+    } catch { /* fallback to raw body */ }
+    return body
+  }
+
+  if (providerType === 'internal-api') {
+    const url = (typeof endpoint === 'string' ? endpoint : '').trim().replace(/\/+$/, '')
+    if (!url) {
+      return res.json({ success: false, message: 'No Internal API endpoint configured. Enter an endpoint URL in the AI page first.' })
+    }
+    try {
+      const fullMessage = systemPrompt ? `${systemPrompt}\n\n${message.trim()}` : message.trim()
+      const payload: Record<string, unknown> = { type: 'generalChat', message: fullMessage, kbName: resolvedKbName }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(60000)
+      })
+      let responseBody = ''
+      try { responseBody = await response.text() } catch { /* ignore */ }
+      if (!response.ok) {
+        let msg = `Request failed: ${response.status} ${response.statusText}`
+        if (response.status === 401) msg = 'Authentication failed. Check your organization network access.'
+        return res.json({ success: false, message: msg, diagnostics: { statusCode: response.status, responseBody: responseBody.slice(0, 300) } })
+      }
+      const responseText = extractInternalApiText(responseBody)
+      return res.json({ success: true, response: responseText, assistantId: assistant.id || '(unknown)', kbName: resolvedKbName })
+    } catch (err: any) {
+      const msg: string = err?.message ?? String(err)
+      let message = `Test request failed: ${msg}`
+      if (err?.name === 'TimeoutError' || msg.includes('timeout')) message = 'Request timed out after 60 seconds.'
+      return res.json({ success: false, message })
+    }
+  } else {
+    const baseUrl = (typeof proxy?.baseUrl === 'string' ? proxy.baseUrl : '').trim().replace(/\/+$/, '')
+    if (!baseUrl) {
+      return res.json({ success: false, message: 'No Proxy base URL configured. Enter a Proxy base URL in the AI page first.' })
+    }
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+      // Resolve authMode with fallbacks: if absent, infer from which token is present; default to shared_token.
+      // This matches the renderAITab default and guards against model state where authMode was never explicitly set.
+      const hasSharedToken = typeof proxy?.sharedToken === 'string' && !!proxy.sharedToken
+      const hasSessionToken = typeof proxy?.sessionToken === 'string' && !!proxy.sessionToken
+      const effectiveAuthMode = proxy?.authMode === 'session_token' ? 'session_token'
+        : proxy?.authMode === 'shared_token' ? 'shared_token'
+        : hasSharedToken ? 'shared_token'
+        : hasSessionToken ? 'session_token'
+        : 'shared_token'
+      // figmai-proxy uses X-FigmAI-Token for shared_token; Authorization Bearer for session_token
+      if (effectiveAuthMode === 'shared_token' && hasSharedToken) {
+        headers['X-FigmAI-Token'] = proxy.sharedToken
+      } else if (effectiveAuthMode === 'session_token' && hasSessionToken) {
+        headers['Authorization'] = `Bearer ${proxy.sessionToken}`
+      }
+      const messages: Array<{ role: string; content: string }> = []
+      if (systemPrompt) messages.push({ role: 'system', content: systemPrompt })
+      messages.push({ role: 'user', content: message.trim() })
+      const payload: Record<string, unknown> = { messages }
+      if (typeof proxy?.defaultModel === 'string' && proxy.defaultModel) payload.model = proxy.defaultModel
+      // figmai-proxy chat endpoint: /v1/chat (not /chat/completions)
+      const testUrl = baseUrl + '/v1/chat'
+      const response = await fetch(testUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(60000)
+      })
+      let responseBody = ''
+      try { responseBody = await response.text() } catch { /* ignore */ }
+      if (!response.ok) {
+        let msg = `Request failed: ${response.status} ${response.statusText}`
+        if (response.status === 401) msg = 'Authentication failed. Check your proxy token configuration.'
+        return res.json({ success: false, message: msg, diagnostics: { statusCode: response.status, responseBody: responseBody.slice(0, 300) } })
+      }
+      const responseText = extractProxyText(responseBody)
+      return res.json({ success: true, response: responseText, assistantId: assistant.id || '(unknown)', kbName: resolvedKbName })
+    } catch (err: any) {
+      const msg: string = err?.message ?? String(err)
+      let message = `Test request failed: ${msg}`
+      if (err?.name === 'TimeoutError' || msg.includes('timeout')) message = 'Request timed out after 60 seconds.'
+      return res.json({ success: false, message })
+    }
+  }
+})
+
 const PORT = process.env.ADMIN_EDITOR_PORT ? parseInt(process.env.ADMIN_EDITOR_PORT, 10) : 3333
 const HOST = process.env.ADMIN_EDITOR_HOST || (ACE_AUTH_MODE === 'wrapper' ? '127.0.0.1' : '0.0.0.0')
 app.listen(PORT, HOST, () => {
@@ -786,4 +1001,5 @@ app.listen(PORT, HOST, () => {
   console.log(`Repo root: ${repoRoot}`)
   console.log(`Data dir: ${dataDir}`)
   console.log('Endpoints: GET /api/model, POST /api/validate, POST /api/save; auth: /api/auth/*, users: /api/users (admin)')
+  console.log('Test endpoints: POST /api/test/connection, POST /api/test/assistant (draft-aware, no save required)')
 })

@@ -1,7 +1,22 @@
 /**
- * ACE fonts. OTF files live in admin-editor/public/fonts/Protipo/ and fonts/Carbon/.
+ * ACE fonts. OTF files live in admin-editor/public/fonts/Protipo/, fonts/Carbon/, and fonts/Industry/.
  * Paths are relative to this file; use ./fonts/... so the server serves from public/fonts/.
  */
+@font-face {
+  font-family: 'Industry Inc';
+  src: url('./fonts/Industry/Industry_Inc_Base.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Protipo';
+  src: url('./fonts/Protipo/Protipo-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: 'Protipo';
   src: url('./fonts/Protipo/Protipo-Semibold.otf') format('opentype');

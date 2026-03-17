@@ -191,7 +191,7 @@ export async function createUser(
 }
 
 /** Valid tab ids for allowedTabs (must match permissions.ALL_TAB_IDS). */
-const VALID_TAB_IDS = new Set(['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics', 'users'])
+const VALID_TAB_IDS = new Set(['config', 'ai', 'assistants', 'knowledge', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users'])
 
 /**
  * Update user: disable, change role, reset password, or set allowedTabs.

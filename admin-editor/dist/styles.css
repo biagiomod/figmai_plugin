@@ -112,7 +112,7 @@ body {
 .ace-topbar-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   flex-wrap: nowrap;
   gap: var(--ace-space-16);
   padding: 0 var(--ace-space-32);
@@ -222,8 +222,8 @@ body {
   border-radius: var(--ace-radius-sm);
   background: transparent;
   color: var(--ace-text);
-  font-family: var(--font-carbon);
-  font-size: var(--ace-font-size-14);
+  font-family: var(--font-protipo);
+  font-size: 10px;
   font-weight: var(--ace-font-weight-semibold);
   cursor: pointer;
   text-align: left;
@@ -263,6 +263,7 @@ body {
   white-space: normal;
   line-height: 1.25;
   min-width: 0;
+  text-transform: uppercase;
 }
 
 .ace-nav-item {
@@ -403,6 +404,22 @@ body {
 .ace-section-header-row .ace-section-header-btn:focus-visible {
   outline: 2px solid var(--ace-accent);
   outline-offset: 2px;
+}
+
+/* Config (General) page */
+#panel-config.panel {
+  gap: var(--ace-space-24);
+}
+#panel-config .ace-section-description {
+  font-size: var(--ace-font-size-12);
+  margin-top: 4px;
+  color: var(--ace-text);
+}
+.ace-config-page-desc {
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+  margin: 0;
+  line-height: 1.4;
 }
 
 .ace-build-info {
@@ -722,6 +739,97 @@ body {
 .ace-topbar-actions button:focus-visible,
 .ace-topbar-actions button:focus { outline: 2px solid var(--ace-accent); outline-offset: 2px; }
 .ace-topbar-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ========== Page header bar (Figma: "Fixed to Top" annotation → sticky) ========== */
+.ace-page-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: var(--ace-space-16);
+  padding: var(--ace-space-32) var(--ace-space-32) var(--ace-space-24);
+  background: var(--ace-bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+.ace-page-header-title {
+  font-family: var(--font-protipo);
+  font-size: 24px;
+  font-weight: var(--ace-font-weight-bold);
+  color: #000;
+  margin: 0;
+  line-height: 1.2;
+}
+.ace-page-header-actions {
+  display: flex;
+  gap: var(--ace-space-16);
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+.ace-page-action-btn {
+  font-family: var(--font-protipo);
+  font-weight: var(--ace-font-weight-semibold);
+  font-size: var(--ace-font-size-14);
+  text-transform: uppercase;
+  padding: 12px 16px;
+  min-height: 34px;
+  border-radius: var(--ace-radius);
+  border: 1px solid var(--ace-accent);
+  background: transparent;
+  color: var(--ace-accent);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
+}
+.ace-page-action-btn:hover:not(:disabled) {
+  background: rgba(213, 12, 125, 0.08);
+}
+.ace-page-action-btn--primary {
+  background: var(--ace-accent);
+  color: #fff;
+}
+.ace-page-action-btn--primary:hover:not(:disabled) {
+  background: var(--ace-accent-hover);
+  border-color: var(--ace-accent-hover);
+}
+.ace-page-action-btn:focus-visible {
+  outline: 2px solid var(--ace-accent);
+  outline-offset: 2px;
+}
+.ace-page-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* General page: description bar — hidden to match Figma (reset-config-btn kept in DOM for handlers) */
+.ace-config-desc-bar {
+  display: none;
+}
+.ace-config-reset-btn {
+  font-family: var(--font-protipo);
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text-muted);
+  background: transparent;
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius);
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ace-config-reset-btn:hover:not(:disabled) {
+  background: rgba(0,0,0,0.04);
+  border-color: var(--ace-text-muted);
+}
+.ace-config-reset-btn:focus-visible {
+  outline: 2px solid var(--ace-accent);
+  outline-offset: 2px;
+}
+
 .footer-status { font-size: 0.85rem; color: var(--ace-text-muted); margin-bottom: var(--ace-space-8); }
 .validation-message { font-size: 0.9rem; min-height: 1.2em; }
 .error-block { margin-bottom: var(--ace-space-8); }
@@ -1094,17 +1202,17 @@ textarea.ace-field.large {
   font-family: var(--font-protipo);
   font-weight: var(--ace-font-weight-semibold);
   font-size: var(--ace-font-size-14);
+  text-transform: uppercase;
   padding: var(--ace-space-8) var(--ace-space-16);
   min-height: 40px;
-  border: none;
-  border-right: 1px solid var(--ace-border);
+  border: 1px solid #333;
   background: var(--ace-surface);
   color: var(--ace-text);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
 .ace-segmented-btn:last-child {
-  border-right: none;
+  border-left: none;
 }
 .ace-segmented-btn:hover:not(.is-active):not(:disabled) {
   background: var(--ace-sidebar-bg);
@@ -1112,7 +1220,7 @@ textarea.ace-field.large {
 .ace-segmented-btn.is-active {
   background: var(--ace-accent);
   color: #fff;
-  border-color: var(--ace-accent);
+  border-color: #333;
 }
 .ace-segmented-btn:focus-visible {
   outline: 2px solid var(--ace-accent);
@@ -1689,6 +1797,7 @@ textarea.ace-field.large {
   min-height: 100vh;
   background: var(--ace-bg);
   padding: var(--ace-space-24);
+  overflow-y: auto;
 }
 .ace-auth-card {
   background: var(--ace-surface);
@@ -1697,17 +1806,26 @@ textarea.ace-field.large {
   padding: var(--ace-space-32);
   max-width: 400px;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-32);
 }
 .ace-auth-title {
-  margin: 0 0 var(--ace-space-8);
+  margin: 0;
   font-size: var(--ace-section-title-font-size);
   font-weight: var(--ace-font-weight-bold);
   color: var(--ace-text);
 }
 .ace-auth-subtitle {
-  margin: 0 0 var(--ace-space-24);
+  margin: 0;
   font-size: var(--ace-font-size-14);
   color: var(--ace-text-muted);
+}
+.ace-auth-section-label {
+  margin: 0;
+  font-size: var(--ace-font-size-14);
+  color: var(--ace-text-muted);
+  font-weight: var(--ace-font-weight-regular);
 }
 .ace-auth-form {
   display: flex;
@@ -1719,17 +1837,39 @@ textarea.ace-field.large {
   font-weight: var(--ace-font-weight-semibold);
   color: var(--ace-text);
 }
+.ace-auth-request {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-16);
+}
+.ace-auth-rule {
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--ace-border);
+}
 .ace-auth-input {
   width: 100%;
-  padding: var(--ace-space-12) var(--ace-space-16);
+  height: 40px;
+  padding: var(--ace-space-8) var(--ace-space-16);
   font-size: var(--ace-font-size-14);
-  border: 1px solid var(--ace-border);
-  border-radius: var(--ace-radius);
   font-family: inherit;
+  background: var(--ace-bg);
+  border: 1px solid #022564;
+  border-radius: var(--ace-radius);
+  color: var(--ace-text);
+}
+.ace-auth-input::placeholder {
+  color: var(--ace-text-muted);
 }
 .ace-auth-input:focus {
   outline: 2px solid var(--ace-accent);
   outline-offset: 2px;
+}
+.ace-auth-btn {
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--ace-font-weight-bold);
 }
 .ace-auth-error {
   color: var(--error);

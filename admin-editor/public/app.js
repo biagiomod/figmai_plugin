@@ -490,10 +490,10 @@
   function allowedTabsFromRole (role) {
     const r = (role || '').toLowerCase()
     if (r === 'admin') {
-      return ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics', 'users']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
     }
     if (r === 'manager' || r === 'editor') {
-      return ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics']
     }
     return ['config', 'ai']
   }
@@ -927,9 +927,9 @@
     const canonicalOrder = getAdvancedOrderedAssistants(assistants)
     const effectiveAdvancedIds = new Set(getEffectiveAdvancedModeIds(ui, assistants))
 
-    let html = '<div class="ace-section-header-row">'
-    html += '<h2 class="ace-section-title">General Plugin Settings</h2>'
-    html += '<button type="button" class="ace-section-header-btn" id="reset-config-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
+    let html = '<div class="ace-config-desc-bar">'
+    html += '<p class="ace-config-page-desc">Plugin settings, display mode, and branding.</p>'
+    html += '<button type="button" class="ace-config-reset-btn" id="reset-config-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
     html += '<div class="ace-config-cards ace-cards">'
     var expandedMap = loadSectionExpandedState()
@@ -1495,6 +1495,12 @@
     cardInner += '</div>'
     html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint', '<div class="ace-card ace-llm-endpoint-card">' + cardInner + '</div>', expandedMap['ai-api-endpoint'], 'Configure how the plugin connects to AI services')
     html += '</div>'
+    html += '<div class="ace-card ace-test-panel" style="margin-top:16px">'
+    html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px">Connection Test</div>'
+    html += '<p class="ace-card-helper" style="margin-bottom:10px">Test connectivity using the current (unsaved) AI settings above. No changes are saved before testing.</p>'
+    html += '<button type="button" class="btn-primary" id="ace-test-connection-btn">Test Connection</button>'
+    html += '<div id="ace-test-connection-result" role="status" aria-live="polite" style="margin-top:10px"></div>'
+    html += '</div>'
     panel.innerHTML = html
 
     _apiFetch(API_BASE + '/api/build-info', {})
@@ -1678,6 +1684,46 @@
         updateFooterButtons()
       }
     }
+
+    const testConnBtn = document.getElementById('ace-test-connection-btn')
+    if (testConnBtn) {
+      testConnBtn.onclick = async function () {
+        testConnBtn.disabled = true
+        testConnBtn.textContent = 'Testing...'
+        var resultEl = document.getElementById('ace-test-connection-result')
+        if (resultEl) { resultEl.className = ''; resultEl.textContent = '' }
+        try {
+          var llm = (state.editedModel && state.editedModel.config && state.editedModel.config.llm) ? state.editedModel.config.llm : {}
+          var provider = llm.provider === 'proxy' ? 'proxy' : 'internal-api'
+          var rawProxy = llm.proxy || {}
+          var normalizedProxy = {
+            baseUrl: rawProxy.baseUrl || '',
+            defaultModel: rawProxy.defaultModel || '',
+            authMode: rawProxy.authMode === 'session_token' ? 'session_token' : 'shared_token',
+            sharedToken: rawProxy.sharedToken || ''
+          }
+          var body = { provider: provider, endpoint: llm.endpoint || '', proxy: normalizedProxy }
+          var res = await _apiFetch(API_BASE + '/api/test/connection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          })
+          var data = await res.json()
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ' + (data.success ? 'ace-test-result--success' : 'ace-test-result--error')
+            resultEl.textContent = data.message || (data.success ? 'Connection successful.' : 'Connection failed.')
+          }
+        } catch (err) {
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ace-test-result--error'
+            resultEl.textContent = 'Test request failed: ' + ((err && err.message) ? err.message : String(err))
+          }
+        } finally {
+          testConnBtn.disabled = false
+          testConnBtn.textContent = 'Test Connection'
+        }
+      }
+    }
   }
 
   // ——— Assistants tab ———
@@ -1793,12 +1839,12 @@
     html += '</ul><button type="button" class="btn-small add-btn" id="ae-ib-add">Add block</button>'
     html += '<label>Tone/style preset</label><input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
     html += '<label>Output schema ID</label><input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="Schema id">'
-    html += '<label>Knowledge base refs</label>'
+    html += '<label>Resource refs</label>'
     const kbRegistry = state.kbRegistry || []
     if (!state.kbRegistryFetched) {
-      html += '<p class="fg-secondary">Loading KB list…</p>'
+      html += '<p class="fg-secondary">Loading resources…</p>'
     } else {
-      html += '<p class="fg-secondary">Select KBs; order matters for injection.</p>'
+      html += '<p class="fg-secondary">Select resources; order matters for injection.</p>'
       html += '<div class="ae-kb-refs-list" id="ae-kb-refs-checkboxes">'
       kbRegistry.forEach(function (entry) {
         const refs = a.knowledgeBaseRefs || []
@@ -1811,6 +1857,14 @@
     }
     html += '<div class="field-row"><label><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Safety: allow images</label></div>'
     html += '<label>Prompt template</label><textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="12">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
+    html += '<div class="ace-test-panel" style="margin-top:16px;padding:12px;border:1px solid var(--ace-border);border-radius:var(--ace-radius);background:var(--bg-secondary)">'
+    html += '<div style="font-size:0.9rem;font-weight:600;margin-bottom:6px">Test this assistant (draft)</div>'
+    html += '<p class="ace-card-helper" style="margin-bottom:8px;font-size:0.8rem">Run a real LLM request using current unsaved settings. Provider must be configured in the AI tab. kbName: <code>figma</code> (first slice — hardcoded).</p>'
+    html += '<label for="ae-test-message" style="font-size:0.85rem">Test message</label>'
+    html += '<textarea id="ae-test-message" class="ace-field" rows="3" placeholder="Enter a test message..." style="margin-top:4px"></textarea>'
+    html += '<div style="margin-top:8px"><button type="button" class="btn-primary" id="ae-test-run-btn">Run Test</button></div>'
+    html += '<div id="ae-test-result" role="status" aria-live="polite" style="margin-top:10px"></div>'
+    html += '</div>'
     return html
   }
 
@@ -2010,6 +2064,66 @@
       a.safetyOverrides.allowImages = this.checked || undefined
       showUnsavedBanner()
     }
+
+    const testRunBtn = document.getElementById('ae-test-run-btn')
+    if (testRunBtn) {
+      testRunBtn.onclick = async function () {
+        var msgEl = document.getElementById('ae-test-message')
+        var resultEl = document.getElementById('ae-test-result')
+        var msg = msgEl ? msgEl.value.trim() : ''
+        if (!msg) {
+          if (resultEl) { resultEl.className = 'ace-test-result ace-test-result--error'; resultEl.textContent = 'Enter a test message.' }
+          return
+        }
+        testRunBtn.disabled = true
+        testRunBtn.textContent = 'Running...'
+        if (resultEl) { resultEl.className = ''; resultEl.textContent = '' }
+        try {
+          var llm = (state.editedModel && state.editedModel.config && state.editedModel.config.llm) ? state.editedModel.config.llm : {}
+          var provider = llm.provider === 'proxy' ? 'proxy' : 'internal-api'
+          var assistantDraft = { id: a.id, promptTemplate: a.promptTemplate || '', instructionBlocks: a.instructionBlocks || [] }
+          // Normalize proxy: always include authMode with the same default renderAITab uses (shared_token).
+          // authMode may be absent in model state if the user never touched the select.
+          var rawProxy = llm.proxy || {}
+          var normalizedProxy = {
+            baseUrl: rawProxy.baseUrl || '',
+            defaultModel: rawProxy.defaultModel || '',
+            authMode: rawProxy.authMode === 'session_token' ? 'session_token' : 'shared_token',
+            sharedToken: rawProxy.sharedToken || ''
+          }
+          var body = {
+            provider: provider,
+            endpoint: llm.endpoint || '',
+            proxy: normalizedProxy,
+            assistant: assistantDraft,
+            message: msg,
+            kbName: 'figma'
+          }
+          var res = await _apiFetch(API_BASE + '/api/test/assistant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          })
+          var data = await res.json()
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ' + (data.success ? 'ace-test-result--success' : 'ace-test-result--error')
+            if (data.success) {
+              resultEl.innerHTML = '<div class="ace-test-response-meta">Assistant: ' + escapeHtml(data.assistantId || '?') + ' | kbName: ' + escapeHtml(data.kbName || 'figma') + '</div><pre class="ace-test-response-text">' + escapeHtml(data.response || '(empty response)') + '</pre>'
+            } else {
+              resultEl.textContent = data.message || 'Test failed.'
+            }
+          }
+        } catch (err) {
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ace-test-result--error'
+            resultEl.textContent = 'Test request failed: ' + ((err && err.message) ? err.message : String(err))
+          }
+        } finally {
+          testRunBtn.disabled = false
+          testRunBtn.textContent = 'Run Test'
+        }
+      }
+    }
   }
 
   // ——— Knowledge tab ———
@@ -2079,7 +2193,7 @@
     }
   }
 
-  // ——— Knowledge Bases tab (PR11b) ———
+  // ——— Resources tab (PR11b) ———
   async function fetchKbRegistry () {
     const res = await _apiFetch(API_BASE + '/api/kb/registry', {})
     if (!res.ok) throw new Error(res.status === 403 ? 'Not authorized' : 'Failed to load registry')
@@ -2091,7 +2205,7 @@
     const panel = document.getElementById('panel-knowledge-bases')
     if (!panel) return
     panel.setAttribute('aria-busy', 'true')
-    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div><p class="fg-secondary">Loading…</p>'
+    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">Loading…</p>'
     fetchKbRegistry()
       .then(function () {
         state.panelKnowledgeBasesReady = true
@@ -2099,7 +2213,7 @@
       })
       .catch(function (err) {
         panel.removeAttribute('aria-busy')
-        panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
+        panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
       })
   }
 
@@ -2113,9 +2227,9 @@
     const previewDoc = state.kbPreviewDoc
     const editDoc = state.kbEditDoc
 
-    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div>'
-    html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference by id (knowledgeBaseRefs).</p>'
-    html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import KB</button>'
+    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div>'
+    html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference resources by id.</p>'
+    html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import Resource</button>'
     html += '<div class="list-panel">'
     html += '<div class="list" id="kb-list">'
     const assistants = state.editedModel?.assistantsManifest?.assistants || []
@@ -2149,7 +2263,7 @@
     } else if (selectedId) {
       html += '<p class="fg-secondary">Loading…</p>'
     } else {
-      html += '<div class="empty">Select a KB or click Create / Import KB</div>'
+      html += '<div class="empty">Select a resource or click Create / Import Resource</div>'
     }
     html += '</div></div>'
     panel.innerHTML = html
@@ -3170,9 +3284,9 @@
     })()
   }
 
-  /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; excludes knowledge – not a visible nav tab). */
-  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'content-models', 'registries', 'analytics', 'users']
-  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
+  /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; includes visible nav tabs only). */
+  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
+  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
   function getRoleDefaultTabs (role) {
     if (role === 'admin' || role === 'manager' || role === 'editor') return USERS_SET_ACCESS_TAB_IDS.slice()
     return ['config', 'users']
@@ -3512,7 +3626,7 @@
     config: 'General Plugin Settings',
     ai: 'AI',
     assistants: 'Assistants — Definitions and prompts',
-    'knowledge-bases': 'Knowledge Bases — Normalized KB docs',
+    'knowledge-bases': 'Resources — ACE-managed instruction and reference docs',
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
     registries: 'Design System Registries — Registry JSON per design system',
@@ -3552,6 +3666,9 @@
       else btn.removeAttribute('aria-current')
       btn.classList.toggle('active', sel)
     })
+    var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users', knowledge: 'Knowledge' }
+    var pageTitleEl = document.getElementById('ace-page-title-text')
+    if (pageTitleEl) pageTitleEl.textContent = PAGE_TITLES[tabId] || tabId
     const subheaderEl = document.getElementById('tab-subheader')
     if (subheaderEl) {
       if (HIDE_TAB_SUBHEADER_TABS.has(tabId)) {

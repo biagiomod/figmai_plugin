@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: ACE Lambda API — private/work environment (JavaScript, modular)
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: S3 bucket for config + admin state storage
+
+  S3Prefix:
+    Type: String
+    Default: figmai/
+    Description: Prefix for all config objects in the bucket
+
+  S3Region:
+    Type: String
+    Default: us-east-2
+    Description: AWS region of the S3 bucket
+
+  ConfigApiToken:
+    Type: String
+    NoEcho: true
+    Description: Shared Bearer token for API authentication
+
+  CorsAllowOrigins:
+    Type: CommaDelimitedList
+    Default: "http://localhost:3333,http://127.0.0.1:3333,http://127.0.0.1:3334"
+    Description: Comma-separated allowed CORS origins
+
+  ServiceName:
+    Type: String
+    Default: ace-lambda
+    Description: Service name returned by /api/health
+
+  ServiceVersion:
+    Type: String
+    Default: "0.1.0"
+    Description: Version returned by /api/health
+
+  BuildTimestamp:
+    Type: String
+    Default: ""
+    Description: Optional build timestamp (ISO string)
+
+  GitCommitSha:
+    Type: String
+    Default: ""
+    Description: Optional Git commit SHA
+
+  LlmApiEndpoint:
+    Type: String
+    Default: ""
+    Description: >
+      Optional LLM API endpoint override used by /api/test/* routes.
+      When empty, the endpoint from draft/config.json is used instead.
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 60
+    MemorySize: 512
+
+Resources:
+  AceLambdaHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: !Ref CorsAllowOrigins
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        MaxAge: 86400
+
+  AceLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: handler.handler
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3BucketName
+          S3_PREFIX: !Ref S3Prefix
+          S3_REGION: !Ref S3Region
+          CONFIG_API_TOKEN: !Ref ConfigApiToken
+          CORS_ALLOW_ORIGINS: !Join [",", !Ref CorsAllowOrigins]
+          SERVICE_NAME: !Ref ServiceName
+          SERVICE_VERSION: !Ref ServiceVersion
+          BUILD_TIMESTAMP: !Ref BuildTimestamp
+          GIT_COMMIT_SHA: !Ref GitCommitSha
+          LLM_API_ENDPOINT: !Ref LlmApiEndpoint
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub "arn:aws:s3:::${S3BucketName}/${S3Prefix}*"
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !Sub "arn:aws:s3:::${S3BucketName}"
+              Condition:
+                StringLike:
+                  s3:prefix: !Sub "${S3Prefix}*"
+      Events:
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AceLambdaHttpApi
+            Path: /
+            Method: ANY
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AceLambdaHttpApi
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - handler.js
+        Minify: true
+        Sourcemap: false
+        Target: "node20"
+        Format: cjs
+        # AWS SDK is available in the Lambda runtime; exclude to reduce bundle size.
+        External:
+          - "@aws-sdk/*"
+
+Outputs:
+  AceLambdaApiUrl:
+    Description: ACE Lambda API endpoint URL
+    Value: !Sub "https://${AceLambdaHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+  AceLambdaFunctionArn:
+    Description: ACE Lambda function ARN
+    Value: !GetAtt AceLambdaFunction.Arn

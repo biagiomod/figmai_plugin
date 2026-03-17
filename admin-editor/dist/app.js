@@ -490,10 +490,10 @@
   function allowedTabsFromRole (role) {
     const r = (role || '').toLowerCase()
     if (r === 'admin') {
-      return ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics', 'users']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
     }
     if (r === 'manager' || r === 'editor') {
-      return ['config', 'ai', 'assistants', 'knowledge', 'content-models', 'registries', 'analytics']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics']
     }
     return ['config', 'ai']
   }
@@ -927,9 +927,9 @@
     const canonicalOrder = getAdvancedOrderedAssistants(assistants)
     const effectiveAdvancedIds = new Set(getEffectiveAdvancedModeIds(ui, assistants))
 
-    let html = '<div class="ace-section-header-row">'
-    html += '<h2 class="ace-section-title">General Plugin Settings</h2>'
-    html += '<button type="button" class="ace-section-header-btn" id="reset-config-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
+    let html = '<div class="ace-config-desc-bar">'
+    html += '<p class="ace-config-page-desc">Plugin settings, display mode, and branding.</p>'
+    html += '<button type="button" class="ace-config-reset-btn" id="reset-config-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
     html += '<div class="ace-config-cards ace-cards">'
     var expandedMap = loadSectionExpandedState()
@@ -1793,12 +1793,12 @@
     html += '</ul><button type="button" class="btn-small add-btn" id="ae-ib-add">Add block</button>'
     html += '<label>Tone/style preset</label><input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
     html += '<label>Output schema ID</label><input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="Schema id">'
-    html += '<label>Knowledge base refs</label>'
+    html += '<label>Resource refs</label>'
     const kbRegistry = state.kbRegistry || []
     if (!state.kbRegistryFetched) {
-      html += '<p class="fg-secondary">Loading KB list…</p>'
+      html += '<p class="fg-secondary">Loading resources…</p>'
     } else {
-      html += '<p class="fg-secondary">Select KBs; order matters for injection.</p>'
+      html += '<p class="fg-secondary">Select resources; order matters for injection.</p>'
       html += '<div class="ae-kb-refs-list" id="ae-kb-refs-checkboxes">'
       kbRegistry.forEach(function (entry) {
         const refs = a.knowledgeBaseRefs || []
@@ -2079,7 +2079,7 @@
     }
   }
 
-  // ——— Knowledge Bases tab (PR11b) ———
+  // ——— Resources tab (PR11b) ———
   async function fetchKbRegistry () {
     const res = await _apiFetch(API_BASE + '/api/kb/registry', {})
     if (!res.ok) throw new Error(res.status === 403 ? 'Not authorized' : 'Failed to load registry')
@@ -2091,7 +2091,7 @@
     const panel = document.getElementById('panel-knowledge-bases')
     if (!panel) return
     panel.setAttribute('aria-busy', 'true')
-    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div><p class="fg-secondary">Loading…</p>'
+    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">Loading…</p>'
     fetchKbRegistry()
       .then(function () {
         state.panelKnowledgeBasesReady = true
@@ -2099,7 +2099,7 @@
       })
       .catch(function (err) {
         panel.removeAttribute('aria-busy')
-        panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
+        panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
       })
   }
 
@@ -2113,9 +2113,9 @@
     const previewDoc = state.kbPreviewDoc
     const editDoc = state.kbEditDoc
 
-    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Knowledge Bases</h2></div>'
-    html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference by id (knowledgeBaseRefs).</p>'
-    html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import KB</button>'
+    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div>'
+    html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference resources by id.</p>'
+    html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import Resource</button>'
     html += '<div class="list-panel">'
     html += '<div class="list" id="kb-list">'
     const assistants = state.editedModel?.assistantsManifest?.assistants || []
@@ -2149,7 +2149,7 @@
     } else if (selectedId) {
       html += '<p class="fg-secondary">Loading…</p>'
     } else {
-      html += '<div class="empty">Select a KB or click Create / Import KB</div>'
+      html += '<div class="empty">Select a resource or click Create / Import Resource</div>'
     }
     html += '</div></div>'
     panel.innerHTML = html
@@ -3170,9 +3170,9 @@
     })()
   }
 
-  /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; excludes knowledge – not a visible nav tab). */
-  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'content-models', 'registries', 'analytics', 'users']
-  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
+  /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; includes visible nav tabs only). */
+  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
+  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
   function getRoleDefaultTabs (role) {
     if (role === 'admin' || role === 'manager' || role === 'editor') return USERS_SET_ACCESS_TAB_IDS.slice()
     return ['config', 'users']
@@ -3512,7 +3512,7 @@
     config: 'General Plugin Settings',
     ai: 'AI',
     assistants: 'Assistants — Definitions and prompts',
-    'knowledge-bases': 'Knowledge Bases — Normalized KB docs',
+    'knowledge-bases': 'Resources — ACE-managed instruction and reference docs',
     knowledge: 'Knowledge — Markdown files per assistant',
     'content-models': 'Content Models — Raw content model markdown',
     registries: 'Design System Registries — Registry JSON per design system',
@@ -3552,6 +3552,9 @@
       else btn.removeAttribute('aria-current')
       btn.classList.toggle('active', sel)
     })
+    var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users', knowledge: 'Knowledge' }
+    var pageTitleEl = document.getElementById('ace-page-title-text')
+    if (pageTitleEl) pageTitleEl.textContent = PAGE_TITLES[tabId] || tabId
     const subheaderEl = document.getElementById('tab-subheader')
     if (subheaderEl) {
       if (HIDE_TAB_SUBHEADER_TABS.has(tabId)) {
