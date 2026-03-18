@@ -510,7 +510,7 @@
     }
     const name = (user.username || '').trim() || '—'
     container.innerHTML = '<div class="ace-nav-profile-widget-inner">' +
-      '<img src="assets/icons/ACEUserIcon.svg" alt="" class="ace-nav-profile-widget-icon" width="24" height="24" aria-hidden="true" />' +
+      '<img src="/assets/icons/ACEUserIcon.svg" alt="" class="ace-nav-profile-widget-icon" width="24" height="24" aria-hidden="true" />' +
       '<div class="ace-nav-profile-widget-body">' +
       '<span class="ace-nav-profile-widget-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
       '<span class="ace-role-badge ace-role-badge--' + (role || '') + '">' + escapeHtml(roleBadgeLabel(role)) + '</span>' +
@@ -727,13 +727,13 @@
       headerContent = '<div class="ace-section-header-inner">' +
         '<div class="ace-section-header-top">' +
         '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
-        '<img class="ace-section-chevron" src="assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />' +
+        '<img class="ace-section-chevron" src="/assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />' +
         '</div>' +
         '<div class="ace-section-description">' + escapeHtml(descriptionText) + '</div>' +
         '</div>'
     } else {
       headerContent = '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
-        '<img class="ace-section-chevron" src="assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />'
+        '<img class="ace-section-chevron" src="/assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />'
     }
     return '<section class="ace-section ace-collapsible' + (isExpanded ? '' : ' is-collapsed') + '" data-section="' + escapeHtml(sectionId) + '">' +
       '<button type="button" class="ace-section-header" aria-expanded="' + (isExpanded ? 'true' : 'false') + '" aria-controls="section-' + escapeHtml(sectionId) + '-body">' +
@@ -1116,7 +1116,7 @@
         section.classList.toggle('is-collapsed', !expanded)
         this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
         var img = this.querySelector('.ace-section-chevron')
-        if (img) img.src = expanded ? 'assets/icons/ChevronUpIcon.svg' : 'assets/icons/ChevronDownIcon.svg'
+        if (img) img.src = expanded ? '/assets/icons/ChevronUpIcon.svg' : '/assets/icons/ChevronDownIcon.svg'
       }
     })
 
@@ -1530,7 +1530,7 @@
         section.classList.toggle('is-collapsed', !expanded)
         this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
         var img = this.querySelector('.ace-section-chevron')
-        if (img) img.src = expanded ? 'assets/icons/ChevronUpIcon.svg' : 'assets/icons/ChevronDownIcon.svg'
+        if (img) img.src = expanded ? '/assets/icons/ChevronUpIcon.svg' : '/assets/icons/ChevronDownIcon.svg'
       }
     })
 
@@ -3239,7 +3239,7 @@
             rowHtml += '<select class="ace-users-role-select" data-id="' + escapeHtml(u.id) + '"><option value="reviewer"' + (u.role === 'reviewer' ? ' selected' : '') + '>Reviewer</option><option value="editor"' + (u.role === 'editor' ? ' selected' : '') + '>Editor</option><option value="manager"' + (u.role === 'manager' ? ' selected' : '') + '>Manager</option><option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Admin</option></select>'
             rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-reset-pw" data-id="' + escapeHtml(u.id) + '"><span class="ace-users-btn-label">Reset password</span></button>'
             rowHtml += '<button type="button" class="ace-users-chevron-btn ace-users-chevron-down" data-id="' + escapeHtml(u.id) + '" aria-label="Set access">'
-            rowHtml += '<img src="assets/icons/ChevronDownIcon.svg" alt="" width="20" height="20" aria-hidden="true" />'
+            rowHtml += '<img src="/assets/icons/ChevronDownIcon.svg" alt="" width="20" height="20" aria-hidden="true" />'
             rowHtml += '</button>'
           }
           rowHtml += '</div>'
@@ -3332,7 +3332,7 @@
             const isOpen = expanded.style.display !== 'none'
             expanded.style.display = isOpen ? 'none' : 'block'
             const img = this.querySelector('img')
-            if (img) img.src = isOpen ? 'assets/icons/ChevronDownIcon.svg' : 'assets/icons/ChevronUpIcon.svg'
+            if (img) img.src = isOpen ? '/assets/icons/ChevronDownIcon.svg' : '/assets/icons/ChevronUpIcon.svg'
             this.classList.toggle('ace-users-chevron-down', isOpen)
             this.classList.toggle('ace-users-chevron-up', !isOpen)
           }

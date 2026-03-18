@@ -1,0 +1,141 @@
+Zero bare paths remaining. All 30 references updated across 4 files:
+
+  ┌───────────────────┬────────────────────────────────────────────────────────────────────┐
+  │       File        │                          References fixed                          │
+  ├───────────────────┼────────────────────────────────────────────────────────────────────┤
+  │ public/index.html │ 11 (logo + 10 nav icons)                                           │
+  ├───────────────────┼────────────────────────────────────────────────────────────────────┤
+  │ dist/index.html   │ 11 (same)                                                          │
+  ├───────────────────┼────────────────────────────────────────────────────────────────────┤
+  │ public/app.js     │ 4 (profile icon, 2 chevron HTML strings, chevron .src assignments) │
+  ├───────────────────┼────────────────────────────────────────────────────────────────────┤
+  │ dist/app.js       │ 4 (same)                                                           │
+  └───────────────────┴────────────────────────────────────────────────────────────────────┘
+
+✻ Crunched for 13m 4s
+
+❯ ace-lambda is not readying template.yml file for all the environment variables. (e.g. S3 bucket name, JWT secret etc, cors origin allow list) Do we need to explicitly define environment variable in the infrastructure while creating it, or is there way it will re-load or read template.yml file?                                  
+
+⏺ The Lambda function never reads template.yaml at runtime. The YAML file is purely a deployment descriptor — SAM/CloudFormation reads it once during sam deploy and bakes the values into the Lambda function's configuration in AWS. After that, the function reads them as standard process.env.* variables.
+
+  Here's the full flow:
+
+  template.yaml          sam deploy             AWS Lambda config        Runtime
+  ─────────────    ───────────────────────►   ─────────────────────   ──────────────
+  Parameters:             CloudFormation         Environment:            process.env
+    S3BucketName   ──►   resolves params   ──►    S3_BUCKET: "..."  ──►  .S3_BUCKET
+    JwtSecret             and writes env         JWT_SECRET: "..."       .JWT_SECRET
+    CorsAllowOrigins       vars to the           CORS_ALLOW_ORIGINS:...  etc.
+                           function config
+
+  ---
+  Your two options for supplying the values
+
+  Option 1 — samconfig.toml (recommended)
+
+  Create infra/ace-lambda/samconfig.toml with the concrete values for your environment. SAM reads this automatically on sam deploy:
+
+  version = 0.1
+
+  [default.deploy.parameters]
+  stack_name = "ace-lambda-private"
+  region = "us-east-2"
+  capabilities = "CAPABILITY_IAM"
+  resolve_s3 = true
+
+  parameter_overrides = """
+    S3BucketName=modstar-figmai-config \
+    S3Prefix=figmai/ \
+    S3Region=us-east-2 \
+    ConfigApiToken=<your-token> \
+    JwtSecret=<your-secret> \
+    JwtExpiryHours=8 \
+    CorsAllowOrigins=https://your-ace-domain.com \
+    ServiceName=ace-lambda \
+    ServiceVersion=0.1.0
+  """
+
+  Then deploy with just:
+  sam build && sam deploy
+
+  Option 2 — Pass overrides directly on the CLI
+
+  sam build && sam deploy \
+    --parameter-overrides \
+      S3BucketName=modstar-figmai-config \
+      ConfigApiToken=xxx \
+      JwtSecret=xxx \
+      CorsAllowOrigins=https://your-ace-domain.com
+
+  ---
+  Important: secrets should NOT go in samconfig.toml committed to git
+
+  For ConfigApiToken and JwtSecret, the safe pattern is to leave them out of the toml file and either:
+  - Pass them on the CLI at deploy time
+  - Pull them from AWS SSM Parameter Store (requires a small template change)
+  - Use a local .env-style file that is gitignored
+
+  The existing infra/config-api/samconfig.toml (which is committed) shows the pattern already in use for this project — worth checking what it does for the token before deciding your approach for ace-lambda.
+
+
+  ####
+
+ Question: How does auth work in the private environment? Is there a single file that can be updated with private environement specific paths, endpoints, credentials, etc. that remains seperate from future updates to the ACE code?  The goal is once the ACE, APIs, and S3 are fully functional with this single private setup file any future 
+ public changes to the ACE codebase will simply replace the old files, with zero setup effort since the single private setup files remains.                                                                                                                                                                                               
+
+  ---
+  The single private config file: config.js
+
+  public/config.js is already designed for exactly this purpose. It is loaded before app.js via a separate <script> tag, so it is never overwritten when ACE code is updated. You set it once:
+
+  // public/config.js — your private deployment file, never touched by ACE updates
+  window.__ACE_CONFIG__ = {
+    apiBase:  'https://your-lambda.execute-api.us-east-2.amazonaws.com/figma-admin',
+    authMode: 'bearer'
+  };
+
+  app.js reads this at startup:
+  const API_BASE      = window.__ACE_CONFIG__.apiBase  || ''
+  const ACE_AUTH_MODE = window.__ACE_CONFIG__.authMode || 'cookie'
+
+  Every API call then automatically becomes apiBase + '/api/model', etc., pointing at your Lambda. The /figma-admin prefix is absorbed into apiBase — app.js itself never needs to know about it.
+
+  For the backend, infra/ace-lambda/samconfig.toml is the equivalent private file — holds bucket name, JWT secret, API token, CORS origins. Both files are gitignored and survive ACE code updates untouched.
+
+  ---
+  How auth flows end-to-end in the private environment
+
+  1. Browser loads static ACE  →  config.js sets apiBase + authMode: 'bearer'
+
+  2. init() checks sessionStorage for 'ace_bearer_token'
+     └─ not found → shows login form (or bootstrap form on first run)
+
+  3a. First run:
+      POST /figma-admin/api/auth/bootstrap  { username, password }
+      ← { success, user, token }   ← JWT returned here
+
+  3b. Subsequent runs:
+      POST /figma-admin/api/auth/login      { username, password }
+      ← { success, user, token }   ← JWT returned here
+
+  4. JWT stored in sessionStorage['ace_bearer_token']
+
+  5. Every _apiFetch() automatically adds:
+     Authorization: Bearer <jwt>
+
+  6. Lambda verifies JWT on every protected route (authUtils.js)
+
+  7. GET /figma-admin/api/auth/me  →  returns { user, role, expiresAt }
+
+  ---
+  There is a gap that needs fixing
+
+  apiAuthLogin and apiAuthBootstrap in app.js currently do not store the returned JWT. The Lambda now returns { token } on login/bootstrap, but the frontend ignores it:
+
+  // current — discards the token
+  async function apiAuthLogin(username, password) {
+    ...
+    return data.user   // ← data.token is never stored
+  }
+
+  Without storing the token, _apiFetch has nothing to attach to requests and all protected routes return 401. Want me to fix apiAuthLogin and apiAuthBootstrap in app.js (and dist/app.js) to store data.token in sessionStorage['ace_bearer_token']?
