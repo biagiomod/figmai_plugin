@@ -139,3 +139,207 @@ Zero bare paths remaining. All 30 references updated across 4 files:
   }
 
   Without storing the token, _apiFetch has nothing to attach to requests and all protected routes return 401. Want me to fix apiAuthLogin and apiAuthBootstrap in app.js (and dist/app.js) to store data.token in sessionStorage['ace_bearer_token']?
+
+  ###################
+  March 19th, 2026
+  ###################
+  Q:  For ace-lambda please list out all the environment variables that need to be added befreo we deply ace-lambda   
+
+  Here's the complete list, split by whether they're required or have a working default:
+
+  ---
+  Required — no default, must be set
+
+  ┌────────────────┬───────────────────┬──────────────────────────────────────────────────────────────────────────────────┐
+  │ SAM Parameter  │ Env Var in Lambda │                                   What to put                                    │
+  ├────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────────────────┤
+  │ S3BucketName   │ S3_BUCKET         │ modstar-figmai-config                                                            │
+  ├────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────────────────┤
+  │ ConfigApiToken │ CONFIG_API_TOKEN  │ Any strong random string — used as the shared Bearer token for scripts/API calls │
+  ├────────────────┼───────────────────┼──────────────────────────────────────────────────────────────────────────────────┤
+  │ JwtSecret      │ JWT_SECRET        │ A long random string (32+ chars) — used to sign/verify user session JWTs         │
+  └────────────────┴───────────────────┴──────────────────────────────────────────────────────────────────────────────────┘
+
+  ---
+  Optional — have sensible defaults, override if needed
+
+  ┌──────────────────┬────────────────────┬─────────────────────────────┬──────────────────────────────────────────────────┐
+  │  SAM Parameter   │      Env Var       │           Default           │                  Override when                   │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ S3Prefix         │ S3_PREFIX          │ figmai/                     │ Using a different prefix                         │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ S3Region         │ S3_REGION          │ us-east-2                   │ Bucket is in a different region                  │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ CorsAllowOrigins │ CORS_ALLOW_ORIGINS │ localhost:3333/3334         │ Your static ACE site has a real domain           │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ JwtExpiryHours   │ JWT_EXPIRY_HOURS   │ 8                           │ Want longer/shorter sessions                     │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ LlmApiEndpoint   │ LLM_API_ENDPOINT   │ "" (reads from config.json) │ Want to override the LLM endpoint at infra level │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ ServiceName      │ SERVICE_NAME       │ ace-lambda                  │ Cosmetic only                                    │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ ServiceVersion   │ SERVICE_VERSION    │ 0.1.0                       │ Cosmetic only                                    │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ BuildTimestamp   │ BUILD_TIMESTAMP    │ ""                          │ CI/CD sets this automatically                    │
+  ├──────────────────┼────────────────────┼─────────────────────────────┼──────────────────────────────────────────────────┤
+  │ GitCommitSha     │ GIT_COMMIT_SHA     │ ""                          │ CI/CD sets this automatically                    │
+  └──────────────────┴────────────────────┴─────────────────────────────┴──────────────────────────────────────────────────┘
+
+  ---
+  Minimum samconfig.toml to deploy
+
+  version = 0.1
+
+  [default.deploy.parameters]
+  stack_name        = "ace-lambda-private"
+  region            = "us-east-2"
+  capabilities      = "CAPABILITY_IAM"
+  resolve_s3        = true
+
+  parameter_overrides = """
+    S3BucketName=modstar-figmai-config \
+    CorsAllowOrigins=https://your-ace-site.com \
+    ConfigApiToken=REPLACE_WITH_STRONG_RANDOM_TOKEN \
+    JwtSecret=REPLACE_WITH_32_PLUS_CHAR_SECRET
+  """
+
+  Keep ConfigApiToken and JwtSecret out of version control — either pass them on the CLI or load from a secrets manager at deploy time.
+
+
+
+
+  ####
+
+  How does authntication functionality work in ace-lambda?                                                                                                                                                                                                                                                               
+
+  Read 3 files (ctrl+o to expand)
+
+⏺ Here's how authentication works across all three files and the full request lifecycle:
+
+  ---
+  Two token types, one auth guard
+
+  Every request passes through handler.js → isAuthorized() in authUtils.js. It accepts either of two token types sent as Authorization: Bearer <token>:
+
+  Request arrives
+        │
+        ▼
+  Extract Bearer token from header
+        │
+        ├─ matches CONFIG_API_TOKEN? ──► AUTHORIZED (service/script access)
+        │
+        └─ valid JWT signed with JWT_SECRET? ──► AUTHORIZED (user session)
+                      │
+                      └─ neither? ──► 401 Unauthorized
+
+  The service token (CONFIG_API_TOKEN) is a static shared secret set in samconfig.toml — used by scripts, CI, or direct API calls. No expiry, no user identity.
+
+  The user JWT is short-lived (default 8h), contains { sub, username, role, allowedTabs }, and is issued only after a successful login.
+
+  ---
+  Routes that bypass the auth guard entirely
+
+  These six routes in handler.js skip isAuthorized() completely — no token needed:
+
+  GET  /figma-admin/api/auth/me
+  GET  /figma-admin/api/auth/bootstrap-allowed
+  POST /figma-admin/api/auth/bootstrap
+  POST /figma-admin/api/auth/bootstrap/create-first-account
+  POST /figma-admin/api/auth/login
+  POST /figma-admin/api/auth/logout
+
+  ---
+  First-run bootstrap flow
+
+  1. GET  /auth/bootstrap-allowed
+          reads admin/users.json from S3
+          returns { allowed: true }  ← no active users exist yet
+
+  2. POST /auth/bootstrap  { username, password }
+          validates: password ≥ 8 chars
+          bcrypt.hash(password, 10)
+          writes { version:1, users:[...] } to S3 admin/users.json
+          calls signToken(user)  ← issues JWT immediately
+          returns { success, user, token }  ◄── caller is logged in instantly
+
+  ---
+  Subsequent login flow
+
+  POST /auth/login  { username, password }
+        │
+        ├─ reads admin/users.json from S3
+        ├─ finds user by username (case-insensitive), checks !disabled
+        │
+        ├─ user not found?
+        │     bcrypt.hash('__dummy__')  ← timing protection (prevents user enumeration)
+        │     return 401
+        │
+        ├─ bcrypt.compare(password, passwordHash)
+        │     no match → 401
+        │
+        └─ match → signToken(user) → return { success, user, token }
+
+  JWT payload stored inside the token:
+  { "sub": "u_abc123", "username": "biagio", "role": "admin", "allowedTabs": [], "exp": 1234567890 }
+
+  ---
+  Auth/me — verifying who is logged in
+
+  GET /auth/me   Authorization: Bearer <token>
+        │
+        ├─ token = CONFIG_API_TOKEN?
+        │     return { user: { username:'service', role:'admin' }, tokenType:'service' }
+        │
+        ├─ jwt.verify(token, JWT_SECRET) succeeds?
+        │     return { user: { id, username, role }, allowedTabs, tokenType:'user', expiresAt }
+        │
+        └─ invalid / expired?
+              return 401
+
+  ---
+  Logout
+
+  POST /auth/logout
+        └─ returns { success: true }
+              JWT is stateless — there is no server-side session to destroy.
+              The client is responsible for discarding the token from sessionStorage.
+              Token becomes harmless after JWT_EXPIRY_HOURS (default 8h).
+
+  ---
+  User data storage
+
+  All user records live in S3 at {S3_PREFIX}admin/users.json:
+
+  {
+    "version": 1,
+    "users": [
+      {
+        "id": "u_abc123_xyz",
+        "username": "biagio",
+        "passwordHash": "$2a$10$...",
+        "role": "admin",
+        "disabled": false,
+        "createdAt": "2026-03-19T...",
+        "updatedAt": "2026-03-19T..."
+      }
+    ]
+  }
+
+  passwordHash is never returned to the client — safeUser() in userService.js strips it before any response.
+
+  ---
+  Files involved
+
+  ┌────────────────┬────────────────────────────────────────────────────────────────────────────────────────┐
+  │      File      │                                     Responsibility                                     │
+  ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+  │ handler.js     │ Runs isAuthorized() on every non-public route before dispatch                          │
+  ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+  │ authUtils.js   │ Accepts service token OR valid JWT; exposes getTokenUser() for future per-user logging │
+  ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+  │ jwtService.js  │ signToken() on login/bootstrap, verifyToken() on every protected request               │
+  ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+  │ authService.js │ All /auth/* route handlers — bootstrap, login, logout, me                              │
+  ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+  │ userService.js │ Reads/writes admin/users.json in S3; bcrypt hashing                                    │
+  └────────────────┴────────────────────────────────────────────────────────────────────────────────────────┘
