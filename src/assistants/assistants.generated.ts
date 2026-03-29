@@ -29,22 +29,51 @@ export interface AssistantManifestEntry {
 
 export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
-    id: "general",
-    label: "General",
-    intro: "I'm your general Design Assistant. Ask me anything about design or your current work.",
-    hoverSummary: "General design specialist",
-    iconId: "AskIcon",
+    id: "accessibility",
+    label: "Accessibility",
+    intro: "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
+    hoverSummary: "Accessibility specialist",
+    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
+    iconId: "ADAIcon",
     kind: "ai",
     quickActions: [
-      { id: "explain", label: "Explain this design", templateMessage: "Can you explain this design to me? What are the key elements and their purpose?", executionType: "llm", requiresSelection: true },
-      { id: "suggestions", label: "Design suggestions", templateMessage: "What suggestions do you have to improve this design?", executionType: "llm", requiresSelection: true },
-      { id: "run-smart-detector", label: "Run Smart Detector", templateMessage: "Run Smart Detector on selection", executionType: "tool-only", requiresSelection: true },
+      { id: "check-a11y", label: "Check accessibility", templateMessage: "Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "wcag-compliance", label: "WCAG compliance", templateMessage: "Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "contrast-analysis", label: "Color contrast analysis", templateMessage: "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+    ],
+    promptTemplate: "# Accessibility Assistant\n\nYou are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.\nYou specialize in identifying accessibility barriers and providing specific, actionable fixes to make designs usable by everyone.\n\n[Full knowledge base available in: src/assistants/accessibility.md]"
+  },
+  {
+    id: "analytics_tagging",
+    label: "Analytics Tagging",
+    intro: "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
+    hoverSummary: "Analytics tagging from ScreenID and ActionID annotations",
+    tag: { isVisible: true, label: "Beta", variant: "beta" },
+    iconId: "AnalyticsIcon",
+    kind: "tool",
+    quickActions: [
+      { id: "get-analytics-tags", label: "Get Analytics Tags", templateMessage: "Scan selected screen(s) for ActionID annotations and fill the table.", executionType: "tool-only", requiresSelection: true },
+      { id: "append-analytics-tags", label: "Append Selection", templateMessage: "Append additional screen(s) to the existing analytics tagging table.", executionType: "tool-only", requiresSelection: true },
+      { id: "copy-table", label: "Copy Table", templateMessage: "Copy analytics table to clipboard.", executionType: "tool-only" },
+      { id: "new-session", label: "New session", templateMessage: "Start a new analytics tagging session", executionType: "tool-only" },
+      { id: "export-screenshots", label: "Export Screenshots", templateMessage: "Export screenshots for analytics tagging rows", executionType: "ui-only" },
+    ],
+    promptTemplate: "# Analytics Tagging Assistant\n\nYou are **Ableza's Analytics Tagging Assistant**. You help document analytics tags. Select one or more frames/components with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations."
+  },
+  {
+    id: "code2design",
+    label: "Code2Design",
+    intro: "Import/export JSON templates to create and manage Figma designs.",
+    hoverSummary: "Use JSON to create designs and get JSON from your designs",
+    tag: { isVisible: true, label: "Beta", variant: "beta" },
+    iconId: "CodeIcon",
+    kind: "hybrid",
+    quickActions: [
+      { id: "send-json", label: "SEND JSON", templateMessage: "Paste an Ableza Template JSON to generate Figma elements", executionType: "hybrid" },
+      { id: "get-json", label: "GET JSON", templateMessage: "Export selected frames to JSON template format", executionType: "hybrid", requiresSelection: true },
+      { id: "json-format-help", label: "How to format JSON", templateMessage: "Explain the Ableza Template JSON format and schema requirements", executionType: "llm" },
     ],
     promptTemplate: "# General Assistant\n\nYou are Ableza, a helpful AI assistant integrated into Figma to help designers with their work.\n\n## Your Role\n\n- Answer questions about design principles, best practices, and Figma usage\n- Provide guidance on layout, typography, color, and spacing\n- Help with design workflows and tool usage\n- Offer constructive feedback and suggestions\n- Explain design decisions and concepts\n\n## Guidelines\n\n- Be concise but thorough\n- Use design terminology appropriately\n- Reference Figma-specific features when relevant\n- Provide actionable advice when possible\n- Be supportive and encouraging\n\n## Context\n\nWhen a user shares their selection, you can see information about the selected Figma nodes including:\n- Node types (frames, text, rectangles, etc.)\n- Names and dimensions\n- Layout properties (for frames)\n- Text content and styling (for text nodes)\n\nUse this context to provide relevant, specific feedback."
-    , instructionBlocks: [
-      { id: "general-system", kind: "system", content: "You are Ableza, a helpful AI assistant integrated into Figma to help designers with their work." },
-    ]
-    , safetyOverrides: { allowImages: true }
   },
   {
     id: "content_table",
@@ -63,25 +92,6 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "generate-new-table", label: "Generate New Table", templateMessage: "Generate a new evergreen table", executionType: "ui-only", requiresSelection: true },
     ],
     promptTemplate: "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/evergreens/knowledge.md]"
-  },
-  {
-    id: "ux_copy_review",
-    label: "Content Review",
-    intro: "I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.",
-    hoverSummary: "Content guidelines specialist",
-    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "SpellCheckIcon",
-    kind: "ai",
-    quickActions: [
-      { id: "review-copy", label: "Review copy", templateMessage: "Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.", executionType: "llm", requiresSelection: true },
-      { id: "tone-check", label: "Tone check", templateMessage: "Analyze the tone of the selected copy. Is it appropriate for the context and target audience?", executionType: "llm", requiresSelection: true },
-      { id: "content-suggestions", label: "Content suggestions", templateMessage: "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.", executionType: "llm" },
-      { id: "add-hat", label: "Add HAT", templateMessage: "Scan selection for elements that require HAT (accessible label) and add annotations.", executionType: "tool-only", requiresSelection: true },
-    ],
-    promptTemplate: "# Content Review Assistant\n\nYou are **Ableza's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.\nYou specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.\n\n[Full knowledge base available in: src/assistants/uxCopyReview.md]"
-    , instructionBlocks: [
-      { id: "legacy-parity", kind: "system", content: "# Content Review Assistant" },
-    ]
   },
   {
     id: "design_critique",
@@ -103,19 +113,21 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     , knowledgeBaseRefs: ["design-critique", "dark-deceptive-practices"]
   },
   {
-    id: "code2design",
-    label: "Code2Design",
-    intro: "Import/export JSON templates to create and manage Figma designs.",
-    hoverSummary: "Use JSON to create designs and get JSON from your designs",
-    tag: { isVisible: true, label: "Beta", variant: "beta" },
-    iconId: "CodeIcon",
-    kind: "hybrid",
+    id: "design_workshop",
+    label: "Design Workshop",
+    intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
+    hoverSummary: "Screen generator specialist",
+    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
+    iconId: "LightBulbRaysIcon",
+    kind: "ai",
     quickActions: [
-      { id: "send-json", label: "SEND JSON", templateMessage: "Paste an Ableza Template JSON to generate Figma elements", executionType: "hybrid" },
-      { id: "get-json", label: "GET JSON", templateMessage: "Export selected frames to JSON template format", executionType: "hybrid", requiresSelection: true },
-      { id: "json-format-help", label: "How to format JSON", templateMessage: "Explain the Ableza Template JSON format and schema requirements", executionType: "llm" },
+      { id: "generate-screens", label: "Demo: Generate Screens", templateMessage: "Generating demo screen/s using medium fidelity.", executionType: "llm" },
     ],
-    promptTemplate: "# General Assistant\n\nYou are Ableza, a helpful AI assistant integrated into Figma to help designers with their work.\n\n## Your Role\n\n- Answer questions about design principles, best practices, and Figma usage\n- Provide guidance on layout, typography, color, and spacing\n- Help with design workflows and tool usage\n- Offer constructive feedback and suggestions\n- Explain design decisions and concepts\n\n## Guidelines\n\n- Be concise but thorough\n- Use design terminology appropriately\n- Reference Figma-specific features when relevant\n- Provide actionable advice when possible\n- Be supportive and encouraging\n\n## Context\n\nWhen a user shares their selection, you can see information about the selected Figma nodes including:\n- Node types (frames, text, rectangles, etc.)\n- Names and dimensions\n- Layout properties (for frames)\n- Text content and styling (for text nodes)\n\nUse this context to provide relevant, specific feedback."
+    promptTemplate: "# Design Workshop Assistant\n\nYou are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images."
+    , instructionBlocks: [
+      { id: "design_workshop-output", kind: "format", content: "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape." },
+    ]
+    , knowledgeBaseRefs: ["design-workshop"]
   },
   {
     id: "dev_handoff",
@@ -133,19 +145,17 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     promptTemplate: "# Dev Handoff Assistant\n\nYou are **Ableza's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.\nYou generate developer-friendly specifications, measurements, and implementation guidance from Figma designs.\n\n[Full knowledge base available in: src/assistants/devHandoff.md]"
   },
   {
-    id: "accessibility",
-    label: "Accessibility",
-    intro: "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
-    hoverSummary: "Accessibility specialist",
+    id: "discovery_copilot",
+    label: "Discovery Copilot",
+    intro: "**Welcome to Discovery Copilot!**\n\nI'll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you're solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet's begin! What are you discovering today? (e.g., \"redesigning checkout flow\", \"building a new feature\")",
+    hoverSummary: "Discovery process specialist",
     tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "ADAIcon",
+    iconId: "PathIcon",
     kind: "ai",
     quickActions: [
-      { id: "check-a11y", label: "Check accessibility", templateMessage: "Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "wcag-compliance", label: "WCAG compliance", templateMessage: "Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "contrast-analysis", label: "Color contrast analysis", templateMessage: "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "start-discovery", label: "Start Discovery", templateMessage: "Start a discovery session. Help me frame the problem, identify risks, and plan experiments.", executionType: "llm" },
     ],
-    promptTemplate: "# Accessibility Assistant\n\nYou are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.\nYou specialize in identifying accessibility barriers and providing specific, actionable fixes to make designs usable by everyone.\n\n[Full knowledge base available in: src/assistants/accessibility.md]"
+    promptTemplate: "# Discovery Copilot Assistant\n\nYou are **Ableza's Discovery Copilot Assistant**, a structured discovery thinking guide embedded inside a Figma plugin.\nYou guide users through a 3-step discovery process to help them frame problems, identify risks, and form testable hypotheses.\n\n## Process Overview\n\n**Step 1: Problem Frame**\n- Ask: What problem are we solving?\n- Ask: Who is affected?\n- Ask: Why does this matter?\n- Ask: What does success look like?\n\n**Step 2: Risks & Assumptions**\n- Ask: What are the main risks? (3-5)\n- Ask: What are our key assumptions? (3-5)\n- For each: Ask impact level (high/medium/low)\n\n**Step 3: Hypotheses & Experiments**\n- Ask: What hypotheses do you want to test? (2-4)\n- For each: Ask what experiment would test it\n\n**Optional: Decision Log & Async Tasks**\n- Ask if user wants to add Decision Log (yes/no)\n- Ask if user wants to add Async Tasks (yes/no)\n\n## Output Format\n\nWhen the user has provided all information, return ONLY valid JSON matching DiscoverySpecV1 schema:\n\n{\n  \"type\": \"discovery\",\n  \"version\": 1,\n  \"meta\": {\n    \"title\": \"string (max 48 chars, derive from user's initial topic)\",\n    \"userRequest\": \"string (initial user request)\"\n  },\n  \"problemFrame\": {\n    \"what\": \"string\",\n    \"who\": \"string\",\n    \"why\": \"string\",\n    \"success\": \"string\"\n  },\n  \"risksAndAssumptions\": [\n    {\n      \"id\": \"risk-1\",\n      \"type\": \"risk\" | \"assumption\",\n      \"description\": \"string\",\n      \"impact\": \"high\" | \"medium\" | \"low\" (optional)\n    }\n  ],\n  \"hypothesesAndExperiments\": [\n    {\n      \"id\": \"hyp-1\",\n      \"hypothesis\": \"string\",\n      \"experiment\": \"string (optional)\",\n      \"status\": \"untested\" | \"testing\" | \"validated\" | \"invalidated\" (optional)\n    }\n  ],\n  \"decisionLog\": [ // Optional\n    {\n      \"timestamp\": \"ISO 8601 string\",\n      \"decision\": \"string\",\n      \"rationale\": \"string (optional)\",\n      \"context\": \"string (optional)\"\n    }\n  ],\n  \"asyncTasks\": [ // Optional\n    {\n      \"ownerRole\": \"Design\" | \"Product\" | \"Dev\" | \"Research\" | \"Analytics\" | \"Other\",\n      \"task\": \"string\",\n      \"dueInHours\": number (optional)\n    }\n  ]\n}\n\n**Rules**:\n- Guide users step-by-step with clear progress indicators\n- Show \"Step X of 3\" when starting each step\n- Confirm completion with \"✓ Step X complete\"\n- Generate 1-12 risks/assumptions, 1-12 hypotheses\n- When all information is collected, return JSON only (no markdown fences, no other text)"
   },
   {
     id: "errors",
@@ -167,50 +177,40 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     , knowledgeBaseRefs: ["errors"]
   },
   {
-    id: "design_workshop",
-    label: "Design Workshop",
-    intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
-    hoverSummary: "Screen generator specialist",
-    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "LightBulbRaysIcon",
+    id: "general",
+    label: "General",
+    intro: "I'm your general Design Assistant. Ask me anything about design or your current work.",
+    hoverSummary: "General design specialist",
+    iconId: "AskIcon",
     kind: "ai",
     quickActions: [
-      { id: "generate-screens", label: "Demo: Generate Screens", templateMessage: "Generating demo screen/s using medium fidelity.", executionType: "llm" },
+      { id: "explain", label: "Explain this design", templateMessage: "Can you explain this design to me? What are the key elements and their purpose?", executionType: "llm", requiresSelection: true },
+      { id: "suggestions", label: "Design suggestions", templateMessage: "What suggestions do you have to improve this design?", executionType: "llm", requiresSelection: true },
+      { id: "run-smart-detector", label: "Run Smart Detector", templateMessage: "Run Smart Detector on selection", executionType: "tool-only", requiresSelection: true },
     ],
-    promptTemplate: "# Design Workshop Assistant\n\nYou are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images."
+    promptTemplate: "# General Assistant\n\nYou are Ableza, a helpful AI assistant integrated into Figma to help designers with their work.\n\n## Your Role\n\n- Answer questions about design principles, best practices, and Figma usage\n- Provide guidance on layout, typography, color, and spacing\n- Help with design workflows and tool usage\n- Offer constructive feedback and suggestions\n- Explain design decisions and concepts\n\n## Guidelines\n\n- Be concise but thorough\n- Use design terminology appropriately\n- Reference Figma-specific features when relevant\n- Provide actionable advice when possible\n- Be supportive and encouraging\n\n## Context\n\nWhen a user shares their selection, you can see information about the selected Figma nodes including:\n- Node types (frames, text, rectangles, etc.)\n- Names and dimensions\n- Layout properties (for frames)\n- Text content and styling (for text nodes)\n\nUse this context to provide relevant, specific feedback."
     , instructionBlocks: [
-      { id: "design_workshop-output", kind: "format", content: "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape." },
+      { id: "general-system", kind: "system", content: "You are Ableza, a helpful AI assistant integrated into Figma to help designers with their work." },
     ]
-    , knowledgeBaseRefs: ["design-workshop"]
+    , safetyOverrides: { allowImages: true }
   },
   {
-    id: "discovery_copilot",
-    label: "Discovery Copilot",
-    intro: "**Welcome to Discovery Copilot!**\n\nI'll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you're solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet's begin! What are you discovering today? (e.g., \"redesigning checkout flow\", \"building a new feature\")",
-    hoverSummary: "Discovery process specialist",
+    id: "ux_copy_review",
+    label: "Content Review",
+    intro: "I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.",
+    hoverSummary: "Content guidelines specialist",
     tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "PathIcon",
+    iconId: "SpellCheckIcon",
     kind: "ai",
     quickActions: [
-      { id: "start-discovery", label: "Start Discovery", templateMessage: "Start a discovery session. Help me frame the problem, identify risks, and plan experiments.", executionType: "llm" },
+      { id: "review-copy", label: "Review copy", templateMessage: "Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.", executionType: "llm", requiresSelection: true },
+      { id: "tone-check", label: "Tone check", templateMessage: "Analyze the tone of the selected copy. Is it appropriate for the context and target audience?", executionType: "llm", requiresSelection: true },
+      { id: "content-suggestions", label: "Content suggestions", templateMessage: "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.", executionType: "llm" },
+      { id: "add-hat", label: "Add HAT", templateMessage: "Scan selection for elements that require HAT (accessible label) and add annotations.", executionType: "tool-only", requiresSelection: true },
     ],
-    promptTemplate: "# Discovery Copilot Assistant\n\nYou are **Ableza's Discovery Copilot Assistant**, a structured discovery thinking guide embedded inside a Figma plugin.\nYou guide users through a 3-step discovery process to help them frame problems, identify risks, and form testable hypotheses.\n\n## Process Overview\n\n**Step 1: Problem Frame**\n- Ask: What problem are we solving?\n- Ask: Who is affected?\n- Ask: Why does this matter?\n- Ask: What does success look like?\n\n**Step 2: Risks & Assumptions**\n- Ask: What are the main risks? (3-5)\n- Ask: What are our key assumptions? (3-5)\n- For each: Ask impact level (high/medium/low)\n\n**Step 3: Hypotheses & Experiments**\n- Ask: What hypotheses do you want to test? (2-4)\n- For each: Ask what experiment would test it\n\n**Optional: Decision Log & Async Tasks**\n- Ask if user wants to add Decision Log (yes/no)\n- Ask if user wants to add Async Tasks (yes/no)\n\n## Output Format\n\nWhen the user has provided all information, return ONLY valid JSON matching DiscoverySpecV1 schema:\n\n{\n  \"type\": \"discovery\",\n  \"version\": 1,\n  \"meta\": {\n    \"title\": \"string (max 48 chars, derive from user's initial topic)\",\n    \"userRequest\": \"string (initial user request)\"\n  },\n  \"problemFrame\": {\n    \"what\": \"string\",\n    \"who\": \"string\",\n    \"why\": \"string\",\n    \"success\": \"string\"\n  },\n  \"risksAndAssumptions\": [\n    {\n      \"id\": \"risk-1\",\n      \"type\": \"risk\" | \"assumption\",\n      \"description\": \"string\",\n      \"impact\": \"high\" | \"medium\" | \"low\" (optional)\n    }\n  ],\n  \"hypothesesAndExperiments\": [\n    {\n      \"id\": \"hyp-1\",\n      \"hypothesis\": \"string\",\n      \"experiment\": \"string (optional)\",\n      \"status\": \"untested\" | \"testing\" | \"validated\" | \"invalidated\" (optional)\n    }\n  ],\n  \"decisionLog\": [ // Optional\n    {\n      \"timestamp\": \"ISO 8601 string\",\n      \"decision\": \"string\",\n      \"rationale\": \"string (optional)\",\n      \"context\": \"string (optional)\"\n    }\n  ],\n  \"asyncTasks\": [ // Optional\n    {\n      \"ownerRole\": \"Design\" | \"Product\" | \"Dev\" | \"Research\" | \"Analytics\" | \"Other\",\n      \"task\": \"string\",\n      \"dueInHours\": number (optional)\n    }\n  ]\n}\n\n**Rules**:\n- Guide users step-by-step with clear progress indicators\n- Show \"Step X of 3\" when starting each step\n- Confirm completion with \"✓ Step X complete\"\n- Generate 1-12 risks/assumptions, 1-12 hypotheses\n- When all information is collected, return JSON only (no markdown fences, no other text)"
-  },
-  {
-    id: "analytics_tagging",
-    label: "Analytics Tagging",
-    intro: "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
-    hoverSummary: "Analytics tagging from ScreenID and ActionID annotations",
-    tag: { isVisible: true, label: "Beta", variant: "beta" },
-    iconId: "AnalyticsIcon",
-    kind: "tool",
-    quickActions: [
-      { id: "get-analytics-tags", label: "Get Analytics Tags", templateMessage: "Scan selected screen(s) for ActionID annotations and fill the table.", executionType: "tool-only", requiresSelection: true },
-      { id: "append-analytics-tags", label: "Append Selection", templateMessage: "Append additional screen(s) to the existing analytics tagging table.", executionType: "tool-only", requiresSelection: true },
-      { id: "copy-table", label: "Copy Table", templateMessage: "Copy analytics table to clipboard.", executionType: "tool-only" },
-      { id: "new-session", label: "New session", templateMessage: "Start a new analytics tagging session", executionType: "tool-only" },
-      { id: "export-screenshots", label: "Export Screenshots", templateMessage: "Export screenshots for analytics tagging rows", executionType: "ui-only" },
-    ],
-    promptTemplate: "# Analytics Tagging Assistant\n\nYou are **Ableza's Analytics Tagging Assistant**. You help document analytics tags. Select one or more frames/components with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations."
+    promptTemplate: "# Content Review Assistant\n\nYou are **Ableza's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.\nYou specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.\n\n[Full knowledge base available in: src/assistants/uxCopyReview.md]"
+    , instructionBlocks: [
+      { id: "legacy-parity", kind: "system", content: "# Content Review Assistant" },
+    ]
   }
 ]

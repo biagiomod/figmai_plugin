@@ -77,13 +77,44 @@ interface ManifestRoot {
 }
 
 function loadManifest(rootDir: string): ManifestRoot {
-  const manifestPath = path.join(rootDir, 'custom', 'assistants.manifest.json')
-  if (!fs.existsSync(manifestPath)) {
+  const perDirRoot = path.join(rootDir, 'custom', 'assistants')
+  const singleManifestPath = path.join(rootDir, 'custom', 'assistants.manifest.json')
+
+  // Prefer per-directory structure if it exists
+  if (fs.existsSync(perDirRoot) && fs.statSync(perDirRoot).isDirectory()) {
+    const entries: AssistantManifestEntry[] = []
+    const dirs = fs.readdirSync(perDirRoot)
+      .filter(d => fs.statSync(path.join(perDirRoot, d)).isDirectory())
+      .sort()
+
+    for (const dir of dirs) {
+      const manifestFile = path.join(perDirRoot, dir, 'manifest.json')
+      if (!fs.existsSync(manifestFile)) continue
+      try {
+        const content = fs.readFileSync(manifestFile, 'utf-8')
+        const parsed = JSON.parse(content) as ManifestRoot
+        if (Array.isArray(parsed.assistants)) {
+          entries.push(...parsed.assistants)
+        }
+      } catch (err) {
+        console.error(`[generate-assistants] Failed to read ${manifestFile}:`, err)
+        process.exit(1)
+      }
+    }
+
+    if (entries.length > 0) {
+      return { assistants: entries }
+    }
+    // Fall through to single-file if no entries found
+  }
+
+  // Fallback: single manifest file
+  if (!fs.existsSync(singleManifestPath)) {
     console.error('[generate-assistants] Missing custom/assistants.manifest.json')
     process.exit(1)
   }
   try {
-    const content = fs.readFileSync(manifestPath, 'utf-8')
+    const content = fs.readFileSync(singleManifestPath, 'utf-8')
     return JSON.parse(content) as ManifestRoot
   } catch (err) {
     console.error('[generate-assistants] Failed to read or parse manifest:', err)
