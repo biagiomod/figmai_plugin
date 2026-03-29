@@ -1,0 +1,55 @@
+{
+  "assistants": [
+    {
+      "hoverSummary": "Content guidelines specialist",
+      "iconId": "SpellCheckIcon",
+      "id": "ux_copy_review",
+      "instructionBlocks": [
+        {
+          "content": "# Content Review Assistant",
+          "enabled": true,
+          "id": "legacy-parity",
+          "kind": "system"
+        }
+      ],
+      "intro": "I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.",
+      "kind": "ai",
+      "label": "Content Review",
+      "promptTemplate": "# Content Review Assistant\n\nYou are **Ableza's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.\nYou specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.\n\n[Full knowledge base available in: src/assistants/uxCopyReview.md]",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "review-copy",
+          "label": "Review copy",
+          "requiresSelection": true,
+          "templateMessage": "Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions."
+        },
+        {
+          "executionType": "llm",
+          "id": "tone-check",
+          "label": "Tone check",
+          "requiresSelection": true,
+          "templateMessage": "Analyze the tone of the selected copy. Is it appropriate for the context and target audience?"
+        },
+        {
+          "executionType": "llm",
+          "id": "content-suggestions",
+          "label": "Content suggestions",
+          "templateMessage": "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "add-hat",
+          "label": "Add HAT",
+          "requiresSelection": true,
+          "templateMessage": "Scan selection for elements that require HAT (accessible label) and add annotations."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Alpha",
+        "variant": "alpha"
+      }
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "assistants": [
+    {
+      "hoverSummary": "Analytics tagging from ScreenID and ActionID annotations",
+      "iconId": "AnalyticsIcon",
+      "id": "analytics_tagging",
+      "intro": "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
+      "kind": "tool",
+      "label": "Analytics Tagging",
+      "promptTemplate": "# Analytics Tagging Assistant\n\nYou are **Ableza's Analytics Tagging Assistant**. You help document analytics tags. Select one or more frames/components with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations.",
+      "quickActions": [
+        {
+          "executionType": "tool-only",
+          "id": "get-analytics-tags",
+          "label": "Get Analytics Tags",
+          "requiresSelection": true,
+          "templateMessage": "Scan selected screen(s) for ActionID annotations and fill the table."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "append-analytics-tags",
+          "label": "Append Selection",
+          "requiresSelection": true,
+          "templateMessage": "Append additional screen(s) to the existing analytics tagging table."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "copy-table",
+          "label": "Copy Table",
+          "templateMessage": "Copy analytics table to clipboard."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "new-session",
+          "label": "New session",
+          "templateMessage": "Start a new analytics tagging session"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "export-screenshots",
+          "label": "Export Screenshots",
+          "requiresSelection": false,
+          "templateMessage": "Export screenshots for analytics tagging rows"
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Beta",
+        "variant": "beta"
+      }
+    }
+  ]
+}

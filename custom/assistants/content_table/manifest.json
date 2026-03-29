@@ -1,0 +1,62 @@
+{
+  "assistants": [
+    {
+      "hoverSummary": "Evergreens specialist",
+      "iconId": "ContentTableIcon",
+      "id": "content_table",
+      "intro": "**Welcome to your Evergreens Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.",
+      "kind": "tool",
+      "label": "Evergreens",
+      "promptTemplate": "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/evergreens/knowledge.md]",
+      "quickActions": [
+        {
+          "executionType": "tool-only",
+          "id": "generate-table",
+          "label": "GENERATE TABLE",
+          "requiresSelection": true,
+          "templateMessage": "Scan selected container and generate evergreen table"
+        },
+        {
+          "executionType": "tool-only",
+          "id": "add-to-table",
+          "label": "ADD",
+          "requiresSelection": true,
+          "templateMessage": "Add selected container(s) to existing table"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "copy-table",
+          "label": "Copy Table",
+          "requiresSelection": false,
+          "templateMessage": "Copy table to clipboard"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "view-table",
+          "label": "View Table",
+          "requiresSelection": false,
+          "templateMessage": "View table in plugin"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "copy-ref-image",
+          "label": "Get Ref Image",
+          "requiresSelection": false,
+          "templateMessage": "Get reference image"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "generate-new-table",
+          "label": "Generate New Table",
+          "requiresSelection": true,
+          "templateMessage": "Generate a new evergreen table"
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "MVP",
+        "variant": "beta"
+      }
+    }
+  ]
+}
