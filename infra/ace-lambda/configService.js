@@ -10,17 +10,6 @@ const { getObjectText, putObjectText, listRelativeKeys, copyObject } = require('
 const { validateModel, saveRequestBodySchema } = require('./validationService');
 const { json, errorResponse, parseBody } = require('./responseUtils');
 
-/**
- * Check if a user's JWT payload allows access to a given assistantId.
- * Service tokens (null payload) and empty scope are unrestricted.
- */
-function isInScope(jwtPayload, assistantId) {
-  if (!jwtPayload) return true  // service token — unrestricted
-  const scope = jwtPayload.assistantScope || []
-  if (scope.length === 0) return true  // empty scope — all access
-  return scope.includes(assistantId)
-}
-
 function nowIso() {
   return new Date().toISOString();
 }
