@@ -48,6 +48,7 @@ async function handleAuth(method, path, body, origin, headers) {
     return json(200, {
       user: { id: payload.sub, username: payload.username, role: payload.role },
       allowedTabs: payload.allowedTabs || [],
+      assistantScope: payload.assistantScope || [],
       tokenType: 'user',
       expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : undefined,
     }, origin);

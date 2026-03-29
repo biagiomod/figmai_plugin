@@ -38,6 +38,7 @@ function signToken(user) {
       username: user.username,
       role: user.role,
       allowedTabs: user.allowedTabs || [],
+      assistantScope: user.assistantScope || [],
     },
     getSecret(),
     { expiresIn: `${getExpiryHours()}h` }

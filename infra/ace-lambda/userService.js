@@ -80,7 +80,7 @@ async function handleUsers(method, path, body, requestId, origin) {
     let payload;
     try { payload = parseBody(body); } catch (e) { return errorResponse(400, e.message, origin); }
 
-    const { username, password, role } = payload;
+    const { username, password, role, assistantScope } = payload;
     if (!username || !username.trim()) return errorResponse(400, 'Username is required.', origin);
     if (!password || password.length < 8)
       return errorResponse(400, 'Password must be at least 8 characters.', origin);
@@ -99,6 +99,9 @@ async function handleUsers(method, path, body, requestId, origin) {
       username: username.trim(),
       passwordHash,
       role: normalizedRole,
+      assistantScope: Array.isArray(assistantScope)
+        ? assistantScope.map((s) => String(s).trim()).filter(Boolean)
+        : [],
       disabled: false,
       createdAt: now,
       updatedAt: now,
@@ -139,6 +142,11 @@ async function handleUsers(method, path, body, requestId, origin) {
         (t) => typeof t === 'string' && VALID_TAB_IDS.has(t)
       );
       user.allowedTabs = filtered.length > 0 ? filtered : undefined;
+    }
+    if (payload.assistantScope !== undefined) {
+      if (!Array.isArray(payload.assistantScope))
+        return errorResponse(400, 'assistantScope must be an array.', origin);
+      user.assistantScope = payload.assistantScope.map((s) => String(s).trim()).filter(Boolean);
     }
 
     data.users[idx] = user;
