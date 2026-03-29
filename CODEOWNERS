@@ -1,0 +1,25 @@
+# CODEOWNERS
+# Controls who must review pull requests touching each directory.
+# Format: path  @team-or-username
+# Matches GitHub, GitLab, and Azure DevOps (ADO) CODEOWNERS syntax.
+#
+# Core Code Team reviews are required for anything not listed below.
+# Strike Teams own their own directories — they can merge without Core review
+# as long as no files outside their paths are touched.
+
+# ----- CORE (protected — Core Code Team must review) -----
+/src/core/                    @core-code-team
+/src/sdk/                     @core-code-team
+/scripts/                     @core-code-team
+/src/main.ts                  @core-code-team
+/src/ui.tsx                   @core-code-team
+
+# ----- STRIKE TEAMS (owned per team) -----
+/src/assistants/evergreens/   @evergreens-team
+/src/assistants/analytics/    @analytics-team
+/src/assistants/accessibility/ @accessibility-team
+/src/assistants/prompt-to-screen/ @prompt-to-screen-team
+
+# Custom config dirs (ACE-managed — added when Plan B completes)
+# /custom/assistants/evergreens/   @evergreens-team
+# /custom/assistants/analytics/    @analytics-team
