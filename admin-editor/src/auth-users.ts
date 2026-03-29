@@ -21,6 +21,8 @@ export interface UserRecord {
   disabled?: boolean
   /** Per-user nav tabs; when set, overrides role default. */
   allowedTabs?: AllowedTabs
+  /** Assistant IDs this user can access. Empty array means all assistants. */
+  assistantScope?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -199,7 +201,7 @@ const VALID_TAB_IDS = new Set(['config', 'ai', 'assistants', 'knowledge', 'knowl
 export async function updateUser(
   dataDir: string,
   id: string,
-  updates: { disabled?: boolean; role?: Role; password?: string; allowedTabs?: AllowedTabs }
+  updates: { disabled?: boolean; role?: Role; password?: string; allowedTabs?: AllowedTabs; assistantScope?: string[] }
 ): Promise<{ ok: true; user: UserRecord } | { ok: false; error: string }> {
   const file = readUsersFile(dataDir)
   if (!file) return { ok: false, error: 'No users file.' }
@@ -222,6 +224,11 @@ export async function updateUser(
     if (!Array.isArray(updates.allowedTabs)) return { ok: false, error: 'allowedTabs must be an array.' }
     const filtered = updates.allowedTabs.filter((t): t is string => typeof t === 'string' && VALID_TAB_IDS.has(t))
     user.allowedTabs = filtered.length > 0 ? filtered : undefined
+  }
+  if (updates.assistantScope !== undefined) {
+    if (!Array.isArray(updates.assistantScope)) return { ok: false, error: 'assistantScope must be an array.' }
+    user.assistantScope = updates.assistantScope.map((s) => String(s).trim()).filter(Boolean)
+    if (user.assistantScope.length === 0) user.assistantScope = undefined
   }
   const users = [...file.users]
   users[index] = user
