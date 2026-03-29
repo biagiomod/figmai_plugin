@@ -10,6 +10,17 @@ const { getObjectText, putObjectText, listRelativeKeys, copyObject } = require('
 const { validateModel, saveRequestBodySchema } = require('./validationService');
 const { json, errorResponse, parseBody } = require('./responseUtils');
 
+/**
+ * Check if a user's JWT payload allows access to a given assistantId.
+ * Service tokens (null payload) and empty scope are unrestricted.
+ */
+function isInScope(jwtPayload, assistantId) {
+  if (!jwtPayload) return true  // service token — unrestricted
+  const scope = jwtPayload.assistantScope || []
+  if (scope.length === 0) return true  // empty scope — all access
+  return scope.includes(assistantId)
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -32,7 +43,7 @@ async function getDraftMeta() {
 
 // --- GET /api/model ---
 
-async function getModel(origin) {
+async function getModel(jwtPayload, origin) {
   const [configRaw, manifestRaw, contentModelsRaw] = await Promise.all([
     getObjectText('draft/config.json'),
     getObjectText('draft/assistants.manifest.json'),
@@ -67,6 +78,20 @@ async function getModel(origin) {
     designSystemRegistries:
       Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined,
   };
+
+  // Filter by assistantScope if set
+  const scope = jwtPayload ? (jwtPayload.assistantScope || []) : []
+  if (scope.length > 0) {
+    if (model.assistantsManifest && Array.isArray(model.assistantsManifest.assistants)) {
+      model.assistantsManifest = {
+        ...model.assistantsManifest,
+        assistants: model.assistantsManifest.assistants.filter(a => scope.includes(a.id))
+      }
+    }
+    for (const key of Object.keys(model.customKnowledge)) {
+      if (!scope.includes(key)) delete model.customKnowledge[key]
+    }
+  }
 
   const validation = validateModel(model);
   const [meta, publishedRaw] = await Promise.all([
@@ -105,7 +130,7 @@ async function validate(body, origin) {
 
 // --- POST /api/save ---
 
-async function saveModel(body, requestId, origin) {
+async function saveModel(body, requestId, jwtPayload, origin) {
   let raw;
   try { raw = parseBody(body); } catch (e) { return errorResponse(400, e.message, origin); }
 
@@ -118,6 +143,21 @@ async function saveModel(body, requestId, origin) {
   }
 
   const request = parsedBody.data;
+
+  // Enforce assistantScope: reject writes to out-of-scope assistants
+  const saveScope = jwtPayload ? (jwtPayload.assistantScope || []) : []
+  if (saveScope.length > 0 && request.model.assistantsManifest) {
+    const outOfScope = (request.model.assistantsManifest.assistants || [])
+      .filter(a => !saveScope.includes(a.id))
+      .map(a => a.id)
+    if (outOfScope.length > 0) {
+      return errorResponse(403,
+        `Save rejected: assistants [${outOfScope.join(', ')}] are outside your assistantScope.`,
+        origin
+      )
+    }
+  }
+
   const currentMeta = await getDraftMeta();
   const currentRevision = String(currentMeta.version);
 

@@ -33,7 +33,7 @@
  */
 
 const { json, corsHeaders, errorResponse } = require("./responseUtils");
-const { isAuthorized } = require("./authUtils");
+const { isAuthorized, getTokenUser } = require("./authUtils");
 const { s3Info } = require("./storageService");
 const { handleAuth } = require("./authService");
 const {
@@ -104,7 +104,8 @@ exports.lambdaHandler = async (event) => {
 
   let response;
   try {
-    response = await dispatch(method, path, body, requestId, origin, headers);
+    const jwtPayload = getTokenUser(event);
+    response = await dispatch(method, path, body, requestId, origin, headers, jwtPayload);
   } catch (err) {
     console.error("[handler] Unhandled error:", err);
     response = json(
@@ -125,7 +126,7 @@ exports.lambdaHandler = async (event) => {
   return response;
 };
 
-async function dispatch(method, path, body, requestId, origin, headers) {
+async function dispatch(method, path, body, requestId, origin, headers, jwtPayload) {
   // Health / build info
   if (path === "/figma-admin/api/health") return handleHealth(origin);
   if (path === "/figma-admin/api/build-info") return handleBuildInfo(origin);
@@ -135,11 +136,11 @@ async function dispatch(method, path, body, requestId, origin, headers) {
     return handleAuth(method, path, body, origin, headers);
 
   // Config
-  if (method === "GET" && path === "/figma-admin/api/model") return getModel(origin);
+  if (method === "GET" && path === "/figma-admin/api/model") return getModel(jwtPayload, origin);
   if (method === "POST" && path === "/figma-admin/api/validate")
     return validate(body, origin);
   if (method === "POST" && path === "/figma-admin/api/save")
-    return saveModel(body, requestId, origin);
+    return saveModel(body, requestId, jwtPayload, origin);
   if (method === "POST" && path === "/figma-admin/api/publish")
     return publishModel(requestId, origin);
 
