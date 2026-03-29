@@ -3285,7 +3285,7 @@
   function doLogout () {
     return (async function () {
       try { await apiAuthLogout() } catch (_) {}
-      state.auth = { user: null, role: null, allowedTabs: [] }
+      state.auth = { user: null, role: null, allowedTabs: [], assistantScope: [] }
       state.originalModel = null
       state.editedModel = null
       state.usersList = []
