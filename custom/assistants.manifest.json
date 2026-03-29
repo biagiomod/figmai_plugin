@@ -50,7 +50,7 @@
       "intro": "**Welcome to your Evergreens Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.",
       "kind": "tool",
       "label": "Evergreens",
-      "promptTemplate": "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/contentTable.md]",
+      "promptTemplate": "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/evergreens/knowledge.md]",
       "quickActions": [
         {
           "executionType": "tool-only",

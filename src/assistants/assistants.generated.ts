@@ -62,7 +62,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "copy-ref-image", label: "Get Ref Image", templateMessage: "Get reference image", executionType: "ui-only" },
       { id: "generate-new-table", label: "Generate New Table", templateMessage: "Generate a new evergreen table", executionType: "ui-only", requiresSelection: true },
     ],
-    promptTemplate: "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/contentTable.md]"
+    promptTemplate: "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/evergreens/knowledge.md]"
   },
   {
     id: "ux_copy_review",
