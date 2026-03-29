@@ -87,9 +87,11 @@ function loadManifest(rootDir: string): ManifestRoot {
       .filter(d => fs.statSync(path.join(perDirRoot, d)).isDirectory())
       .sort()
 
+    let foundAnyManifest = false
     for (const dir of dirs) {
       const manifestFile = path.join(perDirRoot, dir, 'manifest.json')
       if (!fs.existsSync(manifestFile)) continue
+      foundAnyManifest = true
       try {
         const content = fs.readFileSync(manifestFile, 'utf-8')
         const parsed = JSON.parse(content) as ManifestRoot
@@ -102,10 +104,10 @@ function loadManifest(rootDir: string): ManifestRoot {
       }
     }
 
-    if (entries.length > 0) {
+    if (foundAnyManifest) {
       return { assistants: entries }
     }
-    // Fall through to single-file if no entries found
+    // Fall through to single-file if no per-dir manifests found
   }
 
   // Fallback: single manifest file
