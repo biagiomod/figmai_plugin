@@ -3557,14 +3557,21 @@
     const tabRegistries = document.getElementById('tab-registries')
     const panelContentModels = document.getElementById('panel-content-models')
     const panelRegistries = document.getElementById('panel-registries')
+    const _allowedTabs = state.auth.allowedTabs || []
+    const _assistantScope = state.auth.assistantScope || []
+    const _scopedHiddenTabs = new Set(['config', 'ai', 'registries', 'users'])
+    function _canSeeTab (tabId) {
+      if (_assistantScope.length > 0 && _scopedHiddenTabs.has(tabId)) return false
+      return !_allowedTabs.length || _allowedTabs.indexOf(tabId) !== -1
+    }
     if (m?.contentModelsRaw !== undefined && m?.contentModelsRaw !== null) {
-      if (tabContentModels) tabContentModels.style.display = ''
+      if (tabContentModels) tabContentModels.style.display = _canSeeTab('content-models') ? '' : 'none'
       renderContentModelsTab()
     } else {
       if (tabContentModels) tabContentModels.style.display = 'none'
     }
     if (m?.designSystemRegistries && Object.keys(m.designSystemRegistries).length > 0) {
-      if (tabRegistries) tabRegistries.style.display = ''
+      if (tabRegistries) tabRegistries.style.display = _canSeeTab('registries') ? '' : 'none'
       renderRegistriesTab()
     } else {
       if (tabRegistries) tabRegistries.style.display = 'none'
