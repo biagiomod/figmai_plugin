@@ -4,7 +4,7 @@
  */
 
 import type { AssistantHandler } from './base'
-import { ContentTableHandler } from './contentTable'
+import { ContentTableHandler } from '../../../assistants/evergreens/handler'
 import { ContentReviewHandler } from './contentReview'
 import { DesignCritiqueHandler } from './designCritique'
 import { DesignWorkshopHandler } from './designWorkshop'
