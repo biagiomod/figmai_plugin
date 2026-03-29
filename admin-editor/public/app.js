@@ -13,7 +13,7 @@
   const ACE_DEBUG = typeof window !== 'undefined' && window.location && window.location.search.indexOf('ace_debug=1') !== -1
 
   const state = {
-    auth: { user: null, role: null, allowedTabs: [] },
+    auth: { user: null, role: null, allowedTabs: [], assistantScope: [] },
     connected: false,
     meta: null,
     originalModel: null,
@@ -376,6 +376,7 @@
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || 'Login failed')
+    if (data.token) sessionStorage.setItem('ace_bearer_token', data.token)
     return data.user
   }
 
@@ -387,6 +388,7 @@
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || 'Bootstrap failed')
+    if (data.token) sessionStorage.setItem('ace_bearer_token', data.token)
     return data.user
   }
 
@@ -538,11 +540,15 @@
     if (!tabButtons || !tabButtons.length) {
       if (ACE_DEBUG) console.warn('[ACE] applyAuthUI: no tab buttons found')
     }
+    const assistantScope = state.auth.assistantScope || []
+    const scopedHiddenTabs = new Set(['config', 'ai', 'registries', 'users'])
     tabButtons.forEach(function (btn) {
       const tabId = btn.getAttribute('data-tab')
       let show = false
       if (tabId === 'users') show = role === 'admin'
       else show = allowedTabs.indexOf(tabId) !== -1
+      // Scoped users cannot see admin-only tabs regardless of role
+      if (show && assistantScope.length > 0 && scopedHiddenTabs.has(tabId)) show = false
       btn.style.display = show ? '' : 'none'
       if (show) visibleTabIds.push(tabId)
     })
@@ -578,7 +584,8 @@
           state.auth = {
             user: me.user,
             role: me.user.role,
-            allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role)
+            allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role),
+            assistantScope: Array.isArray(me.assistantScope) ? me.assistantScope : []
           }
           showAppShell()
           applyAuthUI()
@@ -611,7 +618,8 @@
           state.auth = {
             user: me.user,
             role: me.user.role,
-            allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role)
+            allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role),
+            assistantScope: Array.isArray(me.assistantScope) ? me.assistantScope : []
           }
           showAppShell()
           applyAuthUI()
@@ -1733,7 +1741,9 @@
     }
     const panel = document.getElementById('panel-assistants')
     const m = state.editedModel
-    const list = m?.assistantsManifest?.assistants || []
+    const _allAssistants = m?.assistantsManifest?.assistants || []
+    const _scope = state.auth.assistantScope || []
+    const list = _scope.length > 0 ? _allAssistants.filter(function (a) { return _scope.includes(a.id) }) : _allAssistants
     const simpleIds = new Set((m?.config?.ui?.simpleModeIds) || [])
     const search = (document.getElementById('assistants-search') || {}).value || ''
     const showHidden = (document.getElementById('assistants-show-hidden') || {}).checked !== false
@@ -4243,7 +4253,8 @@
         state.auth = {
           user: me.user,
           role: me.user.role,
-          allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role)
+          allowedTabs: Array.isArray(me.allowedTabs) && me.allowedTabs.length ? me.allowedTabs : allowedTabsFromRole(me.user.role),
+          assistantScope: Array.isArray(me.assistantScope) ? me.assistantScope : []
         }
         const appShell = document.getElementById('app-shell')
         if (!appShell) {
