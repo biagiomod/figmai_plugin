@@ -12,12 +12,12 @@ window.__ACE_CONFIG__ = {
    *   'https://api.example.com'      -> cross-origin Config API
    *   '/figmai/ace'                  -> subpath reverse proxy
    */
-  apiBase: '',
+  apiBase: 'https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin',
 
   /**
    * Auth mode.
    *   'cookie'  -> same-origin cookie auth (default, local dev, reverse proxy)
    *   'bearer'  -> cross-origin bearer token auth (static hosting + remote API)
    */
-  authMode: 'cookie'
+  authMode: 'bearer'
 };
