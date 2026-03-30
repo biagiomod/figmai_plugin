@@ -17,6 +17,8 @@
 const { getObjectText, putObjectText } = require('./storageService');
 const { json, errorResponse, parseBody } = require('./responseUtils');
 
+const SAFE_ID = /^[a-zA-Z0-9_-]+$/;
+
 async function getLlmConfig() {
   const raw = await getObjectText('draft/config.json');
   if (!raw) return null;
@@ -75,7 +77,7 @@ async function testConnection(body, origin) {
 
 async function testAssistant(payload, origin) {
   const startMs = Date.now();
-  const { message, assistantId, kbName, sessionToken, mockFigmaJson, visionEnabled } = payload;
+  const { message, assistantId, kbName, sessionToken } = payload;
 
   // skillSegments: array of { label, content } — pre-assembled by the frontend
   const skillSegments = Array.isArray(payload.skillSegments) ? payload.skillSegments : [];
@@ -210,7 +212,10 @@ async function putGolden(assistantId, actionId, body, origin) {
   try {
     payload = parseBody(body);
   } catch (e) { return errorResponse(400, e.message, origin); }
-  const data = { assistantId, actionId, response: payload.response, savedAt: new Date().toISOString() };
+  if (payload.response === undefined || payload.response === null) {
+    return errorResponse(400, 'response is required.', origin);
+  }
+  const data = { assistantId, actionId, response: String(payload.response), savedAt: new Date().toISOString() };
   await putObjectText(
     `admin/golden/${assistantId}/${actionId}.json`,
     JSON.stringify(data, null, 2) + '\n',
@@ -236,6 +241,7 @@ async function handleTest(method, path, body, origin) {
   const rubricMatch = path.match(/^\/figma-admin\/api\/test\/rubrics\/([^/]+)$/);
   if (rubricMatch) {
     const assistantId = decodeURIComponent(rubricMatch[1]);
+    if (!SAFE_ID.test(assistantId)) return json(400, { error: 'Invalid assistantId' }, origin);
     if (method === 'GET') return getRubric(assistantId, origin);
     if (method === 'PUT') return putRubric(assistantId, body, origin);
     return json(405, { error: 'Method not allowed' }, origin);
@@ -246,6 +252,7 @@ async function handleTest(method, path, body, origin) {
   if (goldenMatch) {
     const assistantId = decodeURIComponent(goldenMatch[1]);
     const actionId = decodeURIComponent(goldenMatch[2]);
+    if (!SAFE_ID.test(assistantId) || !SAFE_ID.test(actionId)) return json(400, { error: 'Invalid ID' }, origin);
     if (method === 'GET') return getGolden(assistantId, actionId, origin);
     if (method === 'PUT') return putGolden(assistantId, actionId, body, origin);
     return json(405, { error: 'Method not allowed' }, origin);

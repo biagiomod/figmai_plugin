@@ -30,6 +30,10 @@
  *   PATCH /api/users/:id                  — Bearer
  *   POST /api/test/connection             — Bearer
  *   POST /api/test/assistant              — Bearer
+ *   GET  /api/test/rubrics/:assistantId — Bearer
+ *   PUT  /api/test/rubrics/:assistantId — Bearer
+ *   GET  /api/test/golden/:aId/:actionId — Bearer
+ *   PUT  /api/test/golden/:aId/:actionId — Bearer
  *   GET  /api/skills                      — Bearer
  *   POST /api/skills                      — Bearer
  *   GET  /api/skills/:id                  — Bearer
