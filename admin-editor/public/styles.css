@@ -2657,3 +2657,167 @@ body.ace-home-page {
   margin-bottom: var(--ace-space-4);
   background: var(--ace-surface);
 }
+
+/* ========== SP4: Prompt Playground ========== */
+.ace-playground {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--ace-surface);
+  border-radius: var(--ace-radius);
+  border: 1px solid var(--ace-border);
+  overflow: hidden;
+}
+.ace-playground-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-12);
+  padding: var(--ace-space-12) var(--ace-space-16);
+  border-bottom: 1px solid var(--ace-border);
+  background: var(--ace-sidebar-bg);
+  flex-shrink: 0;
+}
+.ace-playground-title {
+  font-size: var(--ace-font-size-14);
+  font-weight: var(--ace-font-weight-semibold);
+  flex: 1;
+}
+.ace-playground-body {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.ace-pg-col {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: var(--ace-space-16);
+  border-right: 1px solid var(--ace-border);
+}
+.ace-pg-col:last-child {
+  border-right: none;
+}
+.ace-pg-col-heading {
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ace-text-muted);
+  margin: 0 0 var(--ace-space-12) 0;
+}
+/* BUILD column */
+.ace-pg-segment {
+  margin-bottom: var(--ace-space-8);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius);
+  overflow: hidden;
+}
+.ace-pg-segment-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  padding: var(--ace-space-8) var(--ace-space-12);
+  background: var(--ace-sidebar-bg);
+  cursor: pointer;
+}
+.ace-pg-segment-label {
+  flex: 1;
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text-muted);
+}
+.ace-pg-segment-body {
+  padding: var(--ace-space-8) var(--ace-space-12);
+  font-size: var(--ace-font-size-12);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow: auto;
+  background: var(--ace-surface);
+}
+.ace-pg-segment.disabled {
+  opacity: 0.45;
+}
+/* SEND column */
+.ace-pg-fire-btn {
+  width: 100%;
+  padding: var(--ace-space-12);
+  background: var(--ace-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--ace-radius);
+  font-size: var(--ace-font-size-14);
+  font-weight: var(--ace-font-weight-semibold);
+  cursor: pointer;
+  margin-top: var(--ace-space-16);
+  font-family: var(--font-carbon);
+}
+.ace-pg-fire-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ace-pg-fire-btn:not(:disabled):hover {
+  background: var(--ace-accent-hover);
+}
+/* RESULT column */
+.ace-pg-response {
+  background: #1a1a2e;
+  border-radius: var(--ace-radius);
+  padding: var(--ace-space-12);
+  margin-bottom: var(--ace-space-12);
+}
+.ace-pg-response pre {
+  margin: 0;
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: var(--ace-font-size-12);
+  color: #d0d0e8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+}
+.ace-pg-meta {
+  display: flex;
+  gap: var(--ace-space-16);
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+  margin-bottom: var(--ace-space-12);
+}
+.ace-pg-rubric-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  padding: var(--ace-space-8) 0;
+  border-bottom: 1px solid var(--ace-border);
+  font-size: var(--ace-font-size-12);
+}
+.ace-pg-rubric-item:last-child {
+  border-bottom: none;
+}
+/* Session history */
+.ace-pg-history {
+  border-top: 1px solid var(--ace-border);
+  padding: var(--ace-space-12) var(--ace-space-16);
+  max-height: 180px;
+  overflow: auto;
+  flex-shrink: 0;
+  background: var(--ace-sidebar-bg);
+}
+.ace-pg-history-heading {
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text-muted);
+  margin: 0 0 var(--ace-space-8) 0;
+}
+.ace-pg-history-entry {
+  font-size: 11px;
+  color: var(--ace-text-muted);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--ace-border);
+}
+.ace-pg-history-entry:last-child {
+  border-bottom: none;
+}
