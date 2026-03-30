@@ -1763,9 +1763,16 @@
     html += '<label class="field-row"><input type="checkbox" id="assistants-show-hidden" ' + (showHidden ? 'checked' : '') + '> Show hidden (not in simple mode)</label></div>'
     html += '<div class="list-panel">'
     html += '<div class="list" id="assistants-list">'
-    filtered.forEach(a => {
-      const cls = a.id === state.selectedAssistantId ? 'item selected' : 'item'
-      html += '<div class="' + cls + '" data-id="' + escapeHtml(a.id) + '">' + escapeHtml(a.label || a.id) + '</div>'
+    filtered.forEach(function (a) {
+      var cls = a.id === state.selectedAssistantId ? 'item selected' : 'item'
+      var type = _kindToType(a.kind)
+      var typeCls = type === 'Code' ? 'code' : type === 'LLM' ? 'llm' : 'hybrid'
+      var tagBadge = (a.tag && a.tag.isVisible && a.tag.label) ? ('<span class="ace-type-badge ace-type-badge--' + ((a.tag.variant || 'beta') === 'new' ? 'new' : 'beta') + '">' + escapeHtml(a.tag.label) + '</span>') : ''
+      html += '<div class="' + cls + '" data-id="' + escapeHtml(a.id) + '">'
+      html += '<span class="ae-list-item-label">' + escapeHtml(a.label || a.id) + '</span>'
+      html += '<span class="ace-type-badge ace-type-badge--' + typeCls + '">' + type + '</span>'
+      html += tagBadge
+      html += '</div>'
     })
     html += '</div><div class="editor" id="assistant-editor-panel">'
     if (!state.selectedAssistantId) {
