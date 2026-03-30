@@ -2542,6 +2542,12 @@
       html += '</ul>'
     }
     html += '<button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
+    html += '<h3 class="ae-section-heading" style="margin-top:var(--ace-space-24)">Test rubric</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Define pass/fail criteria for the Prompt Playground\'s result evaluation.</p>'
+    html += '<div id="ae-rubric-items"></div>'
+    html += '<button type="button" class="btn-small" id="ae-rubric-add-item">Add criterion</button>'
+    html += '<div style="margin-top:var(--ace-space-8)"><button type="button" class="btn-small btn-primary" id="ae-rubric-save-btn">Save rubric to server</button></div>'
+    html += '<div id="ae-rubric-status" style="font-size:12px;margin-top:4px"></div>'
     return html
   }
 
@@ -2954,6 +2960,69 @@
           instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
         }
         _updateUniversalSkills()
+      }
+    }
+    // Rubric editor in Quick Actions tab
+    var rubricContainer = document.getElementById('ae-rubric-items')
+    var rubricAddBtn = document.getElementById('ae-rubric-add-item')
+    var rubricSaveBtn = document.getElementById('ae-rubric-save-btn')
+    var rubricStatus = document.getElementById('ae-rubric-status')
+    if (rubricContainer) {
+      window._aeRubricItems = window._aeRubricItems || []
+      _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id))
+        .then(function (r) { return r.json() })
+        .then(function (data) {
+          window._aeRubricItems = (data && data.items) ? data.items : []
+          _renderRubricEditor(rubricContainer)
+        })
+        .catch(function () {})
+    }
+    function _renderRubricEditor (container) {
+      if (!container) return
+      var items = window._aeRubricItems || []
+      var html = ''
+      items.forEach(function (item, i) {
+        html += '<div style="display:flex;gap:var(--ace-space-8);margin-bottom:4px;align-items:center">'
+        html += '<input type="text" class="ace-field ae-rubric-item-label" data-i="' + i + '" value="' + escapeHtml(item.label || '') + '" style="flex:1">'
+        html += '<button type="button" class="btn-small ae-rubric-item-remove" data-i="' + i + '">\u2715</button>'
+        html += '</div>'
+      })
+      container.innerHTML = html
+      container.querySelectorAll('.ae-rubric-item-label').forEach(function (el) {
+        el.oninput = function () {
+          var i = parseInt(this.getAttribute('data-i'), 10)
+          if (window._aeRubricItems[i]) window._aeRubricItems[i].label = this.value
+        }
+      })
+      container.querySelectorAll('.ae-rubric-item-remove').forEach(function (btn) {
+        btn.onclick = function () {
+          var i = parseInt(this.getAttribute('data-i'), 10)
+          window._aeRubricItems.splice(i, 1)
+          _renderRubricEditor(container)
+        }
+      })
+    }
+    if (rubricAddBtn) {
+      rubricAddBtn.onclick = function () {
+        window._aeRubricItems = window._aeRubricItems || []
+        window._aeRubricItems.push({ id: 'r' + Date.now(), label: '', autoCheck: false })
+        _renderRubricEditor(rubricContainer)
+      }
+    }
+    if (rubricSaveBtn) {
+      rubricSaveBtn.onclick = async function () {
+        var items = window._aeRubricItems || []
+        try {
+          var r = await _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: items })
+          })
+          if (r.ok) {
+            if (rubricStatus) { rubricStatus.textContent = 'Saved.'; setTimeout(function () { rubricStatus.textContent = '' }, 2000) }
+          } else {
+            if (rubricStatus) rubricStatus.textContent = 'Save failed.'
+          }
+        } catch (err) { if (rubricStatus) rubricStatus.textContent = 'Network error.' }
       }
     }
   }
