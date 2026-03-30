@@ -30,6 +30,11 @@
  *   PATCH /api/users/:id                  — Bearer
  *   POST /api/test/connection             — Bearer
  *   POST /api/test/assistant              — Bearer
+ *   GET  /api/skills                      — Bearer
+ *   POST /api/skills                      — Bearer
+ *   GET  /api/skills/:id                  — Bearer
+ *   PATCH /api/skills/:id                 — Bearer
+ *   DELETE /api/skills/:id                — Bearer
  */
 
 const { json, corsHeaders, errorResponse } = require("./responseUtils");
@@ -45,6 +50,7 @@ const {
 const { handleKb } = require("./kbService");
 const { handleUsers } = require("./userService");
 const { handleTest } = require("./testService");
+const { handleSkills } = require("./skillsService");
 
 const SERVICE_NAME = process.env.SERVICE_NAME || "ace-lambda";
 const SERVICE_VERSION = process.env.SERVICE_VERSION || "0.1.0";
@@ -155,6 +161,10 @@ async function dispatch(method, path, body, requestId, origin, headers, jwtPaylo
   // Test routes
   if (path.startsWith("/figma-admin/api/test/"))
     return handleTest(method, path, body, origin);
+
+  // Skills routes
+  if (path.startsWith("/figma-admin/api/skills"))
+    return handleSkills(method, path, body, requestId, origin);
 
   return json(404, { error: "Not found", path }, origin);
 }
