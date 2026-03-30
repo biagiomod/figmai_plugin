@@ -1993,8 +1993,69 @@
     var html = ''
     html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Skills tell the <strong>LLM</strong> what to do and how to behave. Each skill block is a segment of the assembled prompt.</p>'
     // Universal Skills placeholder
-    html += '<h3 class="ae-section-heading">Universal skills <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
-    html += '<div class="ae-empty-state">Universal skills (shared across assistants via Resources) will be configurable here after the Skills/Instructions Framework update.</div>'
+    html += '<h3 class="ae-section-heading">Universal skills</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Shared skills from the Resources tab. Required skills are always included; optional skills can be toggled per assistant.</p>'
+    var instr = _getInstr(a.id)
+    var uSkills = instr.universalSkills || { required: [], optional: [] }
+    var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
+    if (allSkills.length === 0) {
+      html += '<div class="ae-empty-state">No universal skills defined yet. Create skills in the Resources tab first.</div>'
+    } else {
+      var requiredIds = uSkills.required || []
+      var optionalIds = uSkills.optional || []
+      var attachedIds = new Set(requiredIds.concat(optionalIds))
+      // Required skills (locked — always included)
+      if (requiredIds.length > 0) {
+        html += '<div style="margin-bottom:var(--ace-space-8)">'
+        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Required (always included)</p>'
+        requiredIds.forEach(function (id) {
+          var skill = allSkills.find(function (s) { return s.id === id })
+          var title = skill ? skill.title : id
+          var kind = skill ? skill.kind : ''
+          html += '<div class="ae-universal-skill-row">'
+          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
+          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
+          html += '<span style="margin-left:auto;font-size:11px;color:var(--ace-text-muted)">&#128274; required</span>'
+          html += '<button type="button" class="btn-small ae-univ-skill-remove-required" data-id="' + escapeHtml(id) + '">Remove</button>'
+          html += '</div>'
+        })
+        html += '</div>'
+      }
+      // Optional skills (toggleable)
+      if (optionalIds.length > 0) {
+        html += '<div style="margin-bottom:var(--ace-space-8)">'
+        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Optional</p>'
+        optionalIds.forEach(function (id) {
+          var skill = allSkills.find(function (s) { return s.id === id })
+          var title = skill ? skill.title : id
+          var kind = skill ? skill.kind : ''
+          html += '<div class="ae-universal-skill-row">'
+          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
+          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
+          html += '<button type="button" class="btn-small ae-univ-skill-make-required" data-id="' + escapeHtml(id) + '">Make required</button>'
+          html += '<button type="button" class="btn-small ae-univ-skill-remove-optional" data-id="' + escapeHtml(id) + '">Remove</button>'
+          html += '</div>'
+        })
+        html += '</div>'
+      }
+      // Attach from remaining skills
+      var unattached = allSkills.filter(function (s) { return !attachedIds.has(s.id) })
+      if (unattached.length > 0) {
+        html += '<div class="ae-field-group">'
+        html += '<label for="ae-univ-skill-picker">Attach a skill</label>'
+        html += '<div style="display:flex;gap:var(--ace-space-8);align-items:center">'
+        html += '<select id="ae-univ-skill-picker" class="ace-field" style="flex:1">'
+        html += '<option value="">— select a skill —</option>'
+        unattached.forEach(function (s) {
+          html += '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.title) + ' (' + escapeHtml(s.kind) + ')</option>'
+        })
+        html += '</select>'
+        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-optional">Add optional</button>'
+        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-required">Add required</button>'
+        html += '</div>'
+        html += '</div>'
+      }
+    }
     // Assistant Skills
     html += '<h3 class="ae-section-heading">Assistant skills</h3>'
     var blocks = a.instructionBlocks || []
@@ -2467,6 +2528,70 @@
         if (!instr.figmaContext) instr.figmaContext = {}
         instr.figmaContext.injectVision = this.checked || undefined
         showUnsavedBanner()
+      }
+    }
+    // Universal skills (SP3)
+    function _updateUniversalSkills () {
+      var instr = _getInstr(a.id)
+      if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+      showUnsavedBanner()
+      renderAssistantsTab()
+    }
+    document.querySelectorAll('.ae-univ-skill-remove-required').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = this.getAttribute('data-id')
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) return
+        instr.universalSkills.required = (instr.universalSkills.required || []).filter(function (x) { return x !== id })
+        _updateUniversalSkills()
+      }
+    })
+    document.querySelectorAll('.ae-univ-skill-remove-optional').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = this.getAttribute('data-id')
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) return
+        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
+        _updateUniversalSkills()
+      }
+    })
+    document.querySelectorAll('.ae-univ-skill-make-required').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = this.getAttribute('data-id')
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
+        if (!(instr.universalSkills.required || []).includes(id)) {
+          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
+        }
+        _updateUniversalSkills()
+      }
+    })
+    var skillAttachOptBtn = document.getElementById('ae-univ-skill-attach-optional')
+    var skillAttachReqBtn = document.getElementById('ae-univ-skill-attach-required')
+    var skillPicker = document.getElementById('ae-univ-skill-picker')
+    if (skillAttachOptBtn && skillPicker) {
+      skillAttachOptBtn.onclick = function () {
+        var id = skillPicker.value
+        if (!id) return
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+        if (!(instr.universalSkills.optional || []).includes(id)) {
+          instr.universalSkills.optional = (instr.universalSkills.optional || []).concat([id])
+        }
+        _updateUniversalSkills()
+      }
+    }
+    if (skillAttachReqBtn && skillPicker) {
+      skillAttachReqBtn.onclick = function () {
+        var id = skillPicker.value
+        if (!id) return
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+        if (!(instr.universalSkills.required || []).includes(id)) {
+          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
+        }
+        _updateUniversalSkills()
       }
     }
   }
