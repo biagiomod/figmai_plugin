@@ -42,7 +42,9 @@
     kbEditDoc: null,
     selectedAssistantDetailTab: 'overview',
     instructionsMap: {},
-    skillsRegistry: { skills: [] }
+    skillsRegistry: { skills: [] },
+    selectedSkillId: null,
+    selectedSkillContent: ''
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
@@ -2697,6 +2699,80 @@
     const previewDoc = state.kbPreviewDoc
     const editDoc = state.kbEditDoc
 
+    // Skills panel
+    var skillsHtml = ''
+    skillsHtml += '<div class="ace-section-header-row">'
+    skillsHtml += '<h2 class="ace-section-title">Universal Skills</h2>'
+    skillsHtml += '<button type="button" class="ace-section-header-btn" id="ace-skill-new-btn">New skill</button>'
+    skillsHtml += '</div>'
+    skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the Assistant Skills tab.</p>'
+    var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
+    if (allSkills.length === 0) {
+      skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No universal skills yet. Click "New skill" to create the first one.</div>'
+    } else {
+      skillsHtml += '<div class="list-panel" style="margin-bottom:var(--ace-space-24);min-height:auto">'
+      skillsHtml += '<div class="list" id="ace-skills-list" style="width:260px">'
+      allSkills.forEach(function (s) {
+        var sel = state.selectedSkillId === s.id
+        skillsHtml += '<div class="' + (sel ? 'item selected' : 'item') + '" data-skill-id="' + escapeHtml(s.id) + '">'
+        skillsHtml += '<span class="ae-list-item-label">' + escapeHtml(s.title) + '</span>'
+        skillsHtml += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(s.kind) + '</span>'
+        skillsHtml += '</div>'
+      })
+      skillsHtml += '</div>'
+      skillsHtml += '<div class="editor" id="ace-skill-editor">'
+      if (!state.selectedSkillId) {
+        skillsHtml += '<div class="empty">Select a skill to edit</div>'
+      } else {
+        var selectedSkill = allSkills.find(function (s) { return s.id === state.selectedSkillId })
+        if (!selectedSkill) {
+          skillsHtml += '<div class="empty">Not found</div>'
+        } else {
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label>ID <span class="fg-secondary">(read-only)</span></label>'
+          skillsHtml += '<input type="text" class="ace-field" value="' + escapeHtml(selectedSkill.id) + '" readonly>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label for="ace-skill-title">Title</label>'
+          skillsHtml += '<input type="text" id="ace-skill-title" class="ace-field" value="' + escapeHtml(selectedSkill.title) + '">'
+          skillsHtml += '</div>'
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label for="ace-skill-kind">Kind</label>'
+          skillsHtml += '<select id="ace-skill-kind">'
+          ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
+            skillsHtml += '<option value="' + k + '"' + (selectedSkill.kind === k ? ' selected' : '') + '>' + k + '</option>'
+          })
+          skillsHtml += '</select>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label for="ace-skill-content">Content</label>'
+          skillsHtml += '<p class="ae-helper">The prompt text that will be included when this skill is active.</p>'
+          skillsHtml += '<textarea id="ace-skill-content" class="ace-field" rows="8" data-skill-id="' + escapeHtml(selectedSkill.id) + '">' + escapeHtml(state.selectedSkillContent || '') + '</textarea>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div style="display:flex;gap:var(--ace-space-8);margin-top:var(--ace-space-8)">'
+          skillsHtml += '<button type="button" class="btn-primary" id="ace-skill-save-btn">Save skill</button>'
+          skillsHtml += '<button type="button" class="btn-secondary" id="ace-skill-delete-btn" style="margin-left:auto">Delete</button>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div id="ace-skill-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+        }
+      }
+      skillsHtml += '</div></div>'
+    }
+    // New skill form (hidden by default)
+    skillsHtml += '<div id="ace-skill-new-form" style="display:none;margin-bottom:var(--ace-space-24);padding:var(--ace-space-16);border:1px solid var(--ace-border);border-radius:var(--ace-radius)">'
+    skillsHtml += '<h3 style="margin:0 0 var(--ace-space-12) 0;font-size:14px">New skill</h3>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-id">ID <span class="fg-secondary">(kebab-case)</span></label><input type="text" id="ace-skill-new-id" class="ace-field" placeholder="e.g. use-brand-voice"></div>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-title">Title</label><input type="text" id="ace-skill-new-title" class="ace-field" placeholder="e.g. Use Brand Voice"></div>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-kind">Kind</label><select id="ace-skill-new-kind">'
+    ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
+      skillsHtml += '<option value="' + k + '">' + k + '</option>'
+    })
+    skillsHtml += '</select></div>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-content">Content</label><textarea id="ace-skill-new-content" class="ace-field" rows="4" placeholder="Skill prompt text..."></textarea></div>'
+    skillsHtml += '<div style="display:flex;gap:var(--ace-space-8)"><button type="button" class="btn-primary" id="ace-skill-new-create-btn">Create</button><button type="button" class="btn-secondary" id="ace-skill-new-cancel-btn">Cancel</button></div>'
+    skillsHtml += '<div id="ace-skill-new-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+    skillsHtml += '</div>'
+
     let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div>'
     html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference resources by id.</p>'
     html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import Resource</button>'
@@ -2736,7 +2812,7 @@
       html += '<div class="empty">Select a resource or click Create / Import Resource</div>'
     }
     html += '</div></div>'
-    panel.innerHTML = html
+    panel.innerHTML = skillsHtml + html
 
     document.getElementById('kb-create-btn').onclick = function () {
       state.kbCreateMode = true
@@ -2820,6 +2896,121 @@
     if (createMode) bindKbImportForm()
     else if (selectedId && editDoc) bindKbEditForm(editDoc)
     else if (selectedId) loadKbDocThenRender(selectedId)
+
+    // Skills panel event handlers
+    var skillsList = document.getElementById('ace-skills-list')
+    if (skillsList) {
+      skillsList.addEventListener('click', function (e) {
+        var item = e.target.closest('[data-skill-id]')
+        if (!item) return
+        var skillId = item.getAttribute('data-skill-id')
+        if (state.selectedSkillId === skillId) return
+        state.selectedSkillId = skillId
+        state.selectedSkillContent = ''
+        // Fetch skill content from API
+        _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(skillId))
+          .then(function (r) { return r.json() })
+          .then(function (data) {
+            state.selectedSkillContent = data.content || ''
+            renderKnowledgeBasesTabContent()
+          })
+          .catch(function () { renderKnowledgeBasesTabContent() })
+        renderKnowledgeBasesTabContent()
+      })
+    }
+
+    var skillNewBtn = document.getElementById('ace-skill-new-btn')
+    if (skillNewBtn) {
+      skillNewBtn.onclick = function () {
+        var form = document.getElementById('ace-skill-new-form')
+        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none'
+      }
+    }
+
+    var skillNewCancelBtn = document.getElementById('ace-skill-new-cancel-btn')
+    if (skillNewCancelBtn) {
+      skillNewCancelBtn.onclick = function () {
+        var form = document.getElementById('ace-skill-new-form')
+        if (form) form.style.display = 'none'
+      }
+    }
+
+    var skillNewCreateBtn = document.getElementById('ace-skill-new-create-btn')
+    if (skillNewCreateBtn) {
+      skillNewCreateBtn.onclick = async function () {
+        var idEl = document.getElementById('ace-skill-new-id')
+        var titleEl = document.getElementById('ace-skill-new-title')
+        var kindEl = document.getElementById('ace-skill-new-kind')
+        var contentEl = document.getElementById('ace-skill-new-content')
+        var statusEl = document.getElementById('ace-skill-new-status')
+        if (!idEl || !titleEl || !kindEl) return
+        var payload = { id: idEl.value.trim(), title: titleEl.value.trim(), kind: kindEl.value, content: contentEl ? contentEl.value : '' }
+        if (!payload.id || !payload.title) { if (statusEl) statusEl.textContent = 'ID and title are required.'; return }
+        try {
+          var r = await _apiFetch(API_BASE + '/api/skills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+          var data = await r.json()
+          if (!r.ok) { if (statusEl) statusEl.textContent = data.error || 'Error creating skill.'; return }
+          // Update local registry
+          if (!state.skillsRegistry) state.skillsRegistry = { skills: [] }
+          var existing = state.skillsRegistry.skills.findIndex(function (s) { return s.id === data.id })
+          if (existing >= 0) state.skillsRegistry.skills[existing] = data
+          else state.skillsRegistry.skills.push(data)
+          state.selectedSkillId = data.id
+          state.selectedSkillContent = payload.content
+          renderKnowledgeBasesTabContent()
+        } catch (err) {
+          if (statusEl) statusEl.textContent = 'Network error.'
+        }
+      }
+    }
+
+    var skillSaveBtn = document.getElementById('ace-skill-save-btn')
+    if (skillSaveBtn) {
+      skillSaveBtn.onclick = async function () {
+        if (!state.selectedSkillId) return
+        var titleEl = document.getElementById('ace-skill-title')
+        var kindEl = document.getElementById('ace-skill-kind')
+        var contentEl = document.getElementById('ace-skill-content')
+        var statusEl = document.getElementById('ace-skill-status')
+        var payload = {}
+        if (titleEl) payload.title = titleEl.value
+        if (kindEl) payload.kind = kindEl.value
+        if (contentEl) payload.content = contentEl.value
+        try {
+          var r = await _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(state.selectedSkillId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+          var data = await r.json()
+          if (!r.ok) { if (statusEl) statusEl.textContent = data.error || 'Save error.'; return }
+          // Update local registry entry
+          if (state.skillsRegistry) {
+            var idx = state.skillsRegistry.skills.findIndex(function (s) { return s.id === data.id })
+            if (idx >= 0) state.skillsRegistry.skills[idx] = { id: data.id, title: data.title, kind: data.kind, filePath: data.filePath || data.id + '.md' }
+          }
+          state.selectedSkillContent = data.content || ''
+          if (statusEl) statusEl.textContent = 'Saved.'
+          setTimeout(function () { if (statusEl) statusEl.textContent = '' }, 2000)
+        } catch (err) {
+          if (statusEl) statusEl.textContent = 'Network error.'
+        }
+      }
+    }
+
+    var skillDeleteBtn = document.getElementById('ace-skill-delete-btn')
+    if (skillDeleteBtn) {
+      skillDeleteBtn.onclick = async function () {
+        if (!state.selectedSkillId) return
+        if (!window.confirm('Delete skill "' + state.selectedSkillId + '"? This cannot be undone.')) return
+        try {
+          var r = await _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(state.selectedSkillId), { method: 'DELETE' })
+          if (!r.ok) { alert('Delete failed.'); return }
+          if (state.skillsRegistry) {
+            state.skillsRegistry.skills = state.skillsRegistry.skills.filter(function (s) { return s.id !== state.selectedSkillId })
+          }
+          state.selectedSkillId = null
+          state.selectedSkillContent = ''
+          renderKnowledgeBasesTabContent()
+        } catch { alert('Network error.') }
+      }
+    }
   }
 
   function loadKbDocThenRender (id) {
