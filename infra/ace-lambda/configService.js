@@ -217,6 +217,16 @@ async function saveModel(body, requestId, jwtPayload, origin) {
     filesWritten.push(`knowledge/${assistantId}.md`);
   }
 
+  // Write per-assistant instructions.json
+  for (const [assistantId, instrData] of Object.entries(model.instructions || {})) {
+    await putObjectText(
+      `draft/assistants/${assistantId}/instructions.json`,
+      JSON.stringify(instrData, null, 2) + '\n',
+      'application/json'
+    );
+    filesWritten.push(`assistants/${assistantId}/instructions.json`);
+  }
+
   if (typeof model.contentModelsRaw === 'string') {
     await putObjectText(
       'draft/content-models.md',

@@ -249,6 +249,22 @@ const assistantsManifestSchema = z.object({
 
 // --- Admin-editable model schema ---
 
+const instructionsEntrySchema = z.object({
+  execution: z.enum(['code', 'llm', 'hybrid']).optional(),
+  figmaContext: z.object({
+    requiresSelection: z.boolean().optional(),
+    selectionTypes: z.array(z.string()).optional(),
+    injectVision: z.boolean().optional(),
+  }).passthrough().optional(),
+  outputSchemaId: z.string().optional(),
+  defaultKbName: z.string().optional(),
+  universalSkills: z.object({
+    required: z.array(z.string()).optional(),
+    optional: z.array(z.string()).optional(),
+  }).passthrough().optional(),
+  safetyOverrides: z.record(z.unknown()).optional(),
+}).passthrough();
+
 const adminEditableModelSchema = z
   .object({
     config: configSchema,
@@ -256,6 +272,7 @@ const adminEditableModelSchema = z
     customKnowledge: z.record(z.string()),
     contentModelsRaw: z.string().optional(),
     designSystemRegistries: z.record(z.unknown()).optional(),
+    instructions: z.record(instructionsEntrySchema).optional(),
   })
   .strict();
 
