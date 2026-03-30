@@ -39,7 +39,8 @@
     selectedKbId: null,
     kbCreateMode: false,
     kbPreviewDoc: null,
-    kbEditDoc: null
+    kbEditDoc: null,
+    selectedAssistantDetailTab: 'overview'
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
@@ -492,10 +493,10 @@
   function allowedTabsFromRole (role) {
     const r = (role || '').toLowerCase()
     if (r === 'admin') {
-      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics', 'users']
     }
     if (r === 'manager' || r === 'editor') {
-      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics']
     }
     return ['config', 'ai']
   }
@@ -1503,6 +1504,12 @@
     cardInner += '</div>'
     html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint', '<div class="ace-card ace-llm-endpoint-card">' + cardInner + '</div>', expandedMap['ai-api-endpoint'], 'Configure how the plugin connects to AI services')
     html += '</div>'
+    html += '<div class="ace-card ace-test-panel" style="margin-top:16px">'
+    html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px">Connection Test</div>'
+    html += '<p class="ace-card-helper" style="margin-bottom:10px">Test connectivity using the current (unsaved) AI settings above. No changes are saved before testing.</p>'
+    html += '<button type="button" class="btn-primary" id="ace-test-connection-btn">Test Connection</button>'
+    html += '<div id="ace-test-connection-result" role="status" aria-live="polite" style="margin-top:10px"></div>'
+    html += '</div>'
     panel.innerHTML = html
 
     _apiFetch(API_BASE + '/api/build-info', {})
@@ -1686,6 +1693,46 @@
         updateFooterButtons()
       }
     }
+
+    const testConnBtn = document.getElementById('ace-test-connection-btn')
+    if (testConnBtn) {
+      testConnBtn.onclick = async function () {
+        testConnBtn.disabled = true
+        testConnBtn.textContent = 'Testing...'
+        var resultEl = document.getElementById('ace-test-connection-result')
+        if (resultEl) { resultEl.className = ''; resultEl.textContent = '' }
+        try {
+          var llm = (state.editedModel && state.editedModel.config && state.editedModel.config.llm) ? state.editedModel.config.llm : {}
+          var provider = llm.provider === 'proxy' ? 'proxy' : 'internal-api'
+          var rawProxy = llm.proxy || {}
+          var normalizedProxy = {
+            baseUrl: rawProxy.baseUrl || '',
+            defaultModel: rawProxy.defaultModel || '',
+            authMode: rawProxy.authMode === 'session_token' ? 'session_token' : 'shared_token',
+            sharedToken: rawProxy.sharedToken || ''
+          }
+          var body = { provider: provider, endpoint: llm.endpoint || '', proxy: normalizedProxy }
+          var res = await _apiFetch(API_BASE + '/api/test/connection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          })
+          var data = await res.json()
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ' + (data.success ? 'ace-test-result--success' : 'ace-test-result--error')
+            resultEl.textContent = data.message || (data.success ? 'Connection successful.' : 'Connection failed.')
+          }
+        } catch (err) {
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ace-test-result--error'
+            resultEl.textContent = 'Test request failed: ' + ((err && err.message) ? err.message : String(err))
+          }
+        } finally {
+          testConnBtn.disabled = false
+          testConnBtn.textContent = 'Test Connection'
+        }
+      }
+    }
   }
 
   // ——— Assistants tab ———
@@ -1716,9 +1763,16 @@
     html += '<label class="field-row"><input type="checkbox" id="assistants-show-hidden" ' + (showHidden ? 'checked' : '') + '> Show hidden (not in simple mode)</label></div>'
     html += '<div class="list-panel">'
     html += '<div class="list" id="assistants-list">'
-    filtered.forEach(a => {
-      const cls = a.id === state.selectedAssistantId ? 'item selected' : 'item'
-      html += '<div class="' + cls + '" data-id="' + escapeHtml(a.id) + '">' + escapeHtml(a.label || a.id) + '</div>'
+    filtered.forEach(function (a) {
+      var cls = a.id === state.selectedAssistantId ? 'item selected' : 'item'
+      var type = _kindToType(a.kind)
+      var typeCls = type === 'Code' ? 'code' : type === 'LLM' ? 'llm' : 'hybrid'
+      var tagBadge = (a.tag && a.tag.isVisible && a.tag.label) ? ('<span class="ace-type-badge ace-type-badge--' + ((a.tag.variant || 'beta') === 'new' ? 'new' : 'beta') + '">' + escapeHtml(a.tag.label) + '</span>') : ''
+      html += '<div class="' + cls + '" data-id="' + escapeHtml(a.id) + '">'
+      html += '<span class="ae-list-item-label">' + escapeHtml(a.label || a.id) + '</span>'
+      html += '<span class="ace-type-badge ace-type-badge--' + typeCls + '">' + type + '</span>'
+      html += tagBadge
+      html += '</div>'
     })
     html += '</div><div class="editor" id="assistant-editor-panel">'
     if (!state.selectedAssistantId) {
@@ -1737,7 +1791,11 @@
     document.getElementById('assistants-list').addEventListener('click', function (e) {
       const item = e.target.closest('.item[data-id]')
       if (item) {
-        state.selectedAssistantId = item.getAttribute('data-id')
+        const newId = item.getAttribute('data-id')
+        if (newId !== state.selectedAssistantId) {
+          state.selectedAssistantDetailTab = 'overview'
+        }
+        state.selectedAssistantId = newId
         renderAssistantsTab()
       }
     })
@@ -1752,75 +1810,271 @@
     bindAssistantEditor()
   }
 
-  function assistantEditorHtml (a) {
-    let html = '<label>ID (read-only)</label><input type="text" class="ace-field" value="' + escapeHtml(a.id) + '" readonly>'
-    html += '<label>Label</label><input type="text" id="ae-label" class="ace-field" value="' + escapeHtml(a.label || '') + '">'
-    html += '<label>Intro</label><textarea id="ae-intro" class="ace-field" rows="3">' + escapeHtml(a.intro || '') + '</textarea>'
-    html += '<label>Hover summary</label><input type="text" id="ae-hoverSummary" class="ace-field" value="' + escapeHtml(a.hoverSummary || '') + '">'
-    html += '<label>Welcome message</label><textarea id="ae-welcomeMessage" class="ace-field" rows="2">' + escapeHtml(a.welcomeMessage || '') + '</textarea>'
-    html += '<div class="field-row"><label><input type="checkbox" id="ae-tag-visible" ' + (a.tag?.isVisible ? 'checked' : '') + '> Tag visible</label></div>'
-    html += '<label>Tag label</label><input type="text" id="ae-tag-label" class="ace-field" value="' + escapeHtml(a.tag?.label || '') + '">'
-    html += '<label>Tag variant</label><select id="ae-tag-variant"><option value="">—</option><option value="new"' + (a.tag?.variant === 'new' ? ' selected' : '') + '>new</option><option value="beta"' + (a.tag?.variant === 'beta' ? ' selected' : '') + '>beta</option><option value="alpha"' + (a.tag?.variant === 'alpha' ? ' selected' : '') + '>alpha</option></select>'
-    html += '<label>Icon ID</label><input type="text" id="ae-iconId" class="ace-field" value="' + escapeHtml(a.iconId || '') + '">'
-    html += '<label>Kind</label><select id="ae-kind"><option value="ai"' + (a.kind === 'ai' ? ' selected' : '') + '>ai</option><option value="tool"' + (a.kind === 'tool' ? ' selected' : '') + '>tool</option><option value="hybrid"' + (a.kind === 'hybrid' ? ' selected' : '') + '>hybrid</option></select>'
-    if (a.kind === 'tool') {
-      var ts = a.toolSettings || {}
-      html += '<div class="section-title">Tool Settings</div>'
-      html += '<label>Default content model</label><input type="text" id="ae-ts-defaultContentModel" class="ace-field" value="' + escapeHtml(ts.defaultContentModel || '') + '" placeholder="e.g. universal">'
-      html += '<div class="field-row"><label><input type="checkbox" id="ae-ts-dedupeDefault" ' + (ts.dedupeDefault ? 'checked' : '') + '> Dedupe default (on)</label></div>'
-      html += '<label>Quick actions location</label><select id="ae-ts-quickActionsLocation"><option value="inline"' + ((ts.quickActionsLocation || 'inline') === 'inline' ? ' selected' : '') + '>inline</option><option value="top"' + (ts.quickActionsLocation === 'top' ? ' selected' : '') + '>top</option><option value="bottom"' + (ts.quickActionsLocation === 'bottom' ? ' selected' : '') + '>bottom</option></select>'
-      html += '<div class="field-row"><label><input type="checkbox" id="ae-ts-showInput" ' + (ts.showInput ? 'checked' : '') + '> Show text input</label></div>'
+  function _kindToType (kind) {
+    if (kind === 'tool' || kind === 'code') return 'Code'
+    if (kind === 'ai' || kind === 'llm') return 'LLM'
+    return 'Hybrid'
+  }
+
+  function _typeBadgeHtml (kind, tag) {
+    var type = _kindToType(kind)
+    var cls = type === 'Code' ? 'code' : type === 'LLM' ? 'llm' : 'hybrid'
+    var html = '<span class="ace-type-badge ace-type-badge--' + cls + '">' + type + '</span>'
+    if (tag && tag.isVisible && tag.label) {
+      var tagCls = (tag.variant || 'beta') === 'new' ? 'new' : 'beta'
+      html += '<span class="ace-type-badge ace-type-badge--' + tagCls + '">' + escapeHtml(tag.label) + '</span>'
     }
-    html += '<div class="section-title">Quick actions</div>'
-    html += '<p class="ace-qa-execution-type-helper fg-secondary">Execution type: <strong>ui-only</strong> = handled in UI, does not call main; <strong>tool-only</strong> = main/handler only, no LLM; <strong>llm</strong> = calls provider (sendChatWithRecovery); <strong>hybrid</strong> = tool + LLM / mixed steps.</p>'
-    html += '<ul class="quick-actions-list" id="ae-quickActions">'
-    const EXECUTION_TYPES = ['ui-only', 'tool-only', 'llm', 'hybrid']
-    ;(a.quickActions || []).forEach((qa, i) => {
-      const execType = (qa.executionType && EXECUTION_TYPES.includes(qa.executionType)) ? qa.executionType : 'llm'
-      html += '<li class="quick-action-row">'
-      html += '<input type="text" placeholder="id" value="' + escapeHtml(qa.id) + '" data-i="' + i + '" data-field="id" class="ae-qa-id">'
-      html += '<input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label" class="ae-qa-label">'
-      html += '<label class="ae-qa-exec-label">Execution type</label><select class="ae-qa-exec-select" data-i="' + i + '" data-field="executionType">'
-      EXECUTION_TYPES.forEach(opt => { html += '<option value="' + escapeHtml(opt) + '"' + (execType === opt ? ' selected' : '') + '>' + escapeHtml(opt) + '</option>' })
-      html += '</select>'
-      html += '<button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button></li>'
+    return html
+  }
+
+  function assistantEditorHtml (a) {
+    var activeTab = state.selectedAssistantDetailTab || 'overview'
+    var DETAIL_TABS = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'instructions', label: 'Instructions' },
+      { id: 'skills', label: 'Skills' },
+      { id: 'knowledge', label: 'Knowledge' },
+      { id: 'quick-actions', label: 'Quick Actions' }
+    ]
+    var html = '<div class="ae-detail-tabs">'
+    DETAIL_TABS.forEach(function (t) {
+      var sel = activeTab === t.id
+      html += '<button type="button" class="ae-detail-tab-btn' + (sel ? ' active' : '') + '" data-detail-tab="' + t.id + '">' + t.label + '</button>'
     })
-    html += '</ul><button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
-    // Optional structured config (PR7)
-    html += '<div class="section-title">Structured instructions</div>'
-    html += '<ul class="instruction-blocks-list" id="ae-instructionBlocks">'
-    const blocks = a.instructionBlocks || []
-    const BLOCK_KINDS = ['system', 'behavior', 'rules', 'examples', 'format', 'context']
-    blocks.forEach((block, i) => {
-      html += '<li class="instruction-block-row" data-i="' + i + '">'
-      html += '<label>Kind</label><select class="ae-ib-kind" data-i="' + i + '">'
-      BLOCK_KINDS.forEach(k => { html += '<option value="' + k + '"' + ((block.kind || 'behavior') === k ? ' selected' : '') + '>' + k + '</option>' })
-      html += '</select>'
-      html += '<label>Content</label><textarea class="ae-ib-content ace-field" rows="3" data-i="' + i + '">' + escapeHtml(block.content || '') + '</textarea>'
-      html += '<div class="field-row"><label><input type="checkbox" class="ae-ib-enabled" data-i="' + i + '" ' + (block.enabled !== false ? 'checked' : '') + '> Enabled</label></div>'
-      html += '<div class="instruction-block-actions"><button type="button" class="btn-small ae-ib-up" data-i="' + i + '">Up</button><button type="button" class="btn-small ae-ib-down" data-i="' + i + '">Down</button><button type="button" class="btn-small ae-ib-remove" data-i="' + i + '">Remove</button></div></li>'
-    })
-    html += '</ul><button type="button" class="btn-small add-btn" id="ae-ib-add">Add block</button>'
-    html += '<label>Tone/style preset</label><input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
-    html += '<label>Output schema ID</label><input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="Schema id">'
-    html += '<label>Resource refs</label>'
-    const kbRegistry = state.kbRegistry || []
+    html += '</div>'
+    html += '<div class="ae-detail-tab-content">'
+    if (activeTab === 'overview') html += _aeOverviewTab(a)
+    else if (activeTab === 'instructions') html += _aeInstructionsTab(a)
+    else if (activeTab === 'skills') html += _aeSkillsTab(a)
+    else if (activeTab === 'knowledge') html += _aeKnowledgeTab(a)
+    else if (activeTab === 'quick-actions') html += _aeQuickActionsTab(a)
+    html += '</div>'
+    return html
+  }
+
+  function _aeOverviewTab (a) {
+    var type = _kindToType(a.kind)
+    var html = ''
+    // Label
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-label">Label</label>'
+    html += '<input type="text" id="ae-label" class="ace-field" value="' + escapeHtml(a.label || '') + '">'
+    html += '</div>'
+    // ID (read-only)
+    html += '<div class="ae-field-group">'
+    html += '<label>ID <span class="fg-secondary">(read-only)</span></label>'
+    html += '<input type="text" class="ace-field" value="' + escapeHtml(a.id) + '" readonly>'
+    html += '</div>'
+    // Icon ID
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-iconId">Icon ID</label>'
+    html += '<input type="text" id="ae-iconId" class="ace-field" value="' + escapeHtml(a.iconId || '') + '" placeholder="e.g. sparkles">'
+    html += '<p class="ae-helper">Matches the icon set registered in the plugin. Leave blank to use the default icon.</p>'
+    html += '</div>'
+    // Intro
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-intro">Intro</label>'
+    html += '<textarea id="ae-intro" class="ace-field" rows="3">' + escapeHtml(a.intro || '') + '</textarea>'
+    html += '<p class="ae-helper">Short description shown beneath the assistant name in the plugin UI.</p>'
+    html += '</div>'
+    // Type badge selector (maps to kind field)
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-kind">Type</label>'
+    html += '<select id="ae-kind">'
+    html += '<option value="ai"' + ((a.kind === 'ai' || a.kind === 'llm' || (!a.kind)) ? ' selected' : '') + '>LLM — all logic goes to the LLM</option>'
+    html += '<option value="tool"' + ((a.kind === 'tool' || a.kind === 'code') ? ' selected' : '') + '>Code — plugin handles everything without calling the LLM</option>'
+    html += '<option value="hybrid"' + (a.kind === 'hybrid' ? ' selected' : '') + '>Hybrid — plugin runs code first, then calls the LLM</option>'
+    html += '</select>'
+    html += '<p class="ae-helper">Informs the plugin\'s execution routing. Shown as a badge on the assistant card.</p>'
+    html += '</div>'
+    // Tag
+    html += '<h3 class="ae-section-heading">Optional tag</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-tag-visible" ' + (a.tag?.isVisible ? 'checked' : '') + '> Show tag on assistant card</label>'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-tag-label">Tag label</label>'
+    html += '<input type="text" id="ae-tag-label" class="ace-field" value="' + escapeHtml(a.tag?.label || '') + '" placeholder="e.g. Beta">'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-tag-variant">Tag variant</label>'
+    html += '<select id="ae-tag-variant"><option value="">—</option>'
+    html += '<option value="new"' + (a.tag?.variant === 'new' ? ' selected' : '') + '>New</option>'
+    html += '<option value="beta"' + (a.tag?.variant === 'beta' ? ' selected' : '') + '>Beta</option>'
+    html += '<option value="alpha"' + (a.tag?.variant === 'alpha' ? ' selected' : '') + '>Alpha</option>'
+    html += '</select>'
+    html += '</div>'
+    // Preview card
+    html += '<h3 class="ae-section-heading">How it appears to users</h3>'
+    var tagHtml = (a.tag && a.tag.isVisible && a.tag.label) ? ('<span class="ace-type-badge ace-type-badge--' + ((a.tag.variant || 'beta') === 'new' ? 'new' : 'beta') + '">' + escapeHtml(a.tag.label) + '</span>') : ''
+    var typeBadge = _typeBadgeHtml(a.kind)
+    html += '<div class="ae-preview-card">'
+    html += '<div class="ae-preview-card-icon">&#9670;</div>'
+    html += '<div class="ae-preview-card-body">'
+    html += '<div class="ae-preview-card-label">' + escapeHtml(a.label || a.id) + typeBadge + tagHtml + '</div>'
+    html += '<div class="ae-preview-card-intro">' + escapeHtml((a.intro || '').slice(0, 80)) + '</div>'
+    html += '</div></div>'
+    html += '<p class="ae-helper" style="margin-top:6px">This preview reflects the last-saved label, intro, type, and tag. Changes you make above appear here when you navigate away and return.</p>'
+    return html
+  }
+  function _aeInstructionsTab (a) {
+    var html = ''
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Instructions tell the <strong>plugin</strong> how to manage this assistant\'s interactions — deterministic settings read before any LLM call.</p>'
+    // Output Schema ID
+    html += '<h3 class="ae-section-heading">Output</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-outputSchemaId">Output schema ID</label>'
+    html += '<input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="e.g. design-critique-v1">'
+    html += '<p class="ae-helper">If set, the LLM response is validated against this JSON schema before the plugin processes it. Leave blank for plain-text output.</p>'
+    html += '</div>'
+    // Safety overrides
+    html += '<h3 class="ae-section-heading">Safety overrides</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Allow images</label>'
+    html += '<p class="ae-helper">Enables image input for this assistant. Only enable if the assistant needs to process images.</p>'
+    html += '</div>'
+    // Tone/style preset (legacy)
+    html += '<h3 class="ae-section-heading">Style preset <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-toneStylePreset">Tone/style preset</label>'
+    html += '<input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
+    html += '<p class="ae-helper">Optional legacy preset. Superseded by skill blocks in the Skills tab.</p>'
+    html += '</div>'
+    // SP3 placeholder
+    html += '<h3 class="ae-section-heading">Figma context <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
+    html += '<div class="ae-empty-state">Figma context configuration (requiresSelection, selectionTypes, injectVision) will be available after the Skills/Instructions Framework update.</div>'
+    return html
+  }
+  function _aeSkillsTab (a) {
+    var html = ''
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Skills tell the <strong>LLM</strong> what to do and how to behave. Each skill block is a segment of the assembled prompt.</p>'
+    // Universal Skills placeholder
+    html += '<h3 class="ae-section-heading">Universal skills <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
+    html += '<div class="ae-empty-state">Universal skills (shared across assistants via Resources) will be configurable here after the Skills/Instructions Framework update.</div>'
+    // Assistant Skills
+    html += '<h3 class="ae-section-heading">Assistant skills</h3>'
+    var blocks = a.instructionBlocks || []
+    var BLOCK_KINDS = ['system', 'behavior', 'rules', 'examples', 'format', 'context']
+    var KIND_HELPERS = {
+      system: 'Sets the assistant\'s core identity and purpose. Usually one block.',
+      behavior: 'Describes how the assistant should act and what it should prioritise.',
+      rules: 'Hard constraints the assistant must follow.',
+      examples: 'Sample inputs and outputs to guide the LLM\'s response style.',
+      format: 'Specifies the output format (prose, JSON, markdown list, etc.).',
+      context: 'Background information the assistant should know.'
+    }
+    if (blocks.length === 0) {
+      html += '<div class="ae-empty-state">No skill blocks yet — add a skill block to define how this assistant thinks.</div>'
+    } else {
+      html += '<ul class="instruction-blocks-list" id="ae-instructionBlocks">'
+      blocks.forEach(function (block, i) {
+        html += '<li class="instruction-block-row" data-i="' + i + '">'
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--ace-space-8)">'
+        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8)">'
+        html += '<select class="ae-ib-kind" data-i="' + i + '" style="min-width:110px">'
+        BLOCK_KINDS.forEach(function (k) { html += '<option value="' + k + '"' + ((block.kind || 'behavior') === k ? ' selected' : '') + '>' + k + '</option>' })
+        html += '</select>'
+        html += '<label style="font-size:12px;margin:0"><input type="checkbox" class="ae-ib-enabled" data-i="' + i + '" ' + (block.enabled !== false ? 'checked' : '') + '> Enabled</label>'
+        html += '</div>'
+        html += '<div class="instruction-block-actions"><button type="button" class="btn-small ae-ib-up" data-i="' + i + '">↑</button><button type="button" class="btn-small ae-ib-down" data-i="' + i + '">↓</button><button type="button" class="btn-small ae-ib-remove" data-i="' + i + '">Remove</button></div>'
+        html += '</div>'
+        html += '<p class="ae-helper" style="margin:0 0 6px 0">' + (KIND_HELPERS[block.kind || 'behavior'] || '') + '</p>'
+        html += '<textarea class="ae-ib-content ace-field" rows="4" data-i="' + i + '">' + escapeHtml(block.content || '') + '</textarea>'
+        html += '</li>'
+      })
+      html += '</ul>'
+    }
+    html += '<button type="button" class="btn-small add-btn" id="ae-ib-add">Add skill block</button>'
+    // Prompt template (legacy)
+    html += '<h3 class="ae-section-heading">Prompt template <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
+    html += '<p class="ae-helper">Used when no skill blocks are defined. Superseded by skill blocks above.</p>'
+    html += '<textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="8">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
+    // Assemble & Preview
+    html += '<h3 class="ae-section-heading">Assemble & Preview</h3>'
+    html += '<p class="ae-helper">Shows what the LLM receives based on current skill blocks (unsaved state).</p>'
+    html += '<button type="button" class="btn-small" id="ae-assemble-btn">Assemble prompt</button>'
+    html += '<div class="ae-assemble-preview" id="ae-assemble-preview"><pre id="ae-assemble-pre"></pre></div>'
+    return html
+  }
+  function _aeKnowledgeTab (a) {
+    var html = ''
+    // LLM-native KB
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Internal LLM knowledge base</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Recommended for large reference documents. The Internal LLM retrieves its own material server-side — keeps the prompt lean.</p>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-defaultKbName">Default kbName</label>'
+    html += '<input type="text" id="ae-defaultKbName" class="ace-field" value="' + escapeHtml(a.defaultKbName || '') + '" placeholder="e.g. design-critique">'
+    html += '<p class="ae-helper">Passed as the <code>kbName</code> parameter on every LLM request for this assistant. Override per Quick Action in the Quick Actions tab.</p>'
+    html += '</div>'
+    // Injected KB refs
+    html += '<h3 class="ae-section-heading">Injected knowledge bases</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">KB content is injected directly into the prompt. Use for smaller reference material or when the Internal LLM kbName option is not available.</p>'
+    var kbRegistry = state.kbRegistry || []
     if (!state.kbRegistryFetched) {
       html += '<p class="fg-secondary">Loading resources…</p>'
+    } else if (kbRegistry.length === 0) {
+      html += '<div class="ae-empty-state">No knowledge bases available. Create one in the Resources tab first.</div>'
     } else {
-      html += '<p class="fg-secondary">Select resources; order matters for injection.</p>'
       html += '<div class="ae-kb-refs-list" id="ae-kb-refs-checkboxes">'
       kbRegistry.forEach(function (entry) {
-        const refs = a.knowledgeBaseRefs || []
-        const checked = refs.indexOf(entry.id) !== -1
+        var refs = a.knowledgeBaseRefs || []
+        var checked = refs.indexOf(entry.id) !== -1
         html += '<label class="field-row ae-kb-ref-cb"><input type="checkbox" class="ae-kb-ref-cb-input" data-id="' + escapeHtml(entry.id) + '" ' + (checked ? 'checked' : '') + '> <span>' + escapeHtml(entry.title || entry.id) + '</span> <span class="fg-secondary" style="font-size:0.9em">(' + escapeHtml(entry.id) + ')</span></label>'
       })
       html += '</div>'
       html += '<div class="ae-kb-refs-selected" id="ae-kb-refs-selected"><span class="fg-secondary">Selected (order):</span> <span id="ae-kb-refs-order"></span></div>'
       html += '<div class="ae-kb-refs-reorder" id="ae-kb-refs-reorder"></div>'
     }
-    html += '<div class="field-row"><label><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Safety: allow images</label></div>'
-    html += '<label>Prompt template</label><textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="12">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
+    return html
+  }
+  function _aeQuickActionsTab (a) {
+    var html = ''
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Quick Actions appear as one-click prompts for this assistant. Each action can override the assistant\'s default kbName.</p>'
+    var qas = a.quickActions || []
+    var EXECUTION_TYPES = ['ui-only', 'tool-only', 'llm', 'hybrid']
+    if (qas.length === 0) {
+      html += '<div class="ae-empty-state">No quick actions yet — add one below.</div>'
+    } else {
+      html += '<ul class="quick-actions-list" id="ae-quickActions">'
+      qas.forEach(function (qa, i) {
+        var execType = (qa.executionType && EXECUTION_TYPES.includes(qa.executionType)) ? qa.executionType : 'llm'
+        html += '<li class="quick-action-row">'
+        // Header row: id, label, remove
+        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8);width:100%;flex-wrap:wrap">'
+        html += '<input type="text" placeholder="id" value="' + escapeHtml(qa.id || '') + '" data-i="' + i + '" data-field="id" class="ae-qa-id">'
+        html += '<input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label" class="ae-qa-label">'
+        html += '<button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button>'
+        html += '</div>'
+        // Detail row
+        html += '<div class="ae-qa-detail">'
+        // templateMessage
+        html += '<div class="ae-qa-detail-row">'
+        html += '<span class="ae-qa-detail-label">Message template</span>'
+        html += '<textarea class="ace-field ae-qa-template" rows="2" data-i="' + i + '" data-field="templateMessage" style="flex:1">' + escapeHtml(qa.templateMessage || '') + '</textarea>'
+        html += '</div>'
+        // executionType
+        html += '<div class="ae-qa-detail-row">'
+        html += '<span class="ae-qa-detail-label">Execution type</span>'
+        html += '<select class="ae-qa-exec-select" data-i="' + i + '" data-field="executionType">'
+        EXECUTION_TYPES.forEach(function (opt) { html += '<option value="' + opt + '"' + (execType === opt ? ' selected' : '') + '>' + opt + '</option>' })
+        html += '</select>'
+        html += '</div>'
+        // kbName override
+        html += '<div class="ae-qa-detail-row">'
+        html += '<span class="ae-qa-detail-label">kbName override</span>'
+        html += '<input type="text" class="ace-field ae-qa-kbname" placeholder="Leave blank to use assistant default" data-i="' + i + '" data-field="kbName" value="' + escapeHtml(qa.kbName || '') + '" style="flex:1">'
+        html += '</div>'
+        html += '<p class="ae-helper" style="margin:0">Override the assistant\'s default kbName for this action only. Leave blank to inherit.</p>'
+        // Test button (SP4 — placeholder)
+        html += '<div class="ae-qa-detail-row">'
+        html += '<button type="button" class="btn-small ae-qa-test-btn" data-i="' + i + '" disabled title="Prompt Playground — available in SP4">Test this action</button>'
+        html += '</div>'
+        html += '</div>'
+        html += '</li>'
+      })
+      html += '</ul>'
+    }
+    html += '<button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
     return html
   }
 
@@ -1835,6 +2089,12 @@
   function bindAssistantEditor () {
     const a = (state.editedModel?.assistantsManifest?.assistants || []).find(x => x.id === state.selectedAssistantId)
     if (!a) return
+    document.querySelectorAll('.ae-detail-tab-btn').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedAssistantDetailTab = this.getAttribute('data-detail-tab')
+        renderAssistantsTab()
+      }
+    })
     ensureQuickActionExecutionTypes(a)
     const set = (id, field, value) => {
       a[field] = value
@@ -1842,7 +2102,8 @@
     }
     document.getElementById('ae-label').onchange = function () { set('ae-label', 'label', this.value) }
     document.getElementById('ae-intro').onchange = function () { set('ae-intro', 'intro', this.value) }
-    document.getElementById('ae-hoverSummary').onchange = function () { set('ae-hoverSummary', 'hoverSummary', this.value) }
+    const hmEl = document.getElementById('ae-hoverSummary')
+    if (hmEl) hmEl.onchange = function () { set('ae-hoverSummary', 'hoverSummary', this.value) }
     const wm = document.getElementById('ae-welcomeMessage')
     if (wm) wm.onchange = function () { set('ae-welcomeMessage', 'welcomeMessage', this.value) }
     const tagVis = document.getElementById('ae-tag-visible')
@@ -1851,7 +2112,8 @@
     document.getElementById('ae-tag-variant').onchange = function () { if (!a.tag) a.tag = {}; a.tag.variant = this.value || undefined; showUnsavedBanner() }
     document.getElementById('ae-iconId').onchange = function () { set('ae-iconId', 'iconId', this.value) }
     document.getElementById('ae-kind').onchange = function () { set('ae-kind', 'kind', this.value); renderAssistantsTab() }
-    document.getElementById('ae-promptTemplate').onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
+    const ptEl = document.getElementById('ae-promptTemplate')
+    if (ptEl) ptEl.onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
     if (a.kind === 'tool') {
       var tsEl1 = document.getElementById('ae-ts-defaultContentModel')
       if (tsEl1) tsEl1.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.defaultContentModel = this.value || undefined; showUnsavedBanner() }
@@ -1870,15 +2132,21 @@
         renderAssistantsTab()
       }
     })
-    document.querySelectorAll('#ae-quickActions input, #ae-quickActions select').forEach(el => {
-      const handler = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        const field = this.getAttribute('data-field')
-        if (a.quickActions[i]) a.quickActions[i][field] = this.value
+    document.querySelectorAll('#ae-quickActions input, #ae-quickActions select, #ae-quickActions textarea').forEach(function (el) {
+      var handler = function () {
+        var i = parseInt(this.getAttribute('data-i'), 10)
+        var field = this.getAttribute('data-field')
+        if (!field || !a.quickActions[i]) return
+        var val = this.value
+        if (field === 'kbName') {
+          a.quickActions[i].kbName = val.trim() || undefined
+        } else {
+          a.quickActions[i][field] = val
+        }
         showUnsavedBanner()
       }
       el.onchange = handler
-      if (el.tagName === 'INPUT') el.oninput = handler
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.oninput = handler
     })
     const addBtn = document.getElementById('ae-qa-add')
     if (addBtn) addBtn.onclick = function () {
@@ -2019,6 +2287,91 @@
       if (!a.safetyOverrides) a.safetyOverrides = {}
       a.safetyOverrides.allowImages = this.checked || undefined
       showUnsavedBanner()
+    }
+
+    const testRunBtn = document.getElementById('ae-test-run-btn')
+    if (testRunBtn) {
+      testRunBtn.onclick = async function () {
+        var msgEl = document.getElementById('ae-test-message')
+        var resultEl = document.getElementById('ae-test-result')
+        var msg = msgEl ? msgEl.value.trim() : ''
+        if (!msg) {
+          if (resultEl) { resultEl.className = 'ace-test-result ace-test-result--error'; resultEl.textContent = 'Enter a test message.' }
+          return
+        }
+        testRunBtn.disabled = true
+        testRunBtn.textContent = 'Running...'
+        if (resultEl) { resultEl.className = ''; resultEl.textContent = '' }
+        try {
+          var llm = (state.editedModel && state.editedModel.config && state.editedModel.config.llm) ? state.editedModel.config.llm : {}
+          var provider = llm.provider === 'proxy' ? 'proxy' : 'internal-api'
+          var assistantDraft = { id: a.id, promptTemplate: a.promptTemplate || '', instructionBlocks: a.instructionBlocks || [] }
+          // Normalize proxy: always include authMode with the same default renderAITab uses (shared_token).
+          // authMode may be absent in model state if the user never touched the select.
+          var rawProxy = llm.proxy || {}
+          var normalizedProxy = {
+            baseUrl: rawProxy.baseUrl || '',
+            defaultModel: rawProxy.defaultModel || '',
+            authMode: rawProxy.authMode === 'session_token' ? 'session_token' : 'shared_token',
+            sharedToken: rawProxy.sharedToken || ''
+          }
+          var body = {
+            provider: provider,
+            endpoint: llm.endpoint || '',
+            proxy: normalizedProxy,
+            assistant: assistantDraft,
+            message: msg,
+            kbName: 'figma'
+          }
+          var res = await _apiFetch(API_BASE + '/api/test/assistant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          })
+          var data = await res.json()
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ' + (data.success ? 'ace-test-result--success' : 'ace-test-result--error')
+            if (data.success) {
+              resultEl.innerHTML = '<div class="ace-test-response-meta">Assistant: ' + escapeHtml(data.assistantId || '?') + ' | kbName: ' + escapeHtml(data.kbName || 'figma') + '</div><pre class="ace-test-response-text">' + escapeHtml(data.response || '(empty response)') + '</pre>'
+            } else {
+              resultEl.textContent = data.message || 'Test failed.'
+            }
+          }
+        } catch (err) {
+          if (resultEl) {
+            resultEl.className = 'ace-test-result ace-test-result--error'
+            resultEl.textContent = 'Test request failed: ' + ((err && err.message) ? err.message : String(err))
+          }
+        } finally {
+          testRunBtn.disabled = false
+          testRunBtn.textContent = 'Run Test'
+        }
+      }
+    }
+    var dkbEl = document.getElementById('ae-defaultKbName')
+    if (dkbEl) {
+      dkbEl.onchange = function () { a.defaultKbName = this.value.trim() || undefined; showUnsavedBanner() }
+      dkbEl.oninput = dkbEl.onchange
+    }
+    // Assemble & Preview
+    var assembleBtn = document.getElementById('ae-assemble-btn')
+    if (assembleBtn) {
+      assembleBtn.onclick = function () {
+        var previewEl = document.getElementById('ae-assemble-preview')
+        var preEl = document.getElementById('ae-assemble-pre')
+        if (!previewEl || !preEl) return
+        var blocks = a.instructionBlocks || []
+        var enabledBlocks = blocks.filter(function (b) { return b.enabled !== false })
+        if (enabledBlocks.length === 0 && !a.promptTemplate) {
+          preEl.textContent = '(No skill blocks enabled and no prompt template set.)'
+        } else {
+          var segments = []
+          enabledBlocks.forEach(function (b) { segments.push('[' + (b.kind || 'behavior') + ']\n' + (b.content || '')) })
+          if (a.promptTemplate && enabledBlocks.length === 0) segments.push('[prompt template]\n' + a.promptTemplate)
+          preEl.textContent = segments.join('\n\n---\n\n')
+        }
+        previewEl.classList.add('visible')
+      }
     }
   }
 
@@ -3181,8 +3534,8 @@
   }
 
   /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; includes visible nav tabs only). */
-  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
-  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
+  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics', 'users']
+  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', registries: 'Design Systems', analytics: 'Usage Report', users: 'Users' }
   function getRoleDefaultTabs (role) {
     if (role === 'admin' || role === 'manager' || role === 'editor') return USERS_SET_ACCESS_TAB_IDS.slice()
     return ['config', 'users']
@@ -3523,7 +3876,7 @@
   }
 
   /** Tabs that render their own ace-section-header-row and must NOT show the legacy #tab-subheader pretitle. */
-  var HIDE_TAB_SUBHEADER_TABS = new Set(['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users'])
+  var HIDE_TAB_SUBHEADER_TABS = new Set(['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics', 'users'])
 
   var TAB_SUBHEADERS = {
     config: 'General Plugin Settings',
@@ -3569,7 +3922,7 @@
       else btn.removeAttribute('aria-current')
       btn.classList.toggle('active', sel)
     })
-    var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users', knowledge: 'Knowledge' }
+    var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Usage Report', users: 'Users', knowledge: 'Knowledge' }
     var pageTitleEl = document.getElementById('ace-page-title-text')
     if (pageTitleEl) pageTitleEl.textContent = PAGE_TITLES[tabId] || tabId
     const subheaderEl = document.getElementById('tab-subheader')
