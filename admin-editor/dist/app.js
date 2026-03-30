@@ -40,7 +40,11 @@
     kbCreateMode: false,
     kbPreviewDoc: null,
     kbEditDoc: null,
-    selectedAssistantDetailTab: 'overview'
+    selectedAssistantDetailTab: 'overview',
+    instructionsMap: {},
+    skillsRegistry: { skills: [] },
+    selectedSkillId: null,
+    selectedSkillContent: ''
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
@@ -323,7 +327,7 @@
   async function apiSave (payload, dryRun) {
     const sentRevision = state.meta?.revision ?? ''
     const body = {
-      model: payload,
+      model: Object.assign({}, payload, Object.keys(state.instructionsMap).length ? { instructions: state.instructionsMap } : {}),
       meta: { revision: sentRevision }
     }
     if (ACE_DEBUG) {
@@ -650,6 +654,8 @@
       const canonical = canonicalizeModel(data.model)
       state.originalModel = canonical
       state.editedModel = deepClone(canonical)
+      state.instructionsMap = deepClone(data.model.instructions || {})
+      state.skillsRegistry = data.model.skillsRegistry || { skills: [] }
       state.meta = data.meta || null
       state.validation = data.validation || { errors: [], warnings: [] }
       state.loadedAt = new Date().toLocaleString()
@@ -1917,22 +1923,65 @@
     html += '<p class="ae-helper" style="margin-top:6px">This preview reflects the last-saved label, intro, type, and tag. Changes you make above appear here when you navigate away and return.</p>'
     return html
   }
+  function _getInstr (assistantId) {
+    if (!state.instructionsMap[assistantId]) state.instructionsMap[assistantId] = {}
+    return state.instructionsMap[assistantId]
+  }
+
   function _aeInstructionsTab (a) {
+    var instr = _getInstr(a.id)
     var html = ''
     html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Instructions tell the <strong>plugin</strong> how to manage this assistant\'s interactions — deterministic settings read before any LLM call.</p>'
-    // Output Schema ID
+
+    // Execution model
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Execution model</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-instr-execution">Execution model</label>'
+    html += '<select id="ae-instr-execution">'
+    var execVal = instr.execution || ''
+    html += '<option value=""' + (!execVal ? ' selected' : '') + '>— inherit from type</option>'
+    html += '<option value="code"' + (execVal === 'code' ? ' selected' : '') + '>Code — plugin handles everything, no LLM call</option>'
+    html += '<option value="llm"' + (execVal === 'llm' ? ' selected' : '') + '>LLM — all logic goes to the LLM</option>'
+    html += '<option value="hybrid"' + (execVal === 'hybrid' ? ' selected' : '') + '>Hybrid — plugin runs code first, then calls the LLM</option>'
+    html += '</select>'
+    html += '<p class="ae-helper">Overrides the assistant\'s type badge routing. Leave blank to use the type badge value.</p>'
+    html += '</div>'
+
+    // Figma context
+    html += '<h3 class="ae-section-heading">Figma context</h3>'
+    var fc = instr.figmaContext || {}
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-instr-req-sel" ' + (fc.requiresSelection ? 'checked' : '') + '> Requires selection</label>'
+    html += '<p class="ae-helper">When enabled, the plugin enforces that the user has something selected before running this assistant.</p>'
+    html += '</div>'
+    var selTypes = fc.selectionTypes || []
+    html += '<div class="ae-field-group">'
+    html += '<label>Selection types <span class="fg-secondary" style="font-weight:400">(active when Requires selection is on)</span></label>'
+    ;['FRAME', 'COMPONENT', 'TEXT', 'GROUP'].forEach(function (t) {
+      var checked = selTypes.includes(t)
+      html += '<label class="field-row" style="margin-bottom:4px"><input type="checkbox" class="ae-instr-sel-type" data-type="' + t + '" ' + (checked ? 'checked' : '') + '> ' + t + '</label>'
+    })
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-instr-inject-vision" ' + (fc.injectVision ? 'checked' : '') + '> Inject vision (include screenshot)</label>'
+    html += '<p class="ae-helper">Only enable if the assistant needs to visually analyse the design. Adds the selection screenshot as image input.</p>'
+    html += '</div>'
+
+    // Output schema
     html += '<h3 class="ae-section-heading">Output</h3>'
     html += '<div class="ae-field-group">'
     html += '<label for="ae-outputSchemaId">Output schema ID</label>'
     html += '<input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="e.g. design-critique-v1">'
     html += '<p class="ae-helper">If set, the LLM response is validated against this JSON schema before the plugin processes it. Leave blank for plain-text output.</p>'
     html += '</div>'
+
     // Safety overrides
     html += '<h3 class="ae-section-heading">Safety overrides</h3>'
     html += '<div class="ae-field-group">'
     html += '<label class="field-row"><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Allow images</label>'
     html += '<p class="ae-helper">Enables image input for this assistant. Only enable if the assistant needs to process images.</p>'
     html += '</div>'
+
     // Tone/style preset (legacy)
     html += '<h3 class="ae-section-heading">Style preset <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
     html += '<div class="ae-field-group">'
@@ -1940,17 +1989,75 @@
     html += '<input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
     html += '<p class="ae-helper">Optional legacy preset. Superseded by skill blocks in the Skills tab.</p>'
     html += '</div>'
-    // SP3 placeholder
-    html += '<h3 class="ae-section-heading">Figma context <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
-    html += '<div class="ae-empty-state">Figma context configuration (requiresSelection, selectionTypes, injectVision) will be available after the Skills/Instructions Framework update.</div>'
     return html
   }
   function _aeSkillsTab (a) {
     var html = ''
     html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Skills tell the <strong>LLM</strong> what to do and how to behave. Each skill block is a segment of the assembled prompt.</p>'
     // Universal Skills placeholder
-    html += '<h3 class="ae-section-heading">Universal skills <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
-    html += '<div class="ae-empty-state">Universal skills (shared across assistants via Resources) will be configurable here after the Skills/Instructions Framework update.</div>'
+    html += '<h3 class="ae-section-heading">Universal skills</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Shared skills from the Resources tab. Required skills are always included; optional skills can be toggled per assistant.</p>'
+    var instr = _getInstr(a.id)
+    var uSkills = instr.universalSkills || { required: [], optional: [] }
+    var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
+    if (allSkills.length === 0) {
+      html += '<div class="ae-empty-state">No universal skills defined yet. Create skills in the Resources tab first.</div>'
+    } else {
+      var requiredIds = uSkills.required || []
+      var optionalIds = uSkills.optional || []
+      var attachedIds = new Set(requiredIds.concat(optionalIds))
+      // Required skills (locked — always included)
+      if (requiredIds.length > 0) {
+        html += '<div style="margin-bottom:var(--ace-space-8)">'
+        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Required (always included)</p>'
+        requiredIds.forEach(function (id) {
+          var skill = allSkills.find(function (s) { return s.id === id })
+          var title = skill ? skill.title : id
+          var kind = skill ? skill.kind : ''
+          html += '<div class="ae-universal-skill-row">'
+          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
+          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
+          html += '<span style="margin-left:auto;font-size:11px;color:var(--ace-text-muted)">&#128274; required</span>'
+          html += '<button type="button" class="btn-small ae-univ-skill-remove-required" data-id="' + escapeHtml(id) + '">Remove</button>'
+          html += '</div>'
+        })
+        html += '</div>'
+      }
+      // Optional skills (toggleable)
+      if (optionalIds.length > 0) {
+        html += '<div style="margin-bottom:var(--ace-space-8)">'
+        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Optional</p>'
+        optionalIds.forEach(function (id) {
+          var skill = allSkills.find(function (s) { return s.id === id })
+          var title = skill ? skill.title : id
+          var kind = skill ? skill.kind : ''
+          html += '<div class="ae-universal-skill-row">'
+          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
+          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
+          html += '<button type="button" class="btn-small ae-univ-skill-make-required" data-id="' + escapeHtml(id) + '">Make required</button>'
+          html += '<button type="button" class="btn-small ae-univ-skill-remove-optional" data-id="' + escapeHtml(id) + '">Remove</button>'
+          html += '</div>'
+        })
+        html += '</div>'
+      }
+      // Attach from remaining skills
+      var unattached = allSkills.filter(function (s) { return !attachedIds.has(s.id) })
+      if (unattached.length > 0) {
+        html += '<div class="ae-field-group">'
+        html += '<label for="ae-univ-skill-picker">Attach a skill</label>'
+        html += '<div style="display:flex;gap:var(--ace-space-8);align-items:center">'
+        html += '<select id="ae-univ-skill-picker" class="ace-field" style="flex:1">'
+        html += '<option value="">— select a skill —</option>'
+        unattached.forEach(function (s) {
+          html += '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.title) + ' (' + escapeHtml(s.kind) + ')</option>'
+        })
+        html += '</select>'
+        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-optional">Add optional</button>'
+        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-required">Add required</button>'
+        html += '</div>'
+        html += '</div>'
+      }
+    }
     // Assistant Skills
     html += '<h3 class="ae-section-heading">Assistant skills</h3>'
     var blocks = a.instructionBlocks || []
@@ -2388,6 +2495,107 @@
         previewEl.classList.add('visible')
       }
     }
+    // Instructions tab — execution model + figmaContext (SP3)
+    var instrExecEl = document.getElementById('ae-instr-execution')
+    if (instrExecEl) {
+      instrExecEl.onchange = function () {
+        var instr = _getInstr(a.id)
+        instr.execution = this.value || undefined
+        showUnsavedBanner()
+      }
+    }
+    var instrReqSelEl = document.getElementById('ae-instr-req-sel')
+    if (instrReqSelEl) {
+      instrReqSelEl.onchange = function () {
+        var instr = _getInstr(a.id)
+        if (!instr.figmaContext) instr.figmaContext = {}
+        instr.figmaContext.requiresSelection = this.checked || undefined
+        showUnsavedBanner()
+      }
+    }
+    document.querySelectorAll('.ae-instr-sel-type').forEach(function (cb) {
+      cb.onchange = function () {
+        var instr = _getInstr(a.id)
+        if (!instr.figmaContext) instr.figmaContext = {}
+        var types = []
+        document.querySelectorAll('.ae-instr-sel-type:checked').forEach(function (c) { types.push(c.getAttribute('data-type')) })
+        instr.figmaContext.selectionTypes = types.length ? types : undefined
+        showUnsavedBanner()
+      }
+    })
+    var instrVisionEl = document.getElementById('ae-instr-inject-vision')
+    if (instrVisionEl) {
+      instrVisionEl.onchange = function () {
+        var instr = _getInstr(a.id)
+        if (!instr.figmaContext) instr.figmaContext = {}
+        instr.figmaContext.injectVision = this.checked || undefined
+        showUnsavedBanner()
+      }
+    }
+    // Universal skills (SP3)
+    function _updateUniversalSkills () {
+      var instr = _getInstr(a.id)
+      if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+      showUnsavedBanner()
+      renderAssistantsTab()
+    }
+    document.querySelectorAll('.ae-univ-skill-remove-required').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = this.getAttribute('data-id')
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) return
+        instr.universalSkills.required = (instr.universalSkills.required || []).filter(function (x) { return x !== id })
+        _updateUniversalSkills()
+      }
+    })
+    document.querySelectorAll('.ae-univ-skill-remove-optional').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = this.getAttribute('data-id')
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) return
+        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
+        _updateUniversalSkills()
+      }
+    })
+    document.querySelectorAll('.ae-univ-skill-make-required').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = this.getAttribute('data-id')
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
+        if (!(instr.universalSkills.required || []).includes(id)) {
+          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
+        }
+        _updateUniversalSkills()
+      }
+    })
+    var skillAttachOptBtn = document.getElementById('ae-univ-skill-attach-optional')
+    var skillAttachReqBtn = document.getElementById('ae-univ-skill-attach-required')
+    var skillPicker = document.getElementById('ae-univ-skill-picker')
+    if (skillAttachOptBtn && skillPicker) {
+      skillAttachOptBtn.onclick = function () {
+        var id = skillPicker.value
+        if (!id) return
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+        if (!(instr.universalSkills.optional || []).includes(id)) {
+          instr.universalSkills.optional = (instr.universalSkills.optional || []).concat([id])
+        }
+        _updateUniversalSkills()
+      }
+    }
+    if (skillAttachReqBtn && skillPicker) {
+      skillAttachReqBtn.onclick = function () {
+        var id = skillPicker.value
+        if (!id) return
+        var instr = _getInstr(a.id)
+        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
+        if (!(instr.universalSkills.required || []).includes(id)) {
+          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
+        }
+        _updateUniversalSkills()
+      }
+    }
   }
 
   // ——— Knowledge tab ———
@@ -2491,6 +2699,80 @@
     const previewDoc = state.kbPreviewDoc
     const editDoc = state.kbEditDoc
 
+    // Skills panel
+    var skillsHtml = ''
+    skillsHtml += '<div class="ace-section-header-row">'
+    skillsHtml += '<h2 class="ace-section-title">Universal Skills</h2>'
+    skillsHtml += '<button type="button" class="ace-section-header-btn" id="ace-skill-new-btn">New skill</button>'
+    skillsHtml += '</div>'
+    skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the Assistant Skills tab.</p>'
+    var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
+    if (allSkills.length === 0) {
+      skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No universal skills yet. Click "New skill" to create the first one.</div>'
+    } else {
+      skillsHtml += '<div class="list-panel" style="margin-bottom:var(--ace-space-24);min-height:auto">'
+      skillsHtml += '<div class="list" id="ace-skills-list" style="width:260px">'
+      allSkills.forEach(function (s) {
+        var sel = state.selectedSkillId === s.id
+        skillsHtml += '<div class="' + (sel ? 'item selected' : 'item') + '" data-skill-id="' + escapeHtml(s.id) + '">'
+        skillsHtml += '<span class="ae-list-item-label">' + escapeHtml(s.title) + '</span>'
+        skillsHtml += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(s.kind) + '</span>'
+        skillsHtml += '</div>'
+      })
+      skillsHtml += '</div>'
+      skillsHtml += '<div class="editor" id="ace-skill-editor">'
+      if (!state.selectedSkillId) {
+        skillsHtml += '<div class="empty">Select a skill to edit</div>'
+      } else {
+        var selectedSkill = allSkills.find(function (s) { return s.id === state.selectedSkillId })
+        if (!selectedSkill) {
+          skillsHtml += '<div class="empty">Not found</div>'
+        } else {
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label>ID <span class="fg-secondary">(read-only)</span></label>'
+          skillsHtml += '<input type="text" class="ace-field" value="' + escapeHtml(selectedSkill.id) + '" readonly>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label for="ace-skill-title">Title</label>'
+          skillsHtml += '<input type="text" id="ace-skill-title" class="ace-field" value="' + escapeHtml(selectedSkill.title) + '">'
+          skillsHtml += '</div>'
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label for="ace-skill-kind">Kind</label>'
+          skillsHtml += '<select id="ace-skill-kind">'
+          ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
+            skillsHtml += '<option value="' + k + '"' + (selectedSkill.kind === k ? ' selected' : '') + '>' + k + '</option>'
+          })
+          skillsHtml += '</select>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div class="ae-field-group">'
+          skillsHtml += '<label for="ace-skill-content">Content</label>'
+          skillsHtml += '<p class="ae-helper">The prompt text that will be included when this skill is active.</p>'
+          skillsHtml += '<textarea id="ace-skill-content" class="ace-field" rows="8" data-skill-id="' + escapeHtml(selectedSkill.id) + '">' + escapeHtml(state.selectedSkillContent || '') + '</textarea>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div style="display:flex;gap:var(--ace-space-8);margin-top:var(--ace-space-8)">'
+          skillsHtml += '<button type="button" class="btn-primary" id="ace-skill-save-btn">Save skill</button>'
+          skillsHtml += '<button type="button" class="btn-secondary" id="ace-skill-delete-btn" style="margin-left:auto">Delete</button>'
+          skillsHtml += '</div>'
+          skillsHtml += '<div id="ace-skill-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+        }
+      }
+      skillsHtml += '</div></div>'
+    }
+    // New skill form (hidden by default)
+    skillsHtml += '<div id="ace-skill-new-form" style="display:none;margin-bottom:var(--ace-space-24);padding:var(--ace-space-16);border:1px solid var(--ace-border);border-radius:var(--ace-radius)">'
+    skillsHtml += '<h3 style="margin:0 0 var(--ace-space-12) 0;font-size:14px">New skill</h3>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-id">ID <span class="fg-secondary">(kebab-case)</span></label><input type="text" id="ace-skill-new-id" class="ace-field" placeholder="e.g. use-brand-voice"></div>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-title">Title</label><input type="text" id="ace-skill-new-title" class="ace-field" placeholder="e.g. Use Brand Voice"></div>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-kind">Kind</label><select id="ace-skill-new-kind">'
+    ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
+      skillsHtml += '<option value="' + k + '">' + k + '</option>'
+    })
+    skillsHtml += '</select></div>'
+    skillsHtml += '<div class="ae-field-group"><label for="ace-skill-new-content">Content</label><textarea id="ace-skill-new-content" class="ace-field" rows="4" placeholder="Skill prompt text..."></textarea></div>'
+    skillsHtml += '<div style="display:flex;gap:var(--ace-space-8)"><button type="button" class="btn-primary" id="ace-skill-new-create-btn">Create</button><button type="button" class="btn-secondary" id="ace-skill-new-cancel-btn">Cancel</button></div>'
+    skillsHtml += '<div id="ace-skill-new-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+    skillsHtml += '</div>'
+
     let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div>'
     html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference resources by id.</p>'
     html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import Resource</button>'
@@ -2530,7 +2812,7 @@
       html += '<div class="empty">Select a resource or click Create / Import Resource</div>'
     }
     html += '</div></div>'
-    panel.innerHTML = html
+    panel.innerHTML = skillsHtml + html
 
     document.getElementById('kb-create-btn').onclick = function () {
       state.kbCreateMode = true
@@ -2614,6 +2896,121 @@
     if (createMode) bindKbImportForm()
     else if (selectedId && editDoc) bindKbEditForm(editDoc)
     else if (selectedId) loadKbDocThenRender(selectedId)
+
+    // Skills panel event handlers
+    var skillsList = document.getElementById('ace-skills-list')
+    if (skillsList) {
+      skillsList.addEventListener('click', function (e) {
+        var item = e.target.closest('[data-skill-id]')
+        if (!item) return
+        var skillId = item.getAttribute('data-skill-id')
+        if (state.selectedSkillId === skillId) return
+        state.selectedSkillId = skillId
+        state.selectedSkillContent = ''
+        // Fetch skill content from API
+        _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(skillId))
+          .then(function (r) { return r.json() })
+          .then(function (data) {
+            state.selectedSkillContent = data.content || ''
+            renderKnowledgeBasesTabContent()
+          })
+          .catch(function () { renderKnowledgeBasesTabContent() })
+        renderKnowledgeBasesTabContent()
+      })
+    }
+
+    var skillNewBtn = document.getElementById('ace-skill-new-btn')
+    if (skillNewBtn) {
+      skillNewBtn.onclick = function () {
+        var form = document.getElementById('ace-skill-new-form')
+        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none'
+      }
+    }
+
+    var skillNewCancelBtn = document.getElementById('ace-skill-new-cancel-btn')
+    if (skillNewCancelBtn) {
+      skillNewCancelBtn.onclick = function () {
+        var form = document.getElementById('ace-skill-new-form')
+        if (form) form.style.display = 'none'
+      }
+    }
+
+    var skillNewCreateBtn = document.getElementById('ace-skill-new-create-btn')
+    if (skillNewCreateBtn) {
+      skillNewCreateBtn.onclick = async function () {
+        var idEl = document.getElementById('ace-skill-new-id')
+        var titleEl = document.getElementById('ace-skill-new-title')
+        var kindEl = document.getElementById('ace-skill-new-kind')
+        var contentEl = document.getElementById('ace-skill-new-content')
+        var statusEl = document.getElementById('ace-skill-new-status')
+        if (!idEl || !titleEl || !kindEl) return
+        var payload = { id: idEl.value.trim(), title: titleEl.value.trim(), kind: kindEl.value, content: contentEl ? contentEl.value : '' }
+        if (!payload.id || !payload.title) { if (statusEl) statusEl.textContent = 'ID and title are required.'; return }
+        try {
+          var r = await _apiFetch(API_BASE + '/api/skills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+          var data = await r.json()
+          if (!r.ok) { if (statusEl) statusEl.textContent = data.error || 'Error creating skill.'; return }
+          // Update local registry
+          if (!state.skillsRegistry) state.skillsRegistry = { skills: [] }
+          var existing = state.skillsRegistry.skills.findIndex(function (s) { return s.id === data.id })
+          if (existing >= 0) state.skillsRegistry.skills[existing] = data
+          else state.skillsRegistry.skills.push(data)
+          state.selectedSkillId = data.id
+          state.selectedSkillContent = payload.content
+          renderKnowledgeBasesTabContent()
+        } catch (err) {
+          if (statusEl) statusEl.textContent = 'Network error.'
+        }
+      }
+    }
+
+    var skillSaveBtn = document.getElementById('ace-skill-save-btn')
+    if (skillSaveBtn) {
+      skillSaveBtn.onclick = async function () {
+        if (!state.selectedSkillId) return
+        var titleEl = document.getElementById('ace-skill-title')
+        var kindEl = document.getElementById('ace-skill-kind')
+        var contentEl = document.getElementById('ace-skill-content')
+        var statusEl = document.getElementById('ace-skill-status')
+        var payload = {}
+        if (titleEl) payload.title = titleEl.value
+        if (kindEl) payload.kind = kindEl.value
+        if (contentEl) payload.content = contentEl.value
+        try {
+          var r = await _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(state.selectedSkillId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+          var data = await r.json()
+          if (!r.ok) { if (statusEl) statusEl.textContent = data.error || 'Save error.'; return }
+          // Update local registry entry
+          if (state.skillsRegistry) {
+            var idx = state.skillsRegistry.skills.findIndex(function (s) { return s.id === data.id })
+            if (idx >= 0) state.skillsRegistry.skills[idx] = { id: data.id, title: data.title, kind: data.kind, filePath: data.filePath || data.id + '.md' }
+          }
+          state.selectedSkillContent = data.content || ''
+          if (statusEl) statusEl.textContent = 'Saved.'
+          setTimeout(function () { if (statusEl) statusEl.textContent = '' }, 2000)
+        } catch (err) {
+          if (statusEl) statusEl.textContent = 'Network error.'
+        }
+      }
+    }
+
+    var skillDeleteBtn = document.getElementById('ace-skill-delete-btn')
+    if (skillDeleteBtn) {
+      skillDeleteBtn.onclick = async function () {
+        if (!state.selectedSkillId) return
+        if (!window.confirm('Delete skill "' + state.selectedSkillId + '"? This cannot be undone.')) return
+        try {
+          var r = await _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(state.selectedSkillId), { method: 'DELETE' })
+          if (!r.ok) { alert('Delete failed.'); return }
+          if (state.skillsRegistry) {
+            state.skillsRegistry.skills = state.skillsRegistry.skills.filter(function (s) { return s.id !== state.selectedSkillId })
+          }
+          state.selectedSkillId = null
+          state.selectedSkillContent = ''
+          renderKnowledgeBasesTabContent()
+        } catch { alert('Network error.') }
+      }
+    }
   }
 
   function loadKbDocThenRender (id) {

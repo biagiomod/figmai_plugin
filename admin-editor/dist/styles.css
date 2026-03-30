@@ -2645,3 +2645,15 @@ body.ace-home-page {
   gap: var(--ace-space-8);
   flex-wrap: nowrap;
 }
+
+/* SP3: Universal skill row */
+.ae-universal-skill-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  padding: var(--ace-space-8) var(--ace-space-12);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius);
+  margin-bottom: var(--ace-space-4);
+  background: var(--ace-surface);
+}
