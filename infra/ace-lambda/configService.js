@@ -6,7 +6,8 @@
  * and infra/config-api/src/routes/publish.ts but in plain JavaScript.
  */
 
-const { getObjectText, putObjectText, listRelativeKeys, copyObject } = require('./storageService');
+const { getObjectText, putObjectText, listRelativeKeys, copyObject, headObject } = require('./storageService');
+const { readRegistry: readSkillsRegistry } = require('./skillsService');
 const { validateModel, saveRequestBodySchema } = require('./validationService');
 const { json, errorResponse, parseBody } = require('./responseUtils');
 
@@ -59,6 +60,23 @@ async function getModel(jwtPayload, origin) {
     try { designSystemRegistries[registryId] = JSON.parse(raw); } catch {}
   }
 
+  // Load per-assistant instructions.json
+  const allAssistants = parseJsonOrDefault(manifestRaw, { assistants: [] }).assistants || [];
+  const instructionsEntries = await Promise.all(
+    allAssistants.map(async (a) => {
+      const raw = await getObjectText(`draft/assistants/${a.id}/instructions.json`);
+      if (!raw) return null;
+      try { return [a.id, JSON.parse(raw)]; } catch { return null; }
+    })
+  );
+  const instructions = {};
+  for (const entry of instructionsEntries) {
+    if (entry) instructions[entry[0]] = entry[1];
+  }
+
+  // Load skills registry
+  const skillsRegistry = await readSkillsRegistry();
+
   const model = {
     config: parseJsonOrDefault(configRaw, {}),
     assistantsManifest: parseJsonOrDefault(manifestRaw, { assistants: [] }),
@@ -66,6 +84,8 @@ async function getModel(jwtPayload, origin) {
     contentModelsRaw: contentModelsRaw || undefined,
     designSystemRegistries:
       Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined,
+    instructions: Object.keys(instructions).length > 0 ? instructions : undefined,
+    skillsRegistry: skillsRegistry.skills.length > 0 ? skillsRegistry : undefined,
   };
 
   // Filter by assistantScope if set
