@@ -1911,7 +1911,32 @@
     return html
   }
   function _aeInstructionsTab (a) {
-    return '<p class="ace-card-helper fg-secondary">Instructions tab — coming in next step.</p>'
+    var html = ''
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Instructions tell the <strong>plugin</strong> how to manage this assistant\'s interactions — deterministic settings read before any LLM call.</p>'
+    // Output Schema ID
+    html += '<h3 class="ae-section-heading">Output</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-outputSchemaId">Output schema ID</label>'
+    html += '<input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="e.g. design-critique-v1">'
+    html += '<p class="ae-helper">If set, the LLM response is validated against this JSON schema before the plugin processes it. Leave blank for plain-text output.</p>'
+    html += '</div>'
+    // Safety overrides
+    html += '<h3 class="ae-section-heading">Safety overrides</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Allow images</label>'
+    html += '<p class="ae-helper">Enables image input for this assistant. Only enable if the assistant needs to process images.</p>'
+    html += '</div>'
+    // Tone/style preset (legacy)
+    html += '<h3 class="ae-section-heading">Style preset <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-toneStylePreset">Tone/style preset</label>'
+    html += '<input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
+    html += '<p class="ae-helper">Optional legacy preset. Superseded by skill blocks in the Skills tab.</p>'
+    html += '</div>'
+    // SP3 placeholder
+    html += '<h3 class="ae-section-heading">Figma context <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
+    html += '<div class="ae-empty-state">Figma context configuration (requiresSelection, selectionTypes, injectVision) will be available after the Skills/Instructions Framework update.</div>'
+    return html
   }
   function _aeSkillsTab (a) {
     return '<p class="ace-card-helper fg-secondary">Skills tab — coming in next step.</p>'
