@@ -39,7 +39,8 @@
     selectedKbId: null,
     kbCreateMode: false,
     kbPreviewDoc: null,
-    kbEditDoc: null
+    kbEditDoc: null,
+    selectedAssistantDetailTab: 'overview'
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
@@ -1783,7 +1784,11 @@
     document.getElementById('assistants-list').addEventListener('click', function (e) {
       const item = e.target.closest('.item[data-id]')
       if (item) {
-        state.selectedAssistantId = item.getAttribute('data-id')
+        const newId = item.getAttribute('data-id')
+        if (newId !== state.selectedAssistantId) {
+          state.selectedAssistantDetailTab = 'overview'
+        }
+        state.selectedAssistantId = newId
         renderAssistantsTab()
       }
     })
@@ -1798,84 +1803,62 @@
     bindAssistantEditor()
   }
 
+  function _kindToType (kind) {
+    if (kind === 'tool' || kind === 'code') return 'Code'
+    if (kind === 'ai' || kind === 'llm') return 'LLM'
+    return 'Hybrid'
+  }
+
+  function _typeBadgeHtml (kind, tag) {
+    var type = _kindToType(kind)
+    var cls = type === 'Code' ? 'code' : type === 'LLM' ? 'llm' : 'hybrid'
+    var html = '<span class="ace-type-badge ace-type-badge--' + cls + '">' + type + '</span>'
+    if (tag && tag.isVisible && tag.label) {
+      var tagCls = (tag.variant || 'beta') === 'new' ? 'new' : 'beta'
+      html += '<span class="ace-type-badge ace-type-badge--' + tagCls + '">' + escapeHtml(tag.label) + '</span>'
+    }
+    return html
+  }
+
   function assistantEditorHtml (a) {
-    let html = '<label>ID (read-only)</label><input type="text" class="ace-field" value="' + escapeHtml(a.id) + '" readonly>'
-    html += '<label>Label</label><input type="text" id="ae-label" class="ace-field" value="' + escapeHtml(a.label || '') + '">'
-    html += '<label>Intro</label><textarea id="ae-intro" class="ace-field" rows="3">' + escapeHtml(a.intro || '') + '</textarea>'
-    html += '<label>Hover summary</label><input type="text" id="ae-hoverSummary" class="ace-field" value="' + escapeHtml(a.hoverSummary || '') + '">'
-    html += '<label>Welcome message</label><textarea id="ae-welcomeMessage" class="ace-field" rows="2">' + escapeHtml(a.welcomeMessage || '') + '</textarea>'
-    html += '<div class="field-row"><label><input type="checkbox" id="ae-tag-visible" ' + (a.tag?.isVisible ? 'checked' : '') + '> Tag visible</label></div>'
-    html += '<label>Tag label</label><input type="text" id="ae-tag-label" class="ace-field" value="' + escapeHtml(a.tag?.label || '') + '">'
-    html += '<label>Tag variant</label><select id="ae-tag-variant"><option value="">—</option><option value="new"' + (a.tag?.variant === 'new' ? ' selected' : '') + '>new</option><option value="beta"' + (a.tag?.variant === 'beta' ? ' selected' : '') + '>beta</option><option value="alpha"' + (a.tag?.variant === 'alpha' ? ' selected' : '') + '>alpha</option></select>'
-    html += '<label>Icon ID</label><input type="text" id="ae-iconId" class="ace-field" value="' + escapeHtml(a.iconId || '') + '">'
-    html += '<label>Kind</label><select id="ae-kind"><option value="ai"' + (a.kind === 'ai' ? ' selected' : '') + '>ai</option><option value="tool"' + (a.kind === 'tool' ? ' selected' : '') + '>tool</option><option value="hybrid"' + (a.kind === 'hybrid' ? ' selected' : '') + '>hybrid</option></select>'
-    if (a.kind === 'tool') {
-      var ts = a.toolSettings || {}
-      html += '<div class="section-title">Tool Settings</div>'
-      html += '<label>Default content model</label><input type="text" id="ae-ts-defaultContentModel" class="ace-field" value="' + escapeHtml(ts.defaultContentModel || '') + '" placeholder="e.g. universal">'
-      html += '<div class="field-row"><label><input type="checkbox" id="ae-ts-dedupeDefault" ' + (ts.dedupeDefault ? 'checked' : '') + '> Dedupe default (on)</label></div>'
-      html += '<label>Quick actions location</label><select id="ae-ts-quickActionsLocation"><option value="inline"' + ((ts.quickActionsLocation || 'inline') === 'inline' ? ' selected' : '') + '>inline</option><option value="top"' + (ts.quickActionsLocation === 'top' ? ' selected' : '') + '>top</option><option value="bottom"' + (ts.quickActionsLocation === 'bottom' ? ' selected' : '') + '>bottom</option></select>'
-      html += '<div class="field-row"><label><input type="checkbox" id="ae-ts-showInput" ' + (ts.showInput ? 'checked' : '') + '> Show text input</label></div>'
-    }
-    html += '<div class="section-title">Quick actions</div>'
-    html += '<p class="ace-qa-execution-type-helper fg-secondary">Execution type: <strong>ui-only</strong> = handled in UI, does not call main; <strong>tool-only</strong> = main/handler only, no LLM; <strong>llm</strong> = calls provider (sendChatWithRecovery); <strong>hybrid</strong> = tool + LLM / mixed steps.</p>'
-    html += '<ul class="quick-actions-list" id="ae-quickActions">'
-    const EXECUTION_TYPES = ['ui-only', 'tool-only', 'llm', 'hybrid']
-    ;(a.quickActions || []).forEach((qa, i) => {
-      const execType = (qa.executionType && EXECUTION_TYPES.includes(qa.executionType)) ? qa.executionType : 'llm'
-      html += '<li class="quick-action-row">'
-      html += '<input type="text" placeholder="id" value="' + escapeHtml(qa.id) + '" data-i="' + i + '" data-field="id" class="ae-qa-id">'
-      html += '<input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label" class="ae-qa-label">'
-      html += '<label class="ae-qa-exec-label">Execution type</label><select class="ae-qa-exec-select" data-i="' + i + '" data-field="executionType">'
-      EXECUTION_TYPES.forEach(opt => { html += '<option value="' + escapeHtml(opt) + '"' + (execType === opt ? ' selected' : '') + '>' + escapeHtml(opt) + '</option>' })
-      html += '</select>'
-      html += '<button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button></li>'
+    var activeTab = state.selectedAssistantDetailTab || 'overview'
+    var DETAIL_TABS = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'instructions', label: 'Instructions' },
+      { id: 'skills', label: 'Skills' },
+      { id: 'knowledge', label: 'Knowledge' },
+      { id: 'quick-actions', label: 'Quick Actions' }
+    ]
+    var html = '<div class="ae-detail-tabs">'
+    DETAIL_TABS.forEach(function (t) {
+      var sel = activeTab === t.id
+      html += '<button type="button" class="ae-detail-tab-btn' + (sel ? ' active' : '') + '" data-detail-tab="' + t.id + '">' + t.label + '</button>'
     })
-    html += '</ul><button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
-    // Optional structured config (PR7)
-    html += '<div class="section-title">Structured instructions</div>'
-    html += '<ul class="instruction-blocks-list" id="ae-instructionBlocks">'
-    const blocks = a.instructionBlocks || []
-    const BLOCK_KINDS = ['system', 'behavior', 'rules', 'examples', 'format', 'context']
-    blocks.forEach((block, i) => {
-      html += '<li class="instruction-block-row" data-i="' + i + '">'
-      html += '<label>Kind</label><select class="ae-ib-kind" data-i="' + i + '">'
-      BLOCK_KINDS.forEach(k => { html += '<option value="' + k + '"' + ((block.kind || 'behavior') === k ? ' selected' : '') + '>' + k + '</option>' })
-      html += '</select>'
-      html += '<label>Content</label><textarea class="ae-ib-content ace-field" rows="3" data-i="' + i + '">' + escapeHtml(block.content || '') + '</textarea>'
-      html += '<div class="field-row"><label><input type="checkbox" class="ae-ib-enabled" data-i="' + i + '" ' + (block.enabled !== false ? 'checked' : '') + '> Enabled</label></div>'
-      html += '<div class="instruction-block-actions"><button type="button" class="btn-small ae-ib-up" data-i="' + i + '">Up</button><button type="button" class="btn-small ae-ib-down" data-i="' + i + '">Down</button><button type="button" class="btn-small ae-ib-remove" data-i="' + i + '">Remove</button></div></li>'
-    })
-    html += '</ul><button type="button" class="btn-small add-btn" id="ae-ib-add">Add block</button>'
-    html += '<label>Tone/style preset</label><input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
-    html += '<label>Output schema ID</label><input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="Schema id">'
-    html += '<label>Resource refs</label>'
-    const kbRegistry = state.kbRegistry || []
-    if (!state.kbRegistryFetched) {
-      html += '<p class="fg-secondary">Loading resources…</p>'
-    } else {
-      html += '<p class="fg-secondary">Select resources; order matters for injection.</p>'
-      html += '<div class="ae-kb-refs-list" id="ae-kb-refs-checkboxes">'
-      kbRegistry.forEach(function (entry) {
-        const refs = a.knowledgeBaseRefs || []
-        const checked = refs.indexOf(entry.id) !== -1
-        html += '<label class="field-row ae-kb-ref-cb"><input type="checkbox" class="ae-kb-ref-cb-input" data-id="' + escapeHtml(entry.id) + '" ' + (checked ? 'checked' : '') + '> <span>' + escapeHtml(entry.title || entry.id) + '</span> <span class="fg-secondary" style="font-size:0.9em">(' + escapeHtml(entry.id) + ')</span></label>'
-      })
-      html += '</div>'
-      html += '<div class="ae-kb-refs-selected" id="ae-kb-refs-selected"><span class="fg-secondary">Selected (order):</span> <span id="ae-kb-refs-order"></span></div>'
-      html += '<div class="ae-kb-refs-reorder" id="ae-kb-refs-reorder"></div>'
-    }
-    html += '<div class="field-row"><label><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Safety: allow images</label></div>'
-    html += '<label>Prompt template</label><textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="12">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
-    html += '<div class="ace-test-panel" style="margin-top:16px;padding:12px;border:1px solid var(--ace-border);border-radius:var(--ace-radius);background:var(--bg-secondary)">'
-    html += '<div style="font-size:0.9rem;font-weight:600;margin-bottom:6px">Test this assistant (draft)</div>'
-    html += '<p class="ace-card-helper" style="margin-bottom:8px;font-size:0.8rem">Run a real LLM request using current unsaved settings. Provider must be configured in the AI tab. kbName: <code>figma</code> (first slice — hardcoded).</p>'
-    html += '<label for="ae-test-message" style="font-size:0.85rem">Test message</label>'
-    html += '<textarea id="ae-test-message" class="ace-field" rows="3" placeholder="Enter a test message..." style="margin-top:4px"></textarea>'
-    html += '<div style="margin-top:8px"><button type="button" class="btn-primary" id="ae-test-run-btn">Run Test</button></div>'
-    html += '<div id="ae-test-result" role="status" aria-live="polite" style="margin-top:10px"></div>'
+    html += '</div>'
+    html += '<div class="ae-detail-tab-content">'
+    if (activeTab === 'overview') html += _aeOverviewTab(a)
+    else if (activeTab === 'instructions') html += _aeInstructionsTab(a)
+    else if (activeTab === 'skills') html += _aeSkillsTab(a)
+    else if (activeTab === 'knowledge') html += _aeKnowledgeTab(a)
+    else if (activeTab === 'quick-actions') html += _aeQuickActionsTab(a)
     html += '</div>'
     return html
+  }
+
+  function _aeOverviewTab (a) {
+    return '<p class="ace-card-helper fg-secondary">Overview tab — coming in next step.</p>'
+  }
+  function _aeInstructionsTab (a) {
+    return '<p class="ace-card-helper fg-secondary">Instructions tab — coming in next step.</p>'
+  }
+  function _aeSkillsTab (a) {
+    return '<p class="ace-card-helper fg-secondary">Skills tab — coming in next step.</p>'
+  }
+  function _aeKnowledgeTab (a) {
+    return '<p class="ace-card-helper fg-secondary">Knowledge tab — coming in next step.</p>'
+  }
+  function _aeQuickActionsTab (a) {
+    return '<p class="ace-card-helper fg-secondary">Quick Actions tab — coming in next step.</p>'
   }
 
   const EXECUTION_TYPES_ACE = ['ui-only', 'tool-only', 'llm', 'hybrid']
@@ -1889,6 +1872,12 @@
   function bindAssistantEditor () {
     const a = (state.editedModel?.assistantsManifest?.assistants || []).find(x => x.id === state.selectedAssistantId)
     if (!a) return
+    document.querySelectorAll('.ae-detail-tab-btn').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedAssistantDetailTab = this.getAttribute('data-detail-tab')
+        renderAssistantsTab()
+      }
+    })
     ensureQuickActionExecutionTypes(a)
     const set = (id, field, value) => {
       a[field] = value
