@@ -2185,6 +2185,8 @@
         state.playgroundActive = true
         state.playgroundAssistantId = assistantId
         state.playgroundActionId = null
+        state.playgroundUserMessage = ''
+        state.playgroundKbName = ''
         state.playgroundResult = null
         state.playgroundRubric = null
         state.playgroundGolden = null
