@@ -218,7 +218,10 @@ async function saveModel(body, requestId, jwtPayload, origin) {
   }
 
   // Write per-assistant instructions.json
+  const SAFE_INSTR_ID = /^[a-zA-Z0-9_-]+$/;
   for (const [assistantId, instrData] of Object.entries(model.instructions || {})) {
+    if (!SAFE_INSTR_ID.test(assistantId)) continue; // skip unsafe IDs silently
+    if (saveScope.length > 0 && !saveScope.includes(assistantId)) continue; // scope enforcement
     await putObjectText(
       `draft/assistants/${assistantId}/instructions.json`,
       JSON.stringify(instrData, null, 2) + '\n',

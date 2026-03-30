@@ -2492,7 +2492,8 @@
     html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Recommended for large reference documents. The Internal LLM retrieves its own material server-side — keeps the prompt lean.</p>'
     html += '<div class="ae-field-group">'
     html += '<label for="ae-defaultKbName">Default kbName</label>'
-    html += '<input type="text" id="ae-defaultKbName" class="ace-field" value="' + escapeHtml(a.defaultKbName || '') + '" placeholder="e.g. design-critique">'
+    var instrKb = (state.instructionsMap && state.instructionsMap[a.id] && state.instructionsMap[a.id].defaultKbName) || a.defaultKbName || ''
+    html += '<input type="text" id="ae-defaultKbName" class="ace-field" value="' + escapeHtml(instrKb) + '" placeholder="e.g. design-critique">'
     html += '<p class="ae-helper">Passed as the <code>kbName</code> parameter on every LLM request for this assistant. Override per Quick Action in the Quick Actions tab.</p>'
     html += '</div>'
     // Injected KB refs
@@ -2860,7 +2861,11 @@
     }
     var dkbEl = document.getElementById('ae-defaultKbName')
     if (dkbEl) {
-      dkbEl.onchange = function () { a.defaultKbName = this.value.trim() || undefined; showUnsavedBanner() }
+      dkbEl.onchange = function () {
+        _getInstr(a.id).defaultKbName = this.value.trim() || undefined
+        a.defaultKbName = this.value.trim() || undefined  // keep manifest in sync for display
+        showUnsavedBanner()
+      }
       dkbEl.oninput = dkbEl.onchange
     }
     // Assemble & Preview
@@ -3008,7 +3013,7 @@
     var rubricSaveBtn = document.getElementById('ae-rubric-save-btn')
     var rubricStatus = document.getElementById('ae-rubric-status')
     if (rubricContainer) {
-      window._aeRubricItems = window._aeRubricItems || []
+      window._aeRubricItems = []
       _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id))
         .then(function (r) { return r.json() })
         .then(function (data) {
