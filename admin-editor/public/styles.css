@@ -2427,3 +2427,221 @@ body.ace-home-page {
   font-size: 0.85rem;
   font-family: var(--font);
 }
+
+/* ========== SP2: Assistant detail sub-tabs ========== */
+.ae-detail-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--ace-border);
+  margin-bottom: var(--ace-space-16);
+  margin-top: 0;
+}
+.ae-detail-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--ace-space-8) var(--ace-space-12);
+  font-size: var(--ace-font-size-14);
+  font-family: var(--font-carbon);
+  color: var(--ace-text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.ae-detail-tab-btn:hover {
+  color: var(--ace-text);
+}
+.ae-detail-tab-btn.active {
+  color: var(--ace-accent);
+  border-bottom-color: var(--ace-accent);
+  font-weight: var(--ace-font-weight-semibold);
+}
+.ae-detail-tab-content {
+  overflow: auto;
+  flex: 1;
+}
+.ae-detail-tab-content .ae-field-group {
+  margin-bottom: var(--ace-space-16);
+}
+.ae-detail-tab-content .ae-field-group label {
+  display: block;
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  margin-bottom: var(--ace-space-4);
+}
+.ae-detail-tab-content .ae-helper {
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+  margin: var(--ace-space-4) 0 0 0;
+  line-height: 1.4;
+}
+.ae-detail-tab-content h3.ae-section-heading {
+  font-size: var(--ace-font-size-14);
+  font-weight: var(--ace-font-weight-semibold);
+  margin: var(--ace-space-24) 0 var(--ace-space-8) 0;
+  color: var(--ace-text);
+  border-bottom: 1px solid var(--ace-border);
+  padding-bottom: var(--ace-space-8);
+}
+.ae-detail-tab-content h3.ae-section-heading:first-child {
+  margin-top: 0;
+}
+.ae-empty-state {
+  padding: var(--ace-space-24) var(--ace-space-16);
+  text-align: center;
+  color: var(--ace-text-muted);
+  font-size: var(--ace-font-size-14);
+  background: var(--ace-sidebar-bg);
+  border-radius: var(--ace-radius);
+  border: 1px dashed var(--ace-border);
+}
+
+/* ========== SP2: Type badges (Code / LLM / Hybrid / Beta) ========== */
+.ace-type-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: var(--ace-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  margin-left: var(--ace-space-8);
+}
+.ace-type-badge--code {
+  background: rgba(0, 102, 204, 0.12);
+  color: #0066cc;
+}
+.ace-type-badge--llm {
+  background: rgba(102, 51, 204, 0.12);
+  color: #6633cc;
+}
+.ace-type-badge--hybrid {
+  background: rgba(0, 140, 120, 0.12);
+  color: #008c78;
+}
+.ace-type-badge--beta {
+  background: rgba(180, 120, 0, 0.12);
+  color: #b47800;
+}
+.ace-type-badge--new {
+  background: rgba(0, 140, 60, 0.12);
+  color: #008c3c;
+}
+
+/* SP2: Preview card (assistant "how it appears" preview) */
+.ae-preview-card {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-12);
+  padding: var(--ace-space-12) var(--ace-space-16);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-card-radius);
+  background: var(--ace-sidebar-bg);
+  margin-top: var(--ace-space-8);
+  max-width: 360px;
+}
+.ae-preview-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--ace-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  color: var(--ace-text-muted);
+}
+.ae-preview-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.ae-preview-card-label {
+  font-size: var(--ace-font-size-14);
+  font-weight: var(--ace-font-weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  flex-wrap: wrap;
+}
+.ae-preview-card-intro {
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* SP2: Assemble & Preview panel */
+.ae-assemble-preview {
+  margin-top: var(--ace-space-16);
+  padding: var(--ace-space-16);
+  background: #1a1a2e;
+  border-radius: var(--ace-radius);
+  display: none;
+}
+.ae-assemble-preview.visible {
+  display: block;
+}
+.ae-assemble-preview pre {
+  margin: 0;
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: var(--ace-font-size-12);
+  color: #d0d0e8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow: auto;
+}
+.ae-assemble-segment-label {
+  font-size: 10px;
+  color: #8888bb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+  margin-top: var(--ace-space-8);
+}
+.ae-assemble-segment-label:first-child {
+  margin-top: 0;
+}
+
+/* SP2: QA expanded detail */
+.ae-qa-detail {
+  width: 100%;
+  padding-top: var(--ace-space-8);
+  border-top: 1px solid var(--ace-border);
+  margin-top: var(--ace-space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ace-space-8);
+}
+.ae-qa-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ace-space-8);
+}
+.ae-qa-detail-label {
+  font-size: var(--ace-font-size-12);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text-muted);
+  min-width: 120px;
+  padding-top: 6px;
+  flex-shrink: 0;
+}
+
+/* SP2: Assistant list item with badge */
+.list-panel .list .item .ae-list-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list-panel .list .item {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-8);
+  flex-wrap: nowrap;
+}
