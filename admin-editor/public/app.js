@@ -1939,7 +1939,55 @@
     return html
   }
   function _aeSkillsTab (a) {
-    return '<p class="ace-card-helper fg-secondary">Skills tab — coming in next step.</p>'
+    var html = ''
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Skills tell the <strong>LLM</strong> what to do and how to behave. Each skill block is a segment of the assembled prompt.</p>'
+    // Universal Skills placeholder
+    html += '<h3 class="ae-section-heading">Universal skills <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
+    html += '<div class="ae-empty-state">Universal skills (shared across assistants via Resources) will be configurable here after the Skills/Instructions Framework update.</div>'
+    // Assistant Skills
+    html += '<h3 class="ae-section-heading">Assistant skills</h3>'
+    var blocks = a.instructionBlocks || []
+    var BLOCK_KINDS = ['system', 'behavior', 'rules', 'examples', 'format', 'context']
+    var KIND_HELPERS = {
+      system: 'Sets the assistant\'s core identity and purpose. Usually one block.',
+      behavior: 'Describes how the assistant should act and what it should prioritise.',
+      rules: 'Hard constraints the assistant must follow.',
+      examples: 'Sample inputs and outputs to guide the LLM\'s response style.',
+      format: 'Specifies the output format (prose, JSON, markdown list, etc.).',
+      context: 'Background information the assistant should know.'
+    }
+    if (blocks.length === 0) {
+      html += '<div class="ae-empty-state">No skill blocks yet — add a skill block to define how this assistant thinks.</div>'
+    } else {
+      html += '<ul class="instruction-blocks-list" id="ae-instructionBlocks">'
+      blocks.forEach(function (block, i) {
+        html += '<li class="instruction-block-row" data-i="' + i + '">'
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--ace-space-8)">'
+        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8)">'
+        html += '<select class="ae-ib-kind" data-i="' + i + '" style="min-width:110px">'
+        BLOCK_KINDS.forEach(function (k) { html += '<option value="' + k + '"' + ((block.kind || 'behavior') === k ? ' selected' : '') + '>' + k + '</option>' })
+        html += '</select>'
+        html += '<label style="font-size:12px;margin:0"><input type="checkbox" class="ae-ib-enabled" data-i="' + i + '" ' + (block.enabled !== false ? 'checked' : '') + '> Enabled</label>'
+        html += '</div>'
+        html += '<div class="instruction-block-actions"><button type="button" class="btn-small ae-ib-up" data-i="' + i + '">↑</button><button type="button" class="btn-small ae-ib-down" data-i="' + i + '">↓</button><button type="button" class="btn-small ae-ib-remove" data-i="' + i + '">Remove</button></div>'
+        html += '</div>'
+        html += '<p class="ae-helper" style="margin:0 0 6px 0">' + (KIND_HELPERS[block.kind || 'behavior'] || '') + '</p>'
+        html += '<textarea class="ae-ib-content ace-field" rows="4" data-i="' + i + '">' + escapeHtml(block.content || '') + '</textarea>'
+        html += '</li>'
+      })
+      html += '</ul>'
+    }
+    html += '<button type="button" class="btn-small add-btn" id="ae-ib-add">Add skill block</button>'
+    // Prompt template (legacy)
+    html += '<h3 class="ae-section-heading">Prompt template <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
+    html += '<p class="ae-helper">Used when no skill blocks are defined. Superseded by skill blocks above.</p>'
+    html += '<textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="8">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
+    // Assemble & Preview
+    html += '<h3 class="ae-section-heading">Assemble & Preview</h3>'
+    html += '<p class="ae-helper">Shows what the LLM receives based on current skill blocks (unsaved state).</p>'
+    html += '<button type="button" class="btn-small" id="ae-assemble-btn">Assemble prompt</button>'
+    html += '<div class="ae-assemble-preview" id="ae-assemble-preview"><pre id="ae-assemble-pre"></pre></div>'
+    return html
   }
   function _aeKnowledgeTab (a) {
     return '<p class="ace-card-helper fg-secondary">Knowledge tab — coming in next step.</p>'
@@ -2210,6 +2258,26 @@
           testRunBtn.disabled = false
           testRunBtn.textContent = 'Run Test'
         }
+      }
+    }
+    // Assemble & Preview
+    var assembleBtn = document.getElementById('ae-assemble-btn')
+    if (assembleBtn) {
+      assembleBtn.onclick = function () {
+        var previewEl = document.getElementById('ae-assemble-preview')
+        var preEl = document.getElementById('ae-assemble-pre')
+        if (!previewEl || !preEl) return
+        var blocks = a.instructionBlocks || []
+        var enabledBlocks = blocks.filter(function (b) { return b.enabled !== false })
+        if (enabledBlocks.length === 0 && !a.promptTemplate) {
+          preEl.textContent = '(No skill blocks enabled and no prompt template set.)'
+        } else {
+          var segments = []
+          enabledBlocks.forEach(function (b) { segments.push('[' + (b.kind || 'behavior') + ']\n' + (b.content || '')) })
+          if (a.promptTemplate && enabledBlocks.length === 0) segments.push('[prompt template]\n' + a.promptTemplate)
+          preEl.textContent = segments.join('\n\n---\n\n')
+        }
+        previewEl.classList.add('visible')
       }
     }
   }
