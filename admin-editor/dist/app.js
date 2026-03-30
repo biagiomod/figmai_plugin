@@ -41,6 +41,19 @@
     kbPreviewDoc: null,
     kbEditDoc: null,
     selectedAssistantDetailTab: 'overview',
+    playgroundActive: false,
+    playgroundAssistantId: null,
+    playgroundActionId: null,
+    playgroundSkillToggles: {},
+    playgroundEditCopy: null,
+    playgroundKbName: '',
+    playgroundUserMessage: '',
+    playgroundResult: null,
+    playgroundSessionHistory: [],
+    playgroundRubric: null,
+    playgroundGolden: null,
+    playgroundRubricChecked: {},
+    playgroundFiring: false,
     instructionsMap: {},
     skillsRegistry: { skills: [] },
     selectedSkillId: null,
@@ -1742,7 +1755,354 @@
   }
 
   // ——— Assistants tab ———
+  function renderPlayground () {
+    var panel = document.getElementById('panel-assistants')
+    if (!panel) return
+    var assistantId = state.playgroundAssistantId
+    var m = state.editedModel
+    var assistant = (m && m.assistantsManifest && m.assistantsManifest.assistants || []).find(function (a) { return a.id === assistantId })
+    if (!assistant) {
+      panel.innerHTML = '<div class="empty">Assistant not found.</div>'
+      return
+    }
+    var html = '<div class="ace-playground">'
+    html += '<div class="ace-playground-header">'
+    html += '<button type="button" class="btn-small" id="pg-back-btn">← Back</button>'
+    html += '<span class="ace-playground-title">Prompt Playground — ' + escapeHtml(assistant.label || assistant.id) + '</span>'
+    if (state.playgroundActionId) {
+      html += '<span class="fg-secondary" style="font-size:12px">Action: ' + escapeHtml(state.playgroundActionId) + '</span>'
+    }
+    html += '</div>'
+    html += '<div class="ace-playground-body">'
+    html += _pgBuildColumn(assistant)
+    html += _pgSendColumn(assistant)
+    html += _pgResultColumn(assistant)
+    html += '</div>'
+    html += _pgSessionHistory()
+    html += '</div>'
+    panel.innerHTML = html
+    _bindPlayground(assistant)
+    if (state.playgroundAssistantId && state.playgroundRubric === null) {
+      var actionId = state.playgroundActionId || '_default'
+      Promise.all([
+        _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(state.playgroundAssistantId)).then(function (r) { return r.json() }).catch(function () { return { items: [] } }),
+        _apiFetch(API_BASE + '/api/test/golden/' + encodeURIComponent(state.playgroundAssistantId) + '/' + encodeURIComponent(actionId)).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null })
+      ]).then(function (results) {
+        state.playgroundRubric = results[0] || { items: [] }
+        state.playgroundGolden = results[1]
+        renderPlayground()
+      })
+    }
+  }
+
+  function _pgAssembleSegments (a) {
+    var segments = []
+    var instr = (state.instructionsMap && state.instructionsMap[a.id]) || {}
+    var uSkills = instr.universalSkills || {}
+    var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) || []
+    ;(uSkills.required || []).forEach(function (id) {
+      var skill = allSkills.find(function (s) { return s.id === id })
+      segments.push({ key: 'universal:req:' + id, label: '[Universal: ' + id + ']', content: skill ? (skill.content || '') : '', required: true })
+    })
+    ;(a.instructionBlocks || []).filter(function (b) { return b.enabled !== false }).forEach(function (b, i) {
+      segments.push({ key: 'assistant:' + (b.kind || 'behavior') + ':' + i, label: '[Assistant: ' + (b.kind || 'behavior') + ']', content: b.content || '', required: false })
+    })
+    ;(uSkills.optional || []).forEach(function (id) {
+      var skill = allSkills.find(function (s) { return s.id === id })
+      segments.push({ key: 'universal:opt:' + id, label: '[Universal optional: ' + id + ']', content: skill ? (skill.content || '') : '', required: false, optionalUniversal: true })
+    })
+    if (segments.length === 0 && a.promptTemplate) {
+      segments.push({ key: 'promptTemplate', label: '[Prompt template]', content: a.promptTemplate, required: false })
+    }
+    return segments
+  }
+
+  function _pgBuildColumn (a) {
+    var segments = _pgAssembleSegments(a)
+    var toggles = state.playgroundSkillToggles
+    var html = '<div class="ace-pg-col">'
+    html += '<p class="ace-pg-col-heading">Build</p>'
+    if (segments.length === 0) {
+      html += '<div class="ae-empty-state">No skill blocks or prompt template defined for this assistant.</div>'
+    } else {
+      segments.forEach(function (seg) {
+        var isRequired = seg.required
+        var defaultOn = !seg.optionalUniversal
+        var isOn = toggles[seg.key] !== undefined ? toggles[seg.key] : defaultOn
+        var disabledCls = isOn ? '' : ' disabled'
+        html += '<div class="ace-pg-segment' + disabledCls + '" data-seg-key="' + escapeHtml(seg.key) + '">'
+        html += '<div class="ace-pg-segment-header">'
+        html += '<input type="checkbox" class="pg-seg-toggle" data-key="' + escapeHtml(seg.key) + '" ' + (isOn ? 'checked' : '') + (isRequired ? ' disabled' : '') + '>'
+        html += '<span class="ace-pg-segment-label">' + escapeHtml(seg.label) + '</span>'
+        if (isRequired) html += '<span style="font-size:10px;color:var(--ace-text-muted)">locked</span>'
+        html += '</div>'
+        if (isOn) {
+          html += '<div class="ace-pg-segment-body">' + escapeHtml(seg.content || '(empty)') + '</div>'
+        }
+        html += '</div>'
+      })
+    }
+    html += '<p class="ae-helper" style="margin-top:var(--ace-space-8)">Toggles are session-only and do not save.</p>'
+    html += '</div>'
+    return html
+  }
+
+  function _pgSendColumn (a) {
+    var html = '<div class="ace-pg-col">'
+    html += '<p class="ace-pg-col-heading">Send</p>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="pg-kbname">kbName override</label>'
+    html += '<input type="text" id="pg-kbname" class="ace-field" placeholder="Leave blank to use assistant default" value="' + escapeHtml(state.playgroundKbName || '') + '">'
+    html += '<p class="ae-helper">Overrides the assistant\'s default kbName for this test run only.</p>'
+    html += '</div>'
+    var qas = a.quickActions || []
+    if (qas.length > 0) {
+      html += '<div class="ae-field-group">'
+      html += '<label for="pg-qa-picker">Quick Action (pre-fills message)</label>'
+      html += '<select id="pg-qa-picker">'
+      html += '<option value="">— none —</option>'
+      qas.forEach(function (qa) {
+        var sel = state.playgroundActionId === qa.id
+        html += '<option value="' + escapeHtml(qa.id) + '"' + (sel ? ' selected' : '') + '>' + escapeHtml(qa.label || qa.id) + '</option>'
+      })
+      html += '</select>'
+      html += '</div>'
+    }
+    html += '<div class="ae-field-group">'
+    html += '<label for="pg-message">User message</label>'
+    html += '<textarea id="pg-message" class="ace-field" rows="5" placeholder="Enter a test message...">' + escapeHtml(state.playgroundUserMessage || '') + '</textarea>'
+    html += '</div>'
+    var isFiring = state.playgroundFiring
+    html += '<button type="button" class="ace-pg-fire-btn" id="pg-fire-btn"' + (isFiring ? ' disabled' : '') + '>'
+    html += isFiring ? 'Firing\u2026' : 'FIRE'
+    html += '</button>'
+    html += '</div>'
+    return html
+  }
+
+  function _pgResultColumn (a) {
+    var result = state.playgroundResult
+    var rubric = state.playgroundRubric
+    var golden = state.playgroundGolden
+    var html = '<div class="ace-pg-col">'
+    html += '<p class="ace-pg-col-heading">Result</p>'
+    if (!result) {
+      html += '<div class="ae-empty-state">Fire a request to see results here.</div>'
+      if (rubric && rubric.items && rubric.items.length > 0) {
+        html += '<h3 class="ae-section-heading" style="margin-top:var(--ace-space-16)">Rubric</h3>'
+        html += _pgRubricHtml(rubric.items)
+      }
+      html += '</div>'
+      return html
+    }
+    if (result.error) {
+      html += '<div class="ae-empty-state" style="color:var(--error)">' + escapeHtml(result.error) + '</div>'
+      html += '</div>'
+      return html
+    }
+    html += '<div class="ace-pg-meta">'
+    if (result.latencyMs != null) html += '<span>' + escapeHtml(String(result.latencyMs)) + 'ms</span>'
+    if (result.tokenCount != null) html += '<span>' + escapeHtml(String(result.tokenCount)) + ' tokens</span>'
+    if (result.kbName) html += '<span>kbName: ' + escapeHtml(result.kbName) + '</span>'
+    html += '</div>'
+    html += '<div class="ace-pg-response">'
+    html += '<pre>' + escapeHtml(result.response || '(empty response)') + '</pre>'
+    html += '</div>'
+    var actionId = state.playgroundActionId || '_default'
+    html += '<div style="display:flex;gap:var(--ace-space-8);margin-bottom:var(--ace-space-12)">'
+    html += '<button type="button" class="btn-small" id="pg-save-golden-btn">Save as golden</button>'
+    if (golden) html += '<span class="fg-secondary" style="font-size:12px;padding:6px 0">Golden exists</span>'
+    html += '</div>'
+    if (golden && golden.response) {
+      html += '<h3 class="ae-section-heading">Comparison with golden</h3>'
+      var match = (result.response || '').trim() === golden.response.trim()
+      if (match) {
+        html += '<p class="ae-helper" style="color:var(--success)">\u2713 Matches golden response exactly.</p>'
+      } else {
+        html += '<p class="ae-helper" style="color:var(--error)">Differs from golden. Golden saved: ' + escapeHtml(new Date(golden.savedAt || '').toLocaleString()) + '</p>'
+        html += '<div class="ace-pg-response" style="max-height:120px"><pre>' + escapeHtml(golden.response) + '</pre></div>'
+      }
+    }
+    if (rubric && rubric.items && rubric.items.length > 0) {
+      html += '<h3 class="ae-section-heading">Rubric</h3>'
+      html += _pgRubricHtml(rubric.items)
+      html += '<button type="button" class="btn-small" id="pg-rubric-save-btn" style="margin-top:var(--ace-space-8)">Save rubric</button>'
+    } else {
+      html += '<h3 class="ae-section-heading">Rubric</h3>'
+      html += '<div class="ae-empty-state">No rubric defined. Add criteria in the rubric editor below.</div>'
+    }
+    html += '</div>'
+    return html
+  }
+
+  function _pgRubricHtml (items) {
+    var checked = state.playgroundRubricChecked || {}
+    var html = '<div>'
+    items.forEach(function (item) {
+      var isChecked = checked[item.id] || false
+      html += '<div class="ace-pg-rubric-item">'
+      html += '<input type="checkbox" class="pg-rubric-check" data-id="' + escapeHtml(item.id) + '" ' + (isChecked ? 'checked' : '') + '>'
+      html += '<span>' + escapeHtml(item.label) + '</span>'
+      html += '</div>'
+    })
+    html += '</div>'
+    return html
+  }
+
+  function _pgSessionHistory () {
+    var entries = state.playgroundSessionHistory
+    if (entries.length === 0) return ''
+    var html = '<div class="ace-pg-history"><p class="ace-pg-history-heading">Session history (' + entries.length + ' runs)</p>'
+    entries.slice().reverse().forEach(function (e) {
+      html += '<div class="ace-pg-history-entry">' + escapeHtml(e.timestamp) + ' \u2014 ' + escapeHtml(e.summary) + '</div>'
+    })
+    html += '</div>'
+    return html
+  }
+
+  function _bindPlayground (a) {
+    var backBtn = document.getElementById('pg-back-btn')
+    if (backBtn) backBtn.onclick = function () {
+      state.playgroundActive = false
+      state.playgroundAssistantId = null
+      state.playgroundActionId = null
+      state.playgroundResult = null
+      state.playgroundRubric = null
+      state.playgroundGolden = null
+      state.playgroundRubricChecked = {}
+      renderAssistantsTab()
+    }
+
+    document.querySelectorAll('.pg-seg-toggle').forEach(function (cb) {
+      cb.onchange = function () {
+        var key = this.getAttribute('data-key')
+        state.playgroundSkillToggles[key] = this.checked
+        renderPlayground()
+      }
+    })
+
+    var kbnameEl = document.getElementById('pg-kbname')
+    if (kbnameEl) {
+      kbnameEl.oninput = function () { state.playgroundKbName = this.value }
+    }
+    var msgEl = document.getElementById('pg-message')
+    if (msgEl) {
+      msgEl.oninput = function () { state.playgroundUserMessage = this.value }
+    }
+    var qaPicker = document.getElementById('pg-qa-picker')
+    if (qaPicker) {
+      qaPicker.onchange = function () {
+        state.playgroundActionId = this.value || null
+        var selectedQa = (a.quickActions || []).find(function (q) { return q.id === state.playgroundActionId })
+        if (selectedQa && selectedQa.templateMessage) {
+          state.playgroundUserMessage = selectedQa.templateMessage
+          var msgEl2 = document.getElementById('pg-message')
+          if (msgEl2) msgEl2.value = selectedQa.templateMessage
+        }
+      }
+    }
+
+    var fireBtn = document.getElementById('pg-fire-btn')
+    if (fireBtn) {
+      fireBtn.onclick = async function () {
+        var message = (document.getElementById('pg-message') || {}).value || ''
+        var kbOverride = (document.getElementById('pg-kbname') || {}).value || ''
+        var selectedQa = state.playgroundActionId ? (a.quickActions || []).find(function (q) { return q.id === state.playgroundActionId }) : null
+        var effectiveKb = kbOverride || (selectedQa && selectedQa.kbName) || (state.instructionsMap[a.id] && state.instructionsMap[a.id].defaultKbName) || ''
+        var effectiveMessage = message || (selectedQa && selectedQa.templateMessage) || ''
+        if (!effectiveMessage) {
+          state.playgroundResult = { error: 'Enter a message before firing.' }
+          renderPlayground()
+          return
+        }
+        var segments = _pgAssembleSegments(a)
+        var toggles = state.playgroundSkillToggles
+        var activeSegments = segments.filter(function (seg) {
+          if (seg.required) return true
+          return toggles[seg.key] !== undefined ? toggles[seg.key] : !seg.optionalUniversal
+        }).map(function (seg) {
+          return { label: seg.label, content: state.playgroundEditCopy ? (state.playgroundEditCopy[seg.key] || seg.content) : seg.content }
+        })
+        state.playgroundFiring = true
+        renderPlayground()
+        try {
+          var body = {
+            assistantId: a.id,
+            message: effectiveMessage,
+            skillSegments: activeSegments,
+            kbName: effectiveKb || undefined
+          }
+          var r = await _apiFetch(API_BASE + '/api/test/assistant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          })
+          if (!r.ok) throw new Error('Server returned ' + r.status)
+          var data = await r.json()
+          state.playgroundResult = data
+          var qaLabel = selectedQa ? selectedQa.label : '(direct message)'
+          state.playgroundSessionHistory.push({
+            timestamp: new Date().toLocaleTimeString(),
+            summary: qaLabel + ' \u2014 ' + (data.success ? 'OK' : 'Error') + ' \u2014 ' + (data.latencyMs || '?') + 'ms \u2014 ' + (data.response || '').slice(0, 60)
+          })
+        } catch (err) {
+          state.playgroundResult = { error: err.message }
+        }
+        state.playgroundFiring = false
+        renderPlayground()
+      }
+    }
+
+    document.querySelectorAll('.pg-rubric-check').forEach(function (cb) {
+      cb.onchange = function () {
+        var id = this.getAttribute('data-id')
+        if (!state.playgroundRubricChecked) state.playgroundRubricChecked = {}
+        state.playgroundRubricChecked[id] = this.checked
+      }
+    })
+
+    var rubricSaveResultBtn = document.getElementById('pg-rubric-save-btn')
+    if (rubricSaveResultBtn) {
+      rubricSaveResultBtn.onclick = async function () {
+        var items = window._aeRubricItems || []
+        try {
+          var r = await _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: items })
+          })
+          if (r.ok) {
+            var data = await r.json()
+            state.playgroundRubric = data
+            renderPlayground()
+          }
+        } catch (err) { alert('Failed to save rubric: ' + err.message) }
+      }
+    }
+
+    var saveGoldenBtn = document.getElementById('pg-save-golden-btn')
+    if (saveGoldenBtn) {
+      saveGoldenBtn.onclick = async function () {
+        if (!state.playgroundResult || !state.playgroundResult.response) return
+        var actionId = state.playgroundActionId || '_default'
+        var body = { response: state.playgroundResult.response }
+        try {
+          var r = await _apiFetch(API_BASE + '/api/test/golden/' + encodeURIComponent(a.id) + '/' + encodeURIComponent(actionId), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          })
+          if (!r.ok) throw new Error('Server returned ' + r.status)
+          var data = await r.json()
+          state.playgroundGolden = data
+          renderPlayground()
+        } catch (err) { alert('Failed to save golden: ' + err.message) }
+      }
+    }
+  }
+
   function renderAssistantsTab () {
+    if (state.playgroundActive) {
+      renderPlayground()
+      return
+    }
     if (state.selectedAssistantId && !state.kbRegistryFetched) {
       fetchKbRegistry().then(function () { state.kbRegistryFetched = true; renderAssistantsTab() }).catch(function () { state.kbRegistryFetched = true; state.kbRegistry = []; renderAssistantsTab() })
     }
@@ -1788,6 +2148,10 @@
       if (!a) {
         html += '<div class="empty">Not found</div>'
       } else {
+        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8);margin-bottom:var(--ace-space-12);padding-bottom:var(--ace-space-8);border-bottom:1px solid var(--ace-border)">'
+        html += '<span style="font-size:14px;font-weight:600;flex:1">' + escapeHtml(a.label || a.id) + _typeBadgeHtml(a.kind) + '</span>'
+        html += '<button type="button" class="btn-small" id="ae-open-playground-btn" data-assistant-id="' + escapeHtml(a.id) + '">Test in Playground</button>'
+        html += '</div>'
         html += assistantEditorHtml(a)
       }
     }
@@ -1814,6 +2178,24 @@
       renderAssistantsTab()
     }
     bindAssistantEditor()
+    var openPgBtn = document.getElementById('ae-open-playground-btn')
+    if (openPgBtn) {
+      openPgBtn.onclick = function () {
+        var assistantId = this.getAttribute('data-assistant-id')
+        state.playgroundActive = true
+        state.playgroundAssistantId = assistantId
+        state.playgroundActionId = null
+        state.playgroundUserMessage = ''
+        state.playgroundKbName = ''
+        state.playgroundResult = null
+        state.playgroundRubric = null
+        state.playgroundGolden = null
+        state.playgroundRubricChecked = {}
+        state.playgroundSkillToggles = {}
+        state.playgroundSessionHistory = []
+        renderAssistantsTab()
+      }
+    }
   }
 
   function _kindToType (kind) {
@@ -2174,7 +2556,7 @@
         html += '<p class="ae-helper" style="margin:0">Override the assistant\'s default kbName for this action only. Leave blank to inherit.</p>'
         // Test button (SP4 — placeholder)
         html += '<div class="ae-qa-detail-row">'
-        html += '<button type="button" class="btn-small ae-qa-test-btn" data-i="' + i + '" disabled title="Prompt Playground — available in SP4">Test this action</button>'
+        html += '<button type="button" class="btn-small ae-qa-test-btn" data-qa-id="' + escapeHtml(qa.id) + '">Test this action</button>'
         html += '</div>'
         html += '</div>'
         html += '</li>'
@@ -2182,6 +2564,12 @@
       html += '</ul>'
     }
     html += '<button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
+    html += '<h3 class="ae-section-heading" style="margin-top:var(--ace-space-24)">Test rubric</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Define pass/fail criteria for the Prompt Playground\'s result evaluation.</p>'
+    html += '<div id="ae-rubric-items"></div>'
+    html += '<button type="button" class="btn-small" id="ae-rubric-add-item">Add criterion</button>'
+    html += '<div style="margin-top:var(--ace-space-8)"><button type="button" class="btn-small btn-primary" id="ae-rubric-save-btn">Save rubric to server</button></div>'
+    html += '<div id="ae-rubric-status" style="font-size:12px;margin-top:4px"></div>'
     return html
   }
 
@@ -2594,6 +2982,87 @@
           instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
         }
         _updateUniversalSkills()
+      }
+    }
+    document.querySelectorAll('.ae-qa-test-btn').forEach(function (btn) {
+      btn.onclick = function () {
+        var qaId = this.getAttribute('data-qa-id')
+        var qa = (a.quickActions || []).find(function (q) { return q.id === qaId })
+        state.playgroundActive = true
+        state.playgroundAssistantId = a.id
+        state.playgroundActionId = qaId
+        state.playgroundUserMessage = (qa && qa.templateMessage) || ''
+        state.playgroundKbName = (qa && qa.kbName) || ''
+        state.playgroundResult = null
+        state.playgroundRubric = null
+        state.playgroundGolden = null
+        state.playgroundRubricChecked = {}
+        state.playgroundSkillToggles = {}
+        state.playgroundSessionHistory = []
+        renderAssistantsTab()
+      }
+    })
+    // Rubric editor in Quick Actions tab
+    var rubricContainer = document.getElementById('ae-rubric-items')
+    var rubricAddBtn = document.getElementById('ae-rubric-add-item')
+    var rubricSaveBtn = document.getElementById('ae-rubric-save-btn')
+    var rubricStatus = document.getElementById('ae-rubric-status')
+    if (rubricContainer) {
+      window._aeRubricItems = window._aeRubricItems || []
+      _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id))
+        .then(function (r) { return r.json() })
+        .then(function (data) {
+          window._aeRubricItems = (data && data.items) ? data.items : []
+          _renderRubricEditor(rubricContainer)
+        })
+        .catch(function () {})
+    }
+    function _renderRubricEditor (container) {
+      if (!container) return
+      var items = window._aeRubricItems || []
+      var html = ''
+      items.forEach(function (item, i) {
+        html += '<div style="display:flex;gap:var(--ace-space-8);margin-bottom:4px;align-items:center">'
+        html += '<input type="text" class="ace-field ae-rubric-item-label" data-i="' + i + '" value="' + escapeHtml(item.label || '') + '" style="flex:1">'
+        html += '<button type="button" class="btn-small ae-rubric-item-remove" data-i="' + i + '">\u2715</button>'
+        html += '</div>'
+      })
+      container.innerHTML = html
+      container.querySelectorAll('.ae-rubric-item-label').forEach(function (el) {
+        el.oninput = function () {
+          var i = parseInt(this.getAttribute('data-i'), 10)
+          if (window._aeRubricItems[i]) window._aeRubricItems[i].label = this.value
+        }
+      })
+      container.querySelectorAll('.ae-rubric-item-remove').forEach(function (btn) {
+        btn.onclick = function () {
+          var i = parseInt(this.getAttribute('data-i'), 10)
+          window._aeRubricItems.splice(i, 1)
+          _renderRubricEditor(container)
+        }
+      })
+    }
+    if (rubricAddBtn) {
+      rubricAddBtn.onclick = function () {
+        window._aeRubricItems = window._aeRubricItems || []
+        window._aeRubricItems.push({ id: 'r' + Date.now(), label: '', autoCheck: false })
+        _renderRubricEditor(rubricContainer)
+      }
+    }
+    if (rubricSaveBtn) {
+      rubricSaveBtn.onclick = async function () {
+        var items = window._aeRubricItems || []
+        try {
+          var r = await _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: items })
+          })
+          if (r.ok) {
+            if (rubricStatus) { rubricStatus.textContent = 'Saved.'; setTimeout(function () { rubricStatus.textContent = '' }, 2000) }
+          } else {
+            if (rubricStatus) rubricStatus.textContent = 'Save failed.'
+          }
+        } catch (err) { if (rubricStatus) rubricStatus.textContent = 'Network error.' }
       }
     }
   }
