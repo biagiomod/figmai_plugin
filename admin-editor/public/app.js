@@ -492,10 +492,10 @@
   function allowedTabsFromRole (role) {
     const r = (role || '').toLowerCase()
     if (r === 'admin') {
-      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics', 'users']
     }
     if (r === 'manager' || r === 'editor') {
-      return ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics']
+      return ['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics']
     }
     return ['config', 'ai']
   }
@@ -3295,8 +3295,8 @@
   }
 
   /** Tab ids for Set Access checkboxes (matches server VALID_TAB_IDS; includes visible nav tabs only). */
-  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users']
-  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users' }
+  const USERS_SET_ACCESS_TAB_IDS = ['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics', 'users']
+  const USERS_SET_ACCESS_LABELS = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', registries: 'Design Systems', analytics: 'Usage Report', users: 'Users' }
   function getRoleDefaultTabs (role) {
     if (role === 'admin' || role === 'manager' || role === 'editor') return USERS_SET_ACCESS_TAB_IDS.slice()
     return ['config', 'users']
@@ -3637,7 +3637,7 @@
   }
 
   /** Tabs that render their own ace-section-header-row and must NOT show the legacy #tab-subheader pretitle. */
-  var HIDE_TAB_SUBHEADER_TABS = new Set(['config', 'ai', 'assistants', 'knowledge-bases', 'content-models', 'registries', 'analytics', 'users'])
+  var HIDE_TAB_SUBHEADER_TABS = new Set(['config', 'ai', 'assistants', 'knowledge-bases', 'registries', 'analytics', 'users'])
 
   var TAB_SUBHEADERS = {
     config: 'General Plugin Settings',
@@ -3683,7 +3683,7 @@
       else btn.removeAttribute('aria-current')
       btn.classList.toggle('active', sel)
     })
-    var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Analytics', users: 'Users', knowledge: 'Knowledge' }
+    var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Usage Report', users: 'Users', knowledge: 'Knowledge' }
     var pageTitleEl = document.getElementById('ace-page-title-text')
     if (pageTitleEl) pageTitleEl.textContent = PAGE_TITLES[tabId] || tabId
     const subheaderEl = document.getElementById('tab-subheader')
