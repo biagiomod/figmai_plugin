@@ -1990,7 +1990,35 @@
     return html
   }
   function _aeKnowledgeTab (a) {
-    return '<p class="ace-card-helper fg-secondary">Knowledge tab — coming in next step.</p>'
+    var html = ''
+    // LLM-native KB
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Internal LLM knowledge base</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Recommended for large reference documents. The Internal LLM retrieves its own material server-side — keeps the prompt lean.</p>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-defaultKbName">Default kbName</label>'
+    html += '<input type="text" id="ae-defaultKbName" class="ace-field" value="' + escapeHtml(a.defaultKbName || '') + '" placeholder="e.g. design-critique">'
+    html += '<p class="ae-helper">Passed as the <code>kbName</code> parameter on every LLM request for this assistant. Override per Quick Action in the Quick Actions tab.</p>'
+    html += '</div>'
+    // Injected KB refs
+    html += '<h3 class="ae-section-heading">Injected knowledge bases</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">KB content is injected directly into the prompt. Use for smaller reference material or when the Internal LLM kbName option is not available.</p>'
+    var kbRegistry = state.kbRegistry || []
+    if (!state.kbRegistryFetched) {
+      html += '<p class="fg-secondary">Loading resources…</p>'
+    } else if (kbRegistry.length === 0) {
+      html += '<div class="ae-empty-state">No knowledge bases available. Create one in the Resources tab first.</div>'
+    } else {
+      html += '<div class="ae-kb-refs-list" id="ae-kb-refs-checkboxes">'
+      kbRegistry.forEach(function (entry) {
+        var refs = a.knowledgeBaseRefs || []
+        var checked = refs.indexOf(entry.id) !== -1
+        html += '<label class="field-row ae-kb-ref-cb"><input type="checkbox" class="ae-kb-ref-cb-input" data-id="' + escapeHtml(entry.id) + '" ' + (checked ? 'checked' : '') + '> <span>' + escapeHtml(entry.title || entry.id) + '</span> <span class="fg-secondary" style="font-size:0.9em">(' + escapeHtml(entry.id) + ')</span></label>'
+      })
+      html += '</div>'
+      html += '<div class="ae-kb-refs-selected" id="ae-kb-refs-selected"><span class="fg-secondary">Selected (order):</span> <span id="ae-kb-refs-order"></span></div>'
+      html += '<div class="ae-kb-refs-reorder" id="ae-kb-refs-reorder"></div>'
+    }
+    return html
   }
   function _aeQuickActionsTab (a) {
     return '<p class="ace-card-helper fg-secondary">Quick Actions tab — coming in next step.</p>'
@@ -2259,6 +2287,11 @@
           testRunBtn.textContent = 'Run Test'
         }
       }
+    }
+    var dkbEl = document.getElementById('ae-defaultKbName')
+    if (dkbEl) {
+      dkbEl.onchange = function () { a.defaultKbName = this.value.trim() || undefined; showUnsavedBanner() }
+      dkbEl.oninput = dkbEl.onchange
     }
     // Assemble & Preview
     var assembleBtn = document.getElementById('ae-assemble-btn')
