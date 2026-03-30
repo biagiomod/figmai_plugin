@@ -2100,18 +2100,33 @@
       a[field] = value
       showUnsavedBanner()
     }
-    document.getElementById('ae-label').onchange = function () { set('ae-label', 'label', this.value) }
-    document.getElementById('ae-intro').onchange = function () { set('ae-intro', 'intro', this.value) }
+    var labelEl = document.getElementById('ae-label')
+    if (labelEl) {
+      labelEl.onchange = function () { set('ae-label', 'label', this.value) }
+      labelEl.oninput = labelEl.onchange
+    }
+    var introEl = document.getElementById('ae-intro')
+    if (introEl) {
+      introEl.onchange = function () { set('ae-intro', 'intro', this.value) }
+      introEl.oninput = introEl.onchange
+    }
     const hmEl = document.getElementById('ae-hoverSummary')
     if (hmEl) hmEl.onchange = function () { set('ae-hoverSummary', 'hoverSummary', this.value) }
     const wm = document.getElementById('ae-welcomeMessage')
     if (wm) wm.onchange = function () { set('ae-welcomeMessage', 'welcomeMessage', this.value) }
     const tagVis = document.getElementById('ae-tag-visible')
     if (tagVis) tagVis.onchange = function () { if (!a.tag) a.tag = {}; a.tag.isVisible = this.checked; showUnsavedBanner() }
-    document.getElementById('ae-tag-label').onchange = function () { if (!a.tag) a.tag = {}; a.tag.label = this.value; showUnsavedBanner() }
-    document.getElementById('ae-tag-variant').onchange = function () { if (!a.tag) a.tag = {}; a.tag.variant = this.value || undefined; showUnsavedBanner() }
-    document.getElementById('ae-iconId').onchange = function () { set('ae-iconId', 'iconId', this.value) }
-    document.getElementById('ae-kind').onchange = function () { set('ae-kind', 'kind', this.value); renderAssistantsTab() }
+    var tagLabelEl = document.getElementById('ae-tag-label')
+    if (tagLabelEl) tagLabelEl.onchange = function () { if (!a.tag) a.tag = {}; a.tag.label = this.value; showUnsavedBanner() }
+    var tagVariantEl = document.getElementById('ae-tag-variant')
+    if (tagVariantEl) tagVariantEl.onchange = function () { if (!a.tag) a.tag = {}; a.tag.variant = this.value || undefined; showUnsavedBanner() }
+    var iconIdEl = document.getElementById('ae-iconId')
+    if (iconIdEl) {
+      iconIdEl.onchange = function () { set('ae-iconId', 'iconId', this.value) }
+      iconIdEl.oninput = iconIdEl.onchange
+    }
+    var kindEl = document.getElementById('ae-kind')
+    if (kindEl) kindEl.onchange = function () { set('ae-kind', 'kind', this.value); renderAssistantsTab() }
     const ptEl = document.getElementById('ae-promptTemplate')
     if (ptEl) ptEl.onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
     if (a.kind === 'tool') {
