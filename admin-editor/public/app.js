@@ -1846,7 +1846,69 @@
   }
 
   function _aeOverviewTab (a) {
-    return '<p class="ace-card-helper fg-secondary">Overview tab — coming in next step.</p>'
+    var type = _kindToType(a.kind)
+    var html = ''
+    // Label
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-label">Label</label>'
+    html += '<input type="text" id="ae-label" class="ace-field" value="' + escapeHtml(a.label || '') + '">'
+    html += '</div>'
+    // ID (read-only)
+    html += '<div class="ae-field-group">'
+    html += '<label>ID <span class="fg-secondary">(read-only)</span></label>'
+    html += '<input type="text" class="ace-field" value="' + escapeHtml(a.id) + '" readonly>'
+    html += '</div>'
+    // Icon ID
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-iconId">Icon ID</label>'
+    html += '<input type="text" id="ae-iconId" class="ace-field" value="' + escapeHtml(a.iconId || '') + '" placeholder="e.g. sparkles">'
+    html += '<p class="ae-helper">Matches the icon set registered in the plugin. Leave blank to use the default icon.</p>'
+    html += '</div>'
+    // Intro
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-intro">Intro</label>'
+    html += '<textarea id="ae-intro" class="ace-field" rows="3">' + escapeHtml(a.intro || '') + '</textarea>'
+    html += '<p class="ae-helper">Short description shown beneath the assistant name in the plugin UI.</p>'
+    html += '</div>'
+    // Type badge selector (maps to kind field)
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-kind">Type</label>'
+    html += '<select id="ae-kind">'
+    html += '<option value="ai"' + ((a.kind === 'ai' || a.kind === 'llm' || (!a.kind)) ? ' selected' : '') + '>LLM — all logic goes to the LLM</option>'
+    html += '<option value="tool"' + ((a.kind === 'tool' || a.kind === 'code') ? ' selected' : '') + '>Code — plugin handles everything without calling the LLM</option>'
+    html += '<option value="hybrid"' + (a.kind === 'hybrid' ? ' selected' : '') + '>Hybrid — plugin runs code first, then calls the LLM</option>'
+    html += '</select>'
+    html += '<p class="ae-helper">Informs the plugin\'s execution routing. Shown as a badge on the assistant card.</p>'
+    html += '</div>'
+    // Tag
+    html += '<h3 class="ae-section-heading">Optional tag</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-tag-visible" ' + (a.tag?.isVisible ? 'checked' : '') + '> Show tag on assistant card</label>'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-tag-label">Tag label</label>'
+    html += '<input type="text" id="ae-tag-label" class="ace-field" value="' + escapeHtml(a.tag?.label || '') + '" placeholder="e.g. Beta">'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-tag-variant">Tag variant</label>'
+    html += '<select id="ae-tag-variant"><option value="">—</option>'
+    html += '<option value="new"' + (a.tag?.variant === 'new' ? ' selected' : '') + '>New</option>'
+    html += '<option value="beta"' + (a.tag?.variant === 'beta' ? ' selected' : '') + '>Beta</option>'
+    html += '<option value="alpha"' + (a.tag?.variant === 'alpha' ? ' selected' : '') + '>Alpha</option>'
+    html += '</select>'
+    html += '</div>'
+    // Preview card
+    html += '<h3 class="ae-section-heading">How it appears to users</h3>'
+    var tagHtml = (a.tag && a.tag.isVisible && a.tag.label) ? ('<span class="ace-type-badge ace-type-badge--' + ((a.tag.variant || 'beta') === 'new' ? 'new' : 'beta') + '">' + escapeHtml(a.tag.label) + '</span>') : ''
+    var typeBadge = _typeBadgeHtml(a.kind)
+    html += '<div class="ae-preview-card">'
+    html += '<div class="ae-preview-card-icon">&#9670;</div>'
+    html += '<div class="ae-preview-card-body">'
+    html += '<div class="ae-preview-card-label">' + escapeHtml(a.label || a.id) + typeBadge + tagHtml + '</div>'
+    html += '<div class="ae-preview-card-intro">' + escapeHtml((a.intro || '').slice(0, 80)) + '</div>'
+    html += '</div></div>'
+    html += '<p class="ae-helper" style="margin-top:6px">This preview reflects the last-saved label, intro, type, and tag. Changes you make above appear here when you navigate away and return.</p>'
+    return html
   }
   function _aeInstructionsTab (a) {
     return '<p class="ace-card-helper fg-secondary">Instructions tab — coming in next step.</p>'
@@ -1885,7 +1947,8 @@
     }
     document.getElementById('ae-label').onchange = function () { set('ae-label', 'label', this.value) }
     document.getElementById('ae-intro').onchange = function () { set('ae-intro', 'intro', this.value) }
-    document.getElementById('ae-hoverSummary').onchange = function () { set('ae-hoverSummary', 'hoverSummary', this.value) }
+    const hmEl = document.getElementById('ae-hoverSummary')
+    if (hmEl) hmEl.onchange = function () { set('ae-hoverSummary', 'hoverSummary', this.value) }
     const wm = document.getElementById('ae-welcomeMessage')
     if (wm) wm.onchange = function () { set('ae-welcomeMessage', 'welcomeMessage', this.value) }
     const tagVis = document.getElementById('ae-tag-visible')
@@ -1894,7 +1957,8 @@
     document.getElementById('ae-tag-variant').onchange = function () { if (!a.tag) a.tag = {}; a.tag.variant = this.value || undefined; showUnsavedBanner() }
     document.getElementById('ae-iconId').onchange = function () { set('ae-iconId', 'iconId', this.value) }
     document.getElementById('ae-kind').onchange = function () { set('ae-kind', 'kind', this.value); renderAssistantsTab() }
-    document.getElementById('ae-promptTemplate').onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
+    const ptEl = document.getElementById('ae-promptTemplate')
+    if (ptEl) ptEl.onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
     if (a.kind === 'tool') {
       var tsEl1 = document.getElementById('ae-ts-defaultContentModel')
       if (tsEl1) tsEl1.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.defaultContentModel = this.value || undefined; showUnsavedBanner() }
