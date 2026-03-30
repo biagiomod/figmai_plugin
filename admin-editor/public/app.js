@@ -40,7 +40,9 @@
     kbCreateMode: false,
     kbPreviewDoc: null,
     kbEditDoc: null,
-    selectedAssistantDetailTab: 'overview'
+    selectedAssistantDetailTab: 'overview',
+    instructionsMap: {},
+    skillsRegistry: { skills: [] }
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
@@ -323,7 +325,7 @@
   async function apiSave (payload, dryRun) {
     const sentRevision = state.meta?.revision ?? ''
     const body = {
-      model: payload,
+      model: Object.assign({}, payload, Object.keys(state.instructionsMap).length ? { instructions: state.instructionsMap } : {}),
       meta: { revision: sentRevision }
     }
     if (ACE_DEBUG) {
@@ -650,6 +652,8 @@
       const canonical = canonicalizeModel(data.model)
       state.originalModel = canonical
       state.editedModel = deepClone(canonical)
+      state.instructionsMap = deepClone(data.model.instructions || {})
+      state.skillsRegistry = data.model.skillsRegistry || { skills: [] }
       state.meta = data.meta || null
       state.validation = data.validation || { errors: [], warnings: [] }
       state.loadedAt = new Date().toLocaleString()
@@ -1917,22 +1921,65 @@
     html += '<p class="ae-helper" style="margin-top:6px">This preview reflects the last-saved label, intro, type, and tag. Changes you make above appear here when you navigate away and return.</p>'
     return html
   }
+  function _getInstr (assistantId) {
+    if (!state.instructionsMap[assistantId]) state.instructionsMap[assistantId] = {}
+    return state.instructionsMap[assistantId]
+  }
+
   function _aeInstructionsTab (a) {
+    var instr = _getInstr(a.id)
     var html = ''
     html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Instructions tell the <strong>plugin</strong> how to manage this assistant\'s interactions — deterministic settings read before any LLM call.</p>'
-    // Output Schema ID
+
+    // Execution model
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Execution model</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-instr-execution">Execution model</label>'
+    html += '<select id="ae-instr-execution">'
+    var execVal = instr.execution || ''
+    html += '<option value=""' + (!execVal ? ' selected' : '') + '>— inherit from type</option>'
+    html += '<option value="code"' + (execVal === 'code' ? ' selected' : '') + '>Code — plugin handles everything, no LLM call</option>'
+    html += '<option value="llm"' + (execVal === 'llm' ? ' selected' : '') + '>LLM — all logic goes to the LLM</option>'
+    html += '<option value="hybrid"' + (execVal === 'hybrid' ? ' selected' : '') + '>Hybrid — plugin runs code first, then calls the LLM</option>'
+    html += '</select>'
+    html += '<p class="ae-helper">Overrides the assistant\'s type badge routing. Leave blank to use the type badge value.</p>'
+    html += '</div>'
+
+    // Figma context
+    html += '<h3 class="ae-section-heading">Figma context</h3>'
+    var fc = instr.figmaContext || {}
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-instr-req-sel" ' + (fc.requiresSelection ? 'checked' : '') + '> Requires selection</label>'
+    html += '<p class="ae-helper">When enabled, the plugin enforces that the user has something selected before running this assistant.</p>'
+    html += '</div>'
+    var selTypes = fc.selectionTypes || []
+    html += '<div class="ae-field-group">'
+    html += '<label>Selection types <span class="fg-secondary" style="font-weight:400">(active when Requires selection is on)</span></label>'
+    ;['FRAME', 'COMPONENT', 'TEXT', 'GROUP'].forEach(function (t) {
+      var checked = selTypes.includes(t)
+      html += '<label class="field-row" style="margin-bottom:4px"><input type="checkbox" class="ae-instr-sel-type" data-type="' + t + '" ' + (checked ? 'checked' : '') + '> ' + t + '</label>'
+    })
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label class="field-row"><input type="checkbox" id="ae-instr-inject-vision" ' + (fc.injectVision ? 'checked' : '') + '> Inject vision (include screenshot)</label>'
+    html += '<p class="ae-helper">Only enable if the assistant needs to visually analyse the design. Adds the selection screenshot as image input.</p>'
+    html += '</div>'
+
+    // Output schema
     html += '<h3 class="ae-section-heading">Output</h3>'
     html += '<div class="ae-field-group">'
     html += '<label for="ae-outputSchemaId">Output schema ID</label>'
     html += '<input type="text" id="ae-outputSchemaId" class="ace-field" value="' + escapeHtml(a.outputSchemaId || '') + '" placeholder="e.g. design-critique-v1">'
     html += '<p class="ae-helper">If set, the LLM response is validated against this JSON schema before the plugin processes it. Leave blank for plain-text output.</p>'
     html += '</div>'
+
     // Safety overrides
     html += '<h3 class="ae-section-heading">Safety overrides</h3>'
     html += '<div class="ae-field-group">'
     html += '<label class="field-row"><input type="checkbox" id="ae-allowImages" ' + (a.safetyOverrides?.allowImages ? 'checked' : '') + '> Allow images</label>'
     html += '<p class="ae-helper">Enables image input for this assistant. Only enable if the assistant needs to process images.</p>'
     html += '</div>'
+
     // Tone/style preset (legacy)
     html += '<h3 class="ae-section-heading">Style preset <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
     html += '<div class="ae-field-group">'
@@ -1940,9 +1987,6 @@
     html += '<input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
     html += '<p class="ae-helper">Optional legacy preset. Superseded by skill blocks in the Skills tab.</p>'
     html += '</div>'
-    // SP3 placeholder
-    html += '<h3 class="ae-section-heading">Figma context <span class="fg-secondary" style="font-weight:400;font-size:12px">(available in SP3)</span></h3>'
-    html += '<div class="ae-empty-state">Figma context configuration (requiresSelection, selectionTypes, injectVision) will be available after the Skills/Instructions Framework update.</div>'
     return html
   }
   function _aeSkillsTab (a) {
@@ -2386,6 +2430,43 @@
           preEl.textContent = segments.join('\n\n---\n\n')
         }
         previewEl.classList.add('visible')
+      }
+    }
+    // Instructions tab — execution model + figmaContext (SP3)
+    var instrExecEl = document.getElementById('ae-instr-execution')
+    if (instrExecEl) {
+      instrExecEl.onchange = function () {
+        var instr = _getInstr(a.id)
+        instr.execution = this.value || undefined
+        showUnsavedBanner()
+      }
+    }
+    var instrReqSelEl = document.getElementById('ae-instr-req-sel')
+    if (instrReqSelEl) {
+      instrReqSelEl.onchange = function () {
+        var instr = _getInstr(a.id)
+        if (!instr.figmaContext) instr.figmaContext = {}
+        instr.figmaContext.requiresSelection = this.checked || undefined
+        showUnsavedBanner()
+      }
+    }
+    document.querySelectorAll('.ae-instr-sel-type').forEach(function (cb) {
+      cb.onchange = function () {
+        var instr = _getInstr(a.id)
+        if (!instr.figmaContext) instr.figmaContext = {}
+        var types = []
+        document.querySelectorAll('.ae-instr-sel-type:checked').forEach(function (c) { types.push(c.getAttribute('data-type')) })
+        instr.figmaContext.selectionTypes = types.length ? types : undefined
+        showUnsavedBanner()
+      }
+    })
+    var instrVisionEl = document.getElementById('ae-instr-inject-vision')
+    if (instrVisionEl) {
+      instrVisionEl.onchange = function () {
+        var instr = _getInstr(a.id)
+        if (!instr.figmaContext) instr.figmaContext = {}
+        instr.figmaContext.injectVision = this.checked || undefined
+        showUnsavedBanner()
       }
     }
   }
