@@ -2148,6 +2148,10 @@
       if (!a) {
         html += '<div class="empty">Not found</div>'
       } else {
+        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8);margin-bottom:var(--ace-space-12);padding-bottom:var(--ace-space-8);border-bottom:1px solid var(--ace-border)">'
+        html += '<span style="font-size:14px;font-weight:600;flex:1">' + escapeHtml(a.label || a.id) + _typeBadgeHtml(a.kind) + '</span>'
+        html += '<button type="button" class="btn-small" id="ae-open-playground-btn" data-assistant-id="' + escapeHtml(a.id) + '">Test in Playground</button>'
+        html += '</div>'
         html += assistantEditorHtml(a)
       }
     }
@@ -2174,6 +2178,22 @@
       renderAssistantsTab()
     }
     bindAssistantEditor()
+    var openPgBtn = document.getElementById('ae-open-playground-btn')
+    if (openPgBtn) {
+      openPgBtn.onclick = function () {
+        var assistantId = this.getAttribute('data-assistant-id')
+        state.playgroundActive = true
+        state.playgroundAssistantId = assistantId
+        state.playgroundActionId = null
+        state.playgroundResult = null
+        state.playgroundRubric = null
+        state.playgroundGolden = null
+        state.playgroundRubricChecked = {}
+        state.playgroundSkillToggles = {}
+        state.playgroundSessionHistory = []
+        renderAssistantsTab()
+      }
+    }
   }
 
   function _kindToType (kind) {
@@ -2534,7 +2554,7 @@
         html += '<p class="ae-helper" style="margin:0">Override the assistant\'s default kbName for this action only. Leave blank to inherit.</p>'
         // Test button (SP4 — placeholder)
         html += '<div class="ae-qa-detail-row">'
-        html += '<button type="button" class="btn-small ae-qa-test-btn" data-i="' + i + '" disabled title="Prompt Playground — available in SP4">Test this action</button>'
+        html += '<button type="button" class="btn-small ae-qa-test-btn" data-qa-id="' + escapeHtml(qa.id) + '">Test this action</button>'
         html += '</div>'
         html += '</div>'
         html += '</li>'
@@ -2962,6 +2982,24 @@
         _updateUniversalSkills()
       }
     }
+    document.querySelectorAll('.ae-qa-test-btn').forEach(function (btn) {
+      btn.onclick = function () {
+        var qaId = this.getAttribute('data-qa-id')
+        var qa = (a.quickActions || []).find(function (q) { return q.id === qaId })
+        state.playgroundActive = true
+        state.playgroundAssistantId = a.id
+        state.playgroundActionId = qaId
+        state.playgroundUserMessage = (qa && qa.templateMessage) || ''
+        state.playgroundKbName = (qa && qa.kbName) || ''
+        state.playgroundResult = null
+        state.playgroundRubric = null
+        state.playgroundGolden = null
+        state.playgroundRubricChecked = {}
+        state.playgroundSkillToggles = {}
+        state.playgroundSessionHistory = []
+        renderAssistantsTab()
+      }
+    })
     // Rubric editor in Quick Actions tab
     var rubricContainer = document.getElementById('ae-rubric-items')
     var rubricAddBtn = document.getElementById('ae-rubric-add-item')
