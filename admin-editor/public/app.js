@@ -2021,7 +2021,54 @@
     return html
   }
   function _aeQuickActionsTab (a) {
-    return '<p class="ace-card-helper fg-secondary">Quick Actions tab — coming in next step.</p>'
+    var html = ''
+    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Quick Actions appear as one-click prompts for this assistant. Each action can override the assistant\'s default kbName.</p>'
+    var qas = a.quickActions || []
+    var EXECUTION_TYPES = ['ui-only', 'tool-only', 'llm', 'hybrid']
+    if (qas.length === 0) {
+      html += '<div class="ae-empty-state">No quick actions yet — add one below.</div>'
+    } else {
+      html += '<ul class="quick-actions-list" id="ae-quickActions">'
+      qas.forEach(function (qa, i) {
+        var execType = (qa.executionType && EXECUTION_TYPES.includes(qa.executionType)) ? qa.executionType : 'llm'
+        html += '<li class="quick-action-row">'
+        // Header row: id, label, remove
+        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8);width:100%;flex-wrap:wrap">'
+        html += '<input type="text" placeholder="id" value="' + escapeHtml(qa.id || '') + '" data-i="' + i + '" data-field="id" class="ae-qa-id">'
+        html += '<input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label" class="ae-qa-label">'
+        html += '<button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button>'
+        html += '</div>'
+        // Detail row
+        html += '<div class="ae-qa-detail">'
+        // templateMessage
+        html += '<div class="ae-qa-detail-row">'
+        html += '<span class="ae-qa-detail-label">Message template</span>'
+        html += '<textarea class="ace-field ae-qa-template" rows="2" data-i="' + i + '" data-field="templateMessage" style="flex:1">' + escapeHtml(qa.templateMessage || '') + '</textarea>'
+        html += '</div>'
+        // executionType
+        html += '<div class="ae-qa-detail-row">'
+        html += '<span class="ae-qa-detail-label">Execution type</span>'
+        html += '<select class="ae-qa-exec-select" data-i="' + i + '" data-field="executionType">'
+        EXECUTION_TYPES.forEach(function (opt) { html += '<option value="' + opt + '"' + (execType === opt ? ' selected' : '') + '>' + opt + '</option>' })
+        html += '</select>'
+        html += '</div>'
+        // kbName override
+        html += '<div class="ae-qa-detail-row">'
+        html += '<span class="ae-qa-detail-label">kbName override</span>'
+        html += '<input type="text" class="ace-field ae-qa-kbname" placeholder="Leave blank to use assistant default" data-i="' + i + '" data-field="kbName" value="' + escapeHtml(qa.kbName || '') + '" style="flex:1">'
+        html += '</div>'
+        html += '<p class="ae-helper" style="margin:0">Override the assistant\'s default kbName for this action only. Leave blank to inherit.</p>'
+        // Test button (SP4 — placeholder)
+        html += '<div class="ae-qa-detail-row">'
+        html += '<button type="button" class="btn-small ae-qa-test-btn" data-i="' + i + '" disabled title="Prompt Playground — available in SP4">Test this action</button>'
+        html += '</div>'
+        html += '</div>'
+        html += '</li>'
+      })
+      html += '</ul>'
+    }
+    html += '<button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
+    return html
   }
 
   const EXECUTION_TYPES_ACE = ['ui-only', 'tool-only', 'llm', 'hybrid']
@@ -2078,15 +2125,21 @@
         renderAssistantsTab()
       }
     })
-    document.querySelectorAll('#ae-quickActions input, #ae-quickActions select').forEach(el => {
-      const handler = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        const field = this.getAttribute('data-field')
-        if (a.quickActions[i]) a.quickActions[i][field] = this.value
+    document.querySelectorAll('#ae-quickActions input, #ae-quickActions select, #ae-quickActions textarea').forEach(function (el) {
+      var handler = function () {
+        var i = parseInt(this.getAttribute('data-i'), 10)
+        var field = this.getAttribute('data-field')
+        if (!field || !a.quickActions[i]) return
+        var val = this.value
+        if (field === 'kbName') {
+          a.quickActions[i].kbName = val.trim() || undefined
+        } else {
+          a.quickActions[i][field] = val
+        }
         showUnsavedBanner()
       }
       el.onchange = handler
-      if (el.tagName === 'INPUT') el.oninput = handler
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.oninput = handler
     })
     const addBtn = document.getElementById('ae-qa-add')
     if (addBtn) addBtn.onclick = function () {
