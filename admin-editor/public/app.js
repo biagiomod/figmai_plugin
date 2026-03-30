@@ -1901,8 +1901,8 @@
       return html
     }
     html += '<div class="ace-pg-meta">'
-    if (result.latencyMs != null) html += '<span>' + result.latencyMs + 'ms</span>'
-    if (result.tokenCount != null) html += '<span>' + result.tokenCount + ' tokens</span>'
+    if (result.latencyMs != null) html += '<span>' + escapeHtml(String(result.latencyMs)) + 'ms</span>'
+    if (result.tokenCount != null) html += '<span>' + escapeHtml(String(result.tokenCount)) + ' tokens</span>'
     if (result.kbName) html += '<span>kbName: ' + escapeHtml(result.kbName) + '</span>'
     html += '</div>'
     html += '<div class="ace-pg-response">'
@@ -1967,6 +1967,9 @@
       state.playgroundAssistantId = null
       state.playgroundActionId = null
       state.playgroundResult = null
+      state.playgroundRubric = null
+      state.playgroundGolden = null
+      state.playgroundRubricChecked = {}
       renderAssistantsTab()
     }
 
@@ -2023,19 +2026,18 @@
         state.playgroundFiring = true
         renderPlayground()
         try {
-          var sessionToken = sessionStorage.getItem('ace_bearer_token') || ''
           var body = {
             assistantId: a.id,
             message: effectiveMessage,
             skillSegments: activeSegments,
-            kbName: effectiveKb || undefined,
-            sessionToken: sessionToken
+            kbName: effectiveKb || undefined
           }
           var r = await _apiFetch(API_BASE + '/api/test/assistant', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
           })
+          if (!r.ok) throw new Error('Server returned ' + r.status)
           var data = await r.json()
           state.playgroundResult = data
           var qaLabel = selectedQa ? selectedQa.label : '(direct message)'
@@ -2059,6 +2061,24 @@
       }
     })
 
+    var rubricSaveResultBtn = document.getElementById('pg-rubric-save-btn')
+    if (rubricSaveResultBtn) {
+      rubricSaveResultBtn.onclick = async function () {
+        var items = window._aeRubricItems || []
+        try {
+          var r = await _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: items })
+          })
+          if (r.ok) {
+            var data = await r.json()
+            state.playgroundRubric = data
+            renderPlayground()
+          }
+        } catch (err) { alert('Failed to save rubric: ' + err.message) }
+      }
+    }
+
     var saveGoldenBtn = document.getElementById('pg-save-golden-btn')
     if (saveGoldenBtn) {
       saveGoldenBtn.onclick = async function () {
@@ -2069,6 +2089,7 @@
           var r = await _apiFetch(API_BASE + '/api/test/golden/' + encodeURIComponent(a.id) + '/' + encodeURIComponent(actionId), {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
           })
+          if (!r.ok) throw new Error('Server returned ' + r.status)
           var data = await r.json()
           state.playgroundGolden = data
           renderPlayground()
