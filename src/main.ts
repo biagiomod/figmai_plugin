@@ -133,7 +133,8 @@ import type {
   RequestAnalyticsTaggingScreenshotHandler,
   RequestAnalyticsTaggingScreenshotByMetaHandler,
   ExportAnalyticsTaggingScreenshotsHandler,
-  ExportAnalyticsTaggingOneRowHandler
+  ExportAnalyticsTaggingOneRowHandler,
+  ResizePluginHandler
 } from './core/types'
 import { loadSession, saveSession } from './core/analyticsTagging/storage'
 import { captureVisibleInArea, exportNodeThumbnailPngBytes } from './core/analyticsTagging/screenshot'
@@ -2095,4 +2096,8 @@ on<RenderPluginUIPreviewHandler>('RENDER_PLUGIN_UI_PREVIEW', async function (pay
       }
     })
   }
+})
+
+on<ResizePluginHandler>('RESIZE_PLUGIN', (width, height) => {
+  figma.ui.resize(width, height)
 })
