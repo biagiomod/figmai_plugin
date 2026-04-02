@@ -126,7 +126,8 @@ import type {
   ExportAnalyticsTaggingScreenshotsHandler,
   ExportAnalyticsTaggingOneRowHandler,
   SaveSettingsHandler,
-  RequestSettingsHandler
+  RequestSettingsHandler,
+  ResizePluginHandler
 } from './core/types'
 import type { AnalyticsTaggingExportCompactRow } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
@@ -191,7 +192,8 @@ import {
   LightBulbRaysIcon,
   PathIcon,
   AnalyticsIcon,
-  AppLogo
+  AppLogo,
+  ResizeIcon
 } from './ui/icons'
 
 // --- Ingest fetch tracer (dev-safe): log if any code tries to hit debug ingest ---
@@ -358,6 +360,18 @@ function MemoRichText({ content, assistantId, inflationGuard }: {
   return <RichTextRenderer nodes={nodes} />
 }
 
+// ---------------------------------------------------------------------------
+// Plugin size presets
+// ---------------------------------------------------------------------------
+
+const PLUGIN_SIZES = {
+  portrait:  { width: 400,  height: 600 },
+  landscape: { width: 760,  height: 500 },
+  expanded:  { width: 1000, height: 700 },
+} as const
+type PluginSizeMode = keyof typeof PLUGIN_SIZES
+const SIZE_CYCLE: PluginSizeMode[] = ['portrait', 'landscape', 'expanded']
+
 function Plugin() {
   // Log build version on component mount
   console.log('[UI] Build version:', BUILD_VERSION)
@@ -466,6 +480,11 @@ function Plugin() {
   } | null>(null)
   const [showPromptDiagDetails, setShowPromptDiagDetails] = useState(false)
   const [confluenceFormat, setConfluenceFormat] = useState<TableFormatPreset>('universal')
+  const [pluginSizeMode, setPluginSizeMode] = useState<PluginSizeMode>('portrait')
+  const resetPluginSize = () => {
+    emit<ResizePluginHandler>('RESIZE_PLUGIN', 400, 600)
+    setPluginSizeMode('portrait')
+  }
   // Analytics Tagging state
   const [isCopyingAnalyticsTable, setIsCopyingAnalyticsTable] = useState(false)
   const [analyticsTaggingSession, setAnalyticsTaggingSession] = useState<Session | null>(null)
@@ -580,7 +599,14 @@ function Plugin() {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     }
   }, [])
-  
+
+  // Reset plugin window size when navigating away from EG-A (content_table)
+  useEffect(() => {
+    if (assistant?.id !== 'content_table') {
+      resetPluginSize()
+    }
+  }, [assistant?.id])
+
   // Listen to events from main thread
   useEffect(() => {
     // Use a generic message handler that routes by type
@@ -1224,10 +1250,11 @@ function Plugin() {
   
   // Handlers
   const handleReset = useCallback(() => {
+    resetPluginSize()
     // Perform local UI reset immediately
     // Use modeRef.current for consistency with RESET_DONE handler (avoids stale closure)
     resetUIState(modeRef.current)
-    
+
     // Also emit RESET to main thread (for main thread state cleanup)
     emit<ResetHandler>('RESET')
   }, [resetUIState])
@@ -2547,13 +2574,40 @@ ${htmlTable}
         </div>
         
         {/* Right: Mode Toggle */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 'var(--spacing-sm)', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--spacing-sm)',
           justifyContent: 'flex-end',
           flex: '1 1 0'
         }}>
+          {assistant?.id === 'content_table' && (
+            <button
+              onClick={() => {
+                const nextIdx = (SIZE_CYCLE.indexOf(pluginSizeMode) + 1) % SIZE_CYCLE.length
+                const next = SIZE_CYCLE[nextIdx]
+                const { width, height } = PLUGIN_SIZES[next]
+                emit<ResizePluginHandler>('RESIZE_PLUGIN', width, height)
+                setPluginSizeMode(next)
+              }}
+              style={{
+                width: '24px',
+                height: '24px',
+                padding: '4px',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg)',
+                color: 'var(--fg)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title={`Size: ${pluginSizeMode} — click to cycle`}
+            >
+              <ResizeIcon width={16} height={16} />
+            </button>
+          )}
           <button
             onClick={handleThemeToggle}
             style={{
