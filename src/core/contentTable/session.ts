@@ -29,6 +29,11 @@ export interface ContentTableSession {
   ignoreRuleByItemId: Record<string, string>
   /** Count of HIGH-confidence duplicates skipped in the most recent scan/add. */
   lastSkippedCount: number
+  /** Per-item auto-tokenized content, keyed by item.id → tokenized value.
+   * Separate from user editedItems: user edits win over token overlays. */
+  tokenizedItems: Record<string, string>
+  /** Item IDs that were auto-tokenized. Used to show revert affordance in UI. */
+  tokenizedIds: Set<string>
 }
 
 /**
@@ -41,6 +46,8 @@ export function createSession(
     flaggedIgnoreIds?: Set<string>
     ignoreRuleByItemId?: Record<string, string>
     skippedCount?: number
+    tokenizedItems?: Record<string, string>
+    tokenizedIds?: Set<string>
   }
 ): ContentTableSession {
   const validIds = new Set(table.items.map(item => item.id))
@@ -62,7 +69,13 @@ export function createSession(
     flaggedDuplicateIds: opts?.flaggedDuplicateIds ?? new Set(),
     flaggedIgnoreIds: ignoreFlags,
     ignoreRuleByItemId,
-    lastSkippedCount: opts?.skippedCount ?? 0
+    lastSkippedCount: opts?.skippedCount ?? 0,
+    tokenizedItems: opts?.tokenizedItems
+      ? Object.fromEntries(Object.entries(opts.tokenizedItems).filter(([id]) => validIds.has(id)))
+      : {},
+    tokenizedIds: opts?.tokenizedIds
+      ? new Set(Array.from(opts.tokenizedIds).filter(id => validIds.has(id)))
+      : new Set()
   }
 }
 
@@ -74,9 +87,19 @@ export function getEffectiveItems(session: ContentTableSession): ContentItemV1[]
   return session.baseTable.items
     .filter(item => !session.deletedIds.has(item.id))
     .map(item => {
-      const overrides = session.editedItems[item.id]
-      if (!overrides) return item
-      return applyOverrides(item, overrides)
+      const tokenOverride = session.tokenizedItems[item.id]
+      const userOverrides = session.editedItems[item.id]
+      if (!tokenOverride && !userOverrides) return item
+      let merged: ContentItemV1 = { ...item }
+      // Token overlay applied first (lower priority)
+      if (tokenOverride !== undefined) {
+        merged = { ...merged, content: { ...item.content, value: tokenOverride } }
+      }
+      // User overrides applied second (higher priority)
+      if (userOverrides) {
+        merged = applyOverrides(merged, userOverrides)
+      }
+      return merged
     })
 }
 
@@ -152,6 +175,8 @@ export function appendItems(
     flaggedIgnoreIds?: Set<string>
     ignoreRuleByItemId?: Record<string, string>
     skippedCount?: number
+    tokenizedItems?: Record<string, string>
+    tokenizedIds?: Set<string>
   }
 ): ContentTableSession {
   const updatedTable: UniversalContentTableV1 = {
@@ -174,13 +199,23 @@ export function appendItems(
   Object.keys(mergedIgnoreRules).forEach((id) => {
     if (validIds.has(id)) prunedIgnoreRules[id] = mergedIgnoreRules[id]
   })
+  const mergedTokenizedItems = { ...session.tokenizedItems, ...(opts?.tokenizedItems || {}) }
+  const mergedTokenizedIds = new Set<string>([...Array.from(session.tokenizedIds), ...Array.from(opts?.tokenizedIds || new Set<string>())])
+  const prunedTokenizedItems: Record<string, string> = {}
+  Object.keys(mergedTokenizedItems).forEach((id) => {
+    if (validIds.has(id)) prunedTokenizedItems[id] = mergedTokenizedItems[id]
+  })
+  const prunedTokenizedIds = new Set<string>()
+  mergedTokenizedIds.forEach(id => { if (validIds.has(id)) prunedTokenizedIds.add(id) })
   const newSession: ContentTableSession = {
     ...session,
     baseTable: updatedTable,
     flaggedDuplicateIds: mergedFlags,
     flaggedIgnoreIds: prunedIgnoreFlags,
     ignoreRuleByItemId: prunedIgnoreRules,
-    lastSkippedCount: opts?.skippedCount ?? 0
+    lastSkippedCount: opts?.skippedCount ?? 0,
+    tokenizedItems: prunedTokenizedItems,
+    tokenizedIds: prunedTokenizedIds
   }
   if (newSession.scanEnabled) {
     newSession.duplicates = detectDuplicates(newSession)
@@ -195,6 +230,21 @@ export function toggleDuplicateScan(session: ContentTableSession, enabled: boole
   const newSession = { ...session, scanEnabled: enabled }
   newSession.duplicates = enabled ? detectDuplicates(newSession) : new Map()
   return newSession
+}
+
+/**
+ * Remove the automatic token overlay for an item, restoring the original scanned text.
+ * User edits on that item (if any) are NOT affected.
+ */
+export function revertTokenizedItem(
+  session: ContentTableSession,
+  itemId: string
+): ContentTableSession {
+  const newTokenizedItems = { ...session.tokenizedItems }
+  delete newTokenizedItems[itemId]
+  const newTokenizedIds = new Set(session.tokenizedIds)
+  newTokenizedIds.delete(itemId)
+  return { ...session, tokenizedItems: newTokenizedItems, tokenizedIds: newTokenizedIds }
 }
 
 /**

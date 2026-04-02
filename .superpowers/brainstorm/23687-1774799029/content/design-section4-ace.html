@@ -1,0 +1,150 @@
+<h2>Design Section 4 of 4 — ACE Admin Scoping</h2>
+<p class="subtitle">How the ACE admin changes to support per-team ownership. Two changes: (1) per-assistant config directories, (2) role scoping so each team sees only their assistant.</p>
+
+<div class="section">
+  <h3>Change 1 — Config structure splits per assistant</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+
+    <div>
+      <div class="label" style="color:#94a3b8;margin-bottom:8px">TODAY — one big file per type</div>
+      <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-family:monospace;font-size:11.5px;line-height:1.9">
+        custom/<br>
+        &nbsp;&nbsp;<span style="color:#f87171">assistants.manifest.json</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">← all teams edit one file</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">← merge conflicts guaranteed</span><br>
+        &nbsp;&nbsp;knowledge/<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">content_table.md</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">analytics.md</span><br>
+        &nbsp;&nbsp;knowledge-bases/<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">registry.json</span>&nbsp;<span style="color:#64748b">← shared</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">evergreens.kb.json</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">analytics.kb.json</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="label" style="color:#4ade80;margin-bottom:8px">AFTER — scoped per assistant</div>
+      <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(79,142,247,0.25);border-radius:8px;font-family:monospace;font-size:11.5px;line-height:1.9">
+        custom/assistants/<br>
+        &nbsp;&nbsp;<span style="color:#60a5fa">evergreens/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#60a5fa">← Evergreens Team</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;manifest.json<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge/content_table.md<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge-bases/registry.json<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge-bases/evergreens.kb.json<br>
+        &nbsp;&nbsp;<span style="color:#f472b6">analytics/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f472b6">← Analytics Team</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;manifest.json<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge/analytics.md<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge-bases/analytics.kb.json<br>
+        &nbsp;&nbsp;<span style="color:#fb923c">accessibility/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#fb923c">← A11y Team</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;...
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>Change 2 — User records gain an assistantScope field</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+
+    <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px">
+      <div class="label" style="color:#93c5fd;margin-bottom:8px">CORE TEAM USER (admin — no scope = all)</div>
+      <div style="font-family:monospace;font-size:11.5px;line-height:1.9;color:rgba(240,242,248,0.8)">
+        &#123;<br>
+        &nbsp;&nbsp;"username": "biagio",<br>
+        &nbsp;&nbsp;"role": "admin",<br>
+        &nbsp;&nbsp;"assistantScope": []&nbsp;&nbsp;<span style="color:#4ade80">← empty = all</span><br>
+        &#125;
+      </div>
+    </div>
+
+    <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(96,165,250,0.3);border-radius:8px">
+      <div class="label" style="color:#60a5fa;margin-bottom:8px">STRIKE TEAM USER (scoped)</div>
+      <div style="font-family:monospace;font-size:11.5px;line-height:1.9;color:rgba(240,242,248,0.8)">
+        &#123;<br>
+        &nbsp;&nbsp;"username": "alice",<br>
+        &nbsp;&nbsp;"role": "editor",<br>
+        &nbsp;&nbsp;"assistantScope": ["content_table"]<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#60a5fa">← only Evergreens</span><br>
+        &#125;
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>Change 3 — ACE UI filters to show only scoped content</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+
+    <!-- Admin view -->
+    <div style="border:1px solid rgba(79,142,247,0.35);border-radius:10px;overflow:hidden">
+      <div style="background:rgba(79,142,247,0.12);padding:7px 14px;font-size:11px;font-weight:700;color:#93c5fd;letter-spacing:0.07em">CORE TEAM ADMIN — sees all tabs</div>
+      <div style="padding:10px 12px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="background:rgba(79,142,247,0.18);color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">Config</span>
+          <span style="background:rgba(79,142,247,0.18);color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">All Assistants</span>
+          <span style="background:rgba(79,142,247,0.18);color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">All KBs</span>
+          <span style="background:rgba(79,142,247,0.18);color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">Design Systems</span>
+          <span style="background:rgba(79,142,247,0.18);color:#93c5fd;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">Users</span>
+        </div>
+        <div style="font-size:11px;color:rgba(240,242,248,0.45)">assistantScope: [] → no filter applied</div>
+      </div>
+    </div>
+
+    <!-- Strike Team view -->
+    <div style="border:1px solid rgba(96,165,250,0.35);border-radius:10px;overflow:hidden">
+      <div style="background:rgba(96,165,250,0.10);padding:7px 14px;font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:0.07em">EVERGREENS TEAM — scoped view</div>
+      <div style="padding:10px 12px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="background:rgba(96,165,250,0.18);color:#60a5fa;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">Evergreens Assistant</span>
+          <span style="background:rgba(96,165,250,0.18);color:#60a5fa;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">Evergreens KBs</span>
+          <span style="background:rgba(96,165,250,0.18);color:#60a5fa;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600">Evergreens Knowledge</span>
+        </div>
+        <div style="font-size:11px;color:rgba(240,242,248,0.45)">assistantScope: ["content_table"] → filter applied at load + save</div>
+        <div style="font-size:11px;color:rgba(248,113,113,0.7);margin-top:4px">Config, Design Systems, Users tabs hidden</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>Where scoping is enforced (both UI and backend)</h3>
+  <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
+      <div style="width:28px;height:28px;background:rgba(79,142,247,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🔒</div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:rgba(240,242,248,0.85)">API load (GET /api/model)</div>
+        <div style="font-size:11px;color:rgba(240,242,248,0.45)">Returns only the assistant entries + KBs within the user's assistantScope. Other assistants are stripped from the response.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
+      <div style="width:28px;height:28px;background:rgba(79,142,247,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🔒</div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:rgba(240,242,248,0.85)">API save (POST /api/save)</div>
+        <div style="font-size:11px;color:rgba(240,242,248,0.45)">Save payload is validated against assistantScope. Any attempt to write to an out-of-scope assistant returns 403. Backend enforces — not just the UI.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
+      <div style="width:28px;height:28px;background:rgba(79,142,247,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🔒</div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:rgba(240,242,248,0.85)">KB routes (GET/POST /api/kb/...)</div>
+        <div style="font-size:11px;color:rgba(240,242,248,0.45)">KB reads and writes are scoped to the assistant's own knowledge-bases/ directory. Cross-assistant KB access is blocked.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
+      <div style="width:28px;height:28px;background:rgba(34,197,94,0.12);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">✓</div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:rgba(240,242,248,0.85)">ace-lambda (private deployment)</div>
+        <div style="font-size:11px;color:rgba(240,242,248,0.45)">Same scoping logic applies to the Lambda-backed API. assistantScope is stored in users.json and checked on every protected route.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:14px;padding:12px 16px;background:rgba(79,142,247,0.07);border:1px solid rgba(79,142,247,0.22);border-radius:8px;font-size:12px;color:rgba(240,242,248,0.65);line-height:1.6">
+  <strong style="color:#93c5fd">Onboarding a new Strike Team:</strong> Core Team admin creates their ACE user account, sets <code>role: "editor"</code> and <code>assistantScope: ["their_assistant_id"]</code>. That's it. They log in and see only their assistant. No other configuration needed.
+</div>
+
+<p class="subtitle" style="margin-top:14px">That's all 4 sections. Does the full design make sense end-to-end?</p>

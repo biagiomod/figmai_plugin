@@ -79,7 +79,7 @@ const disabledResult = applyExclusionRules(disabledItems, { enabled: false, rule
 assert(disabledResult.items.length === 3, 'disabled config: all items pass through')
 assert(disabledResult.flaggedIds.size === 0, 'disabled config: no flags')
 
-// --- applyExclusionRules: enabled, standalone numeric excluded ---
+// --- applyExclusionRules: enabled, no numeric exclusion (tokenizer handles it) ---
 
 const enabledItems = [
   makeItem('n1', '25'),
@@ -91,19 +91,19 @@ const enabledItems = [
 ]
 const enabledResult = applyExclusionRules(enabledItems, { enabled: true, rules: [] })
 
-assert(enabledResult.items.length === 3, 'enabled: 3 items survive (3 standalone excluded)')
-assert(!enabledResult.items.find(i => i.id === 'n1'), 'enabled: "25" excluded')
-assert(!enabledResult.items.find(i => i.id === 'n2'), 'enabled: "$3.45" excluded')
-assert(!enabledResult.items.find(i => i.id === 'n6'), 'enabled: "1,234" excluded')
+assert(enabledResult.items.length === 6, 'enabled, no rules: all 6 items pass through (tokenizer handles numerics)')
+assert(enabledResult.items.find(i => i.id === 'n1') !== undefined, 'enabled: "25" NOT excluded by exclusionRules')
+assert(enabledResult.items.find(i => i.id === 'n2') !== undefined, 'enabled: "$3.45" NOT excluded by exclusionRules')
+assert(enabledResult.items.find(i => i.id === 'n6') !== undefined, 'enabled: "1,234" NOT excluded by exclusionRules')
 
 const hello = enabledResult.items.find(i => i.id === 'n3')
 assert(hello !== undefined && hello.content.value === 'Hello world', 'enabled: plain text unchanged')
 
 const earned = enabledResult.items.find(i => i.id === 'n4')
-assert(earned !== undefined && earned.content.value === "You've earned: {variable}", 'enabled: currency in sentence variableized')
+assert(earned !== undefined && earned.content.value === "You've earned: $4.50", 'enabled: mixed text NOT variableized by exclusionRules (tokenizer handles it)')
 
 const due = enabledResult.items.find(i => i.id === 'n5')
-assert(due !== undefined && due.content.value === 'Due in {variable} miles', 'enabled: number in sentence variableized')
+assert(due !== undefined && due.content.value === 'Due in 500 miles', 'enabled: mixed text NOT variableized by exclusionRules (tokenizer handles it)')
 
 // --- new rules: exclude vs flag ---
 
@@ -240,6 +240,20 @@ const src2 = resolveExclusionConfigWithSource(undefined, customCfg, defaultCfg)
 assert(src2.source === 'custom', 'precedence picks custom when work missing')
 const src3 = resolveExclusionConfigWithSource(undefined, undefined, defaultCfg)
 assert(src3.source === 'default', 'precedence falls back to default')
+
+// --- applyExclusionRules: standalone numbers no longer excluded (tokenizer handles them) ---
+
+const numItem = makeItem('num1', '25')
+const numResult = applyExclusionRules([numItem], { enabled: true, rules: [] })
+assert(numResult.items.length === 1, 'applyExclusionRules: standalone number "25" is NOT excluded (tokenizer handles it)')
+
+const currItem = makeItem('curr1', '$500.00')
+const currResult = applyExclusionRules([currItem], { enabled: true, rules: [] })
+assert(currResult.items.length === 1, 'applyExclusionRules: standalone currency "$500.00" is NOT excluded')
+
+const mixItem = makeItem('mix1', 'Balance: $500.00')
+const mixResult = applyExclusionRules([mixItem], { enabled: true, rules: [] })
+assert(mixResult.items[0]?.content.value === 'Balance: $500.00', 'applyExclusionRules: mixed text NOT variableized (stays as-is)')
 
 // --- Report ---
 

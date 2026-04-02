@@ -1,11 +1,11 @@
 /**
  * Content Table Exclusion Rules — pure post-filter for scanned items.
  *
- * Two layers:
+ * One layer:
  *   1. Pattern-based exclusion rules (gated behind config).
- *   2. Numeric/currency handling (always active when config.enabled):
- *      - Standalone numbers/currency → EXCLUDE.
- *      - Mixed text+number → INCLUDE with numbers replaced by {variable}.
+ *
+ * Numeric/currency classification is now handled by the semantic tokenizer
+ * (semanticTokenizer.ts) as a reversible overlay, not by exclusion.
  *
  * Applied after scan, never inside the scanner.
  * Does NOT touch Smart Detector internals.
@@ -130,12 +130,13 @@ export function variableizeNumerics(text: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Apply exclusion rules + numeric/currency handling to a list of content items.
+ * Apply exclusion rules to a list of content items.
  *
  * When config.enabled is true:
  *   1. Pattern-based exclusion rules filter items.
- *   2. Standalone numeric/currency items are excluded.
- *   3. Mixed text+number items have numbers replaced with {variable}.
+ *
+ * Numeric/currency handling is now delegated to the semantic tokenizer
+ * as a reversible overlay (see semanticTokenizer.ts).
  *
  * When config.enabled is false: returns items unchanged (NO-OP).
  */
@@ -181,18 +182,7 @@ export function applyExclusionRules(
       if (excludedByRule) continue
     }
 
-    const trimmedContent = rawContent.trim()
-
-    // Step 2: standalone numeric/currency → exclude
-    if (isStandaloneNumeric(trimmedContent) || isStandaloneCurrency(trimmedContent)) continue
-
-    // Step 3: mixed text+number → variableize
-    const transformed = variableizeNumerics(rawContent)
-    if (transformed !== rawContent) {
-      result.push({ ...item, content: { ...item.content, value: transformed } })
-    } else {
-      result.push(item)
-    }
+    result.push(item)
   }
 
   return {

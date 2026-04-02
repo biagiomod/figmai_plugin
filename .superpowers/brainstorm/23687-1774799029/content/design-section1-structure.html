@@ -1,0 +1,93 @@
+<h2>Design Section 1 of 4 — Repository Structure</h2>
+<p class="subtitle">How the codebase reorganizes. Two zones: Core (protected) and Strike Team directories (owned per team). Existing files migrate — nothing is deleted.</p>
+
+<div class="section">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    <!-- TODAY -->
+    <div>
+      <div class="label" style="margin-bottom:8px;color:#94a3b8">TODAY</div>
+      <div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-family:monospace;font-size:11.5px;line-height:1.85">
+        src/core/assistants/handlers/<br>
+        &nbsp;&nbsp;<span style="color:#f87171">contentTable.ts</span>&nbsp;&nbsp;&nbsp;<span style="color:#64748b">← Evergreens handler</span><br>
+        &nbsp;&nbsp;<span style="color:#f87171">analytics.ts</span><br>
+        &nbsp;&nbsp;<span style="color:#f87171">accessibility.ts</span><br>
+        &nbsp;&nbsp;index.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">← all handlers wired here</span><br>
+        <br>
+        src/assistants/<br>
+        &nbsp;&nbsp;<span style="color:#f87171">contentTable.md</span>&nbsp;<span style="color:#64748b">← Evergreens KB</span><br>
+        &nbsp;&nbsp;assistants.generated.ts<br>
+        &nbsp;&nbsp;index.ts<br>
+        <br>
+        custom/<br>
+        &nbsp;&nbsp;<span style="color:#f87171">assistants.manifest.json</span>&nbsp;<span style="color:#64748b">← one big file</span><br>
+        &nbsp;&nbsp;knowledge/<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">content_table.md</span><br>
+        &nbsp;&nbsp;knowledge-bases/
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div>
+      <div class="label" style="margin-bottom:8px;color:#4ade80">AFTER MIGRATION</div>
+      <div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(79,142,247,0.3);border-radius:10px;font-family:monospace;font-size:11.5px;line-height:1.85">
+        src/sdk/index.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">NEW ←</span><br>
+        <br>
+        src/assistants/<br>
+        &nbsp;&nbsp;<span style="color:#60a5fa">evergreens/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#60a5fa">← Evergreens Team</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;handler.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">moved from core/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">moved from assistants/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;index.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">NEW</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;evergreens.generated.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">NEW (generated)</span><br>
+        &nbsp;&nbsp;<span style="color:#f472b6">analytics/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f472b6">← Analytics Team</span><br>
+        &nbsp;&nbsp;<span style="color:#fb923c">accessibility/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#fb923c">← A11y Team</span><br>
+        &nbsp;&nbsp;<span style="color:#a78bfa">prompt-to-screen/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a78bfa">← P2S Team</span><br>
+        &nbsp;&nbsp;_registry.generated.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">NEW (assembled)</span><br>
+        <br>
+        custom/assistants/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">NEW structure</span><br>
+        &nbsp;&nbsp;<span style="color:#60a5fa">evergreens/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;manifest.json&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">split from big manifest</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">moved from custom/knowledge/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;knowledge-bases/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">moved from custom/knowledge-bases/</span><br>
+        &nbsp;&nbsp;<span style="color:#f472b6">analytics/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b">same pattern</span><br>
+        <br>
+        CODEOWNERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">NEW</span><br>
+        docs/ASSISTANT_SDK.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">NEW</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>What each Strike Team owns</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+
+    <div style="padding:12px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:0.08em;margin-bottom:6px">EVERGREENS TEAM</div>
+      <div style="font-family:monospace;font-size:11px;line-height:1.8;color:rgba(240,242,248,0.7)">
+        src/assistants/evergreens/<br>
+        custom/assistants/evergreens/
+      </div>
+      <div style="font-size:11px;color:rgba(240,242,248,0.45);margin-top:6px">Handler code + KB + config — all in two directories</div>
+    </div>
+
+    <div style="padding:12px 14px;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.25);border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:#93c5fd;letter-spacing:0.08em;margin-bottom:6px">CORE CODE TEAM</div>
+      <div style="font-family:monospace;font-size:11px;line-height:1.8;color:rgba(240,242,248,0.7)">
+        src/core/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#475569">(protected)</span><br>
+        src/sdk/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#475569">(public contract)</span><br>
+        scripts/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#475569">(build tools)</span><br>
+        src/main.ts, src/ui.tsx
+      </div>
+      <div style="font-size:11px;color:rgba(240,242,248,0.45);margin-top:6px">Platform, shared runtime, build pipeline</div>
+    </div>
+
+  </div>
+</div>
+
+<div style="margin-top:14px;padding:12px 16px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:8px;font-size:12px;color:rgba(240,242,248,0.65);line-height:1.6">
+  <strong style="color:#4ade80">Key invariant preserved:</strong> Everything is still compiled at build time. No runtime file reads. The only change is <em>where</em> each team's files live and <em>how</em> they're assembled.
+</div>
+
+<p class="subtitle" style="margin-top:14px">Does this structure look right? Any directories that should be different?</p>

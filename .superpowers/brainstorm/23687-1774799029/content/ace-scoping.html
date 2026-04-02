@@ -1,0 +1,86 @@
+<h2>How should ACE work for Strike Team members?</h2>
+<p class="subtitle">When someone from the Evergreens Strike Team logs into the ACE admin, what do they see? This shapes the entire role + permissions model.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Scoped view — only their assistant <span style="font-size:11px;background:#22c55e22;color:#22c55e;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600">Recommended</span></h3>
+      <p>A Strike Team member sees only their assistant's settings. Other assistants and global config are hidden. Core Team admins see everything.</p>
+      <div style="margin-top:12px;display:flex;gap:12px">
+        <!-- Core Admin view -->
+        <div style="flex:1;border:1px solid rgba(79,142,247,0.4);border-radius:8px;overflow:hidden">
+          <div style="background:rgba(79,142,247,0.15);padding:6px 12px;font-size:11px;font-weight:700;color:#93c5fd;letter-spacing:0.08em">CORE TEAM (admin)</div>
+          <div style="padding:8px 12px">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+              <span style="background:rgba(79,142,247,0.2);color:#93c5fd;padding:3px 8px;border-radius:4px;font-size:11px">Config</span>
+              <span style="background:rgba(79,142,247,0.2);color:#93c5fd;padding:3px 8px;border-radius:4px;font-size:11px">All Assistants</span>
+              <span style="background:rgba(79,142,247,0.2);color:#93c5fd;padding:3px 8px;border-radius:4px;font-size:11px">All KBs</span>
+              <span style="background:rgba(79,142,247,0.2);color:#93c5fd;padding:3px 8px;border-radius:4px;font-size:11px">Design Systems</span>
+              <span style="background:rgba(79,142,247,0.2);color:#93c5fd;padding:3px 8px;border-radius:4px;font-size:11px">Users</span>
+            </div>
+            <div style="font-size:11px;color:rgba(240,242,248,0.5)">Sees + edits everything</div>
+          </div>
+        </div>
+        <!-- Strike Team view -->
+        <div style="flex:1;border:1px solid rgba(96,165,250,0.4);border-radius:8px;overflow:hidden">
+          <div style="background:rgba(96,165,250,0.12);padding:6px 12px;font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:0.08em">EVERGREENS TEAM (editor)</div>
+          <div style="padding:8px 12px">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+              <span style="background:rgba(96,165,250,0.2);color:#60a5fa;padding:3px 8px;border-radius:4px;font-size:11px">Evergreens Assistant</span>
+              <span style="background:rgba(96,165,250,0.2);color:#60a5fa;padding:3px 8px;border-radius:4px;font-size:11px">Evergreens KBs</span>
+              <span style="background:rgba(96,165,250,0.2);color:#60a5fa;padding:3px 8px;border-radius:4px;font-size:11px">Evergreens Knowledge</span>
+            </div>
+            <div style="font-size:11px;color:rgba(240,242,248,0.5)">Only sees their assistant + its KBs</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:12px">
+        <div class="pros"><h4>Pros</h4><ul><li>Clean, focused UX per team</li><li>No accidental changes to other teams' settings</li><li>Maps directly to "team ownership"</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Requires scoped role model in ACE backend</li><li>More ACE UI work to implement</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Full view, read-only outside their scope</h3>
+      <p>Strike Team members see everything but can only edit their own assistant's settings. Other assistants and global config are visible but locked.</p>
+      <div style="margin-top:12px;border:1px solid rgba(251,146,60,0.4);border-radius:8px;overflow:hidden">
+        <div style="background:rgba(251,146,60,0.12);padding:6px 12px;font-size:11px;font-weight:700;color:#fb923c;letter-spacing:0.08em">EVERGREENS TEAM — sees everything, edits only theirs</div>
+        <div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px">
+          <span style="background:rgba(251,146,60,0.2);color:#fb923c;padding:3px 8px;border-radius:4px;font-size:11px">✏ Evergreens (editable)</span>
+          <span style="background:rgba(255,255,255,0.05);color:rgba(240,242,248,0.3);padding:3px 8px;border-radius:4px;font-size:11px">🔒 Analytics (read-only)</span>
+          <span style="background:rgba(255,255,255,0.05);color:rgba(240,242,248,0.3);padding:3px 8px;border-radius:4px;font-size:11px">🔒 Global Config (read-only)</span>
+          <span style="background:rgba(255,255,255,0.05);color:rgba(240,242,248,0.3);padding:3px 8px;border-radius:4px;font-size:11px">🔒 Users (hidden)</span>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:12px">
+        <div class="pros"><h4>Pros</h4><ul><li>Teams can see how other assistants are configured (useful for learning)</li><li>Easier to implement (just disable save buttons)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>May expose sensitive config to all teams</li><li>Cluttered UX — shows things they can't use</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Keep current model (global roles only) for now</h3>
+      <p>Don't change the ACE role model yet. Focus on the code extensibility architecture first. Add per-assistant ACE scoping in a future phase.</p>
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:12px;color:rgba(240,242,248,0.6);line-height:1.6">
+        Current roles: <strong style="color:rgba(240,242,248,0.85)">admin → manager → editor → reviewer</strong><br>
+        All global. Any editor can edit any assistant.<br>
+        Phase 2: add per-assistant role scoping later.
+      </div>
+      <div class="pros-cons" style="margin-top:12px">
+        <div class="pros"><h4>Pros</h4><ul><li>No ACE changes needed in this phase</li><li>Fastest path to code extensibility</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>No ownership boundary in the admin</li><li>Teams can accidentally overwrite each other</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">My recommendation is <strong>A</strong>: scoped views per Strike Team. It's the right architecture even if it takes a little more work. Option C is a valid "phase it in" choice if you want to ship the code structure first.</p>

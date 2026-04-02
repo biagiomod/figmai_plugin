@@ -1,0 +1,87 @@
+<h2>How should Strike Teams test their changes in Figma?</h2>
+<p class="subtitle">Teams need to run a real Figma plugin build with their updates — without waiting on Core Team. Here are three complementary approaches.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Local dev build — zero infrastructure <span style="font-size:11px;background:#22c55e22;color:#22c55e;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600">Always works</span></h3>
+      <p>Figma natively supports loading a plugin from a local folder during development ("Development Plugins"). Any Strike Team member can clone the repo, build locally, and test immediately — no CI, no approval needed.</p>
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:12px;line-height:2">
+        <span style="color:#4ade80"># 1. Clone and install (one-time)</span><br>
+        git clone ... && npm install<br>
+        <br>
+        <span style="color:#4ade80"># 2. Make changes in your directory</span><br>
+        src/assistants/evergreens/ ← edit freely<br>
+        <br>
+        <span style="color:#4ade80"># 3. Build (no S3 needed)</span><br>
+        npm run build:offline<br>
+        <br>
+        <span style="color:#4ade80"># 4. Load in Figma</span><br>
+        Figma → Plugins → Development → Import from manifest<br>
+        → select build/manifest.json<br>
+        <br>
+        <span style="color:#60a5fa">✓ Full plugin. Your changes. Your Figma file.</span>
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Works today, no new infrastructure</li><li>Completely independent of Core Team</li><li>True end-to-end test in real Figma</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Each team member needs repo cloned + Node.js</li><li>All assistants compile together (team sees all)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>CI branch builds — shareable test artifacts <span style="font-size:11px;background:#22c55e22;color:#22c55e;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600">Recommended add-on</span></h3>
+      <p>GitHub Actions builds the plugin on every push to a feature branch. The build artifact (main.js + ui.html + manifest.json) is uploaded and linked in the PR. Anyone on the team downloads it, drops it in a folder, and loads it in Figma — no local build setup required.</p>
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:12px;line-height:1.8">
+        <span style="color:#a78bfa">Strike Team pushes to feature/evergreens-update</span><br>
+        &nbsp;&nbsp;&nbsp;↓<br>
+        <span style="color:#4ade80">GitHub Actions: npm run build:offline</span><br>
+        &nbsp;&nbsp;&nbsp;↓<br>
+        <span style="color:#60a5fa">Uploads build/ as artifact on PR</span><br>
+        &nbsp;&nbsp;&nbsp;↓<br>
+        <span style="color:#fb923c">Team member downloads ZIP → loads in Figma</span><br>
+        &nbsp;&nbsp;&nbsp;↓<br>
+        <span style="color:#4ade80">Tests in Figma ✓ — no local Node.js setup needed</span>
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Non-technical team members can test</li><li>Shareable — whole team tests same build</li><li>Catches compile errors in CI automatically</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Requires GitHub Actions setup (one-time, easy)</li><li>~1-2 min wait per push</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Separate Figma test plugin per team</h3>
+      <p>Each Strike Team registers their own Figma plugin (separate plugin ID) for testing. They publish their own "dev edition" of the plugin independently. Production plugin is managed by Core Team only.</p>
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:12px;line-height:1.8;color:rgba(240,242,248,0.7)">
+        Production plugin: <strong style="color:rgba(240,242,248,0.9)">FigmAI</strong> (Core Team owns)<br>
+        Evergreens test plugin: <strong style="color:#60a5fa">FigmAI-Evergreens-Dev</strong><br>
+        Analytics test plugin: <strong style="color:#f472b6">FigmAI-Analytics-Dev</strong><br>
+        <br>
+        Each team publishes to their own plugin ID.<br>
+        No coordination with Core Team for testing.
+      </div>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Completely isolated from production plugin</li><li>Teams can publish independently</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Multiple Figma plugin registrations to manage</li><li>Test plugin drifts from production</li><li>Confusing for end users if they install wrong one</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:14px 18px;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.25);border-radius:10px">
+  <div style="font-size:12px;font-weight:700;color:#93c5fd;margin-bottom:6px">💡 These aren't mutually exclusive</div>
+  <div style="font-size:12px;color:rgba(240,242,248,0.65);line-height:1.6">
+    <strong style="color:rgba(240,242,248,0.85)">A</strong> is always available and is the primary workflow for developers.
+    <strong style="color:rgba(240,242,248,0.85)">B</strong> is a great add-on for non-developers on a Strike Team (designers, content strategists, etc.) who need to test without setting up a local environment. You can start with A and add B when teams grow.
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px">You can select multiple. My recommendation: <strong>A + B</strong> together.</p>

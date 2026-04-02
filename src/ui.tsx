@@ -135,7 +135,7 @@ import { projectContentTable } from './core/contentTable/projection'
 import { PRESET_INFO, PRESET_COLUMNS } from './core/contentTable/presets.generated'
 import { getOrderedCtaPresets } from './core/contentTable/presetOrder'
 import type { ContentTableSession } from './core/contentTable/session'
-import { createSession, getEffectiveItems, applyEdit, deleteItem, appendItems, toggleDuplicateScan } from './core/contentTable/session'
+import { createSession, getEffectiveItems, applyEdit, deleteItem, appendItems, toggleDuplicateScan, revertTokenizedItem } from './core/contentTable/session'
 import { classifyCandidates, filterByDuplicates } from './core/contentTable/duplicates'
 import type { ContentItemV1 } from './core/contentTable/types'
 import { ContentTableWelcome } from './ui/components/ContentTableWelcome'
@@ -789,12 +789,21 @@ function Plugin() {
             const ignoreRuleByItemId = (message.ignoreRuleByItemId && typeof message.ignoreRuleByItemId === 'object')
               ? message.ignoreRuleByItemId as Record<string, string>
               : {}
+            const tokenizedItemsFromMsg: Record<string, string> =
+              message.tokenizedItems && typeof message.tokenizedItems === 'object'
+                ? message.tokenizedItems as Record<string, string>
+                : {}
+            const tokenizedIdsFromMsg = new Set<string>(
+              Array.isArray(message.tokenizedIds) ? message.tokenizedIds as string[] : []
+            )
             setContentTable(dedupedTable)
             setCtSession(createSession(dedupedTable, {
               flaggedDuplicateIds: flaggedIds,
               flaggedIgnoreIds: ignoreFlagIds,
               ignoreRuleByItemId,
-              skippedCount
+              skippedCount,
+              tokenizedItems: tokenizedItemsFromMsg,
+              tokenizedIds: tokenizedIdsFromMsg
             }))
             setSelectedFormat('simple-worksheet')
             const genContainerIds: string[] = message.scannedContainerNodeIds || []
@@ -811,9 +820,18 @@ function Plugin() {
               const appendIgnoreRules = (message.ignoreRuleByItemId && typeof message.ignoreRuleByItemId === 'object')
                 ? message.ignoreRuleByItemId as Record<string, string>
                 : {}
+              const appendTokenizedItems: Record<string, string> =
+                message.tokenizedItems && typeof message.tokenizedItems === 'object'
+                  ? message.tokenizedItems as Record<string, string>
+                  : {}
+              const appendTokenizedIds = new Set<string>(
+                Array.isArray(message.tokenizedIds) ? message.tokenizedIds as string[] : []
+              )
               if (!prev) return createSession(message.table, {
                 flaggedIgnoreIds: appendIgnoreFlags,
-                ignoreRuleByItemId: appendIgnoreRules
+                ignoreRuleByItemId: appendIgnoreRules,
+                tokenizedItems: appendTokenizedItems,
+                tokenizedIds: appendTokenizedIds
               })
               const existing = getEffectiveItems(prev)
               if (prev.scanEnabled) {
@@ -823,12 +841,16 @@ function Plugin() {
                   flaggedDuplicateIds: flaggedIds,
                   flaggedIgnoreIds: appendIgnoreFlags,
                   ignoreRuleByItemId: appendIgnoreRules,
-                  skippedCount
+                  skippedCount,
+                  tokenizedItems: appendTokenizedItems,
+                  tokenizedIds: appendTokenizedIds
                 })
               }
               return appendItems(prev, message.table.items, {
                 flaggedIgnoreIds: appendIgnoreFlags,
-                ignoreRuleByItemId: appendIgnoreRules
+                ignoreRuleByItemId: appendIgnoreRules,
+                tokenizedItems: appendTokenizedItems,
+                tokenizedIds: appendTokenizedIds
               })
             })
             setContentTable(prev => {
