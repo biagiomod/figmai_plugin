@@ -527,6 +527,7 @@ function Plugin() {
   /** Debounce tool-only quick actions to avoid duplicate RUN_QUICK_ACTION (e.g. double-click). */
   const lastToolOnlyEmitRef = useRef<{ key: string; time: number } | null>(null)
   const uiTraceCounterRef = useRef(0)
+  const hasResizeMountedRef = useRef(false)
   const qaTraceUI = useCallback((marker: string, data: Record<string, unknown>) => {
     if (!debug.isEnabled('trace:chat')) return
     uiTraceCounterRef.current += 1
@@ -1243,17 +1244,15 @@ function Plugin() {
   }, [])
 
   // Reset plugin window size when navigating away from EG-A (content_table)
-  const hasResizeMountedRef = useRef(false)
-
   useEffect(() => {
     if (!hasResizeMountedRef.current) {
       hasResizeMountedRef.current = true
       return
     }
-    if (assistant?.id !== 'content_table') {
+    if (assistant?.id !== 'content_table' && pluginSizeMode !== 'portrait') {
       resetPluginSize()
     }
-  }, [assistant?.id, resetPluginSize])
+  }, [assistant?.id, pluginSizeMode, resetPluginSize])
 
   // Handlers
   const handleReset = useCallback(() => {
@@ -1265,6 +1264,14 @@ function Plugin() {
     // Also emit RESET to main thread (for main thread state cleanup)
     emit<ResetHandler>('RESET')
   }, [resetUIState, resetPluginSize])
+
+  const handleResizeCycle = useCallback(() => {
+    const nextIdx = (SIZE_CYCLE.indexOf(pluginSizeMode) + 1) % SIZE_CYCLE.length
+    const next = SIZE_CYCLE[nextIdx]
+    const { width, height } = PLUGIN_SIZES[next]
+    emit<ResizePluginHandler>('RESIZE_PLUGIN', width, height)
+    setPluginSizeMode(next)
+  }, [pluginSizeMode])
 
   const handleClearChat = useCallback(() => {
     setMessages([])
@@ -2590,13 +2597,7 @@ ${htmlTable}
         }}>
           {assistant?.id === 'content_table' && (
             <button
-              onClick={() => {
-                const nextIdx = (SIZE_CYCLE.indexOf(pluginSizeMode) + 1) % SIZE_CYCLE.length
-                const next = SIZE_CYCLE[nextIdx]
-                const { width, height } = PLUGIN_SIZES[next]
-                emit<ResizePluginHandler>('RESIZE_PLUGIN', width, height)
-                setPluginSizeMode(next)
-              }}
+              onClick={handleResizeCycle}
               style={{
                 width: '24px',
                 height: '24px',
