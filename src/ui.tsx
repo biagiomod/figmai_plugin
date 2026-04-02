@@ -481,10 +481,6 @@ function Plugin() {
   const [showPromptDiagDetails, setShowPromptDiagDetails] = useState(false)
   const [confluenceFormat, setConfluenceFormat] = useState<TableFormatPreset>('universal')
   const [pluginSizeMode, setPluginSizeMode] = useState<PluginSizeMode>('portrait')
-  const resetPluginSize = () => {
-    emit<ResizePluginHandler>('RESIZE_PLUGIN', 400, 600)
-    setPluginSizeMode('portrait')
-  }
   // Analytics Tagging state
   const [isCopyingAnalyticsTable, setIsCopyingAnalyticsTable] = useState(false)
   const [analyticsTaggingSession, setAnalyticsTaggingSession] = useState<Session | null>(null)
@@ -599,13 +595,6 @@ function Plugin() {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     }
   }, [])
-
-  // Reset plugin window size when navigating away from EG-A (content_table)
-  useEffect(() => {
-    if (assistant?.id !== 'content_table') {
-      resetPluginSize()
-    }
-  }, [assistant?.id])
 
   // Listen to events from main thread
   useEffect(() => {
@@ -1248,6 +1237,24 @@ function Plugin() {
     setResetToken(prev => prev + 1)
   }, [])
   
+  const resetPluginSize = useCallback(() => {
+    emit<ResizePluginHandler>('RESIZE_PLUGIN', 400, 600)
+    setPluginSizeMode('portrait')
+  }, [])
+
+  // Reset plugin window size when navigating away from EG-A (content_table)
+  const hasResizeMountedRef = useRef(false)
+
+  useEffect(() => {
+    if (!hasResizeMountedRef.current) {
+      hasResizeMountedRef.current = true
+      return
+    }
+    if (assistant?.id !== 'content_table') {
+      resetPluginSize()
+    }
+  }, [assistant?.id, resetPluginSize])
+
   // Handlers
   const handleReset = useCallback(() => {
     resetPluginSize()
@@ -1257,7 +1264,7 @@ function Plugin() {
 
     // Also emit RESET to main thread (for main thread state cleanup)
     emit<ResetHandler>('RESET')
-  }, [resetUIState])
+  }, [resetUIState, resetPluginSize])
 
   const handleClearChat = useCallback(() => {
     setMessages([])
