@@ -1,0 +1,138 @@
+<h2>Design Section 2 of 4 — The SDK Contract</h2>
+<p class="subtitle">What every Strike Team writes. The SDK is a thin, stable interface owned by the Core Code Team. Strike Teams import from it — they never touch core internals.</p>
+
+<div class="section">
+  <h3>What Strike Teams must provide (the minimum)</h3>
+  <p style="font-size:13px;color:rgba(240,242,248,0.6);margin-bottom:12px">Every assistant directory needs exactly one file the build system reads: <code>index.ts</code>. It exports the assistant's definition and, if needed, a handler.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+    <!-- AI assistant (simple case) -->
+    <div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(79,142,247,0.25);border-radius:10px">
+      <div class="label" style="color:#93c5fd;margin-bottom:10px">AI ASSISTANT (chat-based) — e.g. Analytics</div>
+      <div style="font-family:monospace;font-size:11.5px;line-height:1.85;color:rgba(240,242,248,0.8)">
+        <span style="color:#94a3b8">// src/assistants/analytics/index.ts</span><br>
+        import type &#123; AssistantModule &#125;<br>
+        &nbsp;&nbsp;from <span style="color:#4ade80">'../../sdk'</span><br>
+        <br>
+        const module: AssistantModule = &#123;<br>
+        &nbsp;&nbsp;definition: &#123;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;id: <span style="color:#fb923c">'analytics'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;label: <span style="color:#fb923c">'Analytics'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;kind: <span style="color:#fb923c">'ai'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;uiMode: <span style="color:#fb923c">'chat'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;intro: <span style="color:#fb923c">'...'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;quickActions: [...],<br>
+        &nbsp;&nbsp;&#125;,<br>
+        &nbsp;&nbsp;<span style="color:#94a3b8">// No handler needed —</span><br>
+        &nbsp;&nbsp;<span style="color:#94a3b8">// core routes to LLM automatically</span><br>
+        &#125;<br>
+        <br>
+        export default module
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:rgba(240,242,248,0.45)">AI assistants just need a definition. The core handles LLM routing automatically.</div>
+    </div>
+
+    <!-- Tool assistant (handler required) -->
+    <div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(96,165,250,0.35);border-radius:10px">
+      <div class="label" style="color:#60a5fa;margin-bottom:10px">TOOL ASSISTANT (custom logic) — e.g. Evergreens</div>
+      <div style="font-family:monospace;font-size:11.5px;line-height:1.85;color:rgba(240,242,248,0.8)">
+        <span style="color:#94a3b8">// src/assistants/evergreens/index.ts</span><br>
+        import type &#123; AssistantModule &#125;<br>
+        &nbsp;&nbsp;from <span style="color:#4ade80">'../../sdk'</span><br>
+        import &#123; handler &#125; from <span style="color:#4ade80">'./handler'</span><br>
+        <br>
+        const module: AssistantModule = &#123;<br>
+        &nbsp;&nbsp;definition: &#123;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;id: <span style="color:#fb923c">'content_table'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;label: <span style="color:#fb923c">'Evergreens'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;kind: <span style="color:#fb923c">'tool'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;uiMode: <span style="color:#fb923c">'tool'</span>,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;quickActions: [...],<br>
+        &nbsp;&nbsp;&#125;,<br>
+        &nbsp;&nbsp;handler,&nbsp;&nbsp;<span style="color:#94a3b8">// custom pre-LLM logic</span><br>
+        &#125;<br>
+        <br>
+        export default module
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:rgba(240,242,248,0.45)">Tool assistants add a handler. The handler interface is unchanged from what exists in core today.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>What the SDK exports (Core Team owns, Strike Teams consume)</h3>
+  <div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;margin-top:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div>
+        <div class="label" style="color:#4ade80;margin-bottom:8px">TYPES (shape your data)</div>
+        <div style="font-family:monospace;font-size:11px;line-height:1.9;color:rgba(240,242,248,0.7)">
+          AssistantModule<br>
+          AssistantDefinition<br>
+          AssistantKind<br>
+          AssistantUIMode<br>
+          QuickAction<br>
+          ExecutionType<br>
+          InstructionBlock<br>
+          SafetyOverrides<br>
+          ToolSettings
+        </div>
+      </div>
+      <div>
+        <div class="label" style="color:#60a5fa;margin-bottom:8px">HANDLER TYPES (custom logic)</div>
+        <div style="font-family:monospace;font-size:11px;line-height:1.9;color:rgba(240,242,248,0.7)">
+          AssistantHandler<br>
+          HandlerContext<br>
+          HandlerResult<br>
+          NormalizedMessage<br>
+          SelectionState<br>
+          Message
+        </div>
+      </div>
+      <div>
+        <div class="label" style="color:#a78bfa;margin-bottom:8px">KB TYPES (knowledge bases)</div>
+        <div style="font-family:monospace;font-size:11px;line-height:1.9;color:rgba(240,242,248,0.7)">
+          KnowledgeBaseDocument<br>
+          KnowledgeBaseRef<br>
+          <br>
+          <span style="color:#64748b;font-size:10.5px">All sourced from<br>existing core types —<br>SDK just re-exports<br>them cleanly</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>What the handler interface looks like (already exists in core — unchanged)</h3>
+  <div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;margin-top:10px;font-family:monospace;font-size:11.5px;line-height:1.9;color:rgba(240,242,248,0.8)">
+    <span style="color:#94a3b8">// src/assistants/evergreens/handler.ts</span><br>
+    import type &#123; AssistantHandler, HandlerContext, HandlerResult &#125;<br>
+    &nbsp;&nbsp;from <span style="color:#4ade80">'../../sdk'</span><br>
+    <br>
+    export const handler: AssistantHandler = &#123;<br>
+    <br>
+    &nbsp;&nbsp;<span style="color:#94a3b8">// Which actions does this handler own?</span><br>
+    &nbsp;&nbsp;canHandle(assistantId, actionId) &#123;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;return assistantId === <span style="color:#fb923c">'content_table'</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp; (actionId === <span style="color:#fb923c">'generate-table'</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|| actionId === <span style="color:#fb923c">'add-to-table'</span>)<br>
+    &nbsp;&nbsp;&#125;,<br>
+    <br>
+    &nbsp;&nbsp;<span style="color:#94a3b8">// What happens when the action runs?</span><br>
+    &nbsp;&nbsp;async handleResponse(ctx: HandlerContext): Promise&lt;HandlerResult&gt; &#123;<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">// ... Evergreens scanning logic here</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;return &#123; handled: true &#125;<br>
+    &nbsp;&nbsp;&#125;<br>
+    &#125;
+  </div>
+  <div style="margin-top:8px;font-size:12px;color:rgba(240,242,248,0.45);line-height:1.6">
+    This interface <strong style="color:rgba(240,242,248,0.65)">already exists</strong> in <code>src/core/assistants/handlers/base.ts</code>. The Evergreens handler already implements it. Migration = moving the file and updating the import path. No logic changes.
+  </div>
+</div>
+
+<div style="margin-top:14px;padding:12px 16px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:8px;font-size:12px;color:rgba(240,242,248,0.65);line-height:1.6">
+  <strong style="color:#4ade80">For new Strike Teams:</strong> Copy the <code>analytics/</code> template → change the ID, label, quickActions → done. If they need custom logic (like Evergreens), they also copy the handler template and implement <code>canHandle</code> + <code>handleResponse</code>. The SDK documentation covers both patterns with examples.
+</div>
+
+<p class="subtitle" style="margin-top:14px">Does this SDK contract feel right? Any types or utilities you'd expect Strike Teams to need that aren't listed here?</p>

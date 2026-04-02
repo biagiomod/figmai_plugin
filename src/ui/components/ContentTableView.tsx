@@ -11,7 +11,7 @@
 import { h } from 'preact'
 import { useMemo } from 'preact/hooks'
 import type { ContentTableSession } from '../../core/contentTable/session'
-import { getEffectiveItems, applyEdit, deleteItem } from '../../core/contentTable/session'
+import { getEffectiveItems, applyEdit, deleteItem, revertTokenizedItem } from '../../core/contentTable/session'
 import { PRESET_INFO } from '../../core/contentTable/presets.generated'
 import { projectContentTable, cellText, cellHref, cellSuffix } from '../../core/contentTable/projection'
 import type { TableFormatPreset, ContentItemV1 } from '../../core/contentTable/types'
@@ -79,6 +79,15 @@ export function ContentTableView({
     () => getCtaPresetDisplayOrder(getOrderedCtaPresets(PRESET_INFO)),
     []
   )
+  // Build lookup for original (pre-tokenization) content values.
+  // Used to show "Original: ..." tooltip on tokenized cells.
+  const baseContentById = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const bi of session.baseTable.items) {
+      m[bi.id] = bi.content.value
+    }
+    return m
+  }, [session.baseTable.items])
   const isKV = projected.readOnly
   const isMobilePreset = selectedFormat === 'mobile'
   const hasToolsDataColumn = projected.columnKeys.some(isToolsColumnKey)
@@ -294,6 +303,8 @@ export function ContentTableView({
                 const isFlagged = session.flaggedDuplicateIds.has(item.id)
                 const isIgnoreFlagged = session.flaggedIgnoreIds.has(item.id)
                 const ignoreRuleName = session.ignoreRuleByItemId[item.id] || ''
+                const isTokenized = session.tokenizedIds.has(item.id)
+                const originalContent = isTokenized ? (baseContentById[item.id] || '') : ''
                 const row = projected.rows[idx]
                 const renderToolsCell = () => (
                   <span>
@@ -302,6 +313,17 @@ export function ContentTableView({
                     )}
                     {isFlagged && (
                       <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
+                    )}
+                    {isTokenized && (
+                      <button
+                        onClick={() => onSessionChange(revertTokenizedItem(session, item.id))}
+                        title={`Tokenized — click to revert to original:\n"${originalContent}"`}
+                        style={{ ...TOOL_BTN, color: '#6b21a8', fontSize: '8px', fontWeight: 600, padding: '1px 3px' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f5f3ff' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                      >
+                        {'{{T}}'}
+                      </button>
                     )}
                     {item.nodeId && (
                       <button onClick={() => onExportRowRefImage(item.nodeId)} title="Get ref image for this row" style={{ ...TOOL_BTN, color: '#333333' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#eef' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}>

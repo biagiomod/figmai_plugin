@@ -20,6 +20,8 @@ import { applyExclusionRules, resolveExclusionConfigWithSource } from '../../cor
 import type { ExclusionRulesConfig } from '../../core/contentTable/exclusionRules'
 import { getCustomConfig } from '../../custom/config'
 import { resolveSelection } from '../../core/figma/selectionResolver'
+import { tokenizeContent } from '../../core/contentTable/semanticTokenizer'
+import { CONTENT_TABLE_IGNORE_RULES } from '../../custom/generated/contentTableIgnoreRules.generated'
 
 export class ContentTableHandler implements AssistantHandler {
   canHandle(assistantId: string, actionId: string | undefined): boolean {
@@ -55,7 +57,7 @@ export class ContentTableHandler implements AssistantHandler {
 
     try {
       const workAdapter = await loadWorkAdapter()
-      const ignoreRules = workAdapter.getContentTableIgnoreRules?.() || null
+      const ignoreRules = workAdapter.getContentTableIgnoreRules?.() || CONTENT_TABLE_IGNORE_RULES || null
       const detectDesignSystemComponent = workAdapter.detectDesignSystemComponent
 
       // Scan each valid container in selection order and concatenate items.
@@ -111,6 +113,18 @@ export class ContentTableHandler implements AssistantHandler {
       const exclusionDebugEnabled = getCustomConfig()?.contentTable?.exclusionRulesDebug === true
       const exclusionResult = applyExclusionRules(contentTable.items, resolvedExclusion.config, exclusionDebugEnabled)
       contentTable = { ...contentTable, items: exclusionResult.items }
+
+      // Semantic tokenization: classify values as typed placeholders (reversible overlay)
+      const tokenizedItemsMap: Record<string, string> = {}
+      const tokenizedIds = new Set<string>()
+      for (const item of contentTable.items) {
+        const tokenResult = tokenizeContent(item.content.value)
+        if (tokenResult.changed) {
+          tokenizedItemsMap[item.id] = tokenResult.value
+          tokenizedIds.add(item.id)
+        }
+      }
+
       if (exclusionDebugEnabled) {
         const activeRuleCount = (resolvedExclusion.config.rules || []).filter((rule) => {
           if (!rule || typeof rule !== 'object') return false
@@ -144,6 +158,8 @@ export class ContentTableHandler implements AssistantHandler {
           table: contentTable,
           flaggedIgnoreIds: Array.from(exclusionResult.flaggedIds),
           ignoreRuleByItemId: exclusionResult.matchedRuleByItemId,
+          tokenizedItems: tokenizedItemsMap,
+          tokenizedIds: Array.from(tokenizedIds),
           exclusionDebug: exclusionDebugEnabled
             ? {
                 source: resolvedExclusion.source,

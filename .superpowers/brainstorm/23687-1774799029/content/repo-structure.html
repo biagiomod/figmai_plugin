@@ -1,0 +1,74 @@
+<h2>How should Strike Teams own their code?</h2>
+<p class="subtitle">This is the most important architectural decision. Pick the structure that matches how your teams will actually work.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>One repo, directory isolation <span style="font-size:11px;background:#22c55e22;color:#22c55e;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600">Recommended</span></h3>
+      <p>All Strike Teams work in the same GitHub repo. Each assistant lives in its own directory. GitHub <code>CODEOWNERS</code> enforces who can approve changes to each directory. The Core Code Team owns the shared layer.</p>
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:12px;line-height:1.8">
+        figmai-plugin/<br>
+        ├── src/core/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">← Core Code Team</span><br>
+        ├── src/sdk/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">← Core Code Team</span><br>
+        ├── src/assistants/<br>
+        │&nbsp;&nbsp;&nbsp;├── evergreens/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#60a5fa">← Evergreens Team</span><br>
+        │&nbsp;&nbsp;&nbsp;├── analytics/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f472b6">← Analytics Team</span><br>
+        │&nbsp;&nbsp;&nbsp;├── accessibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#fb923c">← A11y Team</span><br>
+        │&nbsp;&nbsp;&nbsp;└── prompt-to-screen/&nbsp;&nbsp;&nbsp;<span style="color:#a78bfa">← P2S Team</span><br>
+        └── CODEOWNERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">← ownership map</span>
+      </div>
+      <div class="pros-cons" style="margin-top:12px">
+        <div class="pros"><h4>Pros</h4><ul><li>Minimal tooling complexity</li><li>Works great with VSCode + Copilot</li><li>One CI pipeline</li><li>Easiest migration path</li><li>Standard InnerSource pattern</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Teams share a git history</li><li>PRs need Core Team review for cross-cutting changes</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Monorepo with npm workspaces</h3>
+      <p>Each assistant is a proper npm package inside a workspace. TypeScript project references enforce strict compile isolation. A failed assistant package never breaks the others.</p>
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:12px;line-height:1.8">
+        figmai-plugin/<br>
+        ├── packages/<br>
+        │&nbsp;&nbsp;&nbsp;├── core/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">@figmai/core</span><br>
+        │&nbsp;&nbsp;&nbsp;├── assistant-sdk/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">@figmai/sdk</span><br>
+        │&nbsp;&nbsp;&nbsp;├── assistant-evergreens/&nbsp;&nbsp;<span style="color:#60a5fa">@figmai/evergreens</span><br>
+        │&nbsp;&nbsp;&nbsp;├── assistant-analytics/&nbsp;&nbsp;&nbsp;<span style="color:#f472b6">@figmai/analytics</span><br>
+        │&nbsp;&nbsp;&nbsp;└── assistant-p2s/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a78bfa">@figmai/p2s</span><br>
+        └── package.json&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8"># workspace root</span>
+      </div>
+      <div class="pros-cons" style="margin-top:12px">
+        <div class="pros"><h4>Pros</h4><ul><li>Strictest compile isolation per assistant</li><li>Industry-standard monorepo pattern</li><li>Tooling ecosystem (Nx, Turborepo)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Significant tooling overhead upfront</li><li>More complex build pipeline to migrate</li><li>Steeper learning curve for new teams</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Separate repos (federated)</h3>
+      <p>Each assistant lives in its own GitHub repository. The core repo pulls them in via git submodules or a build-time fetch. Maximum ownership separation, maximum complexity.</p>
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:12px;line-height:1.8">
+        github.com/org/figmai-core&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4ade80">Core repo</span><br>
+        github.com/org/figmai-evergreens&nbsp;&nbsp;&nbsp;<span style="color:#60a5fa">Evergreens repo</span><br>
+        github.com/org/figmai-analytics&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f472b6">Analytics repo</span><br>
+        github.com/org/figmai-a11y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#fb923c">A11y repo</span><br>
+        <br>
+        <span style="color:#94a3b8"># Core clones all repos at build time</span><br>
+        <span style="color:#94a3b8"># or uses git submodules</span>
+      </div>
+      <div class="pros-cons" style="margin-top:12px">
+        <div class="pros"><h4>Pros</h4><ul><li>True repo-level ownership</li><li>Fine-grained GitHub access control</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Git submodules are error-prone</li><li>Separate CI per repo</li><li>Much harder to refactor shared types</li><li>Not recommended for VSCode + Copilot teams</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">Click your preference, then respond in the terminal. My recommendation is <strong>A</strong> — it maps directly to how your teams will work and is the easiest migration from the current codebase.</p>

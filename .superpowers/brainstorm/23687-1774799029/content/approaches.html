@@ -1,0 +1,97 @@
+<h2>Three approaches to the extensibility architecture</h2>
+<p class="subtitle">All three use single-repo directory isolation (your choice A). They differ in how assistants plug into the core and how the compile gate works.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Directory SDK + per-assistant compile gate <span style="font-size:11px;background:#22c55e22;color:#22c55e;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600">Recommended</span></h3>
+      <p>Each assistant lives in its own directory and exports a single <code>index.ts</code> that the core reads at build time. A new <code>build-assistants</code> script validates each one independently — if an assistant's TypeScript fails, its previous generated file is kept and the build continues.</p>
+
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:11.5px;line-height:1.9">
+        <span style="color:#4ade80">src/sdk/index.ts</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">← public contract (Core owns)</span><br>
+        &nbsp;&nbsp;exports: AssistantDefinition, AssistantHandler,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;QuickAction, KnowledgeBase...<br>
+        <br>
+        <span style="color:#60a5fa">src/assistants/evergreens/</span><br>
+        &nbsp;&nbsp;index.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">← exports { definition, handler }</span><br>
+        &nbsp;&nbsp;handler.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">← Strike Team logic</span><br>
+        &nbsp;&nbsp;knowledge.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">← KB content</span><br>
+        &nbsp;&nbsp;definition.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">← manifest entry (typed)</span><br>
+        <br>
+        <span style="color:#4ade80">scripts/build-assistants.ts</span><br>
+        &nbsp;&nbsp;for each assistant/:<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;try tsc → generate {name}.generated.ts ✓<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;catch → keep old {name}.generated.ts, log error<br>
+        <span style="color:#94a3b8">→ core assembles all .generated.ts files</span>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>True per-assistant compile isolation</li><li>SDK is a typed contract — breaks loudly if violated</li><li>New teams get a clear template to copy</li><li>Preserves existing build-time model</li><li>Local-first: no CI needed</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Requires building the SDK + build script (one-time Core Team work)</li><li>Teams need to learn the SDK interface</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Directory isolation only — keep shared manifest</h3>
+      <p>Move each assistant's handler + knowledge into its own directory, but keep contributing to the central <code>custom/assistants.manifest.json</code>. No new SDK, no per-assistant build gate. Simpler migration, weaker isolation.</p>
+
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:11.5px;line-height:1.9">
+        <span style="color:#60a5fa">src/assistants/evergreens/</span><br>
+        &nbsp;&nbsp;handler.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">← handler (moved here)</span><br>
+        &nbsp;&nbsp;knowledge.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">← KB (moved here)</span><br>
+        <br>
+        <span style="color:#fb923c">custom/assistants.manifest.json</span><br>
+        &nbsp;&nbsp;<span style="color:#94a3b8">← still one big file, all teams edit here</span><br>
+        &nbsp;&nbsp;<span style="color:#94a3b8">← no per-assistant compile isolation</span><br>
+        <br>
+        <span style="color:#94a3b8">Build: unchanged — still one big tsc run</span><br>
+        <span style="color:#f87171">If Evergreens handler breaks → whole build fails</span>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Very easy migration — just move files</li><li>No new tooling or SDK to build</li><li>Teams can start immediately</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>No compile isolation — one team's error breaks everyone</li><li>Manifest is a merge conflict hotspot</li><li>No typed contract for Strike Teams</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Auto-discovery via assistant registry function</h3>
+      <p>Each assistant directory exports a <code>register()</code> function. A discovery script scans <code>src/assistants/*/index.ts</code> automatically and calls <code>register()</code> to build the full registry. No manifest file at all — the directory <em>is</em> the manifest.</p>
+
+      <div style="margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;font-family:monospace;font-size:11.5px;line-height:1.9">
+        <span style="color:#60a5fa">src/assistants/evergreens/index.ts</span><br>
+        &nbsp;&nbsp;export function register(sdk: FigmAISDK) &#123;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;sdk.registerAssistant(&#123; id, label, ... &#125;)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;sdk.registerHandler(handler)<br>
+        &nbsp;&nbsp;&#125;<br>
+        <br>
+        <span style="color:#4ade80">scripts/discover-assistants.ts</span><br>
+        &nbsp;&nbsp;glob src/assistants/*/index.ts<br>
+        &nbsp;&nbsp;→ call register() on each<br>
+        &nbsp;&nbsp;→ generate combined registry<br>
+        <br>
+        <span style="color:#94a3b8">Adding assistant = adding a directory. Done.</span>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Pros</h4><ul><li>Frictionless: drop a folder in and it's registered</li><li>No manifest editing</li><li>Clean extension model (like VS Code)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Harder to debug — "magic" auto-loading</li><li>Discovery errors can be opaque</li><li>Diverges more from current architecture</li><li>More Core Team work to build correctly</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:16px;padding:14px 18px;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.25);border-radius:10px;font-size:12px;color:rgba(240,242,248,0.65);line-height:1.7">
+  <strong style="color:#93c5fd">Why A?</strong> It gives you per-assistant compile isolation (your stated requirement), a typed SDK contract that breaks loudly when a Strike Team violates the interface, and a clear copy-this template for new teams — all without breaking the existing build-time model. B is too fragile (one bad handler breaks everyone). C is elegant but requires more Core Team work and is harder to debug. A threads the needle.
+</div>
+
+<p class="subtitle" style="margin-top:14px">Click your preference, then respond in terminal.</p>

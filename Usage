@@ -1,0 +1,9 @@
+admin-editor/public/index.html:              <span class="ace-nav-label">General</span>
+admin-editor/public/index.html:              <span class="ace-nav-label">AI</span>
+admin-editor/public/index.html:              <span class="ace-nav-label">Assistants</span>
+admin-editor/public/index.html:              <span class="ace-nav-label">Resources</span>
+admin-editor/public/index.html:              <span class="ace-nav-label">Design Systems</span>
+admin-editor/public/index.html:              <span class="ace-nav-label">Usage Report</span>
+admin-editor/public/index.html:              <span class="ace-nav-label">Help</span>
+admin-editor/public/index.html:              <span class="ace-nav-label">Server: <span id="nav-status-label">—</span></span>
+admin-editor/public/index.html:              <span class="ace-nav-label">Users</span>

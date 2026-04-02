@@ -1,0 +1,162 @@
+<h2>Design Section 3 of 4 — The Compile Gate</h2>
+<p class="subtitle">How the build protects everyone when one assistant breaks. Runs before esbuild. Failed assistants keep their last known-good version. The plugin always ships.</p>
+
+<div class="section">
+  <h3>Build pipeline — before and after</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+
+    <div>
+      <div class="label" style="color:#94a3b8;margin-bottom:8px">TODAY (one failure = full stop)</div>
+      <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-family:monospace;font-size:11.5px;line-height:2">
+        npm run prebuild<br>
+        &nbsp;&nbsp;→ generate-assistants<span style="color:#94a3b8"> (all or nothing)</span><br>
+        &nbsp;&nbsp;→ generate-custom-overlay<br>
+        &nbsp;&nbsp;→ generate-knowledge-bases<br>
+        npm run build<br>
+        &nbsp;&nbsp;→ esbuild <span style="color:#f87171">← ONE TS error anywhere</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">= entire build fails</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="label" style="color:#4ade80;margin-bottom:8px">AFTER (assistant failures isolated)</div>
+      <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(79,142,247,0.25);border-radius:8px;font-family:monospace;font-size:11.5px;line-height:2">
+        npm run prebuild<br>
+        &nbsp;&nbsp;→ <span style="color:#4ade80">build-assistants</span><span style="color:#94a3b8"> ← NEW: per-assistant gate</span><br>
+        &nbsp;&nbsp;→ generate-custom-overlay<br>
+        &nbsp;&nbsp;→ generate-knowledge-bases<br>
+        &nbsp;&nbsp;→ generate-assistants<span style="color:#94a3b8"> (reads .generated.ts files)</span><br>
+        npm run build<br>
+        &nbsp;&nbsp;→ esbuild <span style="color:#4ade80">← always has valid inputs</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>How build-assistants works — per assistant, independently</h3>
+  <div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;margin-top:10px">
+
+    <!-- Flow diagram -->
+    <div style="display:flex;align-items:flex-start;gap:0;overflow-x:auto">
+
+      <!-- Step 1 -->
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:140px">
+        <div style="padding:8px 12px;background:rgba(79,142,247,0.12);border:1px solid rgba(79,142,247,0.3);border-radius:8px;text-align:center;font-size:11px;color:#93c5fd;line-height:1.5;width:120px">
+          <div style="font-weight:700;margin-bottom:2px">Scan</div>
+          src/assistants/<br>*/index.ts
+        </div>
+        <div style="width:1px;height:16px;background:rgba(79,142,247,0.3)"></div>
+        <div style="font-size:10px;color:#475569">finds all teams</div>
+      </div>
+
+      <div style="margin-top:20px;color:#475569;font-size:16px;padding:0 4px">→</div>
+
+      <!-- Step 2 -->
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:150px">
+        <div style="padding:8px 12px;background:rgba(79,142,247,0.12);border:1px solid rgba(79,142,247,0.3);border-radius:8px;text-align:center;font-size:11px;color:#93c5fd;line-height:1.5;width:130px">
+          <div style="font-weight:700;margin-bottom:2px">For each assistant</div>
+          tsc --noEmit<br>on that directory
+        </div>
+        <div style="width:1px;height:16px;background:rgba(79,142,247,0.3)"></div>
+        <div style="font-size:10px;color:#475569">isolated tsc check</div>
+      </div>
+
+      <div style="margin-top:20px;color:#475569;font-size:16px;padding:0 4px">→</div>
+
+      <!-- Step 3 — branch -->
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:200px">
+        <div style="display:flex;gap:8px">
+          <div style="padding:8px 12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;text-align:center;font-size:11px;color:#4ade80;line-height:1.5;width:84px">
+            <div style="font-weight:700;margin-bottom:2px">✓ pass</div>
+            Write new<br>{name}.generated.ts
+          </div>
+          <div style="padding:8px 12px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:8px;text-align:center;font-size:11px;color:#f87171;line-height:1.5;width:84px">
+            <div style="font-weight:700;margin-bottom:2px">✗ fail</div>
+            Keep existing<br>{name}.generated.ts
+          </div>
+        </div>
+        <div style="width:1px;height:16px;background:rgba(79,142,247,0.3)"></div>
+        <div style="font-size:10px;color:#475569">per-assistant decision</div>
+      </div>
+
+      <div style="margin-top:20px;color:#475569;font-size:16px;padding:0 4px">→</div>
+
+      <!-- Step 4 -->
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:140px">
+        <div style="padding:8px 12px;background:rgba(79,142,247,0.12);border:1px solid rgba(79,142,247,0.3);border-radius:8px;text-align:center;font-size:11px;color:#93c5fd;line-height:1.5;width:120px">
+          <div style="font-weight:700;margin-bottom:2px">Assemble</div>
+          _registry.generated.ts<br>from all .generated.ts
+        </div>
+        <div style="width:1px;height:16px;background:rgba(79,142,247,0.3)"></div>
+        <div style="font-size:10px;color:#475569">always complete</div>
+      </div>
+
+      <div style="margin-top:20px;color:#475569;font-size:16px;padding:0 4px">→</div>
+
+      <!-- Step 5 -->
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:130px">
+        <div style="padding:8px 12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;text-align:center;font-size:11px;color:#4ade80;line-height:1.5;width:110px">
+          <div style="font-weight:700;margin-bottom:2px">Print report</div>
+          ✓ updated<br>⚠ kept previous<br>→ who to notify
+        </div>
+        <div style="width:1px;height:16px;background:rgba(34,197,94,0.3)"></div>
+        <div style="font-size:10px;color:#475569">visible in terminal</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>What the build report looks like (terminal output)</h3>
+  <div style="padding:14px;background:#0a0e1a;border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-family:monospace;font-size:12px;line-height:1.9;margin-top:10px">
+    <div style="color:#94a3b8">── build-assistants ──────────────────────────</div>
+    <div><span style="color:#4ade80">✓</span> evergreens&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;updated&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#475569">handler.ts compiled ok</span></div>
+    <div><span style="color:#f87171">⚠</span> analytics&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;kept previous&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f87171">handler.ts:14 — Type error</span></div>
+    <div><span style="color:#4ade80">✓</span> accessibility&nbsp;&nbsp;updated</div>
+    <div><span style="color:#4ade80">✓</span> prompt-to-screen updated</div>
+    <div style="color:#94a3b8">─────────────────────────────────────────────</div>
+    <div style="color:#fbbf24">⚠ 1 assistant kept previous version: analytics</div>
+    <div style="color:#fbbf24">&nbsp;&nbsp;Notify: analytics-team — see error above</div>
+    <div style="color:#94a3b8">─────────────────────────────────────────────</div>
+    <div style="color:#4ade80">Registry assembled. Proceeding with build.</div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <h3>What the generated files look like (committed to git)</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+    <div style="padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-family:monospace;font-size:11px;line-height:1.8">
+      <div style="color:#94a3b8;margin-bottom:6px">// evergreens.generated.ts</div>
+      <div style="color:#94a3b8">// DO NOT EDIT — generated by</div>
+      <div style="color:#94a3b8">// scripts/build-assistants.ts</div>
+      <div style="color:#94a3b8">// Last updated: 2026-03-29T...</div>
+      <br>
+      <div style="color:rgba(240,242,248,0.8)">export const evergreensModule = &#123;</div>
+      <div style="color:rgba(240,242,248,0.8)">&nbsp;&nbsp;definition: &#123; id: 'content_table', ... &#125;,</div>
+      <div style="color:rgba(240,242,248,0.8)">&nbsp;&nbsp;handler: &#123; canHandle, handleResponse &#125;</div>
+      <div style="color:rgba(240,242,248,0.8)">&#125;</div>
+    </div>
+    <div style="padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-family:monospace;font-size:11px;line-height:1.8">
+      <div style="color:#94a3b8;margin-bottom:6px">// _registry.generated.ts</div>
+      <div style="color:#94a3b8">// Assembled from all .generated.ts</div>
+      <br>
+      <div style="color:rgba(240,242,248,0.8)">import &#123; evergreensModule &#125; from</div>
+      <div style="color:rgba(240,242,248,0.8)">&nbsp;&nbsp;'./evergreens/evergreens.generated'</div>
+      <div style="color:rgba(240,242,248,0.8)">import &#123; analyticsModule &#125; from ...</div>
+      <br>
+      <div style="color:rgba(240,242,248,0.8)">export const ASSISTANT_MODULES = [</div>
+      <div style="color:rgba(240,242,248,0.8)">&nbsp;&nbsp;evergreensModule,</div>
+      <div style="color:rgba(240,242,248,0.8)">&nbsp;&nbsp;analyticsModule, ...</div>
+      <div style="color:rgba(240,242,248,0.8)">]</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:14px;padding:12px 16px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25);border-radius:8px;font-size:12px;color:rgba(240,242,248,0.65);line-height:1.6">
+  <strong style="color:#4ade80">Invariant preserved:</strong> Generated files are committed to git, exactly like today's <code>assistants.generated.ts</code>. The old file is always there as the fallback. No new runtime behaviour — the compile gate only runs at build time.
+</div>
+
+<p class="subtitle" style="margin-top:14px">Does the compile gate flow make sense? Any questions before Section 4 (ACE admin scoping)?</p>

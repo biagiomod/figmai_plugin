@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "ACE Lambda API \u2014 private/work environment (JavaScript, modular)"
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: S3 bucket for config + admin state storage
+  S3Prefix:
+    Type: String
+    Default: figmai/
+    Description: Prefix for all config objects in the bucket
+  S3Region:
+    Type: String
+    Default: us-east-2
+    Description: AWS region of the S3 bucket
+  ConfigApiToken:
+    Type: String
+    NoEcho: true
+    Description: Shared Bearer token for API authentication
+  CorsAllowOrigins:
+    Type: CommaDelimitedList
+    Default: http://localhost:3333,http://127.0.0.1:3333,http://127.0.0.1:3334
+    Description: Comma-separated allowed CORS origins
+  ServiceName:
+    Type: String
+    Default: ace-lambda
+    Description: Service name returned by /api/health
+  ServiceVersion:
+    Type: String
+    Default: '0.1.0'
+    Description: Version returned by /api/health
+  BuildTimestamp:
+    Type: String
+    Default: ''
+    Description: Optional build timestamp (ISO string)
+  GitCommitSha:
+    Type: String
+    Default: ''
+    Description: Optional Git commit SHA
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: 'Secret used to sign and verify user JWTs (min 32 chars recommended).
+      Set to a long random string; rotate by redeploying with a new value (all active
+      sessions will be invalidated).
+
+      '
+  JwtExpiryHours:
+    Type: String
+    Default: '8'
+    Description: JWT lifetime in hours (default 8). Increase for longer sessions.
+  LlmApiEndpoint:
+    Type: String
+    Default: ''
+    Description: 'Optional LLM API endpoint override used by /api/test/* routes. When
+      empty, the endpoint from draft/config.json is used instead.
+
+      '
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 60
+    MemorySize: 512
+Resources:
+  AceLambdaHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          Ref: CorsAllowOrigins
+        AllowMethods:
+        - GET
+        - POST
+        - PATCH
+        - DELETE
+        - OPTIONS
+        AllowHeaders:
+        - Content-Type
+        - Authorization
+        - X-ACE-Request-Id
+        MaxAge: 86400
+  AceLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: AceLambdaFunction
+      Handler: handler.lambdaHandler
+      Environment:
+        Variables:
+          S3_BUCKET:
+            Ref: S3BucketName
+          S3_PREFIX:
+            Ref: S3Prefix
+          S3_REGION:
+            Ref: S3Region
+          CONFIG_API_TOKEN:
+            Ref: ConfigApiToken
+          CORS_ALLOW_ORIGINS:
+            Fn::Join:
+            - ','
+            - Ref: CorsAllowOrigins
+          SERVICE_NAME:
+            Ref: ServiceName
+          SERVICE_VERSION:
+            Ref: ServiceVersion
+          BUILD_TIMESTAMP:
+            Ref: BuildTimestamp
+          GIT_COMMIT_SHA:
+            Ref: GitCommitSha
+          LLM_API_ENDPOINT:
+            Ref: LlmApiEndpoint
+          JWT_SECRET:
+            Ref: JwtSecret
+          JWT_EXPIRY_HOURS:
+            Ref: JwtExpiryHours
+      Policies:
+      - Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          - s3:PutObject
+          - s3:DeleteObject
+          Resource:
+            Fn::Sub: arn:aws:s3:::${S3BucketName}/${S3Prefix}*
+        - Effect: Allow
+          Action:
+          - s3:ListBucket
+          Resource:
+            Fn::Sub: arn:aws:s3:::${S3BucketName}
+          Condition:
+            StringLike:
+              s3:prefix:
+                Fn::Sub: ${S3Prefix}*
+      Events:
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: AceLambdaHttpApi
+            Path: /
+            Method: ANY
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: AceLambdaHttpApi
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+        - handler.js
+        External:
+        - '@aws-sdk/*'
+        Format: cjs
+        Minify: true
+        Sourcemap: false
+        Target: node20
+      SamResourceId: AceLambdaFunction
+Outputs:
+  AceLambdaApiUrl:
+    Description: ACE Lambda API endpoint URL
+    Value:
+      Fn::Sub: https://${AceLambdaHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  AceLambdaFunctionArn:
+    Description: ACE Lambda function ARN
+    Value:
+      Fn::GetAtt:
+      - AceLambdaFunction
+      - Arn
