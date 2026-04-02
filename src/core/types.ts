@@ -456,5 +456,10 @@ export interface PlaceholderScorecardErrorHandler extends EventHandler {
   handler: (message: string) => void
 }
 
+export interface ResizePluginHandler extends EventHandler {
+  name: 'RESIZE_PLUGIN'
+  handler: (width: number, height: number) => void
+}
+
 // Re-export content table types
 export type { UniversalContentTableV1, TableFormatPreset }
