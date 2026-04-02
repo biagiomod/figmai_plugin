@@ -99,6 +99,21 @@ assert(tokenizeContent('Contact us at support@acme.io').value === 'Contact us at
 assert(tokenizeContent('866-440-1238').value === '{{Phone}}', 'phone: 866-440-1238')
 assert(tokenizeContent('(800) 555-1212').value === '{{Phone}}', 'phone: (800) 555-1212')
 
+// --- Tickers ---
+
+assert(tokenizeContent('$AAPL').value === '{{Ticker}}', 'ticker: $AAPL')
+assert(tokenizeContent('$TSLA').value === '{{Ticker}}', 'ticker: $TSLA')
+assert(tokenizeContent('NYSE:JPM').value === '{{Ticker}}', 'ticker: NYSE:JPM')
+assert(tokenizeContent('NASDAQ:MSFT').value === '{{Ticker}}', 'ticker: NASDAQ:MSFT')
+assert(tokenizeContent('Price: $AAPL +4.59%').value === 'Price: {{Ticker}} {{DeltaPercent:+0.00%;-0.00%}}', 'ticker: inline with delta percent')
+
+// --- Accounts ---
+
+assert(tokenizeContent('Self-Directed (...6061)').value === '{{Account}}', 'account: Self-Directed (...6061)')
+assert(tokenizeContent('Brokerage Account (...1234)').value === '{{Account}}', 'account: Brokerage Account (...1234)')
+assert(tokenizeContent('IRA (...5678)').value === '{{Account}}', 'account: IRA (...5678)')
+assert(tokenizeContent('Joint Account (...9012)').value === '{{Account}}', 'account: Joint Account (...9012)')
+
 // --- changed flag ---
 
 assert(tokenizeContent('Apr 28, 2025').changed === true, 'changed: true for date')

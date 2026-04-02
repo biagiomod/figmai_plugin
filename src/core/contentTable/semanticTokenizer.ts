@@ -139,6 +139,22 @@ const EMAIL_RE = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g
 const PHONE_RE = /(?:\+1[\s.\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b/g
 
 // ---------------------------------------------------------------------------
+// Ticker patterns
+//   $AAPL — dollar-prefixed (most common in mockups)
+//   NYSE:AAPL / NASDAQ:TSLA — exchange-qualified
+// ---------------------------------------------------------------------------
+
+const TICKER_DOLLAR_RE = /\$([A-Z]{1,5})\b/g
+const TICKER_EXCHANGE_RE = /\b(NYSE|NASDAQ|LSE|AMEX|TSX):([A-Z]{1,5})\b/g
+
+// ---------------------------------------------------------------------------
+// Account pattern: 1–4 title-case words followed by (...NNNN)
+//   e.g. "Self-Directed (...6061)" | "Brokerage Account (...1234)"
+// ---------------------------------------------------------------------------
+
+const ACCOUNT_RE = /\b[A-Z][a-zA-Z-]*(?:\s+[A-Z][a-zA-Z-]*){0,3}\s+\(\.\.\.\d{4}\)/g
+
+// ---------------------------------------------------------------------------
 // All module-level stateful regexes (for lastIndex reset)
 // ---------------------------------------------------------------------------
 
@@ -147,7 +163,9 @@ const ALL_REGEXES = [
   DT_S_NO_YEAR_HMM_AMPM, DT_L_NO_YEAR_HMM_AMPM,
   DATE_DOW_L, DATE_L, DATE_S, DATE_ISO, DATE_L_NO_YEAR, DATE_S_NO_YEAR,
   TIME_HMM_AMPM_RE, TIME_H_AMPM_RE, TIME_24_RE,
+  TICKER_DOLLAR_RE, TICKER_EXCHANGE_RE,
   DELTA_CCY_RE, CCY_RE, COMBINED_PCT_RE, DELTA_AMT_RE, AMT_RE,
+  ACCOUNT_RE,
   EMAIL_RE, PHONE_RE
 ]
 
@@ -186,6 +204,9 @@ function applyTimes(s: string): string {
 }
 
 function applyFinancial(s: string): string {
+  // Tickers first: $AAPL uses $ sign — must run before CCY_RE which also matches $
+  s = s.replace(TICKER_DOLLAR_RE, () => '{{Ticker}}')
+  s = s.replace(TICKER_EXCHANGE_RE, () => '{{Ticker}}')
   s = s.replace(DELTA_CCY_RE, (_m, _sign, sym, num) =>
     `{{DeltaCurrency:${symbolToIso(sym)}:+${numFmt(num)};-${numFmt(num)}}}`
   )
@@ -210,6 +231,7 @@ function applyFinancial(s: string): string {
 }
 
 function applyContact(s: string): string {
+  s = s.replace(ACCOUNT_RE, () => '{{Account}}')
   s = s.replace(EMAIL_RE, () => '{{Email}}')
   s = s.replace(PHONE_RE, () => '{{Phone}}')
   return s

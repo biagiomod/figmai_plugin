@@ -9,7 +9,7 @@
  */
 
 import { h } from 'preact'
-import { useMemo } from 'preact/hooks'
+import { useMemo, useState } from 'preact/hooks'
 import type { ContentTableSession } from '../../core/contentTable/session'
 import { getEffectiveItems, applyEdit, deleteItem, toggleTokenizedItem } from '../../core/contentTable/session'
 import { PRESET_INFO } from '../../core/contentTable/presets.generated'
@@ -48,6 +48,45 @@ const editableFieldMap: Record<string, keyof ContentItemV1> = {
   jiraTicket: 'jiraTicket',
   adaNotes: 'adaNotes',
   errorMessage: 'errorMessage'
+}
+
+function IgnoreBadge({ ruleName }: { ruleName: string }) {
+  const [visible, setVisible] = useState(false)
+  const tip = ruleName
+    ? `This item matched ignore rule "${ruleName}" and may belong to a shell or chrome component. It can safely be excluded from content review.`
+    : 'This item may belong to a shell or chrome component (nav, footer, header, etc.) and can safely be excluded from content review.'
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-block', marginRight: '2px' }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      <span style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 4px', borderRadius: '3px', fontWeight: 600, cursor: 'default', userSelect: 'none' }}>
+        Ignore?
+      </span>
+      {visible && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          right: 0,
+          marginTop: '4px',
+          backgroundColor: '#1e293b',
+          color: '#f8fafc',
+          fontSize: '10px',
+          lineHeight: 1.5,
+          padding: '7px 9px',
+          borderRadius: '6px',
+          width: '210px',
+          whiteSpace: 'normal',
+          zIndex: 999,
+          boxShadow: '0 4px 14px rgba(0,0,0,0.28)',
+          pointerEvents: 'none'
+        }}>
+          {tip}
+        </div>
+      )}
+    </span>
+  )
 }
 
 function isToolsColumnKey(key: string): boolean {
@@ -310,9 +349,7 @@ export function ContentTableView({
                 const row = projected.rows[idx]
                 const renderToolsCell = () => (
                   <span>
-                    {isIgnoreFlagged && (
-                      <span title={ignoreRuleName ? `This item may belong to a shell or chrome component (matched rule: "${ignoreRuleName}"). It can be safely excluded from content review.` : 'This item may belong to a shell or chrome component. It can be safely excluded from content review.'} style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Ignore?</span>
-                    )}
+                    {isIgnoreFlagged && <IgnoreBadge ruleName={ignoreRuleName} />}
                     {isFlagged && (
                       <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
                     )}
