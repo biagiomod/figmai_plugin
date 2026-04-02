@@ -11,12 +11,12 @@
 import { h } from 'preact'
 import { useMemo } from 'preact/hooks'
 import type { ContentTableSession } from '../../core/contentTable/session'
-import { getEffectiveItems, applyEdit, deleteItem, revertTokenizedItem } from '../../core/contentTable/session'
+import { getEffectiveItems, applyEdit, deleteItem, toggleTokenizedItem } from '../../core/contentTable/session'
 import { PRESET_INFO } from '../../core/contentTable/presets.generated'
 import { projectContentTable, cellText, cellHref, cellSuffix } from '../../core/contentTable/projection'
 import type { TableFormatPreset, ContentItemV1 } from '../../core/contentTable/types'
 import { getOrderedCtaPresets } from '../../core/contentTable/presetOrder'
-import { ImageDownloadIcon, CloseIcon } from '../icons'
+import { ImageDownloadIcon, CloseIcon, RefreshIcon } from '../icons'
 import { TH, TD, CELL_INPUT, TOOL_BTN, actionBtnStyle } from './toolTableStyles'
 import {
   CTA_ACTION_LABELS,
@@ -304,25 +304,29 @@ export function ContentTableView({
                 const isIgnoreFlagged = session.flaggedIgnoreIds.has(item.id)
                 const ignoreRuleName = session.ignoreRuleByItemId[item.id] || ''
                 const isTokenized = session.tokenizedIds.has(item.id)
+                const isReverted = isTokenized && session.revertedTokenIds.has(item.id)
                 const originalContent = isTokenized ? (baseContentById[item.id] || '') : ''
+                const tokenizedContent = isTokenized ? (session.tokenizedItems[item.id] || '') : ''
                 const row = projected.rows[idx]
                 const renderToolsCell = () => (
                   <span>
                     {isIgnoreFlagged && (
-                      <span title={ignoreRuleName ? `Matched ignore rule: ${ignoreRuleName}` : 'Matched ignore-list rule'} style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Ignore?</span>
+                      <span title={ignoreRuleName ? `This item may belong to a shell or chrome component (matched rule: "${ignoreRuleName}"). It can be safely excluded from content review.` : 'This item may belong to a shell or chrome component. It can be safely excluded from content review.'} style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Ignore?</span>
                     )}
                     {isFlagged && (
                       <span title="Possible duplicate" style={{ fontSize: '8px', color: '#b36b00', backgroundColor: '#fff8e6', padding: '1px 3px', borderRadius: '3px', marginRight: '2px', fontWeight: 600 }}>Dup?</span>
                     )}
                     {isTokenized && (
                       <button
-                        onClick={() => onSessionChange(revertTokenizedItem(session, item.id))}
-                        title={`Tokenized — click to revert to original:\n"${originalContent}"`}
-                        style={{ ...TOOL_BTN, color: '#6b21a8', fontSize: '8px', fontWeight: 600, padding: '1px 3px' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f5f3ff' }}
+                        onClick={() => onSessionChange(toggleTokenizedItem(session, item.id))}
+                        title={isReverted
+                          ? `Showing original — click to re-apply token:\n"${tokenizedContent}"`
+                          : `Tokenized — click to show original:\n"${originalContent}"`}
+                        style={{ ...TOOL_BTN, color: isReverted ? '#aaa' : '#6b21a8', opacity: isReverted ? 0.6 : 1 }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isReverted ? '#f0f0f0' : '#f5f3ff' }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                       >
-                        {'{{T}}'}
+                        <RefreshIcon width={12} height={12} />
                       </button>
                     )}
                     {item.nodeId && (

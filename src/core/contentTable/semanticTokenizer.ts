@@ -83,19 +83,28 @@ const MO_L = 'January|February|March|April|May|June|July|August|September|Octobe
 const DOW = 'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday'
 const TIME_HMM_AMPM = '(\\d{1,2}):(\\d{2})(?::\\d{2})?\\s*(AM|PM)'
 const TIME_24 = '([01]\\d|2[0-3]):(\\d{2})'
+// Optional timezone suffix: ET, CT, MT, PT + daylight/standard variants, UTC, GMT, and 2-4 char zone codes
+const TZ = '(?:\\s+(?:ET|CT|MT|PT|EST|CST|MST|PST|EDT|CDT|MDT|PDT|UTC|GMT|[A-Z]{2,4}))?'
 
-// DateTime combos — short month
-const DT_S_HMM_AMPM = new RegExp(`\\b(${MO_S})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_HMM_AMPM}\\b`, 'gi')
-const DT_S_24 = new RegExp(`\\b(${MO_S})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_24}\\b`, 'gi')
-// DateTime combos — long month
-const DT_L_HMM_AMPM = new RegExp(`\\b(${MO_L})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_HMM_AMPM}\\b`, 'gi')
-const DT_L_24 = new RegExp(`\\b(${MO_L})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_24}\\b`, 'gi')
+// DateTime combos — short month, with year
+const DT_S_HMM_AMPM = new RegExp(`\\b(${MO_S})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_HMM_AMPM}${TZ}\\b`, 'gi')
+const DT_S_24 = new RegExp(`\\b(${MO_S})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_24}${TZ}\\b`, 'gi')
+// DateTime combos — long month, with year
+const DT_L_HMM_AMPM = new RegExp(`\\b(${MO_L})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_HMM_AMPM}${TZ}\\b`, 'gi')
+const DT_L_24 = new RegExp(`\\b(${MO_L})\\s+(\\d{1,2}),?\\s*(\\d{4})\\s+${TIME_24}${TZ}\\b`, 'gi')
+// DateTime combos — short month, NO year (e.g. "Mar 7 1:15 PM ET")
+const DT_S_NO_YEAR_HMM_AMPM = new RegExp(`\\b(${MO_S})\\s+(\\d{1,2}),?\\s+${TIME_HMM_AMPM}${TZ}\\b`, 'gi')
+// DateTime combos — long month, NO year (e.g. "March 7 1:15 PM ET")
+const DT_L_NO_YEAR_HMM_AMPM = new RegExp(`\\b(${MO_L})\\s+(\\d{1,2}),?\\s+${TIME_HMM_AMPM}${TZ}\\b`, 'gi')
 
 // Individual dates
 const DATE_DOW_L = new RegExp(`\\b(${DOW}),\\s+(${MO_L})\\s+(\\d{1,2}),?\\s*(\\d{4})\\b`, 'gi')
 const DATE_L = new RegExp(`\\b(${MO_L})\\s+(\\d{1,2}),?\\s*(\\d{4})\\b`, 'gi')
 const DATE_S = new RegExp(`\\b(${MO_S})\\s+(\\d{1,2}),?\\s*(\\d{4})\\b`, 'gi')
 const DATE_ISO = /\b(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/g
+// Individual dates — NO year (e.g. "Mar 7", "March 7")
+const DATE_L_NO_YEAR = new RegExp(`\\b(${MO_L})\\s+(\\d{1,2})\\b`, 'gi')
+const DATE_S_NO_YEAR = new RegExp(`\\b(${MO_S})\\s+(\\d{1,2})\\b`, 'gi')
 
 // Individual times (only after datetime combos have run)
 const TIME_HMM_AMPM_RE = /\b(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)\b/gi
@@ -135,7 +144,8 @@ const PHONE_RE = /(?:\+1[\s.\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b/g
 
 const ALL_REGEXES = [
   DT_S_HMM_AMPM, DT_S_24, DT_L_HMM_AMPM, DT_L_24,
-  DATE_DOW_L, DATE_L, DATE_S, DATE_ISO,
+  DT_S_NO_YEAR_HMM_AMPM, DT_L_NO_YEAR_HMM_AMPM,
+  DATE_DOW_L, DATE_L, DATE_S, DATE_ISO, DATE_L_NO_YEAR, DATE_S_NO_YEAR,
   TIME_HMM_AMPM_RE, TIME_H_AMPM_RE, TIME_24_RE,
   DELTA_CCY_RE, CCY_RE, COMBINED_PCT_RE, DELTA_AMT_RE, AMT_RE,
   EMAIL_RE, PHONE_RE
@@ -146,10 +156,14 @@ const ALL_REGEXES = [
 // ---------------------------------------------------------------------------
 
 function applyDateTimeCombos(s: string): string {
+  // With-year patterns first so they win over no-year when year is present
   s = s.replace(DT_S_HMM_AMPM, () => '{{DateTime: mmm dd, yyyy h:mm AM/PM}}')
   s = s.replace(DT_S_24, () => '{{DateTime: mmm dd, yyyy hh:mm}}')
   s = s.replace(DT_L_HMM_AMPM, () => '{{DateTime: mmmm dd, yyyy h:mm AM/PM}}')
   s = s.replace(DT_L_24, () => '{{DateTime: mmmm dd, yyyy hh:mm}}')
+  // No-year combos (e.g. "Mar 7 1:15 PM ET" — timezone absorbed)
+  s = s.replace(DT_S_NO_YEAR_HMM_AMPM, () => '{{DateTime: mmm d, h:mm AM/PM}}')
+  s = s.replace(DT_L_NO_YEAR_HMM_AMPM, () => '{{DateTime: mmmm d, h:mm AM/PM}}')
   return s
 }
 
@@ -158,6 +172,9 @@ function applyDates(s: string): string {
   s = s.replace(DATE_L, () => '{{Date: mmmm dd, yyyy}}')
   s = s.replace(DATE_S, () => '{{Date: mmm dd, yyyy}}')
   s = s.replace(DATE_ISO, () => '{{Date: yyyy-mm-dd}}')
+  // No-year dates (run after with-year so they don't match the day portion of a full date)
+  s = s.replace(DATE_L_NO_YEAR, () => '{{Date: mmmm d}}')
+  s = s.replace(DATE_S_NO_YEAR, () => '{{Date: mmm d}}')
   return s
 }
 

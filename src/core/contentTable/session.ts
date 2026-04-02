@@ -32,8 +32,11 @@ export interface ContentTableSession {
   /** Per-item auto-tokenized content, keyed by item.id → tokenized value.
    * Separate from user editedItems: user edits win over token overlays. */
   tokenizedItems: Record<string, string>
-  /** Item IDs that were auto-tokenized. Used to show revert affordance in UI. */
+  /** Item IDs that were auto-tokenized. Used to show toggle affordance in UI. */
   tokenizedIds: Set<string>
+  /** Item IDs where the user has toggled the token overlay off (showing original).
+   * tokenizedItems is preserved so toggling back on re-applies the token without re-running. */
+  revertedTokenIds: Set<string>
 }
 
 /**
@@ -75,7 +78,8 @@ export function createSession(
       : {},
     tokenizedIds: opts?.tokenizedIds
       ? new Set(Array.from(opts.tokenizedIds).filter(id => validIds.has(id)))
-      : new Set()
+      : new Set(),
+    revertedTokenIds: new Set()
   }
 }
 
@@ -89,11 +93,13 @@ export function getEffectiveItems(session: ContentTableSession): ContentItemV1[]
     .map(item => {
       const tokenOverride = session.tokenizedItems[item.id]
       const userOverrides = session.editedItems[item.id]
-      if (!tokenOverride && !userOverrides) return item
+      // Skip token overlay if user has toggled it off
+      const tokenActive = tokenOverride !== undefined && !session.revertedTokenIds.has(item.id)
+      if (!tokenActive && !userOverrides) return item
       let merged: ContentItemV1 = { ...item }
       // Token overlay applied first (lower priority)
-      if (tokenOverride !== undefined) {
-        merged = { ...merged, content: { ...item.content, value: tokenOverride } }
+      if (tokenActive) {
+        merged = { ...merged, content: { ...item.content, value: tokenOverride! } }
       }
       // User overrides applied second (higher priority)
       if (userOverrides) {
@@ -207,6 +213,9 @@ export function appendItems(
   })
   const prunedTokenizedIds = new Set<string>()
   mergedTokenizedIds.forEach(id => { if (validIds.has(id)) prunedTokenizedIds.add(id) })
+  // Prune revertedTokenIds to valid item IDs
+  const prunedRevertedTokenIds = new Set<string>()
+  session.revertedTokenIds.forEach(id => { if (validIds.has(id)) prunedRevertedTokenIds.add(id) })
   const newSession: ContentTableSession = {
     ...session,
     baseTable: updatedTable,
@@ -215,7 +224,8 @@ export function appendItems(
     ignoreRuleByItemId: prunedIgnoreRules,
     lastSkippedCount: opts?.skippedCount ?? 0,
     tokenizedItems: prunedTokenizedItems,
-    tokenizedIds: prunedTokenizedIds
+    tokenizedIds: prunedTokenizedIds,
+    revertedTokenIds: prunedRevertedTokenIds
   }
   if (newSession.scanEnabled) {
     newSession.duplicates = detectDuplicates(newSession)
@@ -233,18 +243,23 @@ export function toggleDuplicateScan(session: ContentTableSession, enabled: boole
 }
 
 /**
- * Remove the automatic token overlay for an item, restoring the original scanned text.
+ * Toggle the automatic token overlay for an item.
+ * If the token is currently active, it is turned off (showing original).
+ * If the token is currently off, it is turned back on (showing tokenized value).
+ * tokenizedItems is preserved in both states so the token can be re-applied without re-running.
  * User edits on that item (if any) are NOT affected.
  */
-export function revertTokenizedItem(
+export function toggleTokenizedItem(
   session: ContentTableSession,
   itemId: string
 ): ContentTableSession {
-  const newTokenizedItems = { ...session.tokenizedItems }
-  delete newTokenizedItems[itemId]
-  const newTokenizedIds = new Set(session.tokenizedIds)
-  newTokenizedIds.delete(itemId)
-  return { ...session, tokenizedItems: newTokenizedItems, tokenizedIds: newTokenizedIds }
+  const newReverted = new Set(session.revertedTokenIds)
+  if (newReverted.has(itemId)) {
+    newReverted.delete(itemId)
+  } else {
+    newReverted.add(itemId)
+  }
+  return { ...session, revertedTokenIds: newReverted }
 }
 
 /**

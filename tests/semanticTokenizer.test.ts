@@ -47,9 +47,21 @@ assert(tokenizeContent('4 PM').value === '{{Time: h AM/PM}}', 'time: 4 PM')
 assert(tokenizeContent('4:36 PM').value === '{{Time: h:mm AM/PM}}', 'time: 4:36 PM')
 assert(tokenizeContent('16:36').value === '{{Time: hh:mm}}', 'time: 24h 16:36')
 
-// --- DateTime combos ---
+// --- DateTime combos (with year) ---
 
 assert(tokenizeContent('Apr 28, 2025 4:36 PM').value === '{{DateTime: mmm dd, yyyy h:mm AM/PM}}', 'datetime: Apr 28 2025 4:36 PM')
+
+// --- DateTime combos (no year) + timezone absorption ---
+
+assert(tokenizeContent('Mar 7 1:15 PM ET').value === '{{DateTime: mmm d, h:mm AM/PM}}', 'datetime-no-year: Mar 7 1:15 PM ET (timezone absorbed)')
+assert(tokenizeContent('Mar 7 1:15 PM').value === '{{DateTime: mmm d, h:mm AM/PM}}', 'datetime-no-year: Mar 7 1:15 PM (no timezone)')
+assert(tokenizeContent('March 7 1:15 PM ET').value === '{{DateTime: mmmm d, h:mm AM/PM}}', 'datetime-no-year: March 7 1:15 PM ET (long month)')
+assert(tokenizeContent('Jan 15 9:00 AM EST').value === '{{DateTime: mmm d, h:mm AM/PM}}', 'datetime-no-year: Jan 15 9:00 AM EST')
+
+// --- Standalone dates (no year) ---
+
+assert(tokenizeContent('Mar 7').value === '{{Date: mmm d}}', 'date-no-year: Mar 7')
+assert(tokenizeContent('January 15').value === '{{Date: mmmm d}}', 'date-no-year: January 15')
 
 // --- Currency ---
 
