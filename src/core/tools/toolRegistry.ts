@@ -1,5 +1,5 @@
 import type { ToolDefinition } from '../types'
-import { annotateSelectionTool, createChecklistFrameTool } from './figmaTools'
+import { annotateNodesTool, readAnnotationsTool, createChecklistFrameTool } from './figmaTools'
 import { createFromTemplateJsonTool, exportSelectionToTemplateJsonTool } from './jsonTools'
 import { designSystemTool } from './designSystemTools'
 
@@ -8,7 +8,8 @@ import { designSystemTool } from './designSystemTools'
  * Central registry of all available tools
  */
 const TOOLS: Map<string, ToolDefinition> = new Map([
-  [annotateSelectionTool.id, annotateSelectionTool],
+  [annotateNodesTool.id, annotateNodesTool],
+  [readAnnotationsTool.id, readAnnotationsTool],
   [createChecklistFrameTool.id, createChecklistFrameTool],
   [createFromTemplateJsonTool.id, createFromTemplateJsonTool],
   [exportSelectionToTemplateJsonTool.id, exportSelectionToTemplateJsonTool],
