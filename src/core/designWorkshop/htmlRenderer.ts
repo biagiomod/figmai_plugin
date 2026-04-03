@@ -1017,10 +1017,10 @@ function renderBlock(block: BlockSpec, gap: number): string {
       const eqDash  = (block.equity       / 100) * C
       const fiDash  = (block.fixedIncome  / 100) * C
       const altDash = (block.altAssets    / 100) * C
-      const eqOffset  = C / 4
-      const fiOffset  = C / 4 - eqDash
-      const altOffset = C / 4 - eqDash - fiDash
-      const total = block.total ?? `$${Math.round(block.equity + block.fixedIncome + block.altAssets)}k`
+      const eqOffset  = 0
+      const fiOffset  = C - eqDash
+      const altOffset = C - eqDash - fiDash
+      const total = block.total ?? '—'
       const donutSvg = `<svg width="80" height="80" viewBox="0 0 80 80" class="block-allocation-donut">
   <circle cx="40" cy="40" r="34" fill="none" stroke="#7B9E4B" stroke-width="20"
     stroke-dasharray="${eqDash.toFixed(1)} ${C.toFixed(1)}"
@@ -1031,8 +1031,8 @@ function renderBlock(block: BlockSpec, gap: number): string {
   <circle cx="40" cy="40" r="34" fill="none" stroke="#6B5B95" stroke-width="20"
     stroke-dasharray="${altDash.toFixed(1)} ${C.toFixed(1)}"
     stroke-dashoffset="${altOffset.toFixed(1)}" transform="rotate(-90 40 40)"/>
-  <text x="40" y="37" text-anchor="middle" font-size="9" fill="#414042" font-family="Open Sans,system-ui">Total</text>
-  <text x="40" y="48" text-anchor="middle" font-size="10" font-weight="600" fill="#414042" font-family="Open Sans,system-ui">${escapeHtml(total)}</text>
+  <text x="40" y="37" text-anchor="middle" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui">Total</text>
+  <text x="40" y="48" text-anchor="middle" font-size="10" font-weight="600" fill="#0F171F" font-family="Open Sans,system-ui">${escapeHtml(total)}</text>
 </svg>`
       return `<div class="block-allocation" style="${mb}">
   ${donutSvg}
