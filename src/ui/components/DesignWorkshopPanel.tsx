@@ -5,17 +5,20 @@
  * Provides:
  *  - Prompt textarea with Jazz-styled prompt chips
  *  - Generate button (sends SEND_MESSAGE with the prompt)
- *  - Demo toggle button (emits RUN_QUICK_ACTION with 'demo-screens')
+ *  - Demo toggle button — when active, shows a tag row (Dashboard | Positions | Flow)
+ *  - Active tag selects which demo preset runs (demo-dashboard, demo-positions, demo-flow)
  *  - Loading state from activeStatus
  */
 
 import { h } from 'preact'
 import { useState, useCallback } from 'preact/hooks'
 
+type DemoTag = 'dashboard' | 'positions' | 'flow'
+
 interface DesignWorkshopPanelProps {
   isGenerating: boolean
   onGenerate: (prompt: string) => void
-  onDemoMode: () => void
+  onDemoMode: (tag: DemoTag) => void
   onNewPrompt: () => void
   exportHtml?: string | null
   onExportHtml: () => void
@@ -23,27 +26,34 @@ interface DesignWorkshopPanelProps {
 
 const PROMPT_CHIPS = ['Mobile', 'Onboarding', 'Dashboard', 'Login', 'Settings', 'FinTech']
 
-const JAZZ_BLUE = '#005EB8'
-const JAZZ_GREEN = '#128842'
-const JAZZ_TEXT = '#101820'
-const JAZZ_MUTED = '#676C6F'
-const JAZZ_BORDER = '#D4D4D4'
+const DEMO_TAGS: Array<{ key: DemoTag; label: string }> = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'positions', label: 'Positions' },
+  { key: 'flow',      label: 'Flow' },
+]
+
+const JAZZ_BLUE    = '#005EB8'
+const JAZZ_GREEN   = '#128842'
+const JAZZ_TEXT    = '#0F171F'
+const JAZZ_MUTED   = '#5B6C7B'
+const JAZZ_BORDER  = '#E2E4E5'
 const JAZZ_SURFACE1 = '#F5F7F8'
 const JAZZ_ICON_BG = '#E8F0FA'
 
 export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNewPrompt, exportHtml, onExportHtml }: DesignWorkshopPanelProps) {
-  const [prompt, setPrompt] = useState('')
+  const [prompt, setPrompt]       = useState('')
   const [demoActive, setDemoActive] = useState(false)
+  const [demoTag, setDemoTag]     = useState<DemoTag>('flow')
 
   const handleGenerate = useCallback(() => {
     if (demoActive) {
-      onDemoMode()
+      onDemoMode(demoTag)
       return
     }
     const trimmed = prompt.trim()
     if (!trimmed) return
     onGenerate(trimmed)
-  }, [prompt, demoActive, onGenerate, onDemoMode])
+  }, [prompt, demoActive, demoTag, onGenerate, onDemoMode])
 
   const handleChipClick = useCallback((chip: string) => {
     setPrompt(prev => {
@@ -100,7 +110,7 @@ export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNe
         onInput={(e) => setPrompt((e.target as HTMLTextAreaElement).value)}
         onKeyDown={handleKeyDown}
         disabled={isGenerating || demoActive}
-        placeholder={demoActive ? 'Demo mode active — FiFi FinTech preset will be used' : 'Describe the screens you want to generate…'}
+        placeholder={demoActive ? 'Demo mode active — select a tag below, then click Generate Screens' : 'Describe the screens you want to generate…'}
         rows={3}
         style={{
           width: '100%',
@@ -120,7 +130,7 @@ export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNe
         }}
       />
 
-      {/* Prompt chips */}
+      {/* Prompt chips — shown only when demo is off */}
       {!demoActive && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
           {PROMPT_CHIPS.map(chip => (
@@ -145,6 +155,38 @@ export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNe
               {chip}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Demo tag row — shown only when demo is active */}
+      {demoActive && (
+        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+          {DEMO_TAGS.map(({ key, label }) => {
+            const isActive = demoTag === key
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setDemoTag(key)}
+                disabled={isGenerating}
+                style={{
+                  background: isActive ? JAZZ_GREEN : '#ffffff',
+                  color: isActive ? '#ffffff' : JAZZ_MUTED,
+                  border: '1px solid ' + (isActive ? JAZZ_GREEN : JAZZ_BORDER),
+                  borderRadius: '20px',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  padding: '3px 10px',
+                  cursor: isGenerating ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-family)',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.12s ease'
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -174,7 +216,7 @@ export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNe
             transition: 'background-color 0.15s'
           }}
         >
-          {isGenerating ? 'Generating…' : demoActive ? 'Run Demo' : 'Generate Screens'}
+          {isGenerating ? 'Generating…' : demoActive ? 'Generate Screens' : 'Generate Screens'}
         </button>
 
         {/* Demo toggle */}
@@ -200,11 +242,12 @@ export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNe
           {demoActive ? 'DEMO ON' : 'DEMO'}
         </button>
 
-        {/* Export HTML — only shown when export is available */}
+        {/* Send to HTML — shown once screens have been generated */}
         {exportHtml && (
           <button
             type="button"
             onClick={onExportHtml}
+            disabled={isGenerating}
             style={{
               background: '#ffffff',
               color: JAZZ_BLUE,
@@ -213,12 +256,12 @@ export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNe
               fontSize: '9px',
               fontWeight: 600,
               padding: '8px 10px',
-              cursor: 'pointer',
+              cursor: isGenerating ? 'not-allowed' : 'pointer',
               fontFamily: 'var(--font-family)',
               whiteSpace: 'nowrap'
             }}
           >
-            Export HTML
+            Send to HTML
           </button>
         )}
       </div>
