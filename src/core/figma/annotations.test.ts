@@ -276,6 +276,27 @@ async function run() {
     assert.strictEqual(result[0].plainText, 'HAT: Book queue Confidence: high')
   })
 
+  // j2. readResolvedAnnotations — link syntax stripping
+  await runTest('j2: stripMarkdown handles link syntax', async () => {
+    clearAnnotationCategoryCache()
+    setFigmaMock({
+      annotations: {
+        getAnnotationCategoriesAsync: async () => [{ id: 'cat-link', label: 'Notes' }]
+      }
+    })
+
+    const node = {
+      id: 'n9',
+      type: 'FRAME',
+      annotations: [
+        { categoryId: 'cat-link', labelMarkdown: 'See [design spec](https://example.com) for details' }
+      ]
+    } as unknown as BaseNode
+
+    const entries = await readResolvedAnnotations(node)
+    assert.strictEqual(entries[0].plainText, 'See design spec for details')
+  })
+
   // k. readAnnotationValue — match (exact and case-insensitive)
   await runTest('k: readAnnotationValue returns plainText for matching category (case-insensitive)', async () => {
     clearAnnotationCategoryCache()

@@ -64,10 +64,11 @@ export async function ensureAnnotationCategory(
     const api = (figma as unknown as FigmaAnnotationsAPI).annotations
     if (!api?.getAnnotationCategoriesAsync) return undefined
     const categories = await api.getAnnotationCategoriesAsync()
-    const existing = categories.find(c => c.label === label)
+    const needle = label.trim().toLowerCase()
+    const existing = categories.find(c => c.label.trim().toLowerCase() === needle)
     if (existing?.id) return existing.id
     if (api.addAnnotationCategoryAsync) {
-      const created = await api.addAnnotationCategoryAsync({ label, color })
+      const created = await api.addAnnotationCategoryAsync({ label: label.trim(), color })
       if (created?.id) {
         if (_sharedCategoryCache !== null) {
           _sharedCategoryCache.set(created.id, label)
@@ -106,6 +107,7 @@ export interface ResolvedAnnotationEntry {
 /** Strip markdown formatting to plain text (minimal: removes **, *, _, #, backticks; collapses whitespace). */
 function stripMarkdown(s: string): string {
   return s
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/[*_#`]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
