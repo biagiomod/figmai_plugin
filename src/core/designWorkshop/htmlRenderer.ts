@@ -8,20 +8,39 @@
  */
 
 import type { DesignSpecV1, BlockSpec } from './types'
+import { isLikelyTicker, getTickerLogoDataUri, getTickerName } from './stockLogos'
 
 const JAZZ_CSS_VARS = `
   --jazz-primary: #005EB8;
+  --jazz-primary-hover: #004692;
+  --jazz-primary-active: #002F6C;
+  --jazz-primary-subtle: rgba(0,94,184,0.08);
   --jazz-navy: #002F6C;
   --jazz-cta: #128842;
-  --jazz-text: #101820;
-  --jazz-muted: #676C6F;
-  --jazz-border: #D4D4D4;
+  --jazz-gain: #128842;
+  --jazz-loss: #DA0B16;
+  --jazz-text: #0F171F;
+  --jazz-muted: #5B6C7B;
+  --jazz-subdued: #85888A;
+  --jazz-border: #E2E4E5;
   --jazz-surface: #FFFFFF;
-  --jazz-surface1: #F2F4F5;
+  --jazz-surface0: #FFFFFF;
+  --jazz-surface1: #F5F7F8;
+  --jazz-surface2: #F1F1F0;
   --jazz-icon-bg: #E8F0FA;
   --jazz-error: #BF2155;
+  --jazz-warning: #D56B01;
   --jazz-radius: 4px;
-  --jazz-font: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --jazz-radius-pill: 8px;
+  --jazz-font: "Open Sans", "Helvetica Neue", helvetica, arial, sans-serif;
+  --jazz-shadow-sm: 0 2px 4px rgba(0,0,0,0.10);
+  --jazz-shadow-md: 0 3px 10px rgba(0,0,0,0.20);
+  --jazz-shadow-lg: 0 8px 24px rgba(0,0,0,0.40);
+  --chart-area: #4A8FD4;
+  --chart-seg1: #7B9E4B;
+  --chart-seg2: #2E7E9E;
+  --chart-seg3: #6B5B95;
+  --chart-tooltip: #0F171F;
 `
 
 const BASE_CSS = `
@@ -38,37 +57,88 @@ const BASE_CSS = `
     padding: 40px 16px 80px;
   }
 
-  /* ── Prototype header ── */
-  .proto-header {
+  /* ── Handoff summary card ── */
+  .handoff-card {
+    background: var(--jazz-surface0);
+    border: 1px solid var(--jazz-border);
+    border-radius: 8px;
+    box-shadow: var(--jazz-shadow-sm);
+    padding: 14px 18px 12px;
+    margin-bottom: 24px;
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 32px;
-    color: var(--jazz-muted);
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 700px;
+    width: 100%;
   }
-  .proto-header-badge {
-    background: var(--jazz-icon-bg);
-    color: var(--jazz-primary);
+  .handoff-card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .handoff-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--jazz-text);
+    letter-spacing: -0.01em;
+  }
+  .handoff-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .handoff-badge {
     font-size: 10px;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 20px;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .handoff-badge--ds {
+    background: var(--jazz-icon-bg);
+    color: var(--jazz-primary);
+  }
+  .handoff-badge--screens {
+    background: var(--jazz-surface1);
+    color: var(--jazz-muted);
+    border: 1px solid var(--jazz-border);
+  }
+  .handoff-badge--date {
+    background: var(--jazz-surface1);
+    color: var(--jazz-muted);
+    border: 1px solid var(--jazz-border);
+  }
+  .handoff-badge--source {
+    background: var(--jazz-primary);
+    color: #fff;
+  }
+  .handoff-card-prompt {
+    font-size: 11px;
+    color: var(--jazz-subdued);
+    font-style: italic;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* ── Phone frame ── */
+  /* ── Phone frame — fixed height so all screens are the same size ── */
   .phone-frame {
     width: 375px;
+    height: 780px;
+    display: flex;
+    flex-direction: column;
     background: var(--jazz-surface);
     border-radius: 24px;
     box-shadow:
       0 0 0 1px rgba(0,0,0,0.08),
-      0 8px 32px rgba(0,0,0,0.14),
-      0 2px 6px rgba(0,0,0,0.08);
+      var(--jazz-shadow-lg),
+      var(--jazz-shadow-sm);
     overflow: hidden;
     flex-shrink: 0;
   }
@@ -109,16 +179,23 @@ const BASE_CSS = `
     align-items: center;
   }
 
-  /* ── Screen wrapper — visibility toggle ── */
+  /* ── Screen wrapper — fills remaining phone height, hidden unless active ── */
   .screen-wrapper { display: none; }
-  .screen-wrapper.active { display: block; }
+  .screen-wrapper.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
 
-  /* ── Screen content ── */
+  /* ── Screen content — scrolls if blocks exceed phone height ── */
   .screen-content {
     padding: 24px 20px;
     display: flex;
     flex-direction: column;
-    min-height: 560px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 
   /* ── Block types ── */
@@ -229,6 +306,96 @@ const BASE_CSS = `
     color: var(--jazz-muted);
     font-size: 12px;
     font-weight: 600;
+  }
+
+  /* ── Position card variant (ticker rows) ── */
+  .block-card--position {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-left: none;
+    border-left-width: 1px;
+  }
+  .block-card--position .ticker-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: block;
+  }
+  .block-card--position .ticker-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .block-card--position .ticker-symbol {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--jazz-text);
+    line-height: 1.3;
+  }
+  .block-card--position .ticker-name {
+    font-size: 10px;
+    color: var(--jazz-subdued);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+  }
+  .block-card--position .ticker-detail {
+    font-size: 11px;
+    color: var(--jazz-muted);
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .block-card--position .ticker-delta {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: -0.01em;
+  }
+  .delta-gain { color: var(--jazz-gain); }
+  .delta-loss { color: var(--jazz-loss); }
+
+  /* ── Portfolio chart block ── */
+  .block-chart {
+    background: var(--jazz-surface);
+    border: 1px solid var(--jazz-border);
+    border-radius: var(--jazz-radius);
+    overflow: hidden;
+  }
+  .block-chart-period-row {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px 4px;
+  }
+  .block-chart-period-btn {
+    font-family: var(--jazz-font);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--jazz-border);
+    background: var(--jazz-surface);
+    color: var(--jazz-muted);
+    cursor: pointer;
+  }
+  .block-chart-period-btn.active-period {
+    background: rgba(0,47,108,0.08);
+    border-color: var(--jazz-primary);
+    border-radius: var(--jazz-radius-pill);
+    color: var(--jazz-primary);
+  }
+  .block-chart-svg { display: block; width: 100%; }
+  .block-chart-caption {
+    font-size: 10px;
+    color: var(--jazz-muted);
+    padding: 4px 12px 8px;
+    text-align: right;
   }
 
   /* ── Navigation ── */
@@ -633,11 +800,43 @@ function renderBlock(block: BlockSpec, gap: number): string {
 </div>`
     }
 
-    case 'card':
-      return `<div class="block-card" style="${mb}">
-  <div class="block-card-label">${escapeHtml(block.title ?? '')}</div>
-  <div class="block-card-value">${escapeHtml(block.content)}</div>
+    case 'card': {
+      const cardTitle = block.title ?? ''
+      const cardContent = block.content
+
+      // Position card: ticker-style title (e.g. AAPL) → logo badge + colored delta
+      if (isLikelyTicker(cardTitle)) {
+        const logoUri = getTickerLogoDataUri(cardTitle)
+        // Parse content: "150 shares · $148.00 · +9.2%" — last ·-delimited segment starting with +/−
+        const parts = cardContent.split('·').map(p => p.trim())
+        const last = parts[parts.length - 1]
+        const isDelta = last && (last.startsWith('+') || last.startsWith('−') || last.startsWith('-'))
+        const delta = isDelta ? last : ''
+        const detail = isDelta ? parts.slice(0, -1).join(' · ') : cardContent
+        const deltaClass = delta.startsWith('+') ? 'delta-gain' : delta ? 'delta-loss' : ''
+        const companyName = getTickerName(cardTitle)
+        return `<div class="block-card block-card--position" style="${mb}">
+  <img class="ticker-logo" src="${logoUri}" alt="${escapeHtml(cardTitle)}" width="40" height="40" />
+  <div class="ticker-body">
+    <div class="ticker-symbol">${escapeHtml(cardTitle)}</div>
+    ${companyName ? `<div class="ticker-name">${escapeHtml(companyName)}</div>` : ''}
+    <div class="ticker-detail">${escapeHtml(detail)}</div>
+  </div>
+  ${delta ? `<span class="ticker-delta ${deltaClass}">${escapeHtml(delta)}</span>` : ''}
 </div>`
+      }
+
+      // Regular card — color the value if it starts with a delta sign
+      const valueColor = cardContent.startsWith('+')
+        ? ' style="color:var(--jazz-gain)"'
+        : (cardContent.startsWith('−') || cardContent.startsWith('-'))
+          ? ' style="color:var(--jazz-loss)"'
+          : ''
+      return `<div class="block-card" style="${mb}">
+  <div class="block-card-label">${escapeHtml(cardTitle)}</div>
+  <div class="block-card-value"${valueColor}>${escapeHtml(cardContent)}</div>
+</div>`
+    }
 
     case 'spacer':
       return `<div style="height:${block.height ?? 16}px;flex-shrink:0"></div>`
@@ -645,6 +844,63 @@ function renderBlock(block: BlockSpec, gap: number): string {
     case 'image': {
       const h = block.height ?? 80
       return `<div class="block-image" style="height:${h}px;${mb}">Image ${block.width ?? 100}×${h}</div>`
+    }
+
+    case 'chart': {
+      // Static SVG area chart: Jazz DS confirmed tokens
+      // YTD: Jan 2 $313,875 → Feb 18 peak $322,612 → Apr 2 $319,448
+      const chartH = block.height ?? 140
+      const caption = block.caption ?? ''
+      const svgH = chartH - 20  // leave room for x-axis labels
+      // Normalized Y positions (0=bottom $313k, 1.0=peak $323k)
+      const yScale = (norm: number) => Math.round((svgH - 10) - norm * (svgH - 20))
+      const yJan  = yScale(0.13)  // Jan 2: ~$313,875
+      const yPeak = yScale(1.0)   // Feb 18: ~$322,612 (peak)
+      const yApr  = yScale(0.64)  // Apr 2: $319,448
+      const yMid  = yScale(0.60)  // early March
+      const svgChart = `<svg viewBox="0 0 335 ${chartH}" xmlns="http://www.w3.org/2000/svg" class="block-chart-svg" aria-hidden="true">
+  <defs>
+    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4A8FD4" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#4A8FD4" stop-opacity="0.02"/>
+    </linearGradient>
+  </defs>
+  <!-- Y-axis labels -->
+  <text x="4" y="14" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui,sans-serif">$323k</text>
+  <text x="4" y="${Math.round(svgH * 0.5) + 4}" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui,sans-serif">$318k</text>
+  <text x="4" y="${svgH - 6}" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui,sans-serif">$313k</text>
+  <!-- Grid lines -->
+  <line x1="36" y1="12" x2="331" y2="12" stroke="#E2E4E5" stroke-width="1"/>
+  <line x1="36" y1="${Math.round(svgH * 0.5)}" x2="331" y2="${Math.round(svgH * 0.5)}" stroke="#E2E4E5" stroke-width="1"/>
+  <line x1="36" y1="${svgH - 10}" x2="331" y2="${svgH - 10}" stroke="#E2E4E5" stroke-width="1"/>
+  <!-- Area fill -->
+  <path d="M36,${yJan} C70,${yJan + 6} 90,${Math.round((yJan + yPeak) / 2)} 130,${yPeak} C160,${yPeak - 4} 180,${yPeak - 4} 210,${Math.round((yPeak + yMid) / 2)} C240,${yMid + 4} 270,${yMid + 4} 331,${yApr} L331,${svgH - 10} L36,${svgH - 10} Z" fill="url(#chartGrad)"/>
+  <!-- Line -->
+  <path d="M36,${yJan} C70,${yJan + 6} 90,${Math.round((yJan + yPeak) / 2)} 130,${yPeak} C160,${yPeak - 4} 180,${yPeak - 4} 210,${Math.round((yPeak + yMid) / 2)} C240,${yMid + 4} 270,${yMid + 4} 331,${yApr}" fill="none" stroke="#4A8FD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- End dot -->
+  <circle cx="331" cy="${yApr}" r="3.5" fill="#4A8FD4"/>
+  <!-- Tooltip callout at end point -->
+  <rect x="248" y="${yApr - 20}" width="80" height="16" rx="3" fill="#0F171F"/>
+  <text x="288" y="${yApr - 9}" font-size="9" fill="#FFFFFF" text-anchor="middle" font-family="Open Sans,system-ui,sans-serif">Apr 2 · $319,448</text>
+  <!-- Callout stem -->
+  <line x1="331" y1="${yApr - 4}" x2="320" y2="${yApr - 4}" stroke="#0F171F" stroke-width="1"/>
+  <!-- X-axis labels -->
+  <text x="36"  y="${chartH}" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui,sans-serif">Jan</text>
+  <text x="118" y="${chartH}" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui,sans-serif">Feb</text>
+  <text x="200" y="${chartH}" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui,sans-serif">Mar</text>
+  <text x="310" y="${chartH}" font-size="9" fill="#5B6C7B" font-family="Open Sans,system-ui,sans-serif">Apr</text>
+</svg>`
+      return `<div class="block-chart" style="${mb}">
+  <div class="block-chart-period-row">
+    <button class="block-chart-period-btn active-period">YTD</button>
+    <button class="block-chart-period-btn">1M</button>
+    <button class="block-chart-period-btn">3M</button>
+    <button class="block-chart-period-btn">1Y</button>
+    <button class="block-chart-period-btn">All</button>
+  </div>
+  ${svgChart}
+  ${caption ? `<div class="block-chart-caption">${escapeHtml(caption)}</div>` : ''}
+</div>`
     }
 
     default:
@@ -666,6 +922,14 @@ export function renderToHtml(spec: DesignSpecV1): string {
   const title = spec.meta?.title ?? 'FiFi Prototype'
   const screens = spec.screens ?? []
   const total = screens.length
+
+  // Handoff card metadata
+  const userRequest = spec.meta?.userRequest ?? ''
+  const promptDisplay = userRequest.length > 120
+    ? userRequest.slice(0, 117) + '…'
+    : userRequest
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   const screenHtml = screens.map((screen, i) => {
     const gap = screen.layout?.gap ?? 16
@@ -693,7 +957,8 @@ export function renderToHtml(spec: DesignSpecV1): string {
   <title>${escapeHtml(title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css" rel="stylesheet" />
   <style>
     :root { ${JAZZ_CSS_VARS.trim()} }
     ${BASE_CSS.trim()}
@@ -702,11 +967,17 @@ export function renderToHtml(spec: DesignSpecV1): string {
 </head>
 <body>
 
-  <div class="proto-header">
-    <span>${escapeHtml(title)}</span>
-    <span class="proto-header-badge">Jazz DS</span>
-    <span style="color:var(--jazz-border)">·</span>
-    <span>${total} screen${total !== 1 ? 's' : ''}</span>
+  <div class="handoff-card" role="banner" aria-label="Design handoff summary">
+    <div class="handoff-card-top">
+      <span class="handoff-card-title">${escapeHtml(title)}</span>
+      <div class="handoff-card-badges">
+        <span class="handoff-badge handoff-badge--source">FigmAI Design Workshop</span>
+        <span class="handoff-badge handoff-badge--ds">Jazz DS</span>
+        <span class="handoff-badge handoff-badge--screens">${total} screen${total !== 1 ? 's' : ''}</span>
+        <span class="handoff-badge handoff-badge--date">${escapeHtml(dateStr)}</span>
+      </div>
+    </div>
+    ${promptDisplay ? `<div class="handoff-card-prompt">"${escapeHtml(promptDisplay)}"</div>` : ''}
   </div>
 
   <div class="proto-workspace">
