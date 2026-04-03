@@ -361,6 +361,101 @@ const BASE_CSS = `
   .delta-gain { color: var(--jazz-gain); }
   .delta-loss { color: var(--jazz-loss); }
 
+  /* ── Metrics 2×2 grid block ── */
+  .block-metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--jazz-surface);
+    border: 1px solid var(--jazz-border);
+    border-radius: var(--jazz-radius);
+    overflow: hidden;
+  }
+  .block-metrics-cell {
+    padding: 10px 14px;
+    border-right: 1px solid var(--jazz-border);
+    border-bottom: 1px solid var(--jazz-border);
+  }
+  .block-metrics-cell:nth-child(2n) { border-right: none; }
+  .block-metrics-cell:nth-last-child(-n+2) { border-bottom: none; }
+  .block-metrics-label {
+    font-size: 10px;
+    color: var(--jazz-muted);
+    margin-bottom: 3px;
+    line-height: 1.3;
+  }
+  .block-metrics-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--jazz-text);
+  }
+  .block-metrics-value.gain { color: var(--jazz-gain); }
+
+  /* ── Asset allocation block ── */
+  .block-allocation {
+    background: var(--jazz-surface);
+    border: 1px solid var(--jazz-border);
+    border-radius: var(--jazz-radius);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .block-allocation-donut { flex-shrink: 0; }
+  .block-allocation-legend { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+  .block-alloc-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .block-alloc-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .block-alloc-label { flex: 1; color: var(--jazz-muted); }
+  .block-alloc-pct   { font-weight: 600; color: var(--jazz-text); }
+
+  /* ── Watchlist block ── */
+  .block-watchlist {
+    background: var(--jazz-surface);
+    border: 1px solid var(--jazz-border);
+    border-radius: var(--jazz-radius);
+    overflow: hidden;
+  }
+  .block-watchlist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 6px;
+    border-bottom: 1px solid var(--jazz-border);
+  }
+  .block-watchlist-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--jazz-text);
+  }
+  .block-watchlist-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--jazz-border);
+    gap: 10px;
+  }
+  .block-watchlist-row:last-child { border-bottom: none; }
+  .block-watchlist-logo {
+    width: 28px; height: 28px;
+    border-radius: 14px;
+    border: 1px solid var(--jazz-border);
+    flex-shrink: 0;
+    display: block;
+  }
+  .block-watchlist-ticker { font-size: 12px; font-weight: 700; color: var(--jazz-primary); flex: 1; }
+  .block-watchlist-price  { font-size: 12px; color: var(--jazz-text); }
+  .block-watchlist-chg    { font-size: 11px; font-weight: 600; min-width: 60px; text-align: right; }
+  .block-watchlist-chg.gain { color: var(--jazz-gain); }
+  .block-watchlist-chg.loss { color: var(--jazz-loss); }
+
   /* ── Portfolio chart block ── */
   .block-chart {
     background: var(--jazz-surface);
@@ -900,6 +995,83 @@ function renderBlock(block: BlockSpec, gap: number): string {
   </div>
   ${svgChart}
   ${caption ? `<div class="block-chart-caption">${escapeHtml(caption)}</div>` : ''}
+</div>`
+    }
+
+    case 'metricsGrid': {
+      const cells = block.items.map(item => {
+        const gainClass = item.gain ? ' gain' : ''
+        return `<div class="block-metrics-cell">
+  <div class="block-metrics-label">${escapeHtml(item.label)}</div>
+  <div class="block-metrics-value${gainClass}">${escapeHtml(item.value)}</div>
+</div>`
+      }).join('\n')
+      return `<div class="block-metrics-grid" style="${mb}">${cells}</div>`
+    }
+
+    case 'allocation': {
+      // Donut SVG: r=34, stroke-width=20, cx=40, cy=40 → 80×80px
+      // circumference = 2π*34 ≈ 213.6
+      // stroke-dashoffset: C/4 starts at 12 o'clock; subtract cumulative arcs for subsequent segments
+      const C = 213.6
+      const eqDash  = (block.equity       / 100) * C
+      const fiDash  = (block.fixedIncome  / 100) * C
+      const altDash = (block.altAssets    / 100) * C
+      const eqOffset  = C / 4
+      const fiOffset  = C / 4 - eqDash
+      const altOffset = C / 4 - eqDash - fiDash
+      const total = block.total ?? `$${Math.round(block.equity + block.fixedIncome + block.altAssets)}k`
+      const donutSvg = `<svg width="80" height="80" viewBox="0 0 80 80" class="block-allocation-donut">
+  <circle cx="40" cy="40" r="34" fill="none" stroke="#7B9E4B" stroke-width="20"
+    stroke-dasharray="${eqDash.toFixed(1)} ${C.toFixed(1)}"
+    stroke-dashoffset="${eqOffset.toFixed(1)}" transform="rotate(-90 40 40)"/>
+  <circle cx="40" cy="40" r="34" fill="none" stroke="#2E7E9E" stroke-width="20"
+    stroke-dasharray="${fiDash.toFixed(1)} ${C.toFixed(1)}"
+    stroke-dashoffset="${fiOffset.toFixed(1)}" transform="rotate(-90 40 40)"/>
+  <circle cx="40" cy="40" r="34" fill="none" stroke="#6B5B95" stroke-width="20"
+    stroke-dasharray="${altDash.toFixed(1)} ${C.toFixed(1)}"
+    stroke-dashoffset="${altOffset.toFixed(1)}" transform="rotate(-90 40 40)"/>
+  <text x="40" y="37" text-anchor="middle" font-size="9" fill="#414042" font-family="Open Sans,system-ui">Total</text>
+  <text x="40" y="48" text-anchor="middle" font-size="10" font-weight="600" fill="#414042" font-family="Open Sans,system-ui">${escapeHtml(total)}</text>
+</svg>`
+      return `<div class="block-allocation" style="${mb}">
+  ${donutSvg}
+  <div class="block-allocation-legend">
+    <div class="block-alloc-row">
+      <div class="block-alloc-dot" style="background:#7B9E4B"></div>
+      <div class="block-alloc-label">Equity</div>
+      <div class="block-alloc-pct">${block.equity.toFixed(2)}%</div>
+    </div>
+    <div class="block-alloc-row">
+      <div class="block-alloc-dot" style="background:#2E7E9E"></div>
+      <div class="block-alloc-label">Fixed Income</div>
+      <div class="block-alloc-pct">${block.fixedIncome.toFixed(2)}%</div>
+    </div>
+    <div class="block-alloc-row">
+      <div class="block-alloc-dot" style="background:#6B5B95"></div>
+      <div class="block-alloc-label">Alt Assets</div>
+      <div class="block-alloc-pct">${block.altAssets.toFixed(2)}%</div>
+    </div>
+  </div>
+</div>`
+    }
+
+    case 'watchlist': {
+      const rows = block.items.map(item => {
+        const logoUri = getTickerLogoDataUri(item.ticker)
+        const chgClass = item.gain ? 'gain' : 'loss'
+        return `<div class="block-watchlist-row">
+  <img src="${logoUri}" class="block-watchlist-logo" alt="${escapeHtml(item.ticker)}"/>
+  <div class="block-watchlist-ticker">${escapeHtml(item.ticker)}</div>
+  <div class="block-watchlist-price">${escapeHtml(item.price)}</div>
+  <div class="block-watchlist-chg ${chgClass}">${escapeHtml(item.change)}</div>
+</div>`
+      }).join('\n')
+      return `<div class="block-watchlist" style="${mb}">
+  <div class="block-watchlist-header">
+    <span class="block-watchlist-title">${escapeHtml(block.title)}</span>
+  </div>
+  ${rows}
 </div>`
     }
 
