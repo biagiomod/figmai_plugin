@@ -91,6 +91,7 @@ import { ConfluenceModal } from './ui/components/ConfluenceModal'
 import { AnalyticsTaggingTable } from './ui/components/AnalyticsTaggingTable'
 import { AnalyticsTaggingWelcome } from './ui/components/AnalyticsTaggingWelcome'
 import { AnalyticsTaggingView } from './ui/components/AnalyticsTaggingView'
+import { DesignWorkshopPanel } from './ui/components/DesignWorkshopPanel'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
 import { parseRichText } from './core/richText/parseRichText'
 import { enhanceRichText, estimateEnhancedTextLength } from './core/richText/enhancers'
@@ -3289,6 +3290,20 @@ ${htmlTable}
       </div>
       
       {/* Input Area */}
+      {assistant.id === 'design_workshop' ? (
+        <DesignWorkshopPanel
+          isGenerating={activeStatus !== null}
+          onGenerate={(prompt) => {
+            emit<SendMessageHandler>('SEND_MESSAGE', prompt, false)
+          }}
+          onDemoMode={() => {
+            emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'demo-screens', 'design_workshop')
+          }}
+          onNewPrompt={() => {
+            /* panel manages its own prompt state */
+          }}
+        />
+      ) : (
       <div style={{
         borderTop: '1px solid var(--border)',
         padding: 'var(--spacing-md)',
@@ -3612,7 +3627,8 @@ ${htmlTable}
           )}
         </div>
       </div>
-      
+      )}
+
       {/* Assistant Modal */}
       {showAssistantModal && (
         <div style={{
