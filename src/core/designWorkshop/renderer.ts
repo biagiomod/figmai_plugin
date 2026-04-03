@@ -685,6 +685,83 @@ async function renderBlock(
       return imageFrame
     }
 
+    case 'chart': {
+      // Figma canvas: render as a labeled placeholder frame (chart is rendered as SVG only in HTML)
+      const chartFrame = figma.createFrame()
+      chartFrame.name = 'Chart'
+      const chartH = block.height ?? 140
+      chartFrame.resize(maxWidth, chartH)
+      chartFrame.fills = [getImageFill(fidelity, useJazz)]
+      chartFrame.strokes = [getImageStroke(fidelity, intent)]
+      chartFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
+      chartFrame.layoutMode = 'VERTICAL'
+      chartFrame.primaryAxisAlignItems = 'CENTER'
+      chartFrame.counterAxisAlignItems = 'CENTER'
+      const chartLabel = await createTextNode('Portfolio Performance Chart', {
+        fontSize: 11,
+        fontName: fonts.regular,
+        fills: [getPlaceholderColor(fidelity)]
+      })
+      chartLabel.textAlignHorizontal = 'CENTER'
+      chartFrame.appendChild(chartLabel)
+      return chartFrame
+    }
+
+    case 'metricsGrid': {
+      const mgFrame = figma.createFrame()
+      mgFrame.name = 'Metrics Grid'
+      mgFrame.resize(maxWidth, 80)
+      mgFrame.fills = [getImageFill(fidelity, useJazz)]
+      mgFrame.strokes = [getImageStroke(fidelity, intent)]
+      mgFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
+      mgFrame.layoutMode = 'VERTICAL'
+      mgFrame.primaryAxisAlignItems = 'CENTER'
+      mgFrame.counterAxisAlignItems = 'CENTER'
+      const mgLabel = await createTextNode(`Metrics (${block.items.length} cells)`, {
+        fontSize: 11,
+        fontName: fonts.regular,
+        fills: [getPlaceholderColor(fidelity)]
+      })
+      mgFrame.appendChild(mgLabel)
+      return mgFrame
+    }
+
+    case 'allocation': {
+      const allocFrame = figma.createFrame()
+      allocFrame.name = 'Asset Allocation'
+      allocFrame.resize(maxWidth, 90)
+      allocFrame.fills = [getImageFill(fidelity, useJazz)]
+      allocFrame.strokes = [getImageStroke(fidelity, intent)]
+      allocFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
+      allocFrame.layoutMode = 'VERTICAL'
+      allocFrame.primaryAxisAlignItems = 'CENTER'
+      allocFrame.counterAxisAlignItems = 'CENTER'
+      const allocLabel = await createTextNode(
+        `Equity ${block.equity}% · Fixed ${block.fixedIncome}% · Alt ${block.altAssets}%`,
+        { fontSize: 10, fontName: fonts.regular, fills: [getPlaceholderColor(fidelity)] }
+      )
+      allocFrame.appendChild(allocLabel)
+      return allocFrame
+    }
+
+    case 'watchlist': {
+      const wlFrame = figma.createFrame()
+      wlFrame.name = block.title
+      wlFrame.resize(maxWidth, 24 + block.items.length * 36)
+      wlFrame.fills = [getImageFill(fidelity, useJazz)]
+      wlFrame.strokes = [getImageStroke(fidelity, intent)]
+      wlFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
+      wlFrame.layoutMode = 'VERTICAL'
+      wlFrame.primaryAxisAlignItems = 'CENTER'
+      wlFrame.counterAxisAlignItems = 'CENTER'
+      const wlLabel = await createTextNode(
+        `${block.title} · ${block.items.map(i => i.ticker).join(', ')}`,
+        { fontSize: 10, fontName: fonts.regular, fills: [getPlaceholderColor(fidelity)] }
+      )
+      wlFrame.appendChild(wlLabel)
+      return wlFrame
+    }
+
     default:
       // Fallback: create empty frame
       const fallback = figma.createFrame()
