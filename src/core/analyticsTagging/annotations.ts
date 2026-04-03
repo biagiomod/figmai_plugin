@@ -5,6 +5,7 @@
  */
 
 import { debug } from '../debug/logger'
+import { getCategoryMapShared, clearAnnotationCategoryCache as clearCoreAnnotationCategoryCache } from '../figma/annotations'
 
 /** Annotation with optional category (native Dev Mode) */
 type AnnotationWithCategory = {
@@ -13,38 +14,9 @@ type AnnotationWithCategory = {
   categoryId?: string
 }
 
-/** Cached category id → label map for the plugin session */
-let cachedCategoryMap: Map<string, string> | null = null
-
-/**
- * Get annotation category map (id → label). Cached for the session.
- * Uses figma.annotations.getAnnotationCategoriesAsync() when available.
- */
-async function getCategoryMap(): Promise<Map<string, string>> {
-  if (cachedCategoryMap !== null) return cachedCategoryMap
-  try {
-    const figmaAnnotations = (figma as { annotations?: { getAnnotationCategoriesAsync?: () => Promise<Array<{ id: string; label: string }>> } }).annotations
-    if (figmaAnnotations?.getAnnotationCategoriesAsync) {
-      const categories = await figmaAnnotations.getAnnotationCategoriesAsync()
-      const map = new Map<string, string>()
-      for (const cat of categories) {
-        if (cat?.id != null && cat?.label != null) {
-          map.set(cat.id, String(cat.label).trim())
-        }
-      }
-      cachedCategoryMap = map
-      return map
-    }
-  } catch (_) {
-    // API not available or failed; use empty map
-  }
-  cachedCategoryMap = new Map()
-  return cachedCategoryMap
-}
-
-/** Optional: clear cache so next call refetches categories (e.g. after file change). */
+/** Clear the shared annotation category cache. Delegates to core. */
 export function clearAnnotationCategoryCache(): void {
-  cachedCategoryMap = null
+  clearCoreAnnotationCategoryCache()
 }
 
 /** Strip markdown to plain text minimally (collapse whitespace, trim). */
@@ -66,7 +38,7 @@ async function findAnnotationValueByCategory(
   const annotations = (node as SceneNode & { annotations?: AnnotationWithCategory[] }).annotations ?? []
   if (annotations.length === 0) return null
 
-  const categoryMap = await getCategoryMap()
+  const categoryMap = await getCategoryMapShared()
   const wanted = wantedCategoryLabel
 
   for (const a of annotations) {

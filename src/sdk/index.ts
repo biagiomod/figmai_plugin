@@ -21,3 +21,12 @@ export interface AssistantModule {
   assistantId: string
   handler?: AssistantHandler
 }
+
+// Annotation types
+export type { AnnotationEntry, ResolvedAnnotationEntry, VisibleAnnotationCardOptions } from '../core/figma/annotations'
+
+// Annotation write primitives
+export { ensureAnnotationCategory, safeSetNativeAnnotations, createVisibleAnnotationCard } from '../core/figma/annotations'
+
+// Annotation read API
+export { readAnnotationValue, readResolvedAnnotations, clearAnnotationCategoryCache } from '../core/figma/annotations'
