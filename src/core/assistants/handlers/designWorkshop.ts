@@ -18,6 +18,7 @@ import type { NormalizedMessage } from '../../provider/provider'
 import type { DesignSpecV1, DesignIntent } from '../../designWorkshop/types'
 import { validateDesignSpecV1, normalizeDesignSpecV1 } from '../../designWorkshop/validate'
 import { renderDesignSpecToSection } from '../../designWorkshop/renderer'
+import { renderToHtml } from '../../designWorkshop/htmlRenderer'
 import { extractJsonFromResponse } from '../../output/normalize'
 import { showNuxtDsFallbackHintIfNeeded } from '../../designSystem/nuxtDsHint'
 import { loadFonts, createTextNode } from '../../stage/primitives'
@@ -136,6 +137,10 @@ CRITICAL:
           useNuxtDs: false,
           useJazz: true
         })
+        try {
+          const html = renderToHtml(normalized)
+          figma.ui.postMessage({ pluginMessage: { type: 'DW_HTML_EXPORT_READY', html } })
+        } catch { /* HTML export failed silently — don't block the main flow */ }
         figma.notify('FiFi demo screens placed on canvas')
         return { handled: true, message: 'FiFi FinTech demo screens placed on canvas' }
       } catch (error) {
@@ -227,6 +232,12 @@ CRITICAL:
       if (!isDemoMode) console.error(`[DW ${runId}] Render error:`, renderError)
       return this.fireDemoFallback(context, runId, isDemoMode)
     }
+
+    // Post HTML export to UI
+    try {
+      const html = renderToHtml(normalized)
+      figma.ui.postMessage({ pluginMessage: { type: 'DW_HTML_EXPORT_READY', html } })
+    } catch { /* HTML export failed silently — don't block the main flow */ }
 
     // Observability artifacts — suppressed in demo mode
     if (!isDemoMode) {

@@ -506,7 +506,20 @@ function Plugin() {
   const [debugHtml, setDebugHtml] = useState('')
   const [debugTsv, setDebugTsv] = useState('')
   const [copyStatus, setCopyStatus] = useState<{ success: boolean; message: string } | null>(null)
-  
+  const [dwExportHtml, setDwExportHtml] = useState<string | null>(null)
+
+  // Design Workshop HTML export download handler
+  const handleDwExportHtml = useCallback(() => {
+    if (!dwExportHtml) return
+    const blob = new Blob([dwExportHtml], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'fifi-screens.html'
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [dwExportHtml])
+
   // Debug logging function (gated behind CONFIG.dev.enableClipboardDebugLogging)
   const uiDebugLog = useCallback((message: string, data?: Record<string, unknown>) => {
     if (CONFIG.dev.enableClipboardDebugLogging) {
@@ -1065,6 +1078,11 @@ function Plugin() {
             const skinId = (message.settings as Record<string, unknown>).skin as string | undefined
             const resolved = resolveTheme(skinId)
             setTheme(resolved.cssThemeValue)
+          }
+          break
+        case 'DW_HTML_EXPORT_READY':
+          if (typeof message.html === 'string') {
+            setDwExportHtml(message.html)
           }
           break
       }
@@ -3302,6 +3320,8 @@ ${htmlTable}
           onNewPrompt={() => {
             /* panel manages its own prompt state */
           }}
+          exportHtml={dwExportHtml}
+          onExportHtml={handleDwExportHtml}
         />
       ) : (
       <div style={{

@@ -17,6 +17,8 @@ interface DesignWorkshopPanelProps {
   onGenerate: (prompt: string) => void
   onDemoMode: () => void
   onNewPrompt: () => void
+  exportHtml?: string | null
+  onExportHtml: () => void
 }
 
 const PROMPT_CHIPS = ['Mobile', 'Onboarding', 'Dashboard', 'Login', 'Settings', 'FinTech']
@@ -29,7 +31,7 @@ const JAZZ_BORDER = '#D4D4D4'
 const JAZZ_SURFACE1 = '#F5F7F8'
 const JAZZ_ICON_BG = '#E8F0FA'
 
-export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNewPrompt }: DesignWorkshopPanelProps) {
+export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNewPrompt, exportHtml, onExportHtml }: DesignWorkshopPanelProps) {
   const [prompt, setPrompt] = useState('')
   const [demoActive, setDemoActive] = useState(false)
 
@@ -197,6 +199,28 @@ export function DesignWorkshopPanel({ isGenerating, onGenerate, onDemoMode, onNe
         >
           {demoActive ? 'DEMO ON' : 'DEMO'}
         </button>
+
+        {/* Export HTML — only shown when export is available */}
+        {exportHtml && (
+          <button
+            type="button"
+            onClick={onExportHtml}
+            style={{
+              background: '#ffffff',
+              color: JAZZ_BLUE,
+              border: '1px solid ' + JAZZ_BORDER,
+              borderRadius: '4px',
+              fontSize: '9px',
+              fontWeight: 600,
+              padding: '8px 10px',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-family)',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Export HTML
+          </button>
+        )}
       </div>
 
       {/* New prompt link — shown when not generating */}
