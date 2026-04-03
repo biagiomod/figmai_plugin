@@ -117,3 +117,52 @@ If you need a new type exported from the SDK, open a PR to `src/sdk/index.ts` an
 3. Add an entry to `custom/assistants.manifest.json` for your assistant
 4. Add CODEOWNERS entries for your directories
 5. Run `npm run build` — if it passes, your assistant is live
+
+---
+
+## Annotations
+
+FigmAI exposes a unified annotation API via the SDK. All functions are available to Strike Team assistants by importing from `../sdk`.
+
+### Types
+
+- `AnnotationEntry` — raw annotation entry shape `{ label?, labelMarkdown?, categoryId? }`
+- `ResolvedAnnotationEntry` — annotation with resolved category label and normalized plain text:
+  - `categoryId?: string` — Figma-internal category ID
+  - `categoryLabel?: string` — human-readable category label (undefined if category not in cache)
+  - `label?: string` — raw plain-text label
+  - `labelMarkdown?: string` — raw markdown label
+  - `plainText: string` — normalized plain text (always present, may be empty)
+- `VisibleAnnotationCardOptions` — options for `createVisibleAnnotationCard`
+
+### Write API
+
+```typescript
+import { ensureAnnotationCategory, safeSetNativeAnnotations, createVisibleAnnotationCard } from '../sdk'
+```
+
+**`ensureAnnotationCategory(label, color?)`** — Ensures a Figma annotation category with the given label exists. Returns the category ID, or `undefined` if the Figma annotations API is unavailable. Default color is `'orange'`. Best-effort: does not throw.
+
+**`safeSetNativeAnnotations(node, entries)`** — Sets native Figma annotations on a node (full replacement). Returns `false` if the node does not support annotations. Best-effort.
+
+**`createVisibleAnnotationCard(options)`** — Creates a visible in-canvas annotation card frame. Returns the created `FrameNode`.
+
+### Read API
+
+```typescript
+import { readAnnotationValue, readResolvedAnnotations, clearAnnotationCategoryCache } from '../sdk'
+```
+
+**`readAnnotationValue(node, categoryLabel)`** — Returns the `plainText` of the first annotation matching `categoryLabel` (case-insensitive), or `null` if no match.
+
+**`readResolvedAnnotations(node)`** — Returns all annotations on `node` as `ResolvedAnnotationEntry[]`. Returns `[]` if the node does not support annotations.
+
+**`clearAnnotationCategoryCache()`** — Clears the shared category cache. Call after file changes or when cache staleness is a concern.
+
+### Category namespacing
+
+Annotation categories are document-scoped in Figma. Use specific labels to avoid cross-assistant contamination (e.g., `"DW-A Review"`, `"Content Review"` rather than `"Review"`).
+
+### Important: safeSetNativeAnnotations overwrites
+
+`safeSetNativeAnnotations` does a full replacement — calling it twice on the same node will erase the first write. If you need to preserve existing annotations, use `readResolvedAnnotations` first, then merge, then write.
