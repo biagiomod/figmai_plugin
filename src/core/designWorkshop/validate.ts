@@ -172,6 +172,10 @@ export function validateDesignSpecV1(spec: unknown): ValidationResult {
 
     // Validate each block
     const blocks = screenObj.blocks as unknown[]
+
+    if (blocks.length === 0) {
+      errors.push(`screens[${index}].blocks is empty — screen "${String(screenObj.name ?? index)}" has no content`)
+    }
     blocks.forEach((block, blockIndex) => {
       if (!block || typeof block !== 'object') {
         errors.push(`screens[${index}].blocks[${blockIndex}] is not an object`)
@@ -217,6 +221,30 @@ export function validateDesignSpecV1(spec: unknown): ValidationResult {
         case 'image':
           // All fields are optional (placeholder)
           break
+        case 'chart':
+          // height and caption are optional
+          break
+        case 'metricsGrid': {
+          if (!Array.isArray(blockObj.items) || blockObj.items.length === 0) {
+            errors.push(`screens[${index}].blocks[${blockIndex}].items must be a non-empty array`)
+          }
+          break
+        }
+        case 'allocation': {
+          if (typeof blockObj.equity !== 'number' || typeof blockObj.fixedIncome !== 'number' || typeof blockObj.altAssets !== 'number') {
+            errors.push(`screens[${index}].blocks[${blockIndex}] allocation must have numeric equity, fixedIncome, altAssets`)
+          }
+          break
+        }
+        case 'watchlist': {
+          if (typeof blockObj.title !== 'string') {
+            errors.push(`screens[${index}].blocks[${blockIndex}].title is missing or invalid`)
+          }
+          if (!Array.isArray(blockObj.items) || blockObj.items.length === 0) {
+            errors.push(`screens[${index}].blocks[${blockIndex}].items must be a non-empty array`)
+          }
+          break
+        }
         default:
           errors.push(`screens[${index}].blocks[${blockIndex}].type is invalid or unsupported: ${blockType}`)
       }
