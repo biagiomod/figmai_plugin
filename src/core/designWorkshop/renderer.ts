@@ -772,54 +772,6 @@ async function renderBlock(
 }
 
 /**
- * Calculate section placement
- * Places section below lowest existing node + 120px, or at origin if no nodes
- */
-function calculateSectionPlacement(section: FrameNode): { x: number; y: number } {
-  const page = figma.currentPage
-  const children = page.children.filter(child => child !== section) // Exclude section itself
-  
-  if (children.length === 0) {
-    // No existing nodes: place at origin
-    return { x: 0, y: 0 }
-  }
-  
-  // Find lowest/bottom-most bounding box
-  let lowestBottom = 0
-  
-  for (const child of children) {
-    let bottom = 0
-    
-    if ('absoluteBoundingBox' in child && child.absoluteBoundingBox) {
-      bottom = child.absoluteBoundingBox.y + child.absoluteBoundingBox.height
-    } else if ('absoluteRenderBounds' in child && child.absoluteRenderBounds) {
-      bottom = child.absoluteRenderBounds.y + child.absoluteRenderBounds.height
-    } else if ('y' in child && 'height' in child) {
-      // Calculate absolute position
-      let currentY = child.y
-      let parent: BaseNode | null = child.parent
-      while (parent && parent.type !== 'PAGE' && parent.type !== 'DOCUMENT') {
-        if ('y' in parent) {
-          currentY += parent.y
-        }
-        parent = parent.parent
-      }
-      bottom = currentY + (child.height || 0)
-    }
-    
-    if (bottom > lowestBottom) {
-      lowestBottom = bottom
-    }
-  }
-  
-  // Place section below lowest node + 120px padding
-  const y = lowestBottom + 120
-  
-  // Ensure y >= 0
-  return { x: 0, y: Math.max(0, y) }
-}
-
-/**
  * Apply fidelity-specific styling to screen frame
  */
 function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): void {
