@@ -1,49 +1,33 @@
 /**
- * ACE runtime configuration — example / documentation.
+ * ACE runtime configuration — reference documentation.
  *
- * Copy this file to config.js and edit for your deployment.
- * config.js is loaded before app.js via a <script> tag in index.html.
+ * config.js is gitignored (environment-specific). Copy the right template:
  *
- * IMPORTANT: Do NOT put secrets (passwords, API keys) in this file.
- * Bearer tokens are entered at runtime and stored in sessionStorage.
+ *   Local dev (npm run admin):
+ *     cp admin-editor/public/config.local.example.js admin-editor/public/config.js
+ *
+ *   AWS / hosted Config API:
+ *     cp admin-editor/public/config.aws.example.js admin-editor/public/config.js
+ *     # Then edit config.js to set the correct apiBase URL.
+ *
+ * -------------------------------------------------------------------------
+ * apiBase — where the ACE API lives
+ * -------------------------------------------------------------------------
+ *   ''                                    → same-origin (local dev, reverse proxy)
+ *   'https://api.example.com'             → cross-origin Config API (requires authMode: 'bearer')
+ *   '/figmai/ace'                         → subpath reverse proxy
+ *
+ * -------------------------------------------------------------------------
+ * authMode — how the frontend authenticates with the API
+ * -------------------------------------------------------------------------
+ *   'cookie'  → same-origin or reverse-proxied; browser sends ace_sid cookie automatically
+ *   'bearer'  → cross-origin; user is prompted for a token on first load,
+ *               stored in sessionStorage (cleared when tab closes)
+ *
+ * IMPORTANT: Do NOT put secrets (API keys, passwords) in config.js —
+ * it is served as a public static asset. Bearer tokens are entered at runtime.
  */
 window.__ACE_CONFIG__ = {
-  // --------------------------------------------------------------------------
-  // apiBase — where the ACE API lives
-  // --------------------------------------------------------------------------
-  //
-  // Local development (default):
-  //   apiBase: ''
-  //   App and API are on the same origin (http://localhost:3333).
-  //
-  // Reverse proxy on production server:
-  //   apiBase: ''
-  //   nginx/Apache proxies /api/* to the real Config API.
-  //   Frontend sees same-origin requests.
-  //
-  // Cross-origin Config API:
-  //   apiBase: 'https://config-api.example.com'
-  //   Requires authMode: 'bearer' and CORS on the API.
-  //
-  // Subpath deployment with reverse proxy:
-  //   apiBase: ''
-  //   Deploy files under /figmai/ace/. Relative asset paths work.
-  //   nginx proxies /figmai/ace/api/* to the Config API.
-  //
   apiBase: '',
-
-  // --------------------------------------------------------------------------
-  // authMode — how the frontend authenticates with the API
-  // --------------------------------------------------------------------------
-  //
-  // 'cookie' (default):
-  //   Same-origin or reverse-proxied. Browser sends ace_sid cookie
-  //   automatically. No user action needed.
-  //
-  // 'bearer':
-  //   Cross-origin. User is prompted for a token on first load.
-  //   Token is stored in sessionStorage (cleared when tab closes).
-  //   Sent as Authorization: Bearer <token> on every request.
-  //
   authMode: 'cookie'
 };

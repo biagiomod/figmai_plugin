@@ -3,8 +3,21 @@
  * Reusable helpers for creating Figma nodes
  */
 
+/** Session-scoped font cache — avoids redundant loadFontAsync awaits. */
+const _fontLoadCache = new Set<string>()
+
 /**
- * Load fonts with fallbacks
+ * Load a single font, skipping the async call if already loaded this session.
+ */
+export async function safeLoadFontAsync(fontName: FontName): Promise<void> {
+  const key = `${fontName.family}::${fontName.style}`
+  if (_fontLoadCache.has(key)) return
+  await figma.loadFontAsync(fontName)
+  _fontLoadCache.add(key)
+}
+
+/**
+ * Load fonts with fallbacks (parallel, cached)
  */
 export async function loadFonts(): Promise<{
   regular: FontName
@@ -20,14 +33,12 @@ export async function loadFonts(): Promise<{
   }
 
   try {
-    await figma.loadFontAsync(fonts.regular)
-    await figma.loadFontAsync(fonts.bold)
-    await figma.loadFontAsync(fonts.italic)
-    try {
-      await figma.loadFontAsync(fonts.boldItalic)
-    } catch {
-      fonts.boldItalic = fonts.bold
-    }
+    await Promise.all([
+      safeLoadFontAsync(fonts.regular),
+      safeLoadFontAsync(fonts.bold),
+      safeLoadFontAsync(fonts.italic),
+      safeLoadFontAsync(fonts.boldItalic).catch(() => { fonts.boldItalic = fonts.bold })
+    ])
   } catch {
     // Fallback to Roboto
     try {
@@ -35,14 +46,12 @@ export async function loadFonts(): Promise<{
       fonts.bold = { family: 'Roboto', style: 'Bold' }
       fonts.italic = { family: 'Roboto', style: 'Italic' }
       fonts.boldItalic = { family: 'Roboto', style: 'Bold Italic' }
-      await figma.loadFontAsync(fonts.regular)
-      await figma.loadFontAsync(fonts.bold)
-      await figma.loadFontAsync(fonts.italic)
-      try {
-        await figma.loadFontAsync(fonts.boldItalic)
-      } catch {
-        fonts.boldItalic = fonts.bold
-      }
+      await Promise.all([
+        safeLoadFontAsync(fonts.regular),
+        safeLoadFontAsync(fonts.bold),
+        safeLoadFontAsync(fonts.italic),
+        safeLoadFontAsync(fonts.boldItalic).catch(() => { fonts.boldItalic = fonts.bold })
+      ])
     } catch {
       // If all fail, use system default
       fonts.regular = { family: 'Inter', style: 'Regular' }
@@ -82,10 +91,18 @@ export async function createTextNode(
     textAlign?: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED'
   } = {}
 ): Promise<TextNode> {
-  const fonts = await loadFonts()
+  // Only load all fonts when no explicit fontName is given; otherwise just ensure the requested font is ready.
+  let resolvedFont: FontName
+  if (style.fontName) {
+    await safeLoadFontAsync(style.fontName)
+    resolvedFont = style.fontName
+  } else {
+    const fonts = await loadFonts()
+    resolvedFont = fonts.regular
+  }
   const textNode = figma.createText()
   textNode.name = 'Text'
-  textNode.fontName = style.fontName ?? fonts.regular
+  textNode.fontName = resolvedFont
   textNode.fontSize = style.fontSize ?? 12
   textNode.characters = text
   textNode.textAutoResize = 'HEIGHT'

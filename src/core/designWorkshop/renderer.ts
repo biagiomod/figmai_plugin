@@ -6,7 +6,7 @@
  */
 
 import type { DesignSpecV1, BlockSpec, RenderReport } from './types'
-import { loadFonts, createTextNode, createAutoLayoutFrameSafe } from '../stage/primitives'
+import { loadFonts, safeLoadFontAsync, createTextNode, createAutoLayoutFrameSafe } from '../stage/primitives'
 import { placeBatchBelowPageContent } from '../figma/placement'
 import { getNuxtDemoAllowlist } from '../designSystem/nuxtDsRegistry'
 import { createInstanceOnly } from '../designSystem/componentService'
@@ -26,16 +26,14 @@ async function loadJazzFonts(): Promise<{ regular: FontName; bold: FontName }> {
   const regular: FontName = { family: 'Open Sans', style: 'Regular' }
   const semiBold: FontName = { family: 'Open Sans', style: 'SemiBold' }
   try {
-    await figma.loadFontAsync(regular)
-    await figma.loadFontAsync(semiBold)
+    await Promise.all([safeLoadFontAsync(regular), safeLoadFontAsync(semiBold)])
     return { regular, bold: semiBold }
   } catch {
     // Open Sans not installed — try Inter SemiBold as closest weight match
     try {
       const interRegular: FontName = { family: 'Inter', style: 'Regular' }
       const interSemiBold: FontName = { family: 'Inter', style: 'Semi Bold' }
-      await figma.loadFontAsync(interRegular)
-      await figma.loadFontAsync(interSemiBold)
+      await Promise.all([safeLoadFontAsync(interRegular), safeLoadFontAsync(interSemiBold)])
       return { regular: interRegular, bold: interSemiBold }
     } catch {
       const fallback = await loadFonts()
@@ -61,6 +59,13 @@ export async function renderDesignSpecToSection(
   runId?: string,
   options?: RenderDesignSpecOptions
 ): Promise<{ section: FrameNode, screens: FrameNode[], report: RenderReport, usedDsFallback?: boolean }> {
+  // Pre-warm fonts once before any rendering begins — avoids per-block async overhead
+  if (options?.useJazz === true) {
+    await loadJazzFonts()
+  } else {
+    await loadFonts()
+  }
+
   // Initialize render report
   const report: RenderReport = {
     consumedFields: [],

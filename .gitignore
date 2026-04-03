@@ -20,6 +20,11 @@ admin-editor/.backups/
 admin-editor/.env.deploy
 admin-editor/dist/
 
+# ACE frontend runtime config — environment-specific, never committed.
+# Copy admin-editor/public/config.local.example.js  → config.js  for local dev (npm run admin)
+# Copy admin-editor/public/config.aws.example.js    → config.js  for AWS/hosted ACE
+admin-editor/public/config.js
+
 # Generated build info (created at build time). build/build-info.json is committed so ACE has a value in dev.
 src/generated/buildInfo.ts
 
@@ -54,3 +59,4 @@ custom/config.local.json
 manifest.json
 
 .worktrees/
+.superpowers/

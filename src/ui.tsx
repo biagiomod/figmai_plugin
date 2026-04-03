@@ -436,6 +436,8 @@ function Plugin() {
   const [typewriterText, setTypewriterText] = useState('')
   const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const typewriterTargetRef = useRef('')
+  /** Fun rotating word shown while processing (à la Claude Code). */
+  const [funWord, setFunWord] = useState('')
   const [input, setInput] = useState('')
   const [selectionState, setSelectionState] = useState<SelectionState>({
     count: 0,
@@ -597,6 +599,19 @@ function Plugin() {
       }
     }
   }, [activeStatus?.step])
+
+  // Fun rotating word shown while processing
+  useEffect(() => {
+    if (!activeStatus) {
+      setFunWord('')
+      return
+    }
+    const words = ['Accomplishing','Actioning','Actualizing','Architecting','Baking','Beaming','Beboppin\'','Befuddling','Billowing','Blanching','Bloviating','Boogieing','Boondoggling','Booping','Bootstrapping','Brewing','Burrowing','Calculating','Canoodling','Caramelizing','Cascading','Catapulting','Cerebrating','Channelling','Choreographing','Churning','Clauding','Coalescing','Cogitating','Combobulating','Composing','Computing','Concocting','Considering','Contemplating','Cooking','Crafting','Creating','Crystallizing','Cultivating','Crunching','Deciphering','Deliberating','Determining','Dilly-dallying','Discombobulating','Doing','Doodling','Drizzling','Ebbing','Effecting','Elucidating','Embellishing','Enchanting','Envisioning','Evaporating','Fermenting','Fiddle-faddling','Finagling','Flambéing','Flibbertigibbeting','Flowing','Flummoxing','Fluttering','Forging','Forming','Frosting','Frolicking','Gallivanting','Galloping','Garnishing','Generating','Germinating','Gitifying','Grooving','Gusting','Harmonizing','Hashing','Herding','Hibernating','Honking','Hullaballooing','Hyperspacing','Ideating','Imagining','Improvising','Incubating','Inferring','Infusing','Ionizing','Jitterbugging','Julienning','Kneading','Leavening','Levitating','Lollygagging','Manifesting','Marinating','Meandering','Metamorphosing','Misting','Moonwalking','Moseying','Mulling','Mustering','Musing','Nebulizing','Nesting','Noodling','Nucleating','Orbiting','Orchestrating','Osmosing','Perambulating','Percolating','Perusing','Philosophising','Photosynthesizing','Pollinating','Pontificating','Pondering','Pouncing','Precipitating','Prestidigitating','Processing','Proofing','Propagating','Puttering','Puzzling','Quantumizing','Razzle-dazzling','Razzmatazzing','Recombobulating','Reticulating','Roosting','Ruminating','Sautéing','Scampering','Scheming','Schlepping','Scurrying','Seasoning','Shenaniganing','Shimmying','Simmering','Skedaddling','Sketching','Slithering','Smooshing','Sock-hopping','Spelunking','Spinning','Sprouting','Stewing','Sublimating','Swirling','Swooping','Symbioting','Synthesizing','Tempering','Thinking','Thundering','Tinkering','Tomfoolering','Topsy-turvying','Transfiguring','Transmuting','Twisting','Undulating','Unfurling','Unravelling','Vibing','Waddling','Wandering','Warping','Whatchamacalliting','Whirlpooling','Whirring','Whisking','Wibbling','Working','Wrangling','Zesting','Zigzagging']
+    const pick = () => words[Math.floor(Math.random() * words.length)]
+    setFunWord(pick())
+    const id = setInterval(() => setFunWord(pick()), 2200)
+    return () => clearInterval(id)
+  }, [activeStatus])
 
   useEffect(() => {
     if (!debug.isEnabled('trace:chat')) return
@@ -3368,6 +3383,16 @@ ${htmlTable}
                   textOverflow: 'ellipsis'
                 }}>
                   {typewriterText}<span className="typewriter-cursor">|</span>
+                </span>
+              )}
+              {funWord && (
+                <span style={{
+                  fontSize: 'var(--font-size-xs)',
+                  color: 'var(--accent)',
+                  fontStyle: 'italic',
+                  opacity: 0.75
+                }}>
+                  {funWord}...
                 </span>
               )}
             </div>
