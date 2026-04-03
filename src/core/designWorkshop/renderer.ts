@@ -19,6 +19,32 @@ export interface RenderDesignSpecOptions {
 }
 
 /**
+ * Load Jazz DS fonts: Open Sans Regular + SemiBold (weight 400/600).
+ * Falls back to Inter SemiBold if Open Sans is not installed.
+ */
+async function loadJazzFonts(): Promise<{ regular: FontName; bold: FontName }> {
+  const regular: FontName = { family: 'Open Sans', style: 'Regular' }
+  const semiBold: FontName = { family: 'Open Sans', style: 'SemiBold' }
+  try {
+    await figma.loadFontAsync(regular)
+    await figma.loadFontAsync(semiBold)
+    return { regular, bold: semiBold }
+  } catch {
+    // Open Sans not installed — try Inter SemiBold as closest weight match
+    try {
+      const interRegular: FontName = { family: 'Inter', style: 'Regular' }
+      const interSemiBold: FontName = { family: 'Inter', style: 'Semi Bold' }
+      await figma.loadFontAsync(interRegular)
+      await figma.loadFontAsync(interSemiBold)
+      return { regular: interRegular, bold: interSemiBold }
+    } catch {
+      const fallback = await loadFonts()
+      return { regular: fallback.regular, bold: fallback.bold }
+    }
+  }
+}
+
+/**
  * Render Design Spec to Section
  * 
  * Creates a new Section (FrameNode) on the current page and places 1-5 screen frames inside it.
@@ -217,54 +243,232 @@ async function renderScreen(
   screenFrame.name = screenSpec.name || 'Screen'
   screenFrame.resize(device.width, device.height)
 
-  // Apply layout
   const layout = screenSpec.layout || { direction: 'vertical', padding: 16, gap: 12 }
-  screenFrame.layoutMode = layout.direction === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL'
-  screenFrame.primaryAxisSizingMode = 'AUTO'
-  screenFrame.counterAxisSizingMode = 'AUTO'
+  const useChrome = useJazz === true && device.kind === 'mobile'
 
-  // Apply padding
-  if (typeof layout.padding === 'number') {
-    screenFrame.paddingTop = layout.padding
-    screenFrame.paddingRight = layout.padding
-    screenFrame.paddingBottom = layout.padding
-    screenFrame.paddingLeft = layout.padding
-  } else if (layout.padding) {
-    screenFrame.paddingTop = layout.padding.top ?? 16
-    screenFrame.paddingRight = layout.padding.right ?? 16
-    screenFrame.paddingBottom = layout.padding.bottom ?? 16
-    screenFrame.paddingLeft = layout.padding.left ?? 16
+  let blockContainer: FrameNode
+  let maxWidth: number
+
+  if (useChrome) {
+    // Jazz mobile: fixed-size screen frame with status bar + nav bar chrome
+    screenFrame.layoutMode = 'VERTICAL'
+    screenFrame.primaryAxisSizingMode = 'FIXED'
+    screenFrame.counterAxisSizingMode = 'FIXED'
+    screenFrame.itemSpacing = 0
+    screenFrame.paddingTop = 0
+    screenFrame.paddingRight = 0
+    screenFrame.paddingBottom = 0
+    screenFrame.paddingLeft = 0
+    screenFrame.clipsContent = true
+
+    const fonts = await loadJazzFonts()
+
+    // Status bar (44px tall, Jazz navy)
+    const statusBar = await createStatusBar(device.width, fonts)
+    screenFrame.appendChild(statusBar)
+    statusBar.layoutSizingHorizontal = 'FILL'
+
+    // Nav bar (44px tall, Jazz primary blue, screen name as title)
+    const navBar = await createNavBar(screenSpec.name || 'Screen', device.width, fonts)
+    screenFrame.appendChild(navBar)
+    navBar.layoutSizingHorizontal = 'FILL'
+
+    // Content frame below chrome — holds all blocks
+    let padTop: number, padRight: number, padBottom: number, padLeft: number
+    if (typeof layout.padding === 'number') {
+      padTop = padBottom = layout.padding
+      padLeft = padRight = layout.padding
+    } else if (layout.padding) {
+      padTop = layout.padding.top ?? 24
+      padBottom = layout.padding.bottom ?? 24
+      padLeft = layout.padding.left ?? 20
+      padRight = layout.padding.right ?? 20
+    } else {
+      padTop = padBottom = 24
+      padLeft = padRight = 20
+    }
+    const gap = layout.gap ?? 16
+
+    const contentFrame = figma.createFrame()
+    contentFrame.name = 'Content'
+    contentFrame.layoutMode = layout.direction === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL'
+    contentFrame.primaryAxisSizingMode = 'AUTO'
+    contentFrame.counterAxisSizingMode = 'AUTO'
+    contentFrame.paddingTop = padTop
+    contentFrame.paddingRight = padRight
+    contentFrame.paddingBottom = padBottom
+    contentFrame.paddingLeft = padLeft
+    contentFrame.itemSpacing = gap
+    contentFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
+    contentFrame.clipsContent = true
+
+    screenFrame.appendChild(contentFrame)
+    contentFrame.layoutSizingHorizontal = 'FILL'
+    contentFrame.layoutSizingVertical = 'FILL'
+
+    maxWidth = device.width - padLeft - padRight
+    blockContainer = contentFrame
   } else {
-    screenFrame.paddingTop = 16
-    screenFrame.paddingRight = 16
-    screenFrame.paddingBottom = 16
-    screenFrame.paddingLeft = 16
+    // Non-Jazz or non-mobile: original layout behavior
+    screenFrame.layoutMode = layout.direction === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL'
+    screenFrame.primaryAxisSizingMode = 'AUTO'
+    screenFrame.counterAxisSizingMode = 'AUTO'
+
+    const defaultPadV = useJazz ? 24 : 16
+    const defaultPadH = useJazz ? 20 : 16
+    if (typeof layout.padding === 'number') {
+      screenFrame.paddingTop = layout.padding
+      screenFrame.paddingRight = layout.padding
+      screenFrame.paddingBottom = layout.padding
+      screenFrame.paddingLeft = layout.padding
+    } else if (layout.padding) {
+      screenFrame.paddingTop = layout.padding.top ?? defaultPadV
+      screenFrame.paddingRight = layout.padding.right ?? defaultPadH
+      screenFrame.paddingBottom = layout.padding.bottom ?? defaultPadV
+      screenFrame.paddingLeft = layout.padding.left ?? defaultPadH
+    } else {
+      screenFrame.paddingTop = defaultPadV
+      screenFrame.paddingRight = defaultPadH
+      screenFrame.paddingBottom = defaultPadV
+      screenFrame.paddingLeft = defaultPadH
+    }
+    screenFrame.itemSpacing = layout.gap ?? (useJazz ? 16 : 12)
+    maxWidth = device.width - (screenFrame.paddingLeft + screenFrame.paddingRight)
+    blockContainer = screenFrame
   }
 
-  // Apply gap
-  screenFrame.itemSpacing = layout.gap ?? 12
-
-  const maxWidth = device.width - (screenFrame.paddingLeft + screenFrame.paddingRight)
   let usedDsFallback = false
 
-  // Render blocks
-  for (const block of screenSpec.blocks) {
-    if (useNuxtDs && (block.type === 'button' || block.type === 'input' || block.type === 'card')) {
-      const nuxtNode = await tryCreateNuxtBlock(block, nuxtAllowlist)
-      if (nuxtNode) {
-        screenFrame.appendChild(nuxtNode)
-        continue
-      }
-      usedDsFallback = true
+  /** Append a block node to a container, setting layoutSizingHorizontal=FILL when in chrome mode. */
+  const appendBlock = (container: FrameNode, node: SceneNode) => {
+    container.appendChild(node)
+    if (useChrome && 'layoutSizingHorizontal' in node) {
+      (node as FrameNode).layoutSizingHorizontal = 'FILL'
     }
-    const blockNode = await renderBlock(block, fidelity, maxWidth, intent, useJazz)
-    screenFrame.appendChild(blockNode)
   }
 
-  // Apply fidelity-specific styling to screen frame
+  if (useChrome) {
+    // Jazz mobile: body blocks first, then buttons at the bottom (UX best practice)
+    const bodyBlocks = screenSpec.blocks.filter(b => b.type !== 'button')
+    const actionBlocks = screenSpec.blocks.filter(b => b.type === 'button')
+
+    for (const block of bodyBlocks) {
+      if (useNuxtDs && (block.type === 'input' || block.type === 'card')) {
+        const nuxtNode = await tryCreateNuxtBlock(block, nuxtAllowlist)
+        if (nuxtNode) { appendBlock(blockContainer, nuxtNode); continue }
+        usedDsFallback = true
+      }
+      appendBlock(blockContainer, await renderBlock(block, fidelity, maxWidth, intent, useJazz))
+    }
+
+    if (actionBlocks.length > 0 && bodyBlocks.length > 0) {
+      // Grow spacer pushes action buttons to the bottom of the content frame
+      const growSpacer = figma.createFrame()
+      growSpacer.name = 'Spacer'
+      growSpacer.fills = []
+      growSpacer.strokes = []
+      growSpacer.resize(maxWidth, 1)
+      growSpacer.layoutGrow = 1
+      blockContainer.appendChild(growSpacer)
+      growSpacer.layoutSizingHorizontal = 'FILL'
+    }
+
+    for (const block of actionBlocks) {
+      if (useNuxtDs) {
+        const nuxtNode = await tryCreateNuxtBlock(block, nuxtAllowlist)
+        if (nuxtNode) { appendBlock(blockContainer, nuxtNode); continue }
+        usedDsFallback = true
+      }
+      appendBlock(blockContainer, await renderBlock(block, fidelity, maxWidth, intent, useJazz))
+    }
+  } else {
+    // Non-chrome: render blocks in original order
+    for (const block of screenSpec.blocks) {
+      if (useNuxtDs && (block.type === 'button' || block.type === 'input' || block.type === 'card')) {
+        const nuxtNode = await tryCreateNuxtBlock(block, nuxtAllowlist)
+        if (nuxtNode) {
+          blockContainer.appendChild(nuxtNode)
+          continue
+        }
+        usedDsFallback = true
+      }
+      blockContainer.appendChild(await renderBlock(block, fidelity, maxWidth, intent, useJazz))
+    }
+  }
+
+  // Apply fidelity styling to outer screen frame
   applyFidelityStyling(screenFrame, fidelity, intent, useJazz)
 
+  // Jazz chrome screens use a larger corner radius for phone appearance
+  if (useChrome) {
+    screenFrame.cornerRadius = 8
+  }
+
   return { frame: screenFrame, usedDsFallback }
+}
+
+/**
+ * Create the iOS-style status bar (9:41 time + WiFi/battery indicators).
+ * Navy background, white text, 44px tall.
+ */
+async function createStatusBar(
+  width: number,
+  fonts: { regular: FontName; bold: FontName }
+): Promise<FrameNode> {
+  const bar = figma.createFrame()
+  bar.name = 'Status Bar'
+  bar.layoutMode = 'HORIZONTAL'
+  bar.primaryAxisSizingMode = 'FIXED'
+  bar.counterAxisSizingMode = 'FIXED'
+  bar.resize(width, 44)
+  bar.fills = [{ type: 'SOLID', color: JAZZ_RGB.navy }]
+  bar.paddingTop = 14
+  bar.paddingBottom = 10
+  bar.paddingLeft = 20
+  bar.paddingRight = 20
+  bar.primaryAxisAlignItems = 'SPACE_BETWEEN'
+  bar.counterAxisAlignItems = 'CENTER'
+  bar.itemSpacing = 0
+
+  const white: Paint = { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }
+  const timeText = await createTextNode('9:41', { fontSize: 12, fontName: fonts.bold, fills: [white] })
+  const iconsText = await createTextNode('●●●  WiFi  ▪', { fontSize: 11, fontName: fonts.regular, fills: [white] })
+
+  bar.appendChild(timeText)
+  bar.appendChild(iconsText)
+
+  return bar
+}
+
+/**
+ * Create the navigation bar showing the screen title.
+ * Jazz primary blue background, white bold text, 44px tall.
+ */
+async function createNavBar(
+  title: string,
+  width: number,
+  fonts: { regular: FontName; bold: FontName }
+): Promise<FrameNode> {
+  const bar = figma.createFrame()
+  bar.name = 'Nav Bar'
+  bar.layoutMode = 'HORIZONTAL'
+  bar.primaryAxisSizingMode = 'FIXED'
+  bar.counterAxisSizingMode = 'FIXED'
+  bar.resize(width, 44)
+  bar.fills = [{ type: 'SOLID', color: JAZZ_RGB.primary }]
+  bar.paddingTop = 10
+  bar.paddingBottom = 10
+  bar.paddingLeft = 20
+  bar.paddingRight = 20
+  bar.counterAxisAlignItems = 'CENTER'
+  bar.itemSpacing = 0
+
+  const white: Paint = { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }
+  const titleText = await createTextNode(title, { fontSize: 13, fontName: fonts.bold, fills: [white] })
+
+  bar.appendChild(titleText)
+
+  return bar
 }
 
 /**
@@ -314,12 +518,12 @@ async function renderBlock(
   intent?: DesignSpecV1['meta']['intent'],
   useJazz?: boolean
 ): Promise<SceneNode> {
-  const fonts = await loadFonts()
+  const fonts = useJazz ? await loadJazzFonts() : await loadFonts()
 
   switch (block.type) {
     case 'heading': {
       const textNode = await createTextNode(block.text, {
-        fontSize: getHeadingSize(block.level || 1, fidelity),
+        fontSize: getHeadingSize(block.level || 1, fidelity, useJazz),
         fontName: fonts.bold,
         fills: [getTextColor(fidelity, useJazz)]
       })
@@ -330,7 +534,7 @@ async function renderBlock(
 
     case 'bodyText': {
       const textNode = await createTextNode(block.text, {
-        fontSize: getBodyTextSize(fidelity),
+        fontSize: getBodyTextSize(fidelity, useJazz),
         fontName: fonts.regular,
         fills: [getTextColor(fidelity, useJazz)]
       })
@@ -340,8 +544,11 @@ async function renderBlock(
     }
 
     case 'button': {
+      const btnPad = useJazz
+        ? { top: 14, right: 16, bottom: 14, left: 16 }
+        : { top: 12, right: 24, bottom: 12, left: 24 }
       const buttonFrame = createAutoLayoutFrameSafe('Button', 'HORIZONTAL', {
-        padding: { top: 12, right: 24, bottom: 12, left: 24 },
+        padding: btnPad,
         gap: 8,
         primaryAxisAlign: 'CENTER',
         counterAxisAlign: 'CENTER'
@@ -350,7 +557,7 @@ async function renderBlock(
       const buttonText = await createTextNode(block.text, {
         fontSize: getButtonTextSize(fidelity),
         fontName: fonts.bold,
-        fills: [getButtonTextColor(block.variant || 'primary', fidelity)]
+        fills: [getButtonTextColor(block.variant || 'primary', fidelity, useJazz)]
       })
       buttonFrame.appendChild(buttonText)
 
@@ -377,22 +584,25 @@ async function renderBlock(
           fills: [getTextColor(fidelity, useJazz)]
         })
         inputFrame.appendChild(labelText)
+        labelText.layoutSizingHorizontal = 'FILL'
       }
 
       const inputText = await createTextNode(block.placeholder || '', {
-        fontSize: getBodyTextSize(fidelity),
+        fontSize: getBodyTextSize(fidelity, useJazz),
         fontName: fonts.regular,
         fills: [getPlaceholderColor(fidelity)]
       })
       // Note: inputType is available but not used in primitive rendering
       inputFrame.appendChild(inputText)
+      inputText.layoutSizingHorizontal = 'FILL'
 
       // Apply input styling
       inputFrame.fills = [getInputFill(fidelity, useJazz)]
       inputFrame.strokes = [getInputStroke(fidelity, intent, useJazz)]
       inputFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
       inputFrame.effects = getInputEffects(fidelity)
-      
+
+      inputFrame.counterAxisSizingMode = 'FIXED'
       inputFrame.resize(maxWidth, inputFrame.height)
       return inputFrame
     }
@@ -405,26 +615,29 @@ async function renderBlock(
       
       if (block.title) {
         const titleText = await createTextNode(block.title, {
-          fontSize: getHeadingSize(2, fidelity),
+          fontSize: getHeadingSize(2, fidelity, useJazz),
           fontName: fonts.bold,
           fills: [getTextColor(fidelity, useJazz)]
         })
         cardFrame.appendChild(titleText)
+        titleText.layoutSizingHorizontal = 'FILL'
       }
 
       const contentText = await createTextNode(block.content, {
-        fontSize: getBodyTextSize(fidelity),
+        fontSize: getBodyTextSize(fidelity, useJazz),
         fontName: fonts.regular,
         fills: [getTextColor(fidelity, useJazz)]
       })
       cardFrame.appendChild(contentText)
+      contentText.layoutSizingHorizontal = 'FILL'
 
       // Apply card styling
       cardFrame.fills = [getCardFill(fidelity, useJazz)]
       cardFrame.strokes = [getCardStroke(fidelity, intent, useJazz)]
       cardFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
       cardFrame.effects = getCardEffects(fidelity)
-      
+
+      cardFrame.counterAxisSizingMode = 'FIXED'
       cardFrame.resize(maxWidth, cardFrame.height)
       return cardFrame
     }
@@ -446,9 +659,9 @@ async function renderBlock(
       imageFrame.resize(imageWidth, imageHeight)
       
       // Apply image placeholder styling
-      imageFrame.fills = [getImageFill(fidelity)]
+      imageFrame.fills = [getImageFill(fidelity, useJazz)]
       imageFrame.strokes = [getImageStroke(fidelity, intent)]
-      imageFrame.cornerRadius = getCornerRadius(fidelity, intent)
+      imageFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
       
       // Add placeholder text if wireframe
       if (fidelity === 'wireframe') {
@@ -618,15 +831,19 @@ function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']
 
 // Fidelity-specific styling helpers
 
-function getHeadingSize(level: 1 | 2 | 3, fidelity: DesignSpecV1['render']['intent']['fidelity']): number {
+function getHeadingSize(level: 1 | 2 | 3, fidelity: DesignSpecV1['render']['intent']['fidelity'], useJazz?: boolean): number {
+  if (useJazz) {
+    const jazzSizes: Record<1 | 2 | 3, number> = { 1: 26, 2: 20, 3: 16 }
+    return jazzSizes[level]
+  }
   const baseSizes: Record<1 | 2 | 3, number> = {
     1: 32,
     2: 24,
     3: 18
   }
-  
+
   const base = baseSizes[level]
-  
+
   switch (fidelity) {
     case 'wireframe':
       return base * 0.8
@@ -639,7 +856,8 @@ function getHeadingSize(level: 1 | 2 | 3, fidelity: DesignSpecV1['render']['inte
   }
 }
 
-function getBodyTextSize(fidelity: DesignSpecV1['render']['intent']['fidelity']): number {
+function getBodyTextSize(fidelity: DesignSpecV1['render']['intent']['fidelity'], useJazz?: boolean): number {
+  if (useJazz) return 15
   switch (fidelity) {
     case 'wireframe':
       return 12
@@ -726,7 +944,11 @@ function getButtonFill(variant: 'primary' | 'secondary' | 'tertiary', fidelity: 
   }
 }
 
-function getButtonTextColor(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getButtonTextColor(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity'], useJazz?: boolean): Paint {
+  if (useJazz) {
+    if (variant === 'primary') return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }      // white on green CTA
+    return { type: 'SOLID', color: JAZZ_RGB.primary }                                       // #005EB8 on white
+  }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } } // #666666
@@ -938,17 +1160,16 @@ function getCardEffects(fidelity: DesignSpecV1['render']['intent']['fidelity']):
   }
 }
 
-function getImageFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getImageFill(fidelity: DesignSpecV1['render']['intent']['fidelity'], useJazz?: boolean): Paint {
+  if (useJazz) return { type: 'SOLID', color: { r: 0.910, g: 0.941, b: 0.980 } } // #E8F0FA Jazz icon-bg
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 1, g: 1, b: 1 }, opacity: 0 } // Transparent fill, just stroke
     case 'medium':
       return { type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } } // Light gray
     case 'hi':
-      // Gradient fill for hi-fidelity
       return { type: 'SOLID', color: { r: 0.9, g: 0.92, b: 0.95 } } // Light blue-gray
     case 'creative':
-      // Gradient-like appearance
       return { type: 'SOLID', color: { r: 0.85, g: 0.9, b: 1 } } // Light blue
   }
 }

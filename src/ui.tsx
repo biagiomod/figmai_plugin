@@ -161,7 +161,7 @@ import { listSkins } from './core/themePacks/registry'
 import { DEFAULT_SKIN_ID } from './core/themePacks/defaults'
 
 // Import CSS
-import './ui/styles/theme.css'
+import '!./ui/styles/theme.css'
 import './ui/styles/skins/base.css'
 import './ui/styles/skins/dark.css'
 import './ui/styles/skins/neowave.css'
@@ -431,7 +431,11 @@ function Plugin() {
   })
   const [messages, setMessages] = useState<Message[]>([])
   /** Status line for current request (e.g. "Processing…"). Shown in dedicated area; not in message list. Cleared when final message arrives. */
-  const [activeStatus, setActiveStatus] = useState<{ requestId: string; text: string } | null>(null)
+  const [activeStatus, setActiveStatus] = useState<{ requestId: string; text: string; step?: string } | null>(null)
+  /** Typewriter: text currently displayed character-by-character for the active status step. */
+  const [typewriterText, setTypewriterText] = useState('')
+  const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const typewriterTargetRef = useRef('')
   const [input, setInput] = useState('')
   const [selectionState, setSelectionState] = useState<SelectionState>({
     count: 0,
@@ -553,6 +557,47 @@ function Plugin() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Scroll to bottom when status indicator appears
+  useEffect(() => {
+    if (activeStatus) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [activeStatus])
+
+  // Typewriter: retype from scratch whenever the step text changes
+  useEffect(() => {
+    const step = activeStatus?.step ?? ''
+    typewriterTargetRef.current = step
+
+    if (typewriterTimerRef.current) {
+      clearInterval(typewriterTimerRef.current)
+      typewriterTimerRef.current = null
+    }
+
+    if (!step) {
+      setTypewriterText('')
+      return
+    }
+
+    setTypewriterText('')
+    let i = 0
+    typewriterTimerRef.current = setInterval(() => {
+      i++
+      setTypewriterText(typewriterTargetRef.current.slice(0, i))
+      if (i >= typewriterTargetRef.current.length) {
+        clearInterval(typewriterTimerRef.current!)
+        typewriterTimerRef.current = null
+      }
+    }, 28)
+
+    return () => {
+      if (typewriterTimerRef.current) {
+        clearInterval(typewriterTimerRef.current)
+        typewriterTimerRef.current = null
+      }
+    }
+  }, [activeStatus?.step])
+
   useEffect(() => {
     if (!debug.isEnabled('trace:chat')) return
     const lastMsg = messages[messages.length - 1]
@@ -637,6 +682,17 @@ function Plugin() {
             console.warn('SELECTION_STATE message missing state:', message)
           }
           break
+        case 'STATUS_STEP':
+          // Update the step text shown below the spinner (typewriter effect in UI)
+          if (message.requestId && message.step) {
+            setActiveStatus(prev => {
+              if (prev && prev.requestId === message.requestId) {
+                return { requestId: prev.requestId, text: prev.text, step: String(message.step) }
+              }
+              return prev
+            })
+          }
+          break
         case 'PROMPT_DIAG':
           if (message.diagnostics && typeof message.diagnostics.compact === 'string') {
             setLastPromptDiagnostics({
@@ -650,9 +706,9 @@ function Plugin() {
           // Check resetToken to ignore late-arriving messages after reset
           // If resetToken is not provided (old messages), only process if we haven't reset yet (resetToken === 0)
           // Exception: Always process RESET_DONE assistant messages (they come after reset)
-          const shouldProcessAssistantMessage = message.message && 
-            (message.resetToken === resetToken || 
-             (resetToken === 0 && message.resetToken === undefined) ||
+          const shouldProcessAssistantMessage = message.message &&
+            (message.resetToken === resetToken ||
+             message.resetToken === undefined ||
              (message.message.role === 'assistant' && message.message.content.includes('intro')))
           if (shouldProcessAssistantMessage) {
             const incoming = message.message as Message
@@ -2822,33 +2878,6 @@ ${htmlTable}
           )
         ) : (
           <div style={{ display: 'contents' }}>
-            {/* Dedicated status area: one "Processing…" line when a request is in flight; not in message list */}
-            {activeStatus && (
-              <div style={{
-                padding: 'var(--spacing-sm) var(--spacing-md)',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg)',
-                border: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-sm)',
-                fontSize: 'var(--font-size-sm)',
-                color: 'var(--muted)',
-                maxWidth: '100%',
-                alignSelf: 'flex-start'
-              }}>
-                <div className="spinner" style={{
-                  width: '16px',
-                  height: '16px',
-                  border: '2.5px solid var(--muted)',
-                  borderTopColor: 'var(--accent)',
-                  borderRadius: '50%',
-                  boxSizing: 'border-box',
-                  flexShrink: 0
-                }} />
-                <span>{activeStatus.text}</span>
-              </div>
-            )}
         {messages.length === 0 && !isCode2Design && (
           <div style={{
             display: 'flex',
@@ -3300,7 +3329,50 @@ ${htmlTable}
           </div>
         )}
         
-        
+
+        {/* Dedicated status area: spinner + typewriter step shown below messages while a request is in flight */}
+        {activeStatus && (
+          <div style={{
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--bg)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 'var(--spacing-sm)',
+            maxWidth: '100%',
+            alignSelf: 'flex-start'
+          }}>
+            <div className="spinner" style={{
+              width: '16px',
+              height: '16px',
+              border: '2.5px solid var(--muted)',
+              borderTopColor: 'var(--accent)',
+              borderRadius: '50%',
+              boxSizing: 'border-box',
+              flexShrink: 0,
+              marginTop: '2px'
+            }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+              <span style={{
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 600,
+                color: 'var(--fg)'
+              }}>Processing</span>
+              {typewriterText && (
+                <span style={{
+                  fontSize: 'var(--font-size-xs)',
+                  color: 'var(--muted)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {typewriterText}<span className="typewriter-cursor">|</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
           </div>
         )}

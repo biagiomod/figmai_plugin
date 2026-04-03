@@ -132,7 +132,9 @@ CRITICAL:
     // ── Demo mode: bypass LLM and repair entirely ──────────────────────────
     if (isDemoMode) {
       try {
+        context.updateStatusStep?.('Loading demo preset...')
         const normalized = normalizeDesignSpecV1(FIFI_DEMO_PRESET)
+        context.updateStatusStep?.('Rendering to canvas...')
         const renderResult = await renderDesignSpecToSection(normalized, runId, {
           useNuxtDs: false,
           useJazz: true
@@ -155,6 +157,7 @@ CRITICAL:
     }
 
     try {
+      context.updateStatusStep?.('Parsing AI response...')
       let cleanedResponse = response.replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '').trim()
 
       if (!isDemoMode) {
@@ -173,6 +176,7 @@ CRITICAL:
         parsed = JSON.parse(jsonString)
       } catch {
         if (!isDemoMode) console.log(`[DW ${runId}] JSON parse failed — attempting repair`)
+        context.updateStatusStep?.('Repairing AI response...')
         return await this.attemptRepair(context, cleanedResponse, runId, isDemoMode)
       }
 
@@ -180,9 +184,11 @@ CRITICAL:
       const validation = validateDesignSpecV1(parsed)
       if (!validation.ok) {
         if (!isDemoMode) console.log(`[DW ${runId}] Validation failed:`, validation.errors)
+        context.updateStatusStep?.('Repairing AI response...')
         return await this.attemptRepair(context, cleanedResponse, runId, isDemoMode)
       }
 
+      context.updateStatusStep?.('Building screen layouts...')
       // Build and render
       return await this.buildAndRender(parsed as DesignSpecV1, context, runId, isDemoMode)
 
@@ -222,6 +228,7 @@ CRITICAL:
     const normalized = normalizeDesignSpecV1(spec)
 
     // Step 3: Render (failure here → demo fallback, no retry)
+    context.updateStatusStep?.('Rendering to canvas...')
     let renderResult: Awaited<ReturnType<typeof renderDesignSpecToSection>>
     try {
       renderResult = await renderDesignSpecToSection(normalized, runId, {

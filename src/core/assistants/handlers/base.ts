@@ -20,6 +20,8 @@ export interface HandlerContext {
   sendChatWithRecovery: (request: ChatRequest) => Promise<string>
   sendAssistantMessage: (message: string) => void
   replaceStatusMessage: (finalContent: string, isError?: boolean) => void
+  /** Update the processing step shown in the spinner indicator (typewriter effect in UI). */
+  updateStatusStep?: (step: string) => void
   requestId: string
 }
 

@@ -146,6 +146,83 @@
       "textMateRules": [
         {
           "scope": [
+            "markup.heading",
+            "markup.heading.markdown",
+            "entity.name.section",
+            "entity.name.section.markdown",
+            "punctuation.definition.heading",
+            "punctuation.definition.heading.markdown"
+          ],
+          "settings": {
+            "foreground": "#4E7A18",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": [
+            "markup.bold",
+            "markup.bold.markdown",
+            "punctuation.definition.bold",
+            "punctuation.definition.bold.markdown"
+          ],
+          "settings": {
+            "foreground": "#9A4D00",
+            "fontStyle": "bold"
+          }
+        },
+        {
+          "scope": [
+            "markup.italic",
+            "markup.italic.markdown",
+            "punctuation.definition.italic",
+            "punctuation.definition.italic.markdown"
+          ],
+          "settings": {
+            "foreground": "#7C3A00",
+            "fontStyle": "italic"
+          }
+        },
+        {
+          "scope": [
+            "markup.inline.raw",
+            "markup.inline.raw.markdown",
+            "markup.fenced_code.block",
+            "markup.fenced_code.block.markdown",
+            "punctuation.definition.raw",
+            "punctuation.definition.raw.markdown"
+          ],
+          "settings": {
+            "foreground": "#0550AE",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": [
+            "markup.list",
+            "markup.list.markdown",
+            "beginning.punctuation.definition.list.markdown"
+          ],
+          "settings": {
+            "foreground": "#0B5CAD",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": [
+            "markup.underline.link",
+            "markup.underline.link.markdown",
+            "string.other.link",
+            "string.other.link.markdown",
+            "constant.other.reference.link",
+            "constant.other.reference.link.markdown"
+          ],
+          "settings": {
+            "foreground": "#A5222F",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": [
             "comment",
             "punctuation.definition.comment"
           ],

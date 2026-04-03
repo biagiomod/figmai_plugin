@@ -36,13 +36,22 @@ async function fetchWithTimeout(
     const sanitizedOptions: RequestInit = {
       method: options.method,
       headers: options.headers,
-      body: options.body,
+      ...(options.body !== undefined ? { body: options.body } : {}),
       signal: controller.signal
     }
-    const response = await fetch(url, sanitizedOptions)
-    return response
-  } catch (fetchError) {
-    throw fetchError
+    try {
+      const response = await fetch(url, sanitizedOptions)
+      return response
+    } catch (signalError) {
+      // Figma plugin sandbox may not support AbortSignal in fetch — retry without signal
+      const noSignalOptions: RequestInit = {
+        method: options.method,
+        headers: options.headers,
+        ...(options.body !== undefined ? { body: options.body } : {})
+      }
+      const response = await fetch(url, noSignalOptions)
+      return response
+    }
   } finally {
     clearTimeout(id)
   }
@@ -154,18 +163,25 @@ export class ProxyClient {
 
   /**
    * Health check (no auth required)
+   * @param overrideBaseUrl - When provided, use this URL instead of reading from settings (avoids save/test race condition)
    */
-  async healthCheck(): Promise<{ success: boolean; message: string; latency?: number }> {
-    const settings = await getEffectiveSettings()
+  async healthCheck(overrideBaseUrl?: string): Promise<{ success: boolean; message: string; latency?: number }> {
+    let rawBaseUrl: string
+    if (overrideBaseUrl !== undefined) {
+      rawBaseUrl = overrideBaseUrl
+    } else {
+      const settings = await getEffectiveSettings()
+      rawBaseUrl = settings.proxyBaseUrl
+    }
 
-    if (!settings.proxyBaseUrl) {
+    if (!rawBaseUrl) {
       return {
         success: false,
         message: 'Proxy base URL not configured'
       }
     }
 
-    const baseUrl = this.normalizeProxyBaseUrl(settings.proxyBaseUrl)
+    const baseUrl = this.normalizeProxyBaseUrl(rawBaseUrl)
     const url = `${baseUrl}/health`
 
     try {
@@ -176,7 +192,8 @@ export class ProxyClient {
         {
           method: 'GET',
           headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'ngrok-skip-browser-warning': '1'
           }
         },
         5000

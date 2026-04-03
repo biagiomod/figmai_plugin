@@ -141,6 +141,18 @@
   will-change: transform;
 }
 
+/* Typewriter cursor blink for status indicator */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.typewriter-cursor {
+  animation: blink 0.7s step-start infinite;
+  font-weight: 300;
+  margin-left: 1px;
+  color: var(--accent);
+}
+
 /* Dark theme variables are defined in skins/dark.css */
 
 /* AT-A (Analytics Tagging Assistant): single scroller for both axes so horizontal scrollbar stays visible when vertical scroll is present */.ata-root {

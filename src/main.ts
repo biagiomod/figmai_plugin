@@ -92,7 +92,7 @@ import { routeToolCall } from './core/tools/toolRouter'
 import { summarizeSelection } from './core/context/selection'
 import { buildSelectionContext } from './core/context/selectionContext'
 import { saveSettings, getSettings, getEffectiveSettings, getDefaultSettingsForResponse } from './core/settings'
-import { ProxyError } from './core/proxy/client'
+import { ProxyError, proxyClient } from './core/proxy/client'
 import { ProviderError, ProviderErrorType, errorToString } from './core/provider/provider'
 import type {
   ResetHandler,
@@ -362,6 +362,11 @@ function sendStatusMessage(requestId: string, content: string = 'Processing...')
   return statusMessage
 }
 
+// Post a processing step update to the UI spinner (lightweight, not stored in messageHistory).
+function postStatusStep(requestId: string, step: string): void {
+  figma.ui.postMessage({ pluginMessage: { type: 'STATUS_STEP', requestId, step } })
+}
+
 // Guard: only replace status once per requestId (avoids duplicate final message from repeat events).
 const replacedStatusRequestIds = new Set<string>()
 // Guard: only run final status update once per requestId for tool-only (avoids duplicate "Add HAT: …" lines).
@@ -596,7 +601,8 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   
   // Create status message immediately
   sendStatusMessage(requestId, 'Processing...')
-  
+  postStatusStep(requestId, 'Reading your message...')
+
   // Build selection context if needed
   let selectionContext: Awaited<ReturnType<typeof buildSelectionContext>> | undefined
   if (includeSelection && currentProvider) {
@@ -666,6 +672,7 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   }
   
   // Call provider
+  postStatusStep(requestId, 'Calling AI...')
   try {
     if (!currentProvider) {
       currentProvider = await createProvider(currentProviderId)
@@ -718,9 +725,10 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
         },
         sendAssistantMessage,
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+        updateStatusStep: (step: string) => postStatusStep(requestId, step),
         requestId
       }
-      
+
       if (typeof handler.handleResponse !== 'function') {
         throw new Error(`[Handlers] Handler for ${currentAssistant.id}/undefined has no handleResponse function`)
       }
@@ -854,6 +862,7 @@ on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, 
         },
         sendAssistantMessage,
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+        updateStatusStep: (step: string) => postStatusStep(requestId, step),
         requestId
       }
       if (typeof handler.handleResponse !== 'function') {
@@ -1097,9 +1106,10 @@ Use SEND JSON to import or GET JSON to export your designs.`
         },
         sendAssistantMessage,
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
+        updateStatusStep: (step: string) => postStatusStep(requestId, step),
         requestId
       }
-      
+
       if (typeof handler.handleResponse !== 'function') {
         throw new Error(`[Handlers] Handler for ${assistant.id}/${action.id} has no handleResponse function`)
       }
@@ -1592,17 +1602,18 @@ on<TestProxyConnectionHandler>('TEST_PROXY_CONNECTION', async function (options?
   proxyBaseUrl?: string
 }) {
   try {
-    let testProvider: Provider
+    let result: { success: boolean; message: string; diagnostics?: unknown }
     const testOptions = options?.internalApiUrl != null ? { internalApiUrl: options.internalApiUrl } : undefined
 
     // When UI passes an unsaved Internal API URL to test, use InternalApiProvider for that test only
     if (testOptions?.internalApiUrl) {
-      testProvider = new InternalApiProvider()
+      result = await new InternalApiProvider().testConnection(testOptions)
+    } else if (options?.proxyBaseUrl !== undefined) {
+      // Use the URL from the UI directly to avoid save/test race condition
+      result = await proxyClient.healthCheck(options.proxyBaseUrl)
     } else {
-      testProvider = await createProvider(currentProviderId)
+      result = await (await createProvider(currentProviderId)).testConnection(testOptions)
     }
-
-    const result = await testProvider.testConnection(testOptions)
     figma.ui.postMessage({
       pluginMessage: {
         type: 'TEST_RESULT',

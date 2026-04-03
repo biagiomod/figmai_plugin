@@ -1,11 +1,10 @@
 /**
  * HTML Prototype Renderer for Design Workshop Assistant
  *
- * Pure function: receives DesignSpecV1, returns a self-contained HTML string.
- * No Figma API calls. No external network dependencies.
- *
- * Font: system font stack (Open Sans first, falls back gracefully — private-safe).
- * Jazz tokens: applied as CSS custom properties.
+ * Pure function: receives DesignSpecV1, returns a self-contained clickable prototype HTML string.
+ * Single-file, no external runtime dependencies.
+ * Fonts loaded via Google Fonts (works online; falls back to system sans-serif offline).
+ * Jazz DS tokens applied via CSS custom properties.
  */
 
 import type { DesignSpecV1, BlockSpec } from './types'
@@ -18,7 +17,7 @@ const JAZZ_CSS_VARS = `
   --jazz-muted: #676C6F;
   --jazz-border: #D4D4D4;
   --jazz-surface: #FFFFFF;
-  --jazz-surface1: #F5F7F8;
+  --jazz-surface1: #F2F4F5;
   --jazz-icon-bg: #E8F0FA;
   --jazz-error: #BF2155;
   --jazz-radius: 4px;
@@ -32,84 +31,139 @@ const BASE_CSS = `
     font-family: var(--jazz-font);
     background: var(--jazz-surface1);
     color: var(--jazz-text);
-    padding: 32px 16px;
-  }
-
-  .screens {
+    min-height: 100vh;
     display: flex;
-    flex-wrap: wrap;
-    gap: 32px;
-    justify-content: center;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 40px 16px 80px;
   }
 
-  .screen {
-    background: var(--jazz-surface);
-    border: 1px solid var(--jazz-border);
-    border-radius: var(--jazz-radius);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  /* ── Prototype header ── */
+  .proto-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 32px;
+    color: var(--jazz-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .proto-header-badge {
+    background: var(--jazz-icon-bg);
+    color: var(--jazz-primary);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Phone frame ── */
+  .phone-frame {
     width: 375px;
-    min-height: 200px;
+    background: var(--jazz-surface);
+    border-radius: 24px;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.08),
+      0 8px 32px rgba(0,0,0,0.14),
+      0 2px 6px rgba(0,0,0,0.08);
     overflow: hidden;
     flex-shrink: 0;
   }
 
-  .screen-name {
-    font-size: 10px;
+  /* ── Status bar ── */
+  .status-bar {
+    background: var(--jazz-navy);
+    padding: 10px 20px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .status-bar-time {
+    font-size: 12px;
     font-weight: 700;
-    color: var(--jazz-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 8px 16px;
-    background: var(--jazz-surface1);
-    border-bottom: 1px solid var(--jazz-border);
+    color: #ffffff;
+  }
+  .status-bar-icons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .status-bar-icons span {
+    font-size: 11px;
+    color: rgba(255,255,255,0.85);
   }
 
+  /* ── Screen title bar ── */
+  .screen-title-bar {
+    background: var(--jazz-primary);
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Screen wrapper — visibility toggle ── */
+  .screen-wrapper { display: none; }
+  .screen-wrapper.active { display: block; }
+
+  /* ── Screen content ── */
   .screen-content {
+    padding: 24px 20px;
     display: flex;
     flex-direction: column;
+    min-height: 560px;
   }
 
-  /* Block types */
+  /* ── Block types ── */
 
   .block-heading {
     font-family: var(--jazz-font);
     color: var(--jazz-text);
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.25;
   }
-  .block-heading.h1 { font-size: 24px; }
+  .block-heading.h1 { font-size: 26px; }
   .block-heading.h2 { font-size: 20px; }
   .block-heading.h3 { font-size: 16px; }
 
   .block-body-text {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--jazz-text);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--jazz-muted);
   }
 
   .block-button {
     display: block;
     width: 100%;
     font-family: var(--jazz-font);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
-    padding: 12px 16px;
+    padding: 14px 16px;
     border-radius: var(--jazz-radius);
     border: none;
     cursor: pointer;
     text-align: center;
     text-decoration: none;
+    transition: filter 0.12s ease;
+    -webkit-appearance: none;
   }
+  .block-button:hover { filter: brightness(0.94); }
   .block-button.primary {
     background: var(--jazz-cta);
     color: #ffffff;
-    border: none;
   }
   .block-button.secondary {
     background: var(--jazz-surface);
     color: var(--jazz-primary);
-    border: 1px solid var(--jazz-primary);
+    border: 1.5px solid var(--jazz-primary);
   }
   .block-button.tertiary {
     background: transparent;
@@ -120,24 +174,27 @@ const BASE_CSS = `
   .block-input-wrap {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
   }
   .block-input-label {
     font-size: 12px;
     font-weight: 600;
     color: var(--jazz-text);
+    letter-spacing: 0.01em;
   }
   .block-input {
     font-family: var(--jazz-font);
-    font-size: 14px;
+    font-size: 15px;
     color: var(--jazz-text);
     background: var(--jazz-surface);
-    border: 1px solid var(--jazz-border);
+    border: 1.5px solid var(--jazz-border);
     border-radius: var(--jazz-radius);
-    padding: 10px 12px;
+    padding: 11px 14px;
     width: 100%;
     outline: none;
+    transition: border-color 0.12s ease;
   }
+  .block-input:focus { border-color: var(--jazz-primary); }
   .block-input::placeholder { color: var(--jazz-muted); }
 
   .block-card {
@@ -150,30 +207,142 @@ const BASE_CSS = `
     flex-direction: column;
     gap: 4px;
   }
-  .block-card-title {
+  .block-card-label {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     color: var(--jazz-muted);
   }
-  .block-card-content {
-    font-size: 18px;
+  .block-card-value {
+    font-size: 20px;
     font-weight: 600;
     color: var(--jazz-text);
-    line-height: 1.3;
+    line-height: 1.2;
   }
 
   .block-image {
-    background: var(--jazz-surface1);
-    border: 1px solid var(--jazz-border);
+    background: var(--jazz-icon-bg);
     border-radius: var(--jazz-radius);
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--jazz-muted);
     font-size: 12px;
+    font-weight: 600;
   }
+
+  /* ── Navigation ── */
+  .proto-nav {
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 375px;
+  }
+
+  .nav-dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--jazz-border);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+    border: none;
+    padding: 0;
+  }
+  .nav-dot.active {
+    background: var(--jazz-primary);
+    transform: scale(1.3);
+  }
+
+  .nav-arrows {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+  .nav-arrow-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--jazz-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--jazz-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+  }
+  .nav-arrow-btn:disabled {
+    color: var(--jazz-border);
+    cursor: default;
+  }
+  .nav-screen-counter {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--jazz-muted);
+    min-width: 50px;
+    text-align: center;
+  }
+`
+
+const PROTOTYPE_JS = `
+  var currentScreen = 0;
+
+  function getScreens() {
+    return document.querySelectorAll('.screen-wrapper');
+  }
+  function getDots() {
+    return document.querySelectorAll('.nav-dot');
+  }
+
+  function goToScreen(n) {
+    var screens = getScreens();
+    var dots = getDots();
+    var total = screens.length;
+    var next = Math.max(0, Math.min(n, total - 1));
+    if (next === currentScreen) return;
+    screens[currentScreen].classList.remove('active');
+    dots[currentScreen].classList.remove('active');
+    currentScreen = next;
+    screens[currentScreen].classList.add('active');
+    dots[currentScreen].classList.add('active');
+    updateNav();
+  }
+
+  function updateNav() {
+    var screens = getScreens();
+    var total = screens.length;
+    var backBtn = document.getElementById('nav-back');
+    var nextBtn = document.getElementById('nav-next');
+    var counter = document.getElementById('nav-counter');
+    backBtn.disabled = currentScreen === 0;
+    nextBtn.disabled = currentScreen === total - 1;
+    counter.textContent = (currentScreen + 1) + ' / ' + total;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    updateNav();
+
+    // Primary buttons advance to next screen
+    document.querySelectorAll('.block-button.primary').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var screens = getScreens();
+        if (currentScreen < screens.length - 1) {
+          goToScreen(currentScreen + 1);
+        }
+      });
+    });
+  });
 `
 
 function escapeHtml(str: string): string {
@@ -186,90 +355,84 @@ function escapeHtml(str: string): string {
 }
 
 function renderBlock(block: BlockSpec, gap: number): string {
-  const marginBottom = `${gap}px`
+  const mb = `margin-bottom:${gap}px`
 
   switch (block.type) {
     case 'heading': {
       const level = block.level ?? 1
       const tag = level === 1 ? 'h1' : level === 2 ? 'h2' : 'h3'
-      const cls = `h${level}`
-      return `<${tag} class="block-heading ${cls}" style="margin-bottom:${marginBottom}">${escapeHtml(block.text)}</${tag}>`
+      return `<${tag} class="block-heading h${level}" style="${mb}">${escapeHtml(block.text)}</${tag}>`
     }
 
-    case 'bodyText': {
-      return `<p class="block-body-text" style="margin-bottom:${marginBottom}">${escapeHtml(block.text)}</p>`
-    }
+    case 'bodyText':
+      return `<p class="block-body-text" style="${mb}">${escapeHtml(block.text)}</p>`
 
     case 'button': {
       const variant = block.variant ?? 'primary'
-      return `<button class="block-button ${variant}" style="margin-bottom:${marginBottom}">${escapeHtml(block.text)}</button>`
+      return `<button class="block-button ${variant}" style="${mb}">${escapeHtml(block.text)}</button>`
     }
 
     case 'input': {
-      const inputType = block.inputType ?? 'text'
       const label = block.label ?? ''
       const placeholder = block.placeholder ?? ''
-      return `<div class="block-input-wrap" style="margin-bottom:${marginBottom}">
+      const inputType = block.inputType ?? 'text'
+      return `<div class="block-input-wrap" style="${mb}">
   <label class="block-input-label">${escapeHtml(label)}</label>
   <input class="block-input" type="${inputType}" placeholder="${escapeHtml(placeholder)}" />
 </div>`
     }
 
-    case 'card': {
-      const title = block.title ?? ''
-      return `<div class="block-card" style="margin-bottom:${marginBottom}">
-  <div class="block-card-title">${escapeHtml(title)}</div>
-  <div class="block-card-content">${escapeHtml(block.content)}</div>
+    case 'card':
+      return `<div class="block-card" style="${mb}">
+  <div class="block-card-label">${escapeHtml(block.title ?? '')}</div>
+  <div class="block-card-value">${escapeHtml(block.content)}</div>
 </div>`
-    }
 
-    case 'spacer': {
-      const height = block.height ?? 16
-      return `<div style="height:${height}px;flex-shrink:0"></div>`
-    }
+    case 'spacer':
+      return `<div style="height:${block.height ?? 16}px;flex-shrink:0"></div>`
 
     case 'image': {
-      const w = block.width ?? 100
       const h = block.height ?? 80
-      return `<div class="block-image" style="width:100%;height:${h}px;margin-bottom:${marginBottom}">Image ${w}×${h}</div>`
+      return `<div class="block-image" style="height:${h}px;${mb}">Image ${block.width ?? 100}×${h}</div>`
     }
 
-    default: {
-      // Unknown block type — skip
+    default:
       return ''
-    }
   }
 }
 
 function resolvePadding(padding: number | { top?: number; right?: number; bottom?: number; left?: number } | undefined): string {
-  if (padding === undefined) return '24px'
+  if (padding === undefined) return '24px 20px'
   if (typeof padding === 'number') return `${padding}px`
   const t = padding.top ?? 24
-  const r = padding.right ?? 24
+  const r = padding.right ?? 20
   const b = padding.bottom ?? 24
-  const l = padding.left ?? 24
+  const l = padding.left ?? 20
   return `${t}px ${r}px ${b}px ${l}px`
 }
 
-function renderScreen(screen: DesignSpecV1['screens'][0]): string {
-  const gap = screen.layout?.gap ?? 16
-  const paddingCss = resolvePadding(screen.layout?.padding)
+export function renderToHtml(spec: DesignSpecV1): string {
+  const title = spec.meta?.title ?? 'FiFi Prototype'
+  const screens = spec.screens ?? []
+  const total = screens.length
 
-  const blocks = (screen.blocks ?? [])
-    .map(block => renderBlock(block, gap))
-    .join('\n    ')
+  const screenHtml = screens.map((screen, i) => {
+    const gap = screen.layout?.gap ?? 16
+    const paddingCss = resolvePadding(screen.layout?.padding)
+    const blocks = (screen.blocks ?? []).map(b => renderBlock(b, gap)).join('\n    ')
+    const activeClass = i === 0 ? ' active' : ''
 
-  return `<div class="screen">
-  <div class="screen-name">${escapeHtml(screen.name)}</div>
+    return `<div class="screen-wrapper${activeClass}" data-screen="${i}">
+  <div class="screen-title-bar">${escapeHtml(screen.name)}</div>
   <div class="screen-content" style="padding:${paddingCss}">
     ${blocks}
   </div>
 </div>`
-}
+  }).join('\n')
 
-export function renderToHtml(spec: DesignSpecV1): string {
-  const title = spec.meta?.title ?? 'Design Export'
-  const screens = (spec.screens ?? []).map(s => renderScreen(s)).join('\n    ')
+  const dotsHtml = screens.map((_, i) =>
+    `<button class="nav-dot${i === 0 ? ' active' : ''}" onclick="goToScreen(${i})" aria-label="Screen ${i + 1}"></button>`
+  ).join('\n      ')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -277,17 +440,47 @@ export function renderToHtml(spec: DesignSpecV1): string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(title)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
   <style>
-    :root {
-      ${JAZZ_CSS_VARS.trim()}
-    }
+    :root { ${JAZZ_CSS_VARS.trim()} }
     ${BASE_CSS.trim()}
   </style>
 </head>
 <body>
-  <div class="screens">
-    ${screens}
+
+  <div class="proto-header">
+    <span>${escapeHtml(title)}</span>
+    <span class="proto-header-badge">Jazz DS</span>
+    <span style="color:var(--jazz-border)">·</span>
+    <span>${total} screen${total !== 1 ? 's' : ''}</span>
   </div>
+
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span class="status-bar-time">9:41</span>
+      <div class="status-bar-icons">
+        <span>●●●</span>
+        <span>WiFi</span>
+        <span>🔋</span>
+      </div>
+    </div>
+    ${screenHtml}
+  </div>
+
+  <nav class="proto-nav" aria-label="Screen navigation">
+    <div class="nav-dots">
+      ${dotsHtml}
+    </div>
+    <div class="nav-arrows">
+      <button class="nav-arrow-btn" id="nav-back" onclick="goToScreen(currentScreen - 1)">← Back</button>
+      <span class="nav-screen-counter" id="nav-counter">1 / ${total}</span>
+      <button class="nav-arrow-btn" id="nav-next" onclick="goToScreen(currentScreen + 1)">Next →</button>
+    </div>
+  </nav>
+
+  <script>${PROTOTYPE_JS}</script>
 </body>
 </html>`
 }
