@@ -35,7 +35,6 @@ const BASE_CSS = `
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
     padding: 40px 16px 80px;
   }
 
@@ -295,6 +294,258 @@ const BASE_CSS = `
   }
 `
 
+const PANEL_CSS = `
+  /* ── Workspace layout ── */
+  .proto-workspace {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+  }
+
+  .proto-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* Move proto-nav inside proto-left so it renders below the phone */
+  .proto-nav { margin-top: 0; }
+
+  /* ── Double Diamond panel ── */
+  .dd-panel {
+    width: 260px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+  }
+
+  .dd-section {
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--jazz-border);
+    background: var(--jazz-surface);
+  }
+
+  .dd-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--jazz-muted);
+    background: var(--jazz-surface);
+    border: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .dd-section-header:hover { background: var(--jazz-surface1); }
+
+  .dd-section-header.active {
+    background: var(--jazz-primary);
+    color: #fff;
+  }
+
+  .dd-section-arrow {
+    font-size: 10px;
+    transition: transform 0.15s;
+  }
+
+  .dd-section-header.active .dd-section-arrow { transform: rotate(90deg); }
+
+  .dd-section-body {
+    display: none;
+    padding: 8px 10px 10px;
+    border-top: 1px solid var(--jazz-border);
+    background: var(--jazz-surface);
+  }
+
+  .dd-section-body.open { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Panel action buttons */
+  .dd-action {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: var(--jazz-radius);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    text-align: left;
+  }
+
+  .dd-action-primary {
+    background: var(--jazz-primary);
+    color: #fff;
+  }
+
+  .dd-action-primary:hover { background: #0052a0; }
+
+  .dd-action-secondary {
+    background: var(--jazz-surface);
+    color: var(--jazz-primary);
+    border: 1px solid var(--jazz-primary) !important;
+  }
+
+  .dd-action-secondary:hover { background: var(--jazz-icon-bg); }
+
+  .dd-action-ghost {
+    background: var(--jazz-surface1);
+    color: var(--jazz-muted);
+    border: 1px solid var(--jazz-border) !important;
+  }
+
+  .dd-action-ghost:hover { background: #e8e8e8; }
+
+  .dd-section-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--jazz-muted);
+    padding: 4px 2px 2px;
+  }
+
+  /* FPO badge shown inline when coming-soon item clicked */
+  .fpo-badge {
+    display: none;
+    font-size: 9px;
+    background: var(--jazz-icon-bg);
+    color: var(--jazz-primary);
+    border-radius: 10px;
+    padding: 2px 7px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  /* Coming-soon toast */
+  .cs-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--jazz-navy);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 100;
+    max-width: 260px;
+  }
+
+  .cs-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const PANEL_HTML = `<aside class="dd-panel" aria-label="Design workflow panel">
+
+  <!-- FPO-DEMO: Discover section -->
+  <div class="dd-section" data-fpo="true">
+    <button class="dd-section-header" onclick="toggleSection(this)" aria-expanded="false">
+      <span>🔍 Discover</span>
+      <span class="dd-section-arrow">▶</span>
+    </button>
+    <div class="dd-section-body">
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Accessibility / ADA review')">ADA Review <span class="fpo-badge">Coming soon</span></button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Design scorecard')">Scorecard <span class="fpo-badge">Coming soon</span></button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('UX heuristics review')">Heuristics <span class="fpo-badge">Coming soon</span></button>
+    </div>
+  </div>
+
+  <!-- FPO-DEMO: Define section -->
+  <div class="dd-section" data-fpo="true">
+    <button class="dd-section-header" onclick="toggleSection(this)" aria-expanded="false">
+      <span>🎯 Define</span>
+      <span class="dd-section-arrow">▶</span>
+    </button>
+    <div class="dd-section-body">
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Problem framing')">Problem Statement <span class="fpo-badge">Coming soon</span></button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Jobs-to-be-done framing')">JTBD <span class="fpo-badge">Coming soon</span></button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Success metrics')">Metrics <span class="fpo-badge">Coming soon</span></button>
+    </div>
+  </div>
+
+  <!-- Develop section — open by default -->
+  <div class="dd-section">
+    <button class="dd-section-header active" onclick="toggleSection(this)" aria-expanded="true">
+      <span>⚡ Develop</span>
+      <span class="dd-section-arrow">▶</span>
+    </button>
+    <div class="dd-section-body open">
+      <button class="dd-action dd-action-primary" data-fpo="true" onclick="showComingSoon('Refine screens — adjust colours, copy and layout')">Refine screens →</button>
+      <button class="dd-action dd-action-secondary" data-fpo="true" onclick="showComingSoon('Regenerate — create a fresh variation')">Regenerate</button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('New prompt — start from scratch')">New prompt</button>
+      <div class="dd-section-label" style="margin-top:4px">Annotations</div>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Add review notes as Figma annotations')">Add review notes →</button>
+    </div>
+  </div>
+
+  <!-- FPO-DEMO: Deliver section -->
+  <div class="dd-section" data-fpo="true">
+    <button class="dd-section-header" onclick="toggleSection(this)" aria-expanded="false">
+      <span>🚀 Deliver</span>
+      <span class="dd-section-arrow">▶</span>
+    </button>
+    <div class="dd-section-body">
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Send to code — generate HTML/CSS scaffold')">Send to code ✦</button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Generate Evergreen content table')">Evergreen table ✦</button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Generate analytics tagging table')">Analytics tagging ✦</button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Create Jira stories and acceptance criteria')">Jira stories ✦</button>
+      <button class="dd-action dd-action-ghost" data-fpo="true" onclick="showComingSoon('Send to QA — create test scenarios')">QA checklist ✦</button>
+    </div>
+  </div>
+
+  <p style="font-size:9px;color:var(--jazz-muted);margin-top:10px;padding:0 2px">✦ Coming soon &nbsp;·&nbsp; FPO items hidden in production</p>
+</aside>`
+
+const PANEL_JS = `
+  // ── Double Diamond accordion ──
+  function toggleSection(btn) {
+    var body = btn.nextElementSibling;
+    var isOpen = body.classList.contains('open');
+    // Close all sections
+    document.querySelectorAll('.dd-section-body').forEach(function(b) { b.classList.remove('open'); });
+    document.querySelectorAll('.dd-section-header').forEach(function(h) {
+      h.classList.remove('active');
+      h.setAttribute('aria-expanded', 'false');
+    });
+    // Open clicked section if it was closed
+    if (!isOpen) {
+      body.classList.add('open');
+      btn.classList.add('active');
+      btn.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  // ── Coming soon toast ──
+  var _csTimer = null;
+  function showComingSoon(label) {
+    var toast = document.getElementById('cs-toast');
+    if (!toast) return;
+    toast.textContent = 'Coming soon: ' + label;
+    toast.classList.add('show');
+    if (_csTimer) clearTimeout(_csTimer);
+    _csTimer = setTimeout(function() { toast.classList.remove('show'); }, 2500);
+  }
+`
+
 const PROTOTYPE_JS = `
   var currentScreen = 0;
 
@@ -446,6 +697,7 @@ export function renderToHtml(spec: DesignSpecV1): string {
   <style>
     :root { ${JAZZ_CSS_VARS.trim()} }
     ${BASE_CSS.trim()}
+    ${PANEL_CSS.trim()}
   </style>
 </head>
 <body>
@@ -457,30 +709,38 @@ export function renderToHtml(spec: DesignSpecV1): string {
     <span>${total} screen${total !== 1 ? 's' : ''}</span>
   </div>
 
-  <div class="phone-frame">
-    <div class="status-bar">
-      <span class="status-bar-time">9:41</span>
-      <div class="status-bar-icons">
-        <span>●●●</span>
-        <span>WiFi</span>
-        <span>🔋</span>
+  <div class="proto-workspace">
+    <div class="proto-left">
+      <div class="phone-frame">
+        <div class="status-bar">
+          <span class="status-bar-time">9:41</span>
+          <div class="status-bar-icons">
+            <span>●●●</span>
+            <span>WiFi</span>
+            <span>🔋</span>
+          </div>
+        </div>
+        ${screenHtml}
       </div>
+
+      <nav class="proto-nav" aria-label="Screen navigation">
+        <div class="nav-dots">
+          ${dotsHtml}
+        </div>
+        <div class="nav-arrows">
+          <button class="nav-arrow-btn" id="nav-back" onclick="goToScreen(currentScreen - 1)">← Back</button>
+          <span class="nav-screen-counter" id="nav-counter">1 / ${total}</span>
+          <button class="nav-arrow-btn" id="nav-next" onclick="goToScreen(currentScreen + 1)">Next →</button>
+        </div>
+      </nav>
     </div>
-    ${screenHtml}
+
+    ${PANEL_HTML}
   </div>
 
-  <nav class="proto-nav" aria-label="Screen navigation">
-    <div class="nav-dots">
-      ${dotsHtml}
-    </div>
-    <div class="nav-arrows">
-      <button class="nav-arrow-btn" id="nav-back" onclick="goToScreen(currentScreen - 1)">← Back</button>
-      <span class="nav-screen-counter" id="nav-counter">1 / ${total}</span>
-      <button class="nav-arrow-btn" id="nav-next" onclick="goToScreen(currentScreen + 1)">Next →</button>
-    </div>
-  </nav>
+  <div class="cs-toast" id="cs-toast"></div>
 
-  <script>${PROTOTYPE_JS}</script>
+  <script>${PROTOTYPE_JS}${PANEL_JS}</script>
 </body>
 </html>`
 }
