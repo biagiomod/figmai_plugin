@@ -24,7 +24,13 @@
           "executionType": "llm",
           "id": "generate-screens",
           "label": "Demo: Generate Screens",
-          "templateMessage": "Generating demo screen/s using medium fidelity."
+          "templateMessage": "Generate screens using Jazz Design System styling at hi fidelity."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-screens",
+          "label": "Run Demo",
+          "templateMessage": "Running FiFi FinTech demo preset."
         }
       ],
       "tag": {
