@@ -1,4 +1,12 @@
-# ACE Spring Wrapper -- Custom Deployment Guide
+# ACE Spring Wrapper — Custom Deployment Guide
+
+> **DEPRECATED.** The Spring Boot ACE wrapper is no longer the active private/work deployment path.
+>
+> **Current active paths:**
+> - **Localhost / local dev:** `npm run admin` (see `admin-editor/README.md`)
+> - **Private/work hosted deployment:** static ACE + Config API + AWS Lambda + S3 (see `docs/setup/ace-private-env-setup.md`)
+>
+> This document is kept as historical reference for teams that deployed the wrapper before this change. Do not start new deployments using this path.
 
 ## 1. Architecture and Trust Boundary
 

@@ -1,0 +1,77 @@
+{
+  "_comment": "Private/enterprise config template. Upload this (with your real values) to S3. Do NOT commit secrets.",
+  "ui": {
+    "branding": {
+      "showLogo": false,
+      "showAppName": true,
+      "showLogline": true,
+      "appName": "YourTeam AI",
+      "logline": "Internal Design Tool",
+      "logoPath": ""
+    },
+    "defaultMode": "advanced",
+    "hideContentMvpMode": false
+  },
+  "llm": {
+    "provider": "internal-api",
+    "endpoint": "https://your-internal-llm.example.com/api",
+    "hideModelSettings": true,
+    "hideProxySettings": true,
+    "hideInternalApiSettings": false,
+    "showTestConnection": true,
+    "uiMode": "connection-only",
+    "safety": {
+      "forceNoImages": false,
+      "forceNoKbName": false,
+      "forceNoSelectionSummary": false
+    }
+  },
+  "networkAccess": {
+    "baseAllowedDomains": [
+      "https://your-internal-llm.example.com"
+    ],
+    "extraAllowedDomains": []
+  },
+  "knowledgeBases": {},
+  "resources": {
+    "links": {
+      "about": {
+        "label": "About",
+        "url": "https://intranet.example.com/tools/figmai"
+      },
+      "feedback": {
+        "label": "Feedback",
+        "url": "https://intranet.example.com/tools/figmai/feedback"
+      },
+      "meetup": {
+        "label": "",
+        "url": ""
+      }
+    },
+    "credits": {
+      "createdBy": [],
+      "apiTeam": [],
+      "llmInstruct": []
+    }
+  },
+  "designSystems": {
+    "enabled": false,
+    "activeRegistries": [],
+    "denylist": [],
+    "strictMode": false
+  },
+  "accessibility": {
+    "hatRequiredComponents": []
+  },
+  "analytics": {
+    "enabled": false,
+    "endpointUrl": "",
+    "flushIntervalMs": 30000,
+    "maxBatchSize": 25,
+    "maxBuffer": 100,
+    "retryMaxAttempts": 5,
+    "retryBaseDelayMs": 1000,
+    "debug": false,
+    "datadog": { "enabled": false }
+  }
+}

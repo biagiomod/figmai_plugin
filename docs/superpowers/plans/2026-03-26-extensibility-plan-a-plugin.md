@@ -29,7 +29,7 @@
 | `src/core/assistants/handlers/contentTable.ts` | DELETE | Moved to `src/assistants/evergreens/handler.ts` |
 | `package.json` | MODIFY | Add `build-assistants` step to `prebuild` |
 | `CODEOWNERS` | CREATE | Directory ownership per team |
-| `docs/ASSISTANT_SDK.md` | CREATE | Strike Team onboarding guide |
+| `docs/assistant-sdk.md` | CREATE | Strike Team onboarding guide |
 
 ---
 
@@ -702,9 +702,9 @@ git commit -m "chore: add CODEOWNERS — per-directory ownership for Core and St
 ## Task 8: Create SDK Documentation
 
 **Files:**
-- Create: `docs/ASSISTANT_SDK.md`
+- Create: `docs/assistant-sdk.md`
 
-- [ ] **Step 1: Create `docs/ASSISTANT_SDK.md`**
+- [ ] **Step 1: Create `docs/assistant-sdk.md`**
 
 ```markdown
 # FigmAI Assistant SDK — Strike Team Guide
@@ -831,7 +831,7 @@ If you need a new type exported from the SDK, open a PR to `src/sdk/index.ts` an
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docs/ASSISTANT_SDK.md
+git add docs/assistant-sdk.md
 git commit -m "docs: add ASSISTANT_SDK.md — Strike Team guide for building assistants"
 ```
 

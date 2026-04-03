@@ -77,27 +77,30 @@ function renderCellHtml(cell: Cell): string {
  */
 export function universalTableToHtml(
   universalTable: UniversalContentTableV1,
-  projected: ProjectedTable
+  projected: ProjectedTable,
+  rowsOnly = false
 ): { html: string; plainText: string } {
   const { headerRows, rows } = projected
 
   let html = '<table style="border-collapse: collapse; width: 100%; font-size: 12px; background-color: #ffffff; color: #000000;">'
-  
-  html += '<thead>'
-  
-  if (universalTable.meta) {
-    html += renderMetaRowHtml(universalTable.meta, headerRows[0].length)
-  }
-  
-  for (const hRow of headerRows) {
-    html += '<tr>'
-    for (const header of hRow) {
-      html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+
+  if (!rowsOnly) {
+    html += '<thead>'
+
+    if (universalTable.meta) {
+      html += renderMetaRowHtml(universalTable.meta, headerRows[0].length)
     }
-    html += '</tr>'
+
+    for (const hRow of headerRows) {
+      html += '<tr>'
+      for (const header of hRow) {
+        html += `<th style="border: 1px solid #000000; padding: 6px 8px; vertical-align: top; font-weight: 600; background-color: #f0f0f0;">${escapeHtml(header)}</th>`
+      }
+      html += '</tr>'
+    }
+    html += '</thead>'
   }
-  html += '</thead>'
-  
+
   html += '<tbody>'
   for (const row of rows) {
     html += '<tr>'
@@ -107,11 +110,11 @@ export function universalTableToHtml(
     html += '</tr>'
   }
   html += '</tbody></table>'
-  
-  const primaryHeaders = headerRows[headerRows.length - 1]
+
   const allHeaderLines = headerRows.map(hr => hr.join('\t')).join('\n')
-  const plainText = allHeaderLines + '\n' + rows.map(row => row.map(c => cellText(c)).join('\t')).join('\n')
-  
+  const rowsText = rows.map(row => row.map(c => cellText(c)).join('\t')).join('\n')
+  const plainText = rowsOnly ? rowsText : allHeaderLines + '\n' + rowsText
+
   return { html, plainText }
 }
 
@@ -120,18 +123,19 @@ export function universalTableToHtml(
  */
 export function universalTableToTsv(
   universalTable: UniversalContentTableV1,
-  projected: ProjectedTable
+  projected: ProjectedTable,
+  rowsOnly = false
 ): string {
   const { headerRows, rows } = projected
 
-  let tsv = headerRows.map(hr => hr.join('\t')).join('\n') + '\n'
+  let tsv = rowsOnly ? '' : headerRows.map(hr => hr.join('\t')).join('\n') + '\n'
   for (const row of rows) {
     tsv += row.map(cell => {
       const value = cellText(cell)
       return value.replace(/\t/g, ' ')
     }).join('\t') + '\n'
   }
-  
+
   return tsv.trim()
 }
 

@@ -1797,7 +1797,7 @@ function Plugin() {
   
   // Copy Content Table to clipboard
   // copyFormatType: 'html' | 'tsv' | 'json' - determines what format to copy
-  const handleCopyTable = useCallback(async (format: TableFormatPreset, copyFormatType: 'html' | 'tsv' | 'json' = 'html') => {
+  const handleCopyTable = useCallback(async (format: TableFormatPreset, copyFormatType: 'html' | 'tsv' | 'json' = 'html', rowsOnly = false, itemsOverride?: ContentItemV1[]) => {
     console.log('[CopyTable] click')
     
     if (!contentTable) {
@@ -1817,11 +1817,12 @@ function Plugin() {
     console.log('[Clipboard] navigator.clipboard.write available:', !!(navigator.clipboard && navigator.clipboard.write))
     
     try {
-      // Use session-effective items (with edits/deletions applied) as the single source of truth
-      const effectiveItems = ctSession ? getEffectiveItems(ctSession) : contentTable.items
+      // Use caller-supplied items when available (respects token visibility filter),
+      // otherwise fall back to session-effective items.
+      const effectiveItems = itemsOverride ?? (ctSession ? getEffectiveItems(ctSession) : contentTable.items)
       const projected = projectContentTable(format, effectiveItems)
-      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, projected)
-      const tsv = universalTableToTsv(contentTable, projected)
+      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, projected, rowsOnly)
+      const tsv = universalTableToTsv(contentTable, projected, rowsOnly)
       const json = universalTableToJson(contentTable)
       
       console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length, 'JSON length:', json.length)
@@ -2769,10 +2770,9 @@ ${htmlTable}
               onSessionChange={setCtSession}
               hasSelection={selectionState.hasSelection}
               onAppend={() => handleQuickAction('add-to-table')}
-              onViewOnStage={() => {
-                if (!ctSession || !contentTable) return
-                const items = getEffectiveItems(ctSession)
-                const ctStageProjected = projectContentTable(selectedFormat, items)
+              onViewOnStage={(visibleItems) => {
+                if (!contentTable) return
+                const ctStageProjected = projectContentTable(selectedFormat, visibleItems)
                 emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
                   headers: ctStageProjected.headers,
                   headerRows: ctStageProjected.headerRows,
@@ -2783,7 +2783,8 @@ ${htmlTable}
                   presetId: selectedFormat
                 })
               }}
-              onCopyToClipboard={() => handleCopyTable(selectedFormat, 'html')}
+              onCopyToClipboard={(visibleItems) => handleCopyTable(selectedFormat, 'html', false, visibleItems)}
+              onCopyRowsToClipboard={(visibleItems) => handleCopyTable(selectedFormat, 'html', true, visibleItems)}
               onRestart={() => {
                 emit<ContentTableResetHandler>('CONTENT_TABLE_RESET')
               }}

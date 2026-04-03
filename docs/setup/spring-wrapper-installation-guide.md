@@ -1,5 +1,13 @@
 # Spring Wrapper — Installation & Deployment Guide
 
+> **DEPRECATED.** The Spring Boot ACE wrapper is no longer the active private/work deployment path.
+>
+> **Current active paths:**
+> - **Localhost / local dev:** `npm run admin` (see `admin-editor/README.md`)
+> - **Private/work hosted deployment:** static ACE + Config API + AWS Lambda + S3 (see `docs/setup/ace-private-env-setup.md`)
+>
+> This document is kept as historical reference. Do not start new deployments using this path.
+
 Step-by-step guide for running the ACE Admin Config Editor behind the Spring
 Boot wrapper using Docker Compose.  No local Node or Java install required for
 the main path — everything runs inside containers.

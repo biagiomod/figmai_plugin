@@ -18,7 +18,8 @@ export const TH: h.JSX.CSSProperties = {
 export const TD: h.JSX.CSSProperties = {
   padding: '3px 6px',
   color: '#000',
-  fontSize: '11px'
+  fontSize: '11px',
+  verticalAlign: 'top'
 }
 
 export const CELL_INPUT: h.JSX.CSSProperties = {

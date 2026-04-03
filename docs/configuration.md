@@ -1,5 +1,9 @@
 # Configuration Guide
 
+> **⚠ This document is largely outdated.** It describes an aspirational `EnvironmentConfig` architecture (`config.work.json`, `FIGMAI_ENVIRONMENT` env vars, runtime extension-point paths) that does not match the actual implementation. The real configuration system uses `custom/config.json` (committed baseline) + `custom/config.local.json` (gitignored personal overrides) + S3 snapshots for private builds.
+>
+> **For the authoritative setup and config-layering guide, see [`docs/security-audit.md`](security-audit.md).** The HAT accessibility section near the bottom of this document (the `accessibility.hatRequiredComponents` section) is current and correct.
+
 Complete reference for configuring the FigmAI plugin for different environments.
 
 ---

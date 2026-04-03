@@ -23,7 +23,8 @@ This direction is already reflected in the repo and is not speculative.
 Grounded in current repo docs and code:
 
 - `docs/architecture/ace-static-s3-migration.md` is the intended architecture authority for this migration.
-- `docs/setup/ace-public-replica.md` reflects current operational reality.
+- `docs/setup/ace-private-env-setup.md` is the current primary setup guide for generic private/work environments.
+- `docs/setup/ace-public-replica.md` is a thinner reference retained for compatibility but is no longer the primary setup authority.
 - If docs diverge, the practical truth should be taken from current code in:
   - `infra/config-api/`
   - `admin-editor/`
@@ -59,8 +60,10 @@ Primary relevant areas for this workstream:
   - file mapping and S3 layout helpers
 - `docs/architecture/ace-static-s3-migration.md`
   - intended migration architecture authority
+- `docs/setup/ace-private-env-setup.md`
+  - current primary deployment/setup guide
 - `docs/setup/ace-public-replica.md`
-  - current deployment/setup reality
+  - thinner reference, retained for compatibility
 - `docs/security/config-api-auth.md`
   - current auth model documentation
 
@@ -100,7 +103,7 @@ Use these guardrails when resuming work:
 - When authority conflicts exist:
   1. `docs/architecture/ace-static-s3-migration.md`
   2. current code in `infra/config-api/`, `admin-editor/`, and `scripts/`
-  3. `docs/setup/ace-public-replica.md` for current operating guidance
+  3. `docs/setup/ace-private-env-setup.md` for current operating guidance
 - Treat older ACE/local-server docs as legacy context unless explicitly still applicable.
 
 ## 7. Recommended Next Step

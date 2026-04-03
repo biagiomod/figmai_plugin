@@ -7,7 +7,8 @@
 - Intended architecture authority:
   - `docs/architecture/ace-static-s3-migration.md`
 - Current operational reality:
-  - `docs/setup/ace-public-replica.md`
+  - `docs/setup/ace-private-env-setup.md` (primary current setup guide)
+  - `docs/setup/ace-public-replica.md` is a thinner reference retained for compatibility
 - Practical truth when docs diverge:
   - current code in `infra/config-api/`, `admin-editor/`, and `scripts/`
 - Current implementation status:

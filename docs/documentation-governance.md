@@ -16,7 +16,9 @@ For ACE migration and hosting topics, use this authority order:
 
 1. [`architecture/ace-static-s3-migration.md`](architecture/ace-static-s3-migration.md)
 2. Current code in `infra/config-api/`, `admin-editor/`, and `scripts/`
-3. [`setup/ace-public-replica.md`](setup/ace-public-replica.md)
+3. [`setup/ace-private-env-setup.md`](setup/ace-private-env-setup.md) — current generic private/work environment setup
+
+[`setup/ace-public-replica.md`](setup/ace-public-replica.md) is a thinner reference retained for compatibility but is not the primary current setup guide.
 
 Older ACE planning docs are historical or reference-only unless they are explicitly restated as current.
 

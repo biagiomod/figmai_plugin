@@ -9,14 +9,14 @@
  */
 
 import { h } from 'preact'
-import { useMemo, useState } from 'preact/hooks'
+import { useMemo, useState, useRef } from 'preact/hooks'
 import type { ContentTableSession } from '../../core/contentTable/session'
 import { getEffectiveItems, applyEdit, deleteItem, toggleTokenizedItem } from '../../core/contentTable/session'
 import { PRESET_INFO } from '../../core/contentTable/presets.generated'
 import { projectContentTable, cellText, cellHref, cellSuffix } from '../../core/contentTable/projection'
 import type { TableFormatPreset, ContentItemV1 } from '../../core/contentTable/types'
 import { getOrderedCtaPresets } from '../../core/contentTable/presetOrder'
-import { ImageDownloadIcon, CloseIcon, RefreshIcon } from '../icons'
+import { ImageDownloadIcon, CloseIcon, RefreshIcon, CopyIcon } from '../icons'
 import { TH, TD, CELL_INPUT, TOOL_BTN, actionBtnStyle } from './toolTableStyles'
 import {
   CTA_ACTION_LABELS,
@@ -32,8 +32,9 @@ interface ContentTableViewProps {
   onSessionChange: (session: ContentTableSession) => void
   hasSelection: boolean
   onAppend: () => void
-  onViewOnStage: () => void
-  onCopyToClipboard: () => void
+  onViewOnStage: (visibleItems: ContentItemV1[]) => void
+  onCopyToClipboard: (visibleItems: ContentItemV1[]) => void
+  onCopyRowsToClipboard: (visibleItems: ContentItemV1[]) => void
   onRestart: () => void
   onExportRowRefImage: (nodeId: string) => void
   isCopying: boolean
@@ -50,35 +51,51 @@ const editableFieldMap: Record<string, keyof ContentItemV1> = {
   errorMessage: 'errorMessage'
 }
 
+const IGNORE_TOOLTIP_W = 210
+
 function IgnoreBadge({ ruleName }: { ruleName: string }) {
-  const [visible, setVisible] = useState(false)
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null)
+  const spanRef = useRef<HTMLSpanElement>(null)
   const tip = ruleName
     ? `This item matched ignore rule "${ruleName}" and may belong to a shell or chrome component. It can safely be excluded from content review.`
     : 'This item may belong to a shell or chrome component (nav, footer, header, etc.) and can safely be excluded from content review.'
+
+  let tooltipPos: h.JSX.CSSProperties | null = null
+  if (anchorRect) {
+    const showAbove = window.innerHeight - anchorRect.bottom < 120
+    tooltipPos = {
+      position: 'fixed',
+      left: Math.max(8, anchorRect.right - IGNORE_TOOLTIP_W),
+      width: `${IGNORE_TOOLTIP_W}px`,
+      ...(showAbove
+        ? { bottom: window.innerHeight - anchorRect.top + 4 }
+        : { top: anchorRect.bottom + 4 })
+    }
+  }
+
   return (
     <span
-      style={{ position: 'relative', display: 'inline-block', marginRight: '2px' }}
-      onMouseEnter={() => setVisible(true)}
-      onMouseLeave={() => setVisible(false)}
+      ref={spanRef}
+      style={{ display: 'inline-block', marginRight: '2px' }}
+      onMouseEnter={() => {
+        if (spanRef.current) setAnchorRect(spanRef.current.getBoundingClientRect())
+      }}
+      onMouseLeave={() => setAnchorRect(null)}
     >
       <span style={{ fontSize: '8px', color: '#7a4f00', backgroundColor: '#fff3cd', padding: '1px 4px', borderRadius: '3px', fontWeight: 600, cursor: 'default', userSelect: 'none' }}>
         Ignore?
       </span>
-      {visible && (
+      {anchorRect && tooltipPos && (
         <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: 0,
-          marginTop: '4px',
+          ...tooltipPos,
           backgroundColor: '#1e293b',
           color: '#f8fafc',
           fontSize: '10px',
           lineHeight: 1.5,
           padding: '7px 9px',
           borderRadius: '6px',
-          width: '210px',
           whiteSpace: 'normal',
-          zIndex: 999,
+          zIndex: 9999,
           boxShadow: '0 4px 14px rgba(0,0,0,0.28)',
           pointerEvents: 'none'
         }}>
@@ -106,13 +123,18 @@ export function ContentTableView({
   onAppend,
   onViewOnStage,
   onCopyToClipboard,
+  onCopyRowsToClipboard,
   onRestart,
   onExportRowRefImage,
   isCopying,
   selectedFormat,
   onFormatChange
 }: ContentTableViewProps) {
-  const items = getEffectiveItems(session)
+  const [showTokens, setShowTokens] = useState(true)
+  const allItems = getEffectiveItems(session)
+  const items = showTokens
+    ? allItems
+    : allItems.filter(item => !(session.tokenizedIds.has(item.id) && !session.revertedTokenIds.has(item.id)))
   const projected = useMemo(() => projectContentTable(selectedFormat, items), [selectedFormat, items])
   const orderedPresets = useMemo(
     () => getCtaPresetDisplayOrder(getOrderedCtaPresets(PRESET_INFO)),
@@ -202,6 +224,32 @@ export function ContentTableView({
             </select>
           </div>
           <button
+            onClick={() => setShowTokens(v => !v)}
+            title={showTokens ? 'Tokens visible — click to hide' : 'Tokens hidden — click to show'}
+            style={{
+              padding: '3px 8px',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--fg-secondary)',
+              cursor: 'pointer',
+              fontSize: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px'
+            }}
+          >
+            <span style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: showTokens ? '#22c55e' : '#ef4444',
+              display: 'inline-block',
+              flexShrink: 0
+            }} />
+            Tokens
+          </button>
+          <button
             onClick={onRestart}
             title="Clear table and start over"
             style={{
@@ -229,7 +277,7 @@ export function ContentTableView({
         minHeight: 0,
         backgroundColor: '#ffffff'
       }}>
-        <table style={{ minWidth: `${tableMinWidth}px`, borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif', tableLayout: isMobilePreset ? 'fixed' : 'auto' }}>
+        <table style={{ width: '100%', minWidth: `${tableMinWidth}px`, borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'Inter, system-ui, sans-serif', tableLayout: isMobilePreset ? 'fixed' : 'auto' }}>
           {isMobilePreset && (
             <colgroup>
               {projected.columnKeys.map((key) => (
@@ -254,10 +302,12 @@ export function ContentTableView({
                     key={ci}
                     style={{
                       ...TH,
-                      width: isMobilePreset ? `${mobileColWidth(projected.columnKeys[ci] || '')}px` : undefined,
+                      width: isMobilePreset
+                        ? `${mobileColWidth(projected.columnKeys[ci] || '')}px`
+                        : (projected.columnKeys[ci] === 'content' ? '100%' : undefined),
                       minWidth: isMobilePreset
                         ? `${mobileColWidth(projected.columnKeys[ci] || '')}px`
-                        : (projected.columnKeys[ci] === 'content' ? '200px' : '80px'),
+                        : (projected.columnKeys[ci] === 'content' ? '160px' : '80px'),
                       maxWidth: isMobilePreset ? `${mobileColWidth(projected.columnKeys[ci] || '')}px` : undefined,
                       whiteSpace: isMobilePreset ? 'normal' : TH.whiteSpace,
                       overflowWrap: isMobilePreset ? 'anywhere' : undefined,
@@ -403,6 +453,39 @@ export function ContentTableView({
                       const fieldKey = editableFieldMap[colKey]
                       if (fieldKey) {
                         const curVal = fieldKey === 'content' ? item.content.value : (item[fieldKey] as string || '')
+                        if (fieldKey === 'content') {
+                          return (
+                            <td key={colKey} style={{ ...TD, verticalAlign: 'top', padding: TD.padding }}>
+                              <textarea
+                                defaultValue={curVal}
+                                onBlur={(e) => {
+                                  const v = e.currentTarget.value
+                                  if (v !== curVal) onSessionChange(applyEdit(session, item.id, fieldKey, v))
+                                }}
+                                style={{
+                                  ...CELL_INPUT,
+                                  resize: 'none',
+                                  overflowY: 'hidden',
+                                  minHeight: '20px',
+                                  lineHeight: '1.45',
+                                  overflowWrap: 'anywhere',
+                                  whiteSpace: 'pre-wrap',
+                                  display: 'block'
+                                }}
+                                ref={(el: HTMLTextAreaElement | null) => {
+                                  if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
+                                }}
+                                onInput={(e) => {
+                                  const el = e.currentTarget as HTMLTextAreaElement
+                                  el.style.height = 'auto'
+                                  el.style.height = `${el.scrollHeight}px`
+                                }}
+                                onFocus={(e) => { e.currentTarget.style.borderColor = '#0d99ff'; e.currentTarget.style.backgroundColor = '#fff' }}
+                                onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent' }}
+                              />
+                            </td>
+                          )
+                        }
                         return (
                           <td key={colKey} style={TD}>
                             <input
@@ -452,11 +535,25 @@ export function ContentTableView({
         >
           {CTA_ACTION_LABELS.appendSelection}
         </button>
-        <button onClick={onViewOnStage} style={actionBtnStyle(false)}>
+        <button onClick={() => onViewOnStage(items)} style={actionBtnStyle(false)}>
           {CTA_ACTION_LABELS.viewOnStage}
         </button>
-        <button onClick={onCopyToClipboard} disabled={isCopying} style={actionBtnStyle(isCopying)}>
-          {isCopying ? 'Copying...' : 'Copy to Clipboard'}
+        <button
+          onClick={() => onCopyToClipboard(items)}
+          disabled={isCopying}
+          style={{ ...actionBtnStyle(isCopying), display: 'flex', alignItems: 'center', gap: '5px' }}
+        >
+          <CopyIcon width={12} height={12} />
+          {isCopying ? 'Copying...' : 'Table'}
+        </button>
+        <button
+          onClick={() => onCopyRowsToClipboard(items)}
+          disabled={isCopying}
+          title="Copy data rows only (no header)"
+          style={{ ...actionBtnStyle(isCopying), display: 'flex', alignItems: 'center', gap: '5px' }}
+        >
+          <CopyIcon width={12} height={12} />
+          {isCopying ? 'Copying...' : 'Rows'}
         </button>
       </div>
     </div>

@@ -162,9 +162,9 @@ export const customConfig: CustomConfig | null = {
     },
     "provider": "proxy",
     "proxy": {
-      "baseUrl": "http://127.0.0.1:8787",
+      "baseUrl": "",
       "defaultModel": "gpt-4.1-mini",
-      "sharedToken": "some-long-random-token"
+      "sharedToken": ""
     },
     "safety": {
       "forceNoImages": false,
@@ -176,13 +176,8 @@ export const customConfig: CustomConfig | null = {
   },
   "knowledgeBases": {},
   "networkAccess": {
-    "baseAllowedDomains": [
-      "https://api.openai.com"
-    ],
-    "extraAllowedDomains": [
-      "http://localhost:8787",
-      "https://overobedient-buddy-leathern.ngrok-free.dev"
-    ]
+    "baseAllowedDomains": [],
+    "extraAllowedDomains": []
   },
   "resources": {
     "credits": {

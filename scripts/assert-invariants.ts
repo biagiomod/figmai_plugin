@@ -25,6 +25,23 @@ const ALLOWED_DOMAINS_BLOCKLIST = new Set([
   'sentry.io',
   'datadoghq.com'
 ])
+
+/**
+ * Private-mode domain blocklist: patterns forbidden in any private/enterprise build.
+ * Activated when BUILD_ENV=private (or BUILD_ENV=work for backward compatibility).
+ * These are public/dev-only services that must never appear in an enterprise deployment.
+ */
+const PRIVATE_MODE_DOMAIN_BLOCKLIST: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /openai\.com$/i, label: 'openai.com (public LLM service)' },
+  { pattern: /ngrok[-.]/, label: 'ngrok (public tunnel service)' },
+  { pattern: /ngrok-free\.(app|dev)$/i, label: 'ngrok free tunnel' },
+  { pattern: /^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|::1)$/i, label: 'localhost / loopback address' }
+]
+
+/** True when running a private/enterprise build. Accepts BUILD_ENV=private or BUILD_ENV=work (alias). */
+const IS_PRIVATE_MODE = ['private', 'work'].includes(
+  (process.env['BUILD_ENV'] || '').toLowerCase()
+)
 const SELECTION_CONTEXT_TS = path.join(SRC, 'core', 'context', 'selectionContext.ts')
 const ASSISTANTS_INDEX_TS = path.join(SRC, 'assistants', 'index.ts')
 const HANDLERS_INDEX_TS = path.join(SRC, 'core', 'assistants', 'handlers', 'index.ts')
@@ -175,6 +192,113 @@ function main(): void {
       }
     }
     console.log('[assert-invariants] Allowed domains blocklist: pass')
+  }
+
+  // 7) Private-mode domain audit — fails if BUILD_ENV=private (or BUILD_ENV=work) and any public/dev domain is present.
+  // Run standalone: npm run audit:private
+  if (IS_PRIVATE_MODE) {
+    const manifestPath = fs.existsSync(MANIFEST_BUILD) ? MANIFEST_BUILD : MANIFEST_ROOT
+    const manifest = fs.existsSync(manifestPath)
+      ? (JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>)
+      : {}
+    const config = fs.existsSync(CONFIG_JSON)
+      ? (JSON.parse(fs.readFileSync(CONFIG_JSON, 'utf8')) as Record<string, unknown>)
+      : {}
+
+    // Collect all origins from manifest + every config URL field
+    const privateCheckEntries: Array<{ raw: string; source: string }> = []
+
+    const manifestDomains = manifest?.networkAccess && typeof manifest.networkAccess === 'object' && Array.isArray((manifest.networkAccess as Record<string, unknown>).allowedDomains)
+      ? ((manifest.networkAccess as Record<string, unknown>).allowedDomains as string[])
+      : []
+    for (const d of manifestDomains) privateCheckEntries.push({ raw: String(d ?? '').trim(), source: 'manifest.networkAccess.allowedDomains' })
+
+    const llm = config?.llm && typeof config.llm === 'object' ? (config.llm as Record<string, unknown>) : {}
+    if (typeof llm.endpoint === 'string' && (llm.endpoint as string).trim()) {
+      privateCheckEntries.push({ raw: (llm.endpoint as string).trim(), source: 'config.llm.endpoint' })
+    }
+    const proxy = llm?.proxy && typeof llm.proxy === 'object' ? (llm.proxy as Record<string, unknown>) : {}
+    if (typeof proxy.baseUrl === 'string' && (proxy.baseUrl as string).trim()) {
+      privateCheckEntries.push({ raw: (proxy.baseUrl as string).trim(), source: 'config.llm.proxy.baseUrl' })
+    }
+    const net = config?.networkAccess && typeof config.networkAccess === 'object' ? (config.networkAccess as Record<string, unknown>) : {}
+    for (const d of [...(Array.isArray(net.baseAllowedDomains) ? net.baseAllowedDomains as string[] : []), ...(Array.isArray(net.extraAllowedDomains) ? net.extraAllowedDomains as string[] : [])]) {
+      privateCheckEntries.push({ raw: String(d ?? '').trim(), source: 'config.networkAccess' })
+    }
+    const analytics = config?.analytics && typeof config.analytics === 'object' ? (config.analytics as Record<string, unknown>) : {}
+    if (analytics.enabled === true && typeof analytics.endpointUrl === 'string' && (analytics.endpointUrl as string).trim()) {
+      privateCheckEntries.push({ raw: (analytics.endpointUrl as string).trim(), source: 'config.analytics.endpointUrl' })
+    }
+
+    for (const { raw, source } of privateCheckEntries) {
+      if (!raw) continue
+      let hostname = raw
+      try { hostname = new URL(raw).hostname.toLowerCase() } catch { /* use raw as-is */ }
+      for (const { pattern, label } of PRIVATE_MODE_DOMAIN_BLOCKLIST) {
+        if (pattern.test(hostname)) {
+          fail(
+            `[PRIVATE MODE] Forbidden public/dev domain in ${source}: "${raw}" matches "${label}". ` +
+            'Private builds must not include public LLM, tunnel, or loopback origins. ' +
+            'Ensure your S3 config (or custom/config.json) uses only internal enterprise endpoints.'
+          )
+        }
+      }
+    }
+
+    // Enforce internal-api provider for private builds
+    if (typeof llm.provider === 'string' && llm.provider !== 'internal-api') {
+      fail(
+        `[PRIVATE MODE] config.llm.provider is "${llm.provider}" but private builds must use "internal-api". ` +
+        'Set config.llm.provider to "internal-api" and configure config.llm.endpoint.'
+      )
+    }
+    if (!llm.provider) {
+      fail(
+        '[PRIVATE MODE] config.llm.provider is not set. Private builds must explicitly set config.llm.provider to "internal-api".'
+      )
+    }
+    if (!llm.endpoint || (typeof llm.endpoint === 'string' && !(llm.endpoint as string).trim())) {
+      fail(
+        '[PRIVATE MODE] config.llm.endpoint is empty. Private builds must configure a valid internal LLM endpoint.'
+      )
+    }
+
+    // Warn (do not fail) if resources.links still point to public Figma community or
+    // other non-internal URLs. These are display-only links in the plugin UI, not
+    // outbound network domains, so they don't pose a security risk — but they would
+    // look anomalous in an enterprise review if they reference the public plugin listing.
+    const resources = config?.resources && typeof config.resources === 'object'
+      ? (config.resources as Record<string, unknown>)
+      : {}
+    const links = resources?.links && typeof resources.links === 'object'
+      ? (resources.links as Record<string, unknown>)
+      : {}
+    const PUBLIC_LINK_PATTERNS = [
+      /figma\.com\/community/i,
+      /figma\.com\/plugins/i
+    ]
+    const linkWarnings: string[] = []
+    for (const [key, entry] of Object.entries(links)) {
+      const url = typeof entry === 'object' && entry !== null && 'url' in entry
+        ? String((entry as Record<string, unknown>).url ?? '')
+        : ''
+      if (!url.trim()) continue
+      for (const pat of PUBLIC_LINK_PATTERNS) {
+        if (pat.test(url)) {
+          linkWarnings.push(`resources.links.${key}.url = "${url}" — replace with an internal URL for private builds`)
+        }
+      }
+    }
+    if (linkWarnings.length > 0) {
+      console.warn('[assert-invariants] PRIVATE MODE WARNING — public display link(s) in config:')
+      for (const w of linkWarnings) console.warn(`  ⚠  ${w}`)
+      console.warn(
+        '[assert-invariants]   These links appear in the plugin UI "About" panel. ' +
+        'They do not affect network access or security, but override them in your private/work S3 config with internal URLs.'
+      )
+    }
+
+    console.log('[assert-invariants] Private-mode domain audit: pass')
   }
 
   console.log('[assert-invariants] All invariants passed.')

@@ -119,26 +119,28 @@ To ensure only custom registries load (prevent example DS activation):
 
 ### Network Access (Figma allowedDomains)
 
-Network allowlists are also configured via `custom/config.json`:
+Network allowlists are configured via `custom/config.json`. The committed baseline ships with **empty arrays** (clean, no public domains):
 
 ```jsonc
 {
   "networkAccess": {
-    "baseAllowedDomains": [
-      "https://api.openai.com"
-    ],
-    "extraAllowedDomains": [
-      "http://localhost:8787",
-      "https://overobedient-buddy-leathern.ngrok-free.dev"
-    ]
+    "baseAllowedDomains": [],
+    "extraAllowedDomains": []
   }
 }
 ```
 
-- `baseAllowedDomains` (string[]): Baseline domains that are acceptable in all builds (public-safe). In the public repo, this defaults to `["https://api.openai.com"]` so the plugin works out of the box.
-- `extraAllowedDomains` (string[]): Additional domains used only in custom or development builds (for example, ngrok tunnels or localhost proxies). In the public repo, this defaults to `["http://localhost:8787", "https://overobedient-buddy-leathern.ngrok-free.dev"]` for local and tunnel-based development.
+- `baseAllowedDomains` (string[]): Baseline domains merged first. For enterprise/private builds, set your internal LLM endpoint origin here (e.g. `"https://your-internal-llm.example.com"`).
+- `extraAllowedDomains` (string[]): Additional domains merged second. Typically used for development tunnels (ngrok, localhost). **For personal local dev, put these in `custom/config.local.json` (gitignored) rather than in `config.json` so they are never committed.**
 
-At build time, the script `scripts/update-manifest-network-access.ts` merges these arrays and updates `manifest.json.networkAccess.allowedDomains`. Figma then enforces this allowlist at runtime.
+At build time, `scripts/update-manifest-network-access.ts` merges domains from `config.json` and (in non-private builds) `config.local.json`, deduplicates, and writes the result to `manifest.json.networkAccess.allowedDomains`. Figma enforces this allowlist at runtime.
+
+**Three-tier model:**
+- `custom/config.json` — committed baseline: always clean (empty `networkAccess` arrays, no credentials)
+- `custom/config.local.json` — gitignored personal dev overrides: put your OpenAI/localhost/ngrok domains here; copy from `config.local.example.json`
+- S3 snapshot (private builds) — overwrites `config.json` before build with your internal endpoints
+
+See `docs/security-audit.md` for full local setup and private-build instructions.
 
 #### Build vs Watch
 - `npm run build`: Generates the overlay, builds the plugin, then patches `manifest.json` with the merged, validated domains.
@@ -192,7 +194,7 @@ When updating the plugin:
 
 - **Public repo:** Ships placeholder files (`config.json` with empty/default values, `knowledge/*.md` with placeholder content)
 - **Custom repo:** Edit the placeholder files directly and commit them with your custom content
-- **No gitignore needed:** All files are tracked - edit and commit as needed
+- **Most files are tracked.** Exception: `custom/config.local.json` is **gitignored** by design — it holds personal/dev domain overrides and must never be committed. Copy it from `config.local.example.json` as a one-time local setup step.
 - **Security:** ⚠️ **Do not commit secrets** (API keys, tokens) in `config.json`. Use environment variables or secure storage instead.
 
 ## Troubleshooting

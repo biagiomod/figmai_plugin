@@ -50,7 +50,7 @@ src/assistants/
   _registry.generated.ts                       ← NEW: assembled from all .generated.ts
 
 CODEOWNERS                                     ← NEW: enforces per-directory ownership
-docs/ASSISTANT_SDK.md                          ← NEW: SDK documentation for Strike Teams
+docs/assistant-sdk.md                          ← NEW: SDK documentation for Strike Teams
 ```
 
 ### Config structure (custom/)
@@ -390,7 +390,7 @@ Evergreens is the migration target since its handler already exists and implemen
 - API middleware applies scoping filter on every protected route
 
 **Step 7 — Documentation:**
-- `docs/ASSISTANT_SDK.md` — Strike Team onboarding guide
+- `docs/assistant-sdk.md` — Strike Team onboarding guide
 - `CODEOWNERS` file created
 
 ---

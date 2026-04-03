@@ -19,16 +19,14 @@
 
 ## Source of truth
 Before making architectural or cross-cutting changes, check these docs first:
-- `SSOT.md`
-- `ARCHITECTURE.md`
-- `DECISIONS.md`
-- `RUNBOOK.md`
-- `KB_AND_ASSISTANTS.md`
-- `PROJECT_CONTEXT_FROM_CHATGPT.md`
-- `Cursor Agent Selection.md`
+- `docs/README.md` — documentation index and authority map
+- `docs/01-getting-started.md` — architecture overview, entry points, and key patterns
+- `docs/invariants.md` — hard guardrails that must not be broken
+- `src/assistants/assistants.md` — canonical live assistant registry (what is running, what files matter)
+- `docs/architecture/ace-static-s3-migration.md` — ACE / Config API / S3 architecture authority
 
 ## Working style
-- Keep s minimal, explicit, and reversible.
+- Keep changes minimal, explicit, and reversible.
 - Prefer fixing root causes over adding patches.
 - Do not edit generated files manually unless explicitly instructed.
 - When changing architecture, config flow, assistants, KB flow, or prompt assembly, stop and verify the change against the docs above.

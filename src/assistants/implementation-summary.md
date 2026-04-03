@@ -1,5 +1,9 @@
 # Assistant Implementation Summary
 
+> **Historical delivery record.** This document was written at a specific sprint completion point and reflects the state at that time. Markers like `⭐ NEW` and `✨ ENHANCED` describe what was new *then*, not what is current today.
+>
+> For the current live assistant roster, file paths, and implementation status, see **[assistants.md](./assistants.md)**.
+
 ## Overview
 
 This document summarizes the Assistant design and implementation for the FigmAI plugin. All Assistants have been designed with clear purposes, structured knowledge bases, and predictable outputs.
@@ -9,7 +13,7 @@ This document summarizes the Assistant design and implementation for the FigmAI 
 ## Completed Work
 
 ### 1. Design Specification
-✅ Created comprehensive design specification document (`ASSISTANT_DESIGN.md`)
+✅ Created comprehensive design specification document (`assistant-design.md`)
 - Defined assistant architecture and core principles
 - Cataloged all 9 assistants with purposes, audiences, and boundaries
 - Specified Quick Action design rules
@@ -149,8 +153,8 @@ This document summarizes the Assistant design and implementation for the FigmAI 
 
 ```
 src/assistants/
-├── ASSISTANT_DESIGN.md          # Design specification
-├── IMPLEMENTATION_SUMMARY.md     # This file
+├── assistant-design.md          # Design specification
+├── implementation-summary.md     # This file
 ├── index.ts                      # Assistant registry
 ├── general.md                    # General Assistant knowledge base
 ├── designCritique.md             # Design Critique knowledge base

@@ -98,7 +98,9 @@ export function getConfigProxySettings(): {
   sharedToken?: string
 } | undefined {
   const proxy = customConfig?.llm?.proxy
-  if (!proxy || typeof proxy.baseUrl !== 'string') return undefined
+  // Return undefined when baseUrl is absent or empty so that clientStorage (Settings UI)
+  // is used as the authoritative source instead of overriding it with a blank value.
+  if (!proxy || typeof proxy.baseUrl !== 'string' || !proxy.baseUrl.trim()) return undefined
   return {
     baseUrl: proxy.baseUrl,
     defaultModel: typeof proxy.defaultModel === 'string' ? proxy.defaultModel : undefined,

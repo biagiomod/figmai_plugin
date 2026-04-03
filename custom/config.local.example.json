@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Personal / local-machine dev overrides. Copy this file to config.local.json (gitignored).",
+    "config.local.json is NEVER committed and NEVER included in private builds (BUILD_ENV=private ignores it).",
+    "",
+    "WHAT GOES HERE:",
+    "  networkAccess — domains that must be allowed in manifest.json for your local dev setup.",
+    "  These are merged over config.json at build time and written to manifest.json.",
+    "",
+    "WHAT DOES NOT GO HERE:",
+    "  Proxy URL and token — configure those once via the plugin Settings UI.",
+    "  They are stored in Figma clientStorage and persist between sessions.",
+    "  If you set llm.proxy.baseUrl here it will be baked into your local build bundle,",
+    "  but it is safer and simpler to use the Settings UI.",
+    "",
+    "SETUP (one-time):",
+    "  1. cp custom/config.local.example.json custom/config.local.json",
+    "  2. Edit config.local.json with your actual ngrok URL if it changes.",
+    "  3. npm run build  (generates manifest.json with your local domains)",
+    "  4. In Figma: load plugin from manifest.json, open Settings, enter proxy URL + token."
+  ],
+  "networkAccess": {
+    "baseAllowedDomains": ["https://api.openai.com"],
+    "extraAllowedDomains": [
+      "http://localhost:8787",
+      "https://overobedient-buddy-leathern.ngrok-free.dev"
+    ]
+  }
+}
