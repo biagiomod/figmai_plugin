@@ -11,9 +11,11 @@ import { placeBatchBelowPageContent } from '../figma/placement'
 import { getNuxtDemoAllowlist } from '../designSystem/nuxtDsRegistry'
 import { createInstanceOnly } from '../designSystem/componentService'
 import type { NuxtDemoAllowlistEntry } from '../../custom/generated/nuxtDsCatalog.generated'
+import { JAZZ_RGB, JAZZ_RADIUS } from './jazzContext'
 
 export interface RenderDesignSpecOptions {
   useNuxtDs?: boolean
+  useJazz?: boolean
 }
 
 /**
@@ -178,11 +180,12 @@ export async function renderDesignSpecToSection(
   const fidelity = spec.render.intent.fidelity
   const intent = spec.meta?.intent
   const useNuxtDs = options?.useNuxtDs === true
+  const useJazz = options?.useJazz === true
   const nuxtAllowlist: NuxtDemoAllowlistEntry[] = useNuxtDs ? getNuxtDemoAllowlist() : []
   let usedDsFallback = false
 
   for (const screenSpec of spec.screens) {
-    const screenResult = await renderScreen(screenSpec, spec.canvas.device, fidelity, intent, useNuxtDs, nuxtAllowlist)
+    const screenResult = await renderScreen(screenSpec, spec.canvas.device, fidelity, intent, useNuxtDs, nuxtAllowlist, useJazz)
     section.appendChild(screenResult.frame)
     screens.push(screenResult.frame)
     if (screenResult.usedDsFallback) usedDsFallback = true
@@ -207,7 +210,8 @@ async function renderScreen(
   fidelity: DesignSpecV1['render']['intent']['fidelity'],
   intent?: DesignSpecV1['meta']['intent'],
   useNuxtDs?: boolean,
-  nuxtAllowlist: NuxtDemoAllowlistEntry[] = []
+  nuxtAllowlist: NuxtDemoAllowlistEntry[] = [],
+  useJazz?: boolean
 ): Promise<{ frame: FrameNode, usedDsFallback: boolean }> {
   const screenFrame = figma.createFrame()
   screenFrame.name = screenSpec.name || 'Screen'
@@ -253,12 +257,12 @@ async function renderScreen(
       }
       usedDsFallback = true
     }
-    const blockNode = await renderBlock(block, fidelity, maxWidth, intent)
+    const blockNode = await renderBlock(block, fidelity, maxWidth, intent, useJazz)
     screenFrame.appendChild(blockNode)
   }
 
   // Apply fidelity-specific styling to screen frame
-  applyFidelityStyling(screenFrame, fidelity, intent)
+  applyFidelityStyling(screenFrame, fidelity, intent, useJazz)
 
   return { frame: screenFrame, usedDsFallback }
 }
@@ -307,7 +311,8 @@ async function renderBlock(
   block: BlockSpec,
   fidelity: DesignSpecV1['render']['intent']['fidelity'],
   maxWidth: number,
-  intent?: DesignSpecV1['meta']['intent']
+  intent?: DesignSpecV1['meta']['intent'],
+  useJazz?: boolean
 ): Promise<SceneNode> {
   const fonts = await loadFonts()
 
@@ -316,7 +321,7 @@ async function renderBlock(
       const textNode = await createTextNode(block.text, {
         fontSize: getHeadingSize(block.level || 1, fidelity),
         fontName: fonts.bold,
-        fills: [getTextColor(fidelity)]
+        fills: [getTextColor(fidelity, useJazz)]
       })
       textNode.name = `Heading ${block.level || 1}`
       textNode.resize(maxWidth, textNode.height)
@@ -327,7 +332,7 @@ async function renderBlock(
       const textNode = await createTextNode(block.text, {
         fontSize: getBodyTextSize(fidelity),
         fontName: fonts.regular,
-        fills: [getTextColor(fidelity)]
+        fills: [getTextColor(fidelity, useJazz)]
       })
       textNode.name = 'Body Text'
       textNode.resize(maxWidth, textNode.height)
@@ -341,20 +346,20 @@ async function renderBlock(
         primaryAxisAlign: 'CENTER',
         counterAxisAlign: 'CENTER'
       })
-      
+
       const buttonText = await createTextNode(block.text, {
         fontSize: getButtonTextSize(fidelity),
         fontName: fonts.bold,
         fills: [getButtonTextColor(block.variant || 'primary', fidelity)]
       })
       buttonFrame.appendChild(buttonText)
-      
+
       // Apply button styling (use intent colors if available)
-      buttonFrame.fills = [getButtonFill(block.variant || 'primary', fidelity, intent)]
-      buttonFrame.strokes = [getButtonStroke(block.variant || 'primary', fidelity, intent)]
-      buttonFrame.cornerRadius = getCornerRadius(fidelity, intent)
+      buttonFrame.fills = [getButtonFill(block.variant || 'primary', fidelity, intent, useJazz)]
+      buttonFrame.strokes = [getButtonStroke(block.variant || 'primary', fidelity, intent, useJazz)]
+      buttonFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
       buttonFrame.effects = getButtonEffects(fidelity)
-      
+
       buttonFrame.resize(maxWidth, buttonFrame.height)
       return buttonFrame
     }
@@ -364,16 +369,16 @@ async function renderBlock(
         padding: { top: 12, right: 16, bottom: 12, left: 16 },
         gap: 4
       })
-      
+
       if (block.label) {
         const labelText = await createTextNode(block.label, {
           fontSize: 12,
           fontName: fonts.regular,
-          fills: [getTextColor(fidelity)]
+          fills: [getTextColor(fidelity, useJazz)]
         })
         inputFrame.appendChild(labelText)
       }
-      
+
       const inputText = await createTextNode(block.placeholder || '', {
         fontSize: getBodyTextSize(fidelity),
         fontName: fonts.regular,
@@ -381,11 +386,11 @@ async function renderBlock(
       })
       // Note: inputType is available but not used in primitive rendering
       inputFrame.appendChild(inputText)
-      
+
       // Apply input styling
-      inputFrame.fills = [getInputFill(fidelity)]
-      inputFrame.strokes = [getInputStroke(fidelity, intent)]
-      inputFrame.cornerRadius = getCornerRadius(fidelity, intent)
+      inputFrame.fills = [getInputFill(fidelity, useJazz)]
+      inputFrame.strokes = [getInputStroke(fidelity, intent, useJazz)]
+      inputFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
       inputFrame.effects = getInputEffects(fidelity)
       
       inputFrame.resize(maxWidth, inputFrame.height)
@@ -402,22 +407,22 @@ async function renderBlock(
         const titleText = await createTextNode(block.title, {
           fontSize: getHeadingSize(2, fidelity),
           fontName: fonts.bold,
-          fills: [getTextColor(fidelity)]
+          fills: [getTextColor(fidelity, useJazz)]
         })
         cardFrame.appendChild(titleText)
       }
-      
+
       const contentText = await createTextNode(block.content, {
         fontSize: getBodyTextSize(fidelity),
         fontName: fonts.regular,
-        fills: [getTextColor(fidelity)]
+        fills: [getTextColor(fidelity, useJazz)]
       })
       cardFrame.appendChild(contentText)
-      
+
       // Apply card styling
-      cardFrame.fills = [getCardFill(fidelity)]
-      cardFrame.strokes = [getCardStroke(fidelity, intent)]
-      cardFrame.cornerRadius = getCornerRadius(fidelity, intent)
+      cardFrame.fills = [getCardFill(fidelity, useJazz)]
+      cardFrame.strokes = [getCardStroke(fidelity, intent, useJazz)]
+      cardFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
       cardFrame.effects = getCardEffects(fidelity)
       
       cardFrame.resize(maxWidth, cardFrame.height)
@@ -522,7 +527,22 @@ function calculateSectionPlacement(section: FrameNode): { x: number; y: number }
 /**
  * Apply fidelity-specific styling to screen frame
  */
-function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): void {
+function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): void {
+  if (useJazz) {
+    frame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
+    frame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border, opacity: 1 }]
+    frame.strokeWeight = 1
+    frame.cornerRadius = JAZZ_RADIUS
+    frame.effects = [{
+      type: 'DROP_SHADOW',
+      color: { r: 0, g: 0, b: 0, a: 0.08 },
+      offset: { x: 0, y: 2 },
+      radius: 6,
+      visible: true,
+      blendMode: 'NORMAL'
+    }]
+    return
+  }
   switch (fidelity) {
     case 'wireframe':
       frame.fills = [{ type: 'SOLID', color: { r: 0.88, g: 0.88, b: 0.88 } }] // #E0E0E0
@@ -645,7 +665,8 @@ function getButtonTextSize(fidelity: DesignSpecV1['render']['intent']['fidelity'
   }
 }
 
-function getTextColor(fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getTextColor(fidelity: DesignSpecV1['render']['intent']['fidelity'], useJazz?: boolean): Paint {
+  if (useJazz) return { type: 'SOLID', color: JAZZ_RGB.text }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } } // #666666
@@ -658,7 +679,12 @@ function getTextColor(fidelity: DesignSpecV1['render']['intent']['fidelity']): P
   }
 }
 
-function getButtonFill(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+function getButtonFill(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): Paint {
+  if (useJazz) {
+    if (variant === 'primary') return { type: 'SOLID', color: JAZZ_RGB.cta }        // #128842 green CTA
+    if (variant === 'secondary') return { type: 'SOLID', color: JAZZ_RGB.surface0 } // white fill, bordered
+    return { type: 'SOLID', color: JAZZ_RGB.surface0 }
+  }
   // Use intent primary color if available and variant is primary
   if (variant === 'primary' && intent?.primaryColor) {
     const color = parseColor(intent.primaryColor)
@@ -716,7 +742,12 @@ function getButtonTextColor(variant: 'primary' | 'secondary' | 'tertiary', fidel
   }
 }
 
-function getButtonStroke(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+function getButtonStroke(variant: 'primary' | 'secondary' | 'tertiary', fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): Paint {
+  if (useJazz) {
+    if (variant === 'primary') return { type: 'SOLID', color: JAZZ_RGB.cta, opacity: 0 }     // green, no extra stroke
+    if (variant === 'secondary') return { type: 'SOLID', color: JAZZ_RGB.primary, opacity: 1 } // #005EB8 border
+    return { type: 'SOLID', color: JAZZ_RGB.border, opacity: 1 }
+  }
   // Use intent primary color for stroke if available and variant is primary
   if (variant === 'primary' && intent?.primaryColor) {
     const color = parseColor(intent.primaryColor)
@@ -774,7 +805,8 @@ function getButtonEffects(fidelity: DesignSpecV1['render']['intent']['fidelity']
   }
 }
 
-function getInputFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getInputFill(fidelity: DesignSpecV1['render']['intent']['fidelity'], useJazz?: boolean): Paint {
+  if (useJazz) return { type: 'SOLID', color: JAZZ_RGB.surface0 }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } }
@@ -786,7 +818,8 @@ function getInputFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): P
   }
 }
 
-function getInputStroke(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+function getInputStroke(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): Paint {
+  if (useJazz) return { type: 'SOLID', color: JAZZ_RGB.border, opacity: 1 }
   // Use intent primary color for input stroke if available
   if (intent?.primaryColor) {
     const color = parseColor(intent.primaryColor)
@@ -833,7 +866,8 @@ function getInputEffects(fidelity: DesignSpecV1['render']['intent']['fidelity'])
   }
 }
 
-function getCardFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): Paint {
+function getCardFill(fidelity: DesignSpecV1['render']['intent']['fidelity'], useJazz?: boolean): Paint {
+  if (useJazz) return { type: 'SOLID', color: JAZZ_RGB.surface0 }
   switch (fidelity) {
     case 'wireframe':
       return { type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } }
@@ -845,7 +879,8 @@ function getCardFill(fidelity: DesignSpecV1['render']['intent']['fidelity']): Pa
   }
 }
 
-function getCardStroke(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): Paint {
+function getCardStroke(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): Paint {
+  if (useJazz) return { type: 'SOLID', color: JAZZ_RGB.border, opacity: 1 }
   // Use intent primary color for card stroke if available
   if (intent?.primaryColor) {
     const color = parseColor(intent.primaryColor)
@@ -951,7 +986,8 @@ function getPlaceholderColor(fidelity: DesignSpecV1['render']['intent']['fidelit
   }
 }
 
-function getCornerRadius(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent']): number {
+function getCornerRadius(fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): number {
+  if (useJazz) return JAZZ_RADIUS // always 4px
   let baseRadius: number
   switch (fidelity) {
     case 'wireframe':
