@@ -38,6 +38,7 @@ export class DesignWorkshopHandler implements AssistantHandler {
       actionId === 'demo-dashboard' ||
       actionId === 'demo-positions' ||
       actionId === 'demo-flow' ||
+      actionId === 'demo-exact' ||
       actionId === undefined
     )
   }
@@ -130,7 +131,7 @@ CRITICAL:
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
     const { response, provider, sendAssistantMessage, replaceStatusMessage } = context
     const demoTag = context.actionId?.startsWith('demo-')
-      ? (context.actionId.replace('demo-', '') as 'screens' | 'dashboard' | 'positions' | 'flow')
+      ? (context.actionId.replace('demo-', '') as 'screens' | 'dashboard' | 'positions' | 'flow' | 'exact')
       : null
     const isDemoMode = demoTag !== null
     const runId = `dw_${Date.now()}`

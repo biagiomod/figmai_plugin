@@ -279,13 +279,97 @@ export const FIFI_DEMO_PRESET: DesignSpecV1 = {
   screens: FIFI_FLOW_PRESET.screens.slice(0, 4)   // Welcome, Sign In, Dashboard, Positions
 }
 
+// ─── Exact reference preset ───────────────────────────────────────────────────
+// Single Portfolio screen matching FigmAI Figma reference design
+// figma.com/design/FEytUx9taoFZMjai11T8z2 node-id=28233-31104
+// Sections: account balance · metrics · chart · markets · positions ·
+//           earn promo · asset allocation · watchlist · investing insights
+
+export const FIFI_EXACT_PRESET: DesignSpecV1 = {
+  type: 'designScreens',
+  version: 1,
+  meta: {
+    title: 'FiFi FinTech — Exact',
+    userRequest: 'Portfolio summary dashboard: account balance with self-directed label, performance chart with time filters, markets overview, positions summary with tickers, earn promo card, asset allocation donut, watchlist, and investing insights section.',
+    intent: {
+      appType: 'fintech',
+      tone: 'serious',
+      keywords: ['modern', 'professional', 'enterprise'],
+      fidelity: 'hi',
+      density: 'comfortable',
+      screenArchetypes: ['dashboard']
+    }
+  },
+  canvas: MOBILE_CANVAS,
+  render: HI_FI_RENDER,
+  screens: [
+    {
+      name: 'Portfolio',
+      layout: { direction: 'vertical', padding: 0, gap: 0 },
+      blocks: [
+        // Account hero — matches "$41,917.48 · Self-Directed" at top of reference
+        { type: 'card', title: 'Account Value', content: '$41,917.48 · Self-Directed account' },
+        // 4-metric summary — Today's gain/loss, return %, cash, total invested
+        {
+          type: 'metricsGrid',
+          items: [
+            { label: "Today's Gain/Loss", value: '−$412.33', gain: false },
+            { label: "Today's Return",    value: '−0.97%',   gain: false },
+            { label: 'Cash & Money Funds', value: '$8.61' },
+            { label: 'Total Invested',    value: '$41,908.87' },
+          ]
+        },
+        // Performance chart — time-filter caption matches 1D/1M/3M/6M/1Y/5Y/ALL row
+        { type: 'chart', height: 160, caption: '1D · 1M · 3M · 6M · 1Y · 5Y · ALL' },
+        // Markets row — QQQ (red), Dow (red), S&P 500 (green)
+        { type: 'heading', text: 'Markets', level: 3 },
+        {
+          type: 'metricsGrid',
+          items: [
+            { label: 'QQQ · Nasdaq',    value: '−$48.07',  gain: false },
+            { label: 'DJI · Dow Jones', value: '−100.71', gain: false },
+            { label: 'S&P 500',         value: '+1.31',   gain: true  },
+          ]
+        },
+        // Positions summary — VGT (letter avatar), SCHW/AMD/GOOGL (brand logos)
+        { type: 'heading', text: 'Positions Summary', level: 3 },
+        { type: 'card', title: 'VGT',   content: '$33,548.42 · −2.4%' },
+        { type: 'card', title: 'SCHW',  content: '$9,596.96 · +1.1%'  },
+        { type: 'card', title: 'AMD',   content: '$4,697.43 · −0.8%'  },
+        { type: 'card', title: 'GOOGL', content: '$4,928.88 · +0.3%'  },
+        { type: 'button', text: 'See all positions', variant: 'secondary' },
+        // Earn promo card — "Earn 3.28% APY on your cash with Premium Deposit"
+        { type: 'card', title: 'EARN', content: 'Earn 3.28% APY on your cash with Premium Deposit · Learn more' },
+        // Asset allocation — equity-heavy portfolio matching the donut in reference
+        { type: 'allocation', equity: 80.1, fixedIncome: 13.5, altAssets: 6.4, total: '$41.9k' },
+        // Watchlist — ETF tickers (letter avatars); matches GLD/TLT rows in reference
+        {
+          type: 'watchlist',
+          title: 'Watchlist',
+          items: [
+            { ticker: 'GLD', price: '$237.45', change: '−0.41%', gain: false },
+            { ticker: 'TLT', price: '$91.82',  change: '+0.85%', gain: true  },
+            { ticker: 'VZ',  price: '$41.82',  change: '−0.22%', gain: false },
+          ]
+        },
+        // Investing insights section
+        { type: 'heading', text: 'Investing Insights', level: 3 },
+        { type: 'bodyText', text: 'Stay informed with curated articles on portfolio strategy, market analysis, and investment research.' },
+        // Primary CTA — matches green "Submit Feedback" button at bottom of reference
+        { type: 'button', text: 'Submit Feedback', variant: 'primary' },
+      ]
+    }
+  ]
+}
+
 // ─── Tag-based selector ──────────────────────────────────────────────────────
 
-export function getDemoPreset(tag: 'dashboard' | 'positions' | 'flow' | 'screens'): DesignSpecV1 {
+export function getDemoPreset(tag: 'dashboard' | 'positions' | 'flow' | 'screens' | 'exact'): DesignSpecV1 {
   switch (tag) {
     case 'dashboard': return FIFI_DASHBOARD_PRESET
     case 'positions': return FIFI_POSITIONS_PRESET
     case 'flow':      return FIFI_FLOW_PRESET
+    case 'exact':     return FIFI_EXACT_PRESET
     default:          return FIFI_DEMO_PRESET
   }
 }
@@ -297,6 +381,7 @@ const _presets: Array<[string, DesignSpecV1]> = [
   ['FIFI_POSITIONS_PRESET', FIFI_POSITIONS_PRESET],
   ['FIFI_FLOW_PRESET',      FIFI_FLOW_PRESET],
   ['FIFI_DEMO_PRESET',      FIFI_DEMO_PRESET],
+  ['FIFI_EXACT_PRESET',     FIFI_EXACT_PRESET],
 ]
 
 for (const [name, preset] of _presets) {

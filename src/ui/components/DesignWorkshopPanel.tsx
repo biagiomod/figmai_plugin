@@ -13,7 +13,7 @@
 import { h } from 'preact'
 import { useState, useCallback } from 'preact/hooks'
 
-type DemoTag = 'dashboard' | 'positions' | 'flow'
+type DemoTag = 'dashboard' | 'positions' | 'flow' | 'exact'
 
 interface DesignWorkshopPanelProps {
   isGenerating: boolean
@@ -30,6 +30,7 @@ const DEMO_TAGS: Array<{ key: DemoTag; label: string }> = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'positions', label: 'Positions' },
   { key: 'flow',      label: 'Flow' },
+  { key: 'exact',     label: 'Exact' },
 ]
 
 const JAZZ_BLUE    = '#005EB8'

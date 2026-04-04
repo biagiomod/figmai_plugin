@@ -427,6 +427,12 @@
           "id": "demo-flow",
           "label": "Demo: Full Flow",
           "templateMessage": "Running FiFi full 5-screen flow."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-exact",
+          "label": "Demo: Exact",
+          "templateMessage": "Running FiFi exact reference portfolio screen."
         }
       ],
       "tag": {
