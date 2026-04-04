@@ -1646,21 +1646,6 @@ on<CopyTableStatusHandler>('COPY_TABLE_STATUS', function (status: 'success' | 'e
 
 // Initialize plugin
 export default function () {
-  // --- Ingest fetch tracer (dev-safe): log if any code tries to hit debug ingest ---
-  if (typeof globalThis.fetch === 'function') {
-    const _origFetch = globalThis.fetch
-    globalThis.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-      const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : (input && typeof input === 'object' && 'href' in input ? (input as URL).href : ''))
-      const isIngest = typeof url === 'string' && (
-        (url.includes('127.0.0.1') && url.includes('7242')) || url.includes('/ingest')
-      )
-      if (isIngest) {
-        console.error('[BLOCKED_DEBUG_INGEST] fetch attempted (main)', { url, init })
-        console.error(new Error('[BLOCKED_DEBUG_INGEST] stack').stack)
-      }
-      return _origFetch.call(globalThis, input as RequestInfo, init)
-    }
-  }
   console.log('[BUILD_ID]', { version: BUILD_VERSION, builtAt: BUILT_AT })
 
   // Track plugin open

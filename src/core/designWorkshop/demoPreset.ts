@@ -307,8 +307,8 @@ export const FIFI_EXACT_PRESET: DesignSpecV1 = {
       name: 'Portfolio',
       layout: { direction: 'vertical', padding: 0, gap: 0 },
       blocks: [
-        // Account hero — matches "$41,917.48 · Self-Directed" at top of reference
-        { type: 'card', title: 'Account Value', content: '$41,917.48 · Self-Directed account' },
+        // Account hero — matches "$91,917.48 · Self-Directed" at top of reference
+        { type: 'card', title: 'Account Value', content: '$91,917.48 · Self-Directed account' },
         // 4-metric summary — Today's gain/loss, return %, cash, total invested
         {
           type: 'metricsGrid',
@@ -316,45 +316,47 @@ export const FIFI_EXACT_PRESET: DesignSpecV1 = {
             { label: "Today's Gain/Loss", value: '−$412.33', gain: false },
             { label: "Today's Return",    value: '−0.97%',   gain: false },
             { label: 'Cash & Money Funds', value: '$8.61' },
-            { label: 'Total Invested',    value: '$41,908.87' },
+            { label: 'Total Invested',    value: '$91,908.87' },
           ]
         },
-        // Performance chart — time-filter caption matches 1D/1M/3M/6M/1Y/5Y/ALL row
-        { type: 'chart', height: 160, caption: '1D · 1M · 3M · 6M · 1Y · 5Y · ALL' },
-        // Markets row — QQQ (red), Dow (red), S&P 500 (green)
+        // Performance chart — time-filter caption matches YTD/1M/3M/1Y row in reference
+        { type: 'chart', height: 160, caption: 'YTD · 1M · 3M · 1Y' },
+        // Markets row — indices with changes
         { type: 'heading', text: 'Markets', level: 3 },
         {
           type: 'metricsGrid',
           items: [
-            { label: 'QQQ · Nasdaq',    value: '−$48.07',  gain: false },
-            { label: 'DJI · Dow Jones', value: '−100.71', gain: false },
-            { label: 'S&P 500',         value: '+1.31',   gain: true  },
+            { label: 'DJIA',    value: '46,508.67 −0.13%', gain: false },
+            { label: 'NASDAQ',  value: '21,879.18 −0.18%', gain: false },
+            { label: 'S&P 500', value: '6,582.69 +0.11%',  gain: true  },
           ]
         },
-        // Positions summary — VGT (letter avatar), SCHW/AMD/GOOGL (brand logos)
+        // Positions summary — bond-heavy ETFs matching reference
         { type: 'heading', text: 'Positions Summary', level: 3 },
-        { type: 'card', title: 'VGT',   content: '$33,548.42 · −2.4%' },
-        { type: 'card', title: 'SCHW',  content: '$9,596.96 · +1.1%'  },
-        { type: 'card', title: 'AMD',   content: '$4,697.43 · −0.8%'  },
-        { type: 'card', title: 'GOOGL', content: '$4,928.88 · +0.3%'  },
+        { type: 'card', title: 'VCSH',  content: '$33,948.42 · fixed income' },
+        { type: 'card', title: 'BND',   content: '$23,237.78 · fixed income' },
+        { type: 'card', title: 'SCHW',  content: '$10,888.43 · equity'       },
+        { type: 'card', title: 'SGOV',  content: '$8,588.98 · cash equiv.'   },
+        { type: 'card', title: 'GLDM',  content: '$4,928.08 · alt assets'    },
         { type: 'button', text: 'See all positions', variant: 'secondary' },
-        // Earn promo card — "Earn 3.28% APY on your cash with Premium Deposit"
-        { type: 'card', title: 'EARN', content: 'Earn 3.28% APY on your cash with Premium Deposit · Learn more' },
-        // Asset allocation — equity-heavy portfolio matching the donut in reference
-        { type: 'allocation', equity: 80.1, fixedIncome: 13.5, altAssets: 6.4, total: '$41.9k' },
-        // Watchlist — ETF tickers (letter avatars); matches GLD/TLT rows in reference
+        // Earn promo — 3.00% APY matches reference
+        { type: 'card', title: 'EARN', content: 'Earn 3.00% APY on your cash with Premium Deposit · Learn more', variant: 'promo' },
+        // Asset allocation — bond-heavy matching reference (72% fixed income)
+        { type: 'allocation', equity: 22.15, fixedIncome: 72.49, altAssets: 5.36, total: '$91.9k' },
+        // Watchlist — defensive ETFs matching reference rows
         {
           type: 'watchlist',
           title: 'Watchlist',
           items: [
-            { ticker: 'GLD', price: '$237.45', change: '−0.41%', gain: false },
-            { ticker: 'TLT', price: '$91.82',  change: '+0.85%', gain: true  },
-            { ticker: 'VZ',  price: '$41.82',  change: '−0.22%', gain: false },
+            { ticker: 'SPLV', price: '$74.12',  change: '+0.18%', gain: true  },
+            { ticker: 'TLT',  price: '$91.82',  change: '+0.85%', gain: true  },
+            { ticker: 'VIG',  price: '$193.45', change: '+0.22%', gain: true  },
+            { ticker: 'IDU',  price: '$112.33', change: '−0.41%', gain: false },
+            { ticker: 'VPU',  price: '$163.18', change: '−0.14%', gain: false },
           ]
         },
-        // Investing insights section
-        { type: 'heading', text: 'Investing Insights', level: 3 },
-        { type: 'bodyText', text: 'Stay informed with curated articles on portfolio strategy, market analysis, and investment research.' },
+        // Investing insights dark section
+        { type: 'darkSection', title: 'Investing Insights', body: 'Stay informed with curated articles on portfolio strategy, market analysis, and investment research.' },
         // Primary CTA — matches green "Submit Feedback" button at bottom of reference
         { type: 'button', text: 'Submit Feedback', variant: 'primary' },
       ]
@@ -365,13 +367,16 @@ export const FIFI_EXACT_PRESET: DesignSpecV1 = {
 // ─── Tag-based selector ──────────────────────────────────────────────────────
 
 export function getDemoPreset(tag: 'dashboard' | 'positions' | 'flow' | 'screens' | 'exact'): DesignSpecV1 {
-  switch (tag) {
-    case 'dashboard': return FIFI_DASHBOARD_PRESET
-    case 'positions': return FIFI_POSITIONS_PRESET
-    case 'flow':      return FIFI_FLOW_PRESET
-    case 'exact':     return FIFI_EXACT_PRESET
-    default:          return FIFI_DEMO_PRESET
-  }
+  const selected = (() => {
+    switch (tag) {
+      case 'dashboard': return FIFI_DASHBOARD_PRESET
+      case 'positions': return FIFI_POSITIONS_PRESET
+      case 'flow':      return FIFI_FLOW_PRESET
+      case 'exact':     return FIFI_EXACT_PRESET
+      default:          return FIFI_DEMO_PRESET
+    }
+  })()
+  return selected
 }
 
 // ─── Build-time validation — throws if any constant is malformed ─────────────

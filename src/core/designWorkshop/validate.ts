@@ -245,6 +245,15 @@ export function validateDesignSpecV1(spec: unknown): ValidationResult {
           }
           break
         }
+        case 'darkSection': {
+          if (typeof blockObj.title !== 'string') {
+            errors.push(`screens[${index}].blocks[${blockIndex}].title is missing or invalid`)
+          }
+          if (typeof blockObj.body !== 'string') {
+            errors.push(`screens[${index}].blocks[${blockIndex}].body is missing or invalid`)
+          }
+          break
+        }
         default:
           errors.push(`screens[${index}].blocks[${blockIndex}].type is invalid or unsupported: ${blockType}`)
       }

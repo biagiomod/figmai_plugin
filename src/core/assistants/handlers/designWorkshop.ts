@@ -140,7 +140,8 @@ CRITICAL:
     if (isDemoMode) {
       try {
         context.updateStatusStep?.('Loading demo preset...')
-        const normalized = normalizeDesignSpecV1(getDemoPreset(demoTag!))
+        const preset = getDemoPreset(demoTag!)
+        const normalized = normalizeDesignSpecV1(preset)
         context.updateStatusStep?.('Rendering to canvas...')
         const renderResult = await renderDesignSpecToSection(normalized, runId, {
           useNuxtDs: false,

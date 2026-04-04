@@ -54,6 +54,25 @@ Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figm
 | **L — Errors assistant (post-demo bugs)** | L1 | GROUP selection → sub-screen duplication | [BL-042](#bl-042) |
 | | L2 | Intermittent "not a function" on Quick Action | [BL-043](#bl-043) |
 | **M — Scanning & enrichment** | M1 | Smart Detector as canonical scan enrichment layer | [BL-050](#bl-050) |
+| **N — Code architecture** | N1 | `main.ts` monolith extraction | [BL-051](#bl-051) |
+| | N2 | `ui.tsx` monolith extraction | [BL-052](#bl-052) |
+| **O — Testing & CI** | O1 | Wire excluded test files into `npm test` | [BL-054](#bl-054) |
+| | O2 | Adopt test framework + coverage | [BL-055](#bl-055) |
+| | O3 | Provider routing integration tests | [BL-056](#bl-056) |
+| **P — Infrastructure** | P1 | Lambda API convergence | [BL-053](#bl-053) |
+| | P2 | Lambda Node.js 22 + ARM64 upgrade | [BL-059](#bl-059) |
+| | P3 | Upgrade `@figma/plugin-typings` | [BL-060](#bl-060) |
+| | P4 | Archive deprecated Spring wrapper | [BL-065](#bl-065) |
+| **Q — Documentation hygiene** | Q1 | Knowledge system guide | [BL-057](#bl-057) |
+| | Q2 | Archive or update ASSISTANT_DESIGN.md | [BL-058](#bl-058) |
+| | Q3 | Build pipeline + watch-mode documentation | [BL-064](#bl-064) |
+| | Q4 | Standardize error handling patterns | [BL-061](#bl-061) |
+| | Q5 | Fix README React→Preact reference | [BL-066](#bl-066) |
+| | Q6 | Fix invariants.md authority link | [BL-069](#bl-069) |
+| **R — Technology opportunities** | R1 | FigmAI MCP server for external agent access | [BL-070](#bl-070) |
+| | R2 | Multi-model routing strategy | [BL-071](#bl-071) |
+| | R3 | Claude 4.6 structured outputs for JSON flows | [BL-072](#bl-072) |
+| | R4 | Figma Dev Mode focusedNode | [BL-073](#bl-073) |
 
 **Strategy initiatives (2026)** — Seven prioritized initiatives aligned to backlog:
 
@@ -223,6 +242,7 @@ Active work items currently being implemented. Limit to 2-5 items to maintain fo
 | ID | Title | Priority | Status | Owner | Acceptance Criteria | Notes / Links |
 |----|-------|----------|--------|-------|---------------------|---------------|
 | BL-004 | Display build/version number in Settings modal | P1 | Proposed | Unassigned | Settings modal shows plugin version/build that matches build artifacts and git tag | |
+| BL-054 | Wire excluded test files into `npm test` | P0 | Proposed | Unassigned | All 5 excluded test files (`smartDetector`, `projection`, `reportFormat`, `enhancers`, `auth-middleware`) run in `npm test`; failures fixed or documented | Source: O1 / audit C5. See [details](#bl-054). |
 
 ---
 
@@ -236,6 +256,13 @@ Prioritized items ready for implementation. These should have clear scope and ac
 | BL-008 | Create Figma-stage UI components aligned to plugin design direction | P2 | Proposed | Unassigned | Components feel cohesive, usable, and ready for real design workflows | |
 | BL-026 | Design system KB and guardrails (first-class type + DS-only enforcement) | P1 | Backlog | Unassigned | Design system as first-class KB type; enforce DS-only components/tokens where DS is active; nearest-DS-match suggestions; DS compliance auditing (tool-only where possible). | Source: D1. Depends on BL-001 for full guardrails. See [details](#bl-026). |
 | BL-050 | Smart Detector as canonical scan enrichment layer | P1 | Proposed | Unassigned | Every scan pipeline passes through Smart Detector enrichment; SSOT schema gains optional `smart`/`derived` fields; flag-gated (default OFF); projections degrade gracefully. | Source: M1. See [details](#bl-050). |
+| BL-053 | Resolve config-api vs ace-lambda convergence | P1 | Proposed | Unassigned | Single canonical Lambda API serves ACE; duplicate API retired or explicitly scoped; JS schema duplication eliminated | Source: P1 / audit C4. See [details](#bl-053). |
+| BL-055 | Adopt test framework with coverage reporting | P1 | Proposed | Unassigned | Vitest (or equivalent) replaces ad-hoc `tsx` test runner; coverage reports generated; non-blocking metric initially | Source: O2 / audit H1. See [details](#bl-055). |
+| BL-056 | Add provider routing integration tests | P1 | Proposed | Unassigned | Integration test validates all connection mode × provider combinations; no silent routing regressions | Source: O3 / audit H2. See [details](#bl-056). |
+| BL-057 | Create knowledge system documentation | P2 | Proposed | Unassigned | `docs/knowledge-system.md` explains three knowledge layers, build-time flow, and current wiring status | Source: Q1 / audit H3. See [details](#bl-057). |
+| BL-059 | Upgrade Lambda to Node.js 22 + ARM64 | P1 | Proposed | Unassigned | Both SAM templates use `nodejs22.x` and `arm64`; cold start and cost improvements verified | Source: P2 / audit H5. See [details](#bl-059). |
+| BL-060 | Upgrade `@figma/plugin-typings` to latest | P1 | Proposed | Unassigned | Typings updated; new APIs (Auto Layout v5, variables, Dev Mode focusedNode) audited for applicability | Source: P3 / audit H6. See [details](#bl-060). |
+| BL-072 | Evaluate Claude 4.6 structured outputs for JSON flows | P1 | Proposed | Unassigned | PoC replaces repair/retry ladder for scorecard/design-spec JSON with constrained decoding; measures reliability delta | Source: R3 / audit. See [details](#bl-072). |
 
 ---
 
@@ -283,6 +310,11 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | BL-047 | Inline Copy Ops | P2 | Backlog | Unassigned | Inline copy editing and operations in design context. | Strategy 2026. See [details](#bl-047). |
 | BL-048 | Research-to-Design Bridge | P2 | Backlog | Unassigned | Bridge research insights into design artifacts and assistant context. | Strategy 2026. See [details](#bl-048). |
 | BL-049 | Creative Micro-Tools | P3 | Backlog | Unassigned | Optional micro-tools and ideas for creative workflows. | Strategy 2026. See [details](#bl-049). |
+| BL-058 | Archive or update ASSISTANT_DESIGN.md | P2 | Backlog | Unassigned | `ASSISTANT_DESIGN.md` either archived with "historical" banner or updated to match actual handler registry (8 active assistants) | Source: Q2 / audit H4. See [details](#bl-058). |
+| BL-061 | Standardize error handling patterns | P2 | Backlog | Unassigned | Shared error helpers (`isContentFilterError`, `toUserMessage`) created; applied incrementally across main thread and UI | Source: Q4 / audit M1. See [details](#bl-061). |
+| BL-063 | Resolve disabled content model placeholders | P3 | Backlog | Unassigned | Content models 2–5 either implemented or removed; no placeholder entries cause confusion | Source: audit M4. See [details](#bl-063). |
+| BL-064 | Document build pipeline ordering and watch-mode gaps | P2 | Backlog | Unassigned | Generator ordering documented in `docs/build-pipeline.md` or `package.json`; watch-mode skip list documented | Source: Q3 / audit M5+M6. See [details](#bl-064). |
+| BL-065 | Archive deprecated Spring wrapper | P2 | Backlog | Unassigned | `enterprise/ace-spring-wrapper/` moved to `_deprecated/` or separate archive repo; deprecation banners already in place | Source: P4 / audit M7. See [details](#bl-065). |
 
 #### Merged & new item details
 
@@ -518,6 +550,139 @@ Standard fields for merged and newly added items: **Problem/Goal**, **Scope**, *
 - **Dependencies:** None (Smart Detector already exists and is callable). **Owner:** Unassigned. **Status:** Proposed.
 - **Risk level:** Demo-safe when flag is OFF (default). Feature-flag gated.
 
+##### BL-051 {#bl-051}
+
+- **Problem / Goal:** `main.ts` is a 2,114-line monolith containing all message routing, provider lifecycle, chat history, tool dispatch, stage rendering, and settings. Extremely hard to test in isolation, review safely, or onboard new contributors. High risk of silent regressions.
+- **Scope:** Plugin `src/main.ts` extraction. Preserve orchestrator pattern.
+- **Deliverables:** Extract message handlers, provider lifecycle, chat state, and tool dispatch into focused modules. `main.ts` becomes a thin orchestrator. Each extracted concern independently testable.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-052 {#bl-052}
+
+- **Problem / Goal:** `ui.tsx` is 5,553 lines — the entire plugin UI in one Preact component file. Contains duplicated logic (`cleanChatContent` exists in both `main.ts` and `ui.tsx` with different behavior). A global `fetch` wrapper at module load affects all network calls.
+- **Scope:** Plugin `src/ui.tsx` extraction.
+- **Deliverables:** Extract panel components (settings, analytics tagging, content table, chat) into dedicated files. Unify `cleanChatContent` into a shared utility.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-053 {#bl-053}
+
+- **Problem / Goal:** Two parallel Lambda APIs with different contracts. `infra/config-api/` (TypeScript, `/api/*`) and `infra/ace-lambda/` (JavaScript, `/figma-admin/api/*`) serve overlapping purposes with different auth models, path prefixes, and feature sets. `ace-lambda` ports schemas from `shared/ace-config/` as JS copies, creating drift risk.
+- **Scope:** Infrastructure convergence decision + implementation.
+- **Deliverables:** Converge on single canonical Lambda API; retire or explicitly scope the other; eliminate JS schema duplication by having the canonical API consume the shared TS package at build time.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-054 {#bl-054}
+
+- **Problem / Goal:** Five test files exist but are not wired into `npm test`: `smartDetector.test.ts`, `projection.test.ts`, `reportFormat.test.ts`, `enhancers.test.ts`, and `auth-middleware.test.ts`. These tests never run in CI or local validation.
+- **Scope:** Test configuration in `package.json`.
+- **Deliverables:** All 5 test files included in `npm test`. Failures fixed or documented.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-055 {#bl-055}
+
+- **Problem / Goal:** No test coverage tooling. Tests are `tsx` scripts with `console.log` assertions. No way to measure regression safety or track coverage trends.
+- **Scope:** Test infrastructure upgrade.
+- **Deliverables:** Adopt Vitest (lightweight, TS-native, compatible with current `tsx` runner). Add coverage reporting as a non-blocking metric initially.
+- **Dependencies:** BL-054 (wire existing tests first). **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-056 {#bl-056}
+
+- **Problem / Goal:** Five provider implementations (InternalApi, Proxy, Claude, Copilot, Stub) with precedence rules that differ by connection mode. No integration tests validate the routing matrix.
+- **Scope:** Provider routing test suite.
+- **Deliverables:** Integration test that validates all connection mode × provider combinations against expected provider selection. No silent routing regressions.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-057 {#bl-057}
+
+- **Problem / Goal:** Three separate knowledge mechanisms exist: `src/assistants/*.md` (base prompts), `custom/knowledge/*.md` (overlays), `custom/knowledge-bases/*.kb.json` (structured KBs). No single document explains when to use which, how they interact in the build pipeline, or what "not yet runtime-wired" means for KB contribution.
+- **Scope:** Documentation only.
+- **Deliverables:** `docs/knowledge-system.md` guide explaining the three layers, their build-time flow, and current wiring status.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-058 {#bl-058}
+
+- **Problem / Goal:** `ASSISTANT_DESIGN.md` documents 9 assistants; the actual handler registry runs 8 different ones. UX Copy Review, Dev Handoff, and Accessibility have KB markdown but no handlers. Code2Design and Spell Check are catalogued but have no handler or KB.
+- **Scope:** Documentation hygiene.
+- **Deliverables:** Archive `ASSISTANT_DESIGN.md` with "historical" banner, or update to match actual handler registry. Reference `src/assistants/assistants.md` as the new registry authority.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-059 {#bl-059}
+
+- **Problem / Goal:** SAM templates specify `nodejs20.x`. Node 22 is now the recommended Lambda runtime with better cold start performance and active LTS support.
+- **Scope:** Both SAM templates (`infra/config-api/template.yaml`, `infra/ace-lambda/template.yaml`).
+- **Deliverables:** Upgrade to `nodejs22.x` and `arm64` (Graviton) architecture. Verify cold start and cost improvements.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-060 {#bl-060}
+
+- **Problem / Goal:** `@figma/plugin-typings` at v1.109.0. Figma has released significant API updates in 2026 including Auto Layout v5, extended variable collections, draw features, and Dev Mode focused-node support.
+- **Scope:** Plugin typings upgrade and API audit.
+- **Deliverables:** Upgrade to latest typings. Audit changelog for new APIs that enable better selection context, design token extraction, and annotation capabilities. Document applicable new APIs.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-061 {#bl-061}
+
+- **Problem / Goal:** Error handling inconsistency. Main thread uses `ProviderError` + `errorToString` + `categorizeError`. UI uses mixed `error: unknown`, `clipboardError`, and empty catches. No shared error policy.
+- **Scope:** Incremental error handling standardization.
+- **Deliverables:** Small shared error helpers (`isContentFilterError`, `toUserMessage`). Applied incrementally, not as a sweeping refactor.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-062 {#bl-062}
+
+- **Problem / Goal:** `preparePayloadTier1` exported from `contentSafety/index.ts` but apparently unused. Recovery path goes through the prompt pipeline, not Tier 1 directly.
+- **Scope:** Dead code audit.
+- **Deliverables:** Verify if dead code. If so, remove from exports. If reserved for future use, add comment explaining why.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-063 {#bl-063}
+
+- **Problem / Goal:** Content models 2–5 in `docs/content-models.md` are disabled placeholders. Only universal, mobile, simple-worksheet, content-only, and analytics-tagging presets are enabled.
+- **Scope:** Content model cleanup.
+- **Deliverables:** Either implement or remove placeholder entries to reduce confusion.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-064 {#bl-064}
+
+- **Problem / Goal:** The `prebuild` chain is a single long `&&`-chained command. Generator order matters (assistants before custom overlay, etc.) but this is implicit, not documented. `watch` mode runs a partial prebuild, which can cause stale generated code during development.
+- **Scope:** Documentation.
+- **Deliverables:** Brief `docs/build-pipeline.md` or `package.json` comment explaining generator ordering and dependencies. Document which generators are skipped in watch mode and when a full rebuild is needed.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-065 {#bl-065}
+
+- **Problem / Goal:** `enterprise/ace-spring-wrapper/` is deprecated but substantial (Java/Spring Boot, Docker, Maven, tests). Adds repo size and confusion despite deprecation banners.
+- **Scope:** Repo hygiene.
+- **Deliverables:** Move to `_deprecated/` directory or separate archive repo. Deprecation banners already in place in docs.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-070 {#bl-070}
+
+- **Problem / Goal:** Figma has an official MCP server (Feb 2026). FigmAI could expose its own MCP server surface to let external AI agents (Claude Code, Cursor) trigger FigmAI assistants, read content tables, or query DS compliance from IDE contexts. This would position FigmAI as the "design intelligence API."
+- **Scope:** Exploration / PoC.
+- **Deliverables:** PoC MCP server that exposes at least one assistant action and one data query (e.g., content table read, DS compliance check) to external agents.
+- **Dependencies:** None. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-071 {#bl-071}
+
+- **Problem / Goal:** With Claude 4.6 Opus/Sonnet and GPT-5/5.4/5-mini/5-nano all available, FigmAI could offer model selection per assistant or auto-routing based on task complexity. Structured output tasks → Claude Opus w/ structured outputs. Fast chat → GPT-5-mini. Vision → best vision model.
+- **Scope:** Architecture design + PoC.
+- **Deliverables:** Architecture doc for per-assistant or auto-routed model selection. PoC with at least two models for different task types.
+- **Dependencies:** Provider routing system. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-072 {#bl-072}
+
+- **Problem / Goal:** Claude 4.6 Structured Outputs (GA) guarantees schema-compliant JSON via constrained decoding. This eliminates the repair/retry ladder currently needed for Design Critique scorecards, Design Workshop specs, and other structured outputs.
+- **Scope:** PoC for scorecard and design-spec JSON flows.
+- **Deliverables:** PoC replacing `parseScorecardJson` repair logic with constrained decoding. Measure reliability improvement. If successful, apply to all structured-response flows.
+- **Dependencies:** Claude 4.6 provider support. **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-073 {#bl-073}
+
+- **Problem / Goal:** Figma Dev Mode now exposes `focusedNode` API. Plugins can read the focused node in Dev Mode, enabling contextual assistant actions in the developer workflow.
+- **Scope:** Exploration / PoC.
+- **Deliverables:** PoC demonstrating contextual assistant action triggered by Dev Mode focused node (e.g., show component specs, DS compliance, or content extraction for focused element).
+- **Dependencies:** BL-060 (typings upgrade). **Owner:** Unassigned. **Status:** Proposed.
+
 ---
 
 ### Bugs
@@ -673,6 +838,13 @@ Technical improvements, refactoring, and code quality improvements.
 |----|-------|----------|--------|-------|---------------------|---------------|
 | BL-009 | Documentation cleanup (remove bloat/redundancy, normalize filename/formatting) | P2 | Proposed | Unassigned | Docs have less redundancy; filenames and formatting are normalized; no unnecessary bloat. | |
 | BL-010 | Code cleanup (remove bloat/redundancy, normalize filename/formatting) | P2 | Proposed | Unassigned | Code has less redundancy; filenames and formatting are normalized; no unnecessary bloat. | |
+| BL-051 | Extract `main.ts` monolith into focused modules | P1 | Proposed | Unassigned | Message handlers, provider lifecycle, chat state, and tool dispatch extracted into focused modules; `main.ts` becomes an orchestrator; each concern independently testable | Source: N1 / audit C1. See [details](#bl-051). |
+| BL-052 | Extract `ui.tsx` monolith into focused components | P1 | Proposed | Unassigned | Panel components (settings, analytics tagging, content table, chat) extracted into dedicated files; `cleanChatContent` unified into shared utility | Source: N2 / audit C2. See [details](#bl-052). |
+| BL-062 | Audit and remove dead code exports | P3 | Proposed | Unassigned | `preparePayloadTier1` and other unreferenced exports verified; dead code removed or documented if reserved | Source: audit M2. See [details](#bl-062). |
+| BL-066 | Fix README React→Preact reference | P3 | Proposed | Unassigned | README accurately says "Preact" instead of "React-based UI" | Source: Q5 / audit L1. |
+| BL-067 | Remove or implement stub UI buttons | P3 | Proposed | Unassigned | About/Feedback/Meetup buttons either link to real URLs or are removed; no "URL not configured" TODOs | Source: audit L2. |
+| BL-068 | Clean up vendored artifacts in infra/ | P3 | Proposed | Unassigned | `infra/config-api/node_modules/` and `dist/` removed from disk if gitignored; confirmed not tracked | Source: audit L3. |
+| BL-069 | Fix invariants.md authority link | P3 | Proposed | Unassigned | Invariant #3 links to `placeArtifact.ts` code as authority, plan doc as supporting context | Source: Q6 / audit L5. |
 
 ---
 
@@ -682,7 +854,9 @@ Exploratory ideas, research questions, and experimental concepts. Low commitment
 
 | ID | Title | Priority | Status | Owner | Acceptance Criteria | Notes / Links |
 |----|-------|----------|--------|-------|---------------------|---------------|
-| *No ideas proposed* | | | | | | |
+| BL-070 | Explore FigmAI MCP server for external agent access | P2 | Proposed | Unassigned | PoC MCP server surface lets external AI agents (Claude Code, Cursor) trigger FigmAI assistants, read content tables, or query DS compliance from IDE | Source: R1 / audit. See [details](#bl-070). |
+| BL-071 | Design multi-model routing strategy | P2 | Proposed | Unassigned | Architecture for per-assistant or auto-routed model selection (Claude 4.6 Opus/Sonnet, GPT-5 family); structured output tasks vs fast chat vs vision analysis | Source: R2 / audit. See [details](#bl-071). |
+| BL-073 | Explore Figma Dev Mode focusedNode for contextual actions | P3 | Proposed | Unassigned | PoC using Dev Mode `focusedNode` API for contextual assistant actions in developer workflow | Source: R4 / audit. See [details](#bl-073). |
 
 ---
 
@@ -726,8 +900,8 @@ Examples:
 4. Add the item to the appropriate section
 
 Example:
-- Highest existing ID: BL-042
-- New item ID: BL-043
+- Highest existing ID: BL-073
+- New item ID: BL-074
 
 ---
 
@@ -936,6 +1110,7 @@ This section tracks significant changes to the backlog structure itself.
 | 2026-01-21 | BL-042, BL-043 added (Errors assistant post-demo bugs); Index L1/L2 added | Architect: GROUP selection sub-screen duplication; intermittent "not a function" on Quick Action |
 | 2026-01-21 | Backlog aligned to 2026 strategy initiatives | Backlog Strategy Alignment: BL-026 expanded (Design System Guardrails, P1, moved to Next); BL-044–BL-049 added (Dev Handoff Pack, Document Ops, Prompt-to-Flow, Inline Copy Ops, Research-to-Design Bridge, Creative Micro-Tools); BL-006 marked Done (ACE); BL-007 cross-links; Index strategy subsection; Changelog entry |
 | 2026-02-22 | Scanning policy + BL-050 added; BL-021/BL-037 notes updated | Added "Scanning Policy" section (canonical rule: all scans through Smart Detector); BL-050 (Smart Detector enrichment layer) added to Next; Index category M added; BL-021 updated (partially implemented); BL-037 updated (partially implemented) |
+| 2026-04-04 | Full repo audit: BL-051–BL-073 added; Index categories N–R added | Comprehensive repo audit covering code architecture (C1–C5), testing/CI (H1–H2), infrastructure (H5–H6, M7), documentation hygiene (H3–H4, M5–M6), error handling (M1–M2), tech debt (L1–L5), and technology opportunities (MCP server, multi-model routing, Claude 4.6 structured outputs, Figma Dev Mode). 23 new items across Now, Next, Later, Tech Debt, and Ideas sections. Audit plan: `.cursor/plans/figmai_full_repo_audit_357700e8.plan.md` |
 
 ---
 

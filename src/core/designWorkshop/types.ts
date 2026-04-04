@@ -83,13 +83,14 @@ export type BlockSpec =
   | { type: "bodyText"; text: string }
   | { type: "button"; text: string; variant?: "primary" | "secondary" | "tertiary" }
   | { type: "input"; label?: string; placeholder?: string; inputType?: "text" | "email" | "password" }
-  | { type: "card"; title?: string; content: string }
+  | { type: "card"; title?: string; content: string; variant?: "promo" }
   | { type: "spacer"; height?: number }
   | { type: "image"; src?: string; alt?: string; width?: number; height?: number }
   | { type: "chart"; height?: number; caption?: string }
   | { type: "metricsGrid"; items: Array<{ label: string; value: string; gain?: boolean }> }
   | { type: "allocation"; equity: number; fixedIncome: number; altAssets: number; total?: string }
   | { type: "watchlist"; title: string; items: Array<{ ticker: string; price: string; change: string; gain: boolean }> }
+  | { type: "darkSection"; title: string; body: string }
 
 /**
  * Render Report
