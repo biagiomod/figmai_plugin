@@ -8,8 +8,8 @@ export const JAZZ_RGB = {
   primary:        { r: 0,     g: 0.369, b: 0.722 }, // #005EB8
   primaryHover:   { r: 0,     g: 0.275, b: 0.573 }, // #004692
   navy:           { r: 0,     g: 0.184, b: 0.424 }, // #002F6C — primaryActive / heroBg
-  text:           { r: 0.063, g: 0.094, b: 0.125 }, // #101820
-  muted:          { r: 0.404, g: 0.424, b: 0.435 }, // #676C6F
+  text:           { r: 0.059, g: 0.090, b: 0.122 }, // #0F171F
+  muted:          { r: 0.357, g: 0.424, b: 0.482 }, // #5B6C7B
   subdued:        { r: 0.522, g: 0.533, b: 0.541 }, // #85888A — inactive nav, secondary labels, placeholders
   border:         { r: 0.886, g: 0.894, b: 0.898 }, // #E2E4E5
   surface0:       { r: 1,     g: 1,     b: 1     }, // #FFFFFF
@@ -37,8 +37,8 @@ COLORS:
 - CTA green: #128842 — ONE primary CTA button per screen ONLY. Never use green elsewhere.
 - Gain (positive delta): #128842 — value-up indicators (prefix with "+")
 - Loss (negative delta): #DA0B16 — value-down indicators (prefix with "−")
-- Body text: #101820
-- Muted label text: #676C6F — secondary labels, captions
+- Body text: #0F171F
+- Muted label text: #5B6C7B — secondary labels, captions
 - Subdued text: #85888A — inactive items, placeholders, tertiary labels
 - Border: #E2E4E5
 - Background: #F5F7F8 (surface1) — page background

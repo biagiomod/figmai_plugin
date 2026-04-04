@@ -12,6 +12,17 @@ import { getNuxtDemoAllowlist } from '../designSystem/nuxtDsRegistry'
 import { createInstanceOnly } from '../designSystem/componentService'
 import type { NuxtDemoAllowlistEntry } from '../../custom/generated/nuxtDsCatalog.generated'
 import { JAZZ_RGB, JAZZ_RADIUS } from './jazzContext'
+import { isLikelyTicker, TICKER_COLORS } from './stockLogos'
+
+/** Convert a #RRGGBB hex string to Figma 0–1 RGB floats. */
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const c = hex.replace('#', '')
+  return {
+    r: parseInt(c.slice(0, 2), 16) / 255,
+    g: parseInt(c.slice(2, 4), 16) / 255,
+    b: parseInt(c.slice(4, 6), 16) / 255,
+  }
+}
 
 export interface RenderDesignSpecOptions {
   useNuxtDs?: boolean
@@ -613,11 +624,81 @@ async function renderBlock(
     }
 
     case 'card': {
+      // Jazz ticker position card: colored brand badge + symbol + value/change
+      if (useJazz && isLikelyTicker(block.title ?? '')) {
+        const ticker = block.title!
+        const brandRgb = hexToRgb(TICKER_COLORS[ticker] ?? '#005EB8')
+
+        const cardFrame = createAutoLayoutFrameSafe('Card-' + ticker, 'HORIZONTAL', {
+          padding: { top: 10, right: 12, bottom: 10, left: 12 },
+          gap: 10,
+        })
+        cardFrame.counterAxisAlignItems = 'CENTER'
+        cardFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
+        cardFrame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+        cardFrame.strokeWeight = 1
+        cardFrame.cornerRadius = JAZZ_RADIUS
+
+        // Colored brand badge
+        const badge = figma.createFrame()
+        badge.name = 'Badge'
+        badge.layoutMode = 'VERTICAL'
+        badge.primaryAxisAlignItems = 'CENTER'
+        badge.counterAxisAlignItems = 'CENTER'
+        badge.primaryAxisSizingMode = 'FIXED'
+        badge.counterAxisSizingMode = 'FIXED'
+        badge.resize(32, 32)
+        badge.cornerRadius = JAZZ_RADIUS
+        badge.fills = [{ type: 'SOLID', color: brandRgb }]
+        const abbr = ticker.length <= 3 ? ticker : ticker.slice(0, 3)
+        const badgeText = await createTextNode(abbr, {
+          fontSize: abbr.length <= 2 ? 12 : 9,
+          fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+        })
+        badgeText.textAlignHorizontal = 'CENTER'
+        badge.appendChild(badgeText)
+        cardFrame.appendChild(badge)
+
+        // Right info column: symbol on top, value below
+        const infoCol = createAutoLayoutFrameSafe('Info', 'VERTICAL', { gap: 2 })
+        infoCol.fills = []
+
+        const symbolText = await createTextNode(ticker, {
+          fontSize: 13,
+          fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: JAZZ_RGB.text }]
+        })
+        infoCol.appendChild(symbolText)
+        symbolText.layoutSizingHorizontal = 'FILL'
+
+        const content = block.content || ''
+        const isGain = content.includes('+')
+        const isLoss = !isGain && (content.includes('-') || content.includes('−'))
+        const valueColor = isGain ? JAZZ_RGB.gain : isLoss ? JAZZ_RGB.loss : JAZZ_RGB.text
+        const valueText = await createTextNode(content, {
+          fontSize: 11,
+          fontName: fonts.regular,
+          fills: [{ type: 'SOLID', color: valueColor }]
+        })
+        infoCol.appendChild(valueText)
+        valueText.layoutSizingHorizontal = 'FILL'
+
+        cardFrame.appendChild(infoCol)
+        infoCol.layoutSizingHorizontal = 'FILL'
+        infoCol.layoutGrow = 1
+
+        cardFrame.counterAxisSizingMode = 'FIXED'
+        cardFrame.resize(maxWidth, cardFrame.height)
+        return cardFrame
+      }
+
+      // Generic card (hero tiles, non-ticker content)
       const cardFrame = createAutoLayoutFrameSafe('Card', 'VERTICAL', {
         padding: { top: 16, right: 16, bottom: 16, left: 16 },
         gap: 8
       })
-      
+
       if (block.title) {
         const titleText = await createTextNode(block.title, {
           fontSize: getHeadingSize(2, fidelity, useJazz),
@@ -686,11 +767,96 @@ async function renderBlock(
     }
 
     case 'chart': {
-      // Figma canvas: render as a labeled placeholder frame (chart is rendered as SVG only in HTML)
+      const totalH = block.height ?? 140
+      if (useJazz) {
+        // Rich chart: header row + ascending bar chart simulating area chart
+        const chartFrame = figma.createFrame()
+        chartFrame.name = 'Chart'
+        chartFrame.layoutMode = 'VERTICAL'
+        chartFrame.primaryAxisSizingMode = 'FIXED'
+        chartFrame.counterAxisSizingMode = 'FIXED'
+        chartFrame.resize(maxWidth, totalH)
+        chartFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
+        chartFrame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+        chartFrame.strokeWeight = 1
+        chartFrame.cornerRadius = JAZZ_RADIUS
+        chartFrame.paddingTop = 10
+        chartFrame.paddingRight = 12
+        chartFrame.paddingBottom = 8
+        chartFrame.paddingLeft = 12
+        chartFrame.itemSpacing = 6
+        chartFrame.clipsContent = true
+
+        // Header row: caption + period tabs
+        const headerRow = figma.createFrame()
+        headerRow.name = 'Chart Header'
+        headerRow.layoutMode = 'HORIZONTAL'
+        headerRow.primaryAxisSizingMode = 'FIXED'
+        headerRow.counterAxisSizingMode = 'AUTO'
+        headerRow.resize(maxWidth - 24, 10)
+        headerRow.primaryAxisAlignItems = 'SPACE_BETWEEN'
+        headerRow.counterAxisAlignItems = 'CENTER'
+        headerRow.fills = []
+        headerRow.itemSpacing = 0
+        const captionText = await createTextNode(block.caption ?? 'YTD Performance', {
+          fontSize: 11,
+          fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: JAZZ_RGB.text }]
+        })
+        headerRow.appendChild(captionText)
+        const periodText = await createTextNode('YTD  1Y  3M  1M', {
+          fontSize: 9,
+          fontName: fonts.regular,
+          fills: [{ type: 'SOLID', color: JAZZ_RGB.muted }]
+        })
+        headerRow.appendChild(periodText)
+        chartFrame.appendChild(headerRow)
+        headerRow.layoutSizingHorizontal = 'FILL'
+
+        // Chart area: non-auto-layout, bars positioned absolutely
+        const headerH = 26  // 10 font + 16 for auto-sizing
+        const areaH = totalH - 10 - 8 - headerH - 6  // padTop + padBottom + headerH + gap
+        const areaW = maxWidth - 24
+        const areaFrame = figma.createFrame()
+        areaFrame.name = 'Chart Area'
+        areaFrame.resize(areaW, Math.max(36, areaH))
+        areaFrame.fills = []
+        areaFrame.strokes = []
+        areaFrame.clipsContent = false
+
+        const usableH = Math.max(36, areaH)
+        const relHeights = [0.28, 0.38, 0.32, 0.48, 0.55, 0.65, 0.78]
+        const barW = Math.max(3, Math.round(areaW / 24))
+        const chartBlue: Paint = { type: 'SOLID', color: hexToRgb('#4A8FD4') }
+        for (let i = 0; i < relHeights.length; i++) {
+          const barH = Math.max(2, Math.round(relHeights[i] * usableH))
+          const bar = figma.createRectangle()
+          bar.name = `Bar-${i}`
+          bar.resize(barW, barH)
+          bar.x = Math.round((i / (relHeights.length - 1)) * (areaW - barW))
+          bar.y = usableH - barH
+          bar.fills = [chartBlue]
+          bar.cornerRadius = 1
+          areaFrame.appendChild(bar)
+        }
+        // Baseline
+        const baseline = figma.createRectangle()
+        baseline.name = 'Baseline'
+        baseline.resize(areaW, 1)
+        baseline.x = 0
+        baseline.y = usableH - 1
+        baseline.fills = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+        areaFrame.appendChild(baseline)
+
+        chartFrame.appendChild(areaFrame)
+        areaFrame.layoutSizingHorizontal = 'FILL'
+        return chartFrame
+      }
+
+      // Non-Jazz: labeled placeholder
       const chartFrame = figma.createFrame()
       chartFrame.name = 'Chart'
-      const chartH = block.height ?? 140
-      chartFrame.resize(maxWidth, chartH)
+      chartFrame.resize(maxWidth, totalH)
       chartFrame.fills = [getImageFill(fidelity, useJazz)]
       chartFrame.strokes = [getImageStroke(fidelity, intent)]
       chartFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
@@ -708,6 +874,84 @@ async function renderBlock(
     }
 
     case 'metricsGrid': {
+      if (useJazz) {
+        // 2-column grid: border color as background creates 1px grid lines between cells
+        const gridOuter = figma.createFrame()
+        gridOuter.name = 'Metrics Grid'
+        gridOuter.layoutMode = 'VERTICAL'
+        gridOuter.primaryAxisSizingMode = 'AUTO'
+        gridOuter.counterAxisSizingMode = 'FIXED'
+        gridOuter.resize(maxWidth, 10)
+        gridOuter.fills = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+        gridOuter.cornerRadius = JAZZ_RADIUS
+        gridOuter.clipsContent = true
+        gridOuter.itemSpacing = 1
+        gridOuter.paddingTop = 0
+        gridOuter.paddingRight = 0
+        gridOuter.paddingBottom = 0
+        gridOuter.paddingLeft = 0
+
+        const items = block.items
+        for (let r = 0; r < Math.ceil(items.length / 2); r++) {
+          const rowItems = items.slice(r * 2, r * 2 + 2)
+          const rowFrame = figma.createFrame()
+          rowFrame.name = `Row-${r}`
+          rowFrame.layoutMode = 'HORIZONTAL'
+          rowFrame.primaryAxisSizingMode = 'AUTO'
+          rowFrame.counterAxisSizingMode = 'AUTO'
+          rowFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+          rowFrame.itemSpacing = 1
+          rowFrame.paddingTop = 0
+          rowFrame.paddingRight = 0
+          rowFrame.paddingBottom = 0
+          rowFrame.paddingLeft = 0
+
+          for (const item of rowItems) {
+            const cell = figma.createFrame()
+            cell.name = item.label
+            cell.layoutMode = 'VERTICAL'
+            cell.primaryAxisSizingMode = 'AUTO'
+            cell.counterAxisSizingMode = 'FIXED'
+            cell.resize(Math.floor(maxWidth / 2), 10)
+            cell.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
+            cell.paddingTop = 10
+            cell.paddingRight = 12
+            cell.paddingBottom = 10
+            cell.paddingLeft = 12
+            cell.itemSpacing = 2
+
+            const labelText = await createTextNode(item.label, {
+              fontSize: 10,
+              fontName: fonts.regular,
+              fills: [{ type: 'SOLID', color: JAZZ_RGB.muted }]
+            })
+            cell.appendChild(labelText)
+            labelText.layoutSizingHorizontal = 'FILL'
+
+            const valueColor = item.gain === true ? JAZZ_RGB.gain
+              : item.gain === false ? JAZZ_RGB.loss
+              : JAZZ_RGB.text
+            const valueText = await createTextNode(item.value, {
+              fontSize: 14,
+              fontName: fonts.bold,
+              fills: [{ type: 'SOLID', color: valueColor }]
+            })
+            cell.appendChild(valueText)
+            valueText.layoutSizingHorizontal = 'FILL'
+
+            rowFrame.appendChild(cell)
+            cell.layoutSizingHorizontal = 'FILL'
+            cell.layoutGrow = 1
+          }
+
+          gridOuter.appendChild(rowFrame)
+          rowFrame.layoutSizingHorizontal = 'FILL'
+        }
+
+        return gridOuter
+      }
+
+      // Non-Jazz placeholder
       const mgFrame = figma.createFrame()
       mgFrame.name = 'Metrics Grid'
       mgFrame.resize(maxWidth, 80)
@@ -727,6 +971,122 @@ async function renderBlock(
     }
 
     case 'allocation': {
+      if (useJazz) {
+        // Segmented proportional bar + 3-row legend
+        const allocFrame = figma.createFrame()
+        allocFrame.name = 'Asset Allocation'
+        allocFrame.layoutMode = 'VERTICAL'
+        allocFrame.primaryAxisSizingMode = 'AUTO'
+        allocFrame.counterAxisSizingMode = 'FIXED'
+        allocFrame.resize(maxWidth, 10)
+        allocFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
+        allocFrame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+        allocFrame.strokeWeight = 1
+        allocFrame.cornerRadius = JAZZ_RADIUS
+        allocFrame.paddingTop = 10
+        allocFrame.paddingRight = 12
+        allocFrame.paddingBottom = 10
+        allocFrame.paddingLeft = 12
+        allocFrame.itemSpacing = 8
+
+        // Header: title + total
+        const headerRow = figma.createFrame()
+        headerRow.name = 'Alloc Header'
+        headerRow.layoutMode = 'HORIZONTAL'
+        headerRow.primaryAxisSizingMode = 'AUTO'
+        headerRow.counterAxisSizingMode = 'AUTO'
+        headerRow.primaryAxisAlignItems = 'SPACE_BETWEEN'
+        headerRow.counterAxisAlignItems = 'CENTER'
+        headerRow.fills = []
+        headerRow.itemSpacing = 0
+        const allocTitle = await createTextNode('Asset Allocation', {
+          fontSize: 11, fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: JAZZ_RGB.text }]
+        })
+        headerRow.appendChild(allocTitle)
+        if (block.total) {
+          const totalText = await createTextNode(block.total, {
+            fontSize: 11, fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: JAZZ_RGB.text }]
+          })
+          headerRow.appendChild(totalText)
+        }
+        allocFrame.appendChild(headerRow)
+        headerRow.layoutSizingHorizontal = 'FILL'
+
+        // Segmented bar: 3 proportional rectangles in a fixed-height non-auto-layout frame
+        const barH = 8
+        const total = block.equity + block.fixedIncome + block.altAssets
+        const barW = maxWidth - 24
+        const eqW = Math.round((block.equity / total) * barW)
+        const fiW = Math.round((block.fixedIncome / total) * barW)
+        const altW = Math.max(1, barW - eqW - fiW)
+
+        const barFrame = figma.createFrame()
+        barFrame.name = 'Alloc Bar'
+        barFrame.resize(barW, barH)
+        barFrame.cornerRadius = JAZZ_RADIUS
+        barFrame.clipsContent = true
+        barFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+        barFrame.strokes = []
+
+        const seg1 = figma.createRectangle()
+        seg1.name = 'Equity'; seg1.resize(eqW, barH)
+        seg1.x = 0; seg1.y = 0
+        seg1.fills = [{ type: 'SOLID', color: hexToRgb('#7B9E4B') }]
+        barFrame.appendChild(seg1)
+
+        const seg2 = figma.createRectangle()
+        seg2.name = 'Fixed'; seg2.resize(fiW, barH)
+        seg2.x = eqW; seg2.y = 0
+        seg2.fills = [{ type: 'SOLID', color: hexToRgb('#2E7E9E') }]
+        barFrame.appendChild(seg2)
+
+        const seg3 = figma.createRectangle()
+        seg3.name = 'Alt'; seg3.resize(altW, barH)
+        seg3.x = eqW + fiW; seg3.y = 0
+        seg3.fills = [{ type: 'SOLID', color: hexToRgb('#6B5B95') }]
+        barFrame.appendChild(seg3)
+
+        allocFrame.appendChild(barFrame)
+        barFrame.layoutSizingHorizontal = 'FILL'
+
+        // Legend rows
+        const legendItems = [
+          { label: 'Equity', pct: block.equity, color: '#7B9E4B' },
+          { label: 'Fixed Income', pct: block.fixedIncome, color: '#2E7E9E' },
+          { label: 'Alt Assets', pct: block.altAssets, color: '#6B5B95' },
+        ]
+        for (const leg of legendItems) {
+          const row = figma.createFrame()
+          row.name = leg.label
+          row.layoutMode = 'HORIZONTAL'
+          row.primaryAxisSizingMode = 'AUTO'
+          row.counterAxisSizingMode = 'AUTO'
+          row.counterAxisAlignItems = 'CENTER'
+          row.fills = []
+          row.itemSpacing = 6
+
+          const dot = figma.createRectangle()
+          dot.resize(8, 8)
+          dot.cornerRadius = 2
+          dot.fills = [{ type: 'SOLID', color: hexToRgb(leg.color) }]
+          row.appendChild(dot)
+
+          const legText = await createTextNode(`${leg.label}  ${leg.pct.toFixed(1)}%`, {
+            fontSize: 10, fontName: fonts.regular,
+            fills: [{ type: 'SOLID', color: JAZZ_RGB.muted }]
+          })
+          row.appendChild(legText)
+
+          allocFrame.appendChild(row)
+          row.layoutSizingHorizontal = 'FILL'
+        }
+
+        return allocFrame
+      }
+
+      // Non-Jazz placeholder
       const allocFrame = figma.createFrame()
       allocFrame.name = 'Asset Allocation'
       allocFrame.resize(maxWidth, 90)
@@ -745,6 +1105,107 @@ async function renderBlock(
     }
 
     case 'watchlist': {
+      if (useJazz) {
+        // Section card with title + divider-separated rows: badge, ticker, price, change
+        const wlFrame = figma.createFrame()
+        wlFrame.name = block.title
+        wlFrame.layoutMode = 'VERTICAL'
+        wlFrame.primaryAxisSizingMode = 'AUTO'
+        wlFrame.counterAxisSizingMode = 'FIXED'
+        wlFrame.resize(maxWidth, 10)
+        wlFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
+        wlFrame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+        wlFrame.strokeWeight = 1
+        wlFrame.cornerRadius = JAZZ_RADIUS
+        wlFrame.paddingTop = 10
+        wlFrame.paddingRight = 12
+        wlFrame.paddingBottom = 10
+        wlFrame.paddingLeft = 12
+        wlFrame.itemSpacing = 0
+
+        const titleText = await createTextNode(block.title.toUpperCase(), {
+          fontSize: 10, fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: JAZZ_RGB.muted }]
+        })
+        wlFrame.appendChild(titleText)
+        titleText.layoutSizingHorizontal = 'FILL'
+
+        for (const item of block.items) {
+          // Divider
+          const divider = figma.createRectangle()
+          divider.name = 'Divider'
+          divider.resize(maxWidth - 24, 1)
+          divider.fills = [{ type: 'SOLID', color: JAZZ_RGB.border }]
+          wlFrame.appendChild(divider)
+          divider.layoutSizingHorizontal = 'FILL'
+
+          // Row
+          const row = figma.createFrame()
+          row.name = item.ticker
+          row.layoutMode = 'HORIZONTAL'
+          row.primaryAxisSizingMode = 'AUTO'
+          row.counterAxisSizingMode = 'AUTO'
+          row.counterAxisAlignItems = 'CENTER'
+          row.fills = []
+          row.paddingTop = 8
+          row.paddingBottom = 8
+          row.itemSpacing = 8
+
+          // Colored brand badge
+          const brandRgb = hexToRgb(TICKER_COLORS[item.ticker] ?? '#005EB8')
+          const badge = figma.createFrame()
+          badge.name = 'Badge-' + item.ticker
+          badge.layoutMode = 'VERTICAL'
+          badge.primaryAxisAlignItems = 'CENTER'
+          badge.counterAxisAlignItems = 'CENTER'
+          badge.primaryAxisSizingMode = 'FIXED'
+          badge.counterAxisSizingMode = 'FIXED'
+          badge.resize(28, 28)
+          badge.cornerRadius = JAZZ_RADIUS
+          badge.fills = [{ type: 'SOLID', color: brandRgb }]
+          const abbr = item.ticker.length <= 3 ? item.ticker : item.ticker.slice(0, 3)
+          const badgeText = await createTextNode(abbr, {
+            fontSize: abbr.length <= 2 ? 11 : 8,
+            fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+          })
+          badgeText.textAlignHorizontal = 'CENTER'
+          badge.appendChild(badgeText)
+          row.appendChild(badge)
+
+          // Ticker + price column
+          const infoCol = createAutoLayoutFrameSafe('Info-' + item.ticker, 'VERTICAL', { gap: 1 })
+          infoCol.fills = []
+          const tickerText = await createTextNode(item.ticker, {
+            fontSize: 12, fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: JAZZ_RGB.text }]
+          })
+          infoCol.appendChild(tickerText)
+          const priceText = await createTextNode(item.price, {
+            fontSize: 10, fontName: fonts.regular,
+            fills: [{ type: 'SOLID', color: JAZZ_RGB.muted }]
+          })
+          infoCol.appendChild(priceText)
+          row.appendChild(infoCol)
+          infoCol.layoutGrow = 1
+          infoCol.layoutSizingHorizontal = 'FILL'
+
+          // Change badge
+          const changeColor = item.gain ? JAZZ_RGB.gain : JAZZ_RGB.loss
+          const changeText = await createTextNode(item.change, {
+            fontSize: 11, fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: changeColor }]
+          })
+          row.appendChild(changeText)
+
+          wlFrame.appendChild(row)
+          row.layoutSizingHorizontal = 'FILL'
+        }
+
+        return wlFrame
+      }
+
+      // Non-Jazz placeholder
       const wlFrame = figma.createFrame()
       wlFrame.name = block.title
       wlFrame.resize(maxWidth, 24 + block.items.length * 36)
