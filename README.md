@@ -38,7 +38,7 @@ The plugin follows a **two-thread architecture**:
 │                          ↕ postMessage                        │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  UI Thread (ui.tsx)                                   │   │
-│  │  • React UI components                                │   │
+│  │  • Preact UI components                               │   │
 │  │  • User interaction                                   │   │
 │  │  • Message display                                    │   │
 │  │  • Stateless (main thread is source of truth)        │   │

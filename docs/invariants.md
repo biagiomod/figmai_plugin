@@ -37,4 +37,4 @@ When Internal API is enabled (settings: `connectionType === 'internal-api'` and 
 
 Placement and replace behavior (e.g. scorecard, deceptive report, critique) are defined in `placeArtifact.ts` and in the Smart Placement v2 plan. Do not change replacement semantics without updating the plan.
 
-**Details:** [Smart Placement v2 Plan](smart-placement-v2-plan.md)
+**Details:** [`placeArtifact.ts`](../src/core/figma/artifacts/placeArtifact.ts), [Smart Placement v2 Plan](smart-placement-v2-plan.md)
