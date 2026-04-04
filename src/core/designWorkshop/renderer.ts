@@ -13,6 +13,60 @@ import { createInstanceOnly } from '../designSystem/componentService'
 import type { NuxtDemoAllowlistEntry } from '../../custom/generated/nuxtDsCatalog.generated'
 import { JAZZ_RGB, JAZZ_RADIUS } from './jazzContext'
 import { isLikelyTicker, TICKER_COLORS } from './stockLogos'
+import { getBrandLogoSvg, hasBrandLogo } from './brandLogos/index'
+
+/**
+ * Normalize an SVG string to a specific pixel size for Figma canvas import.
+ * Sets explicit width/height so figma.createNodeFromSvg produces the right frame size.
+ * The viewBox is preserved so Figma scales the content proportionally.
+ */
+function normalizeSvgForFigma(svg: string, size: number): string {
+  return svg.replace(/<svg(\b[^>]*)>/, (_, attrs) => {
+    const cleaned = attrs
+      .replace(/\s+width="[^"]*"/g, '')
+      .replace(/\s+height="[^"]*"/g, '')
+      .replace(/\s+width='[^']*'/g, '')
+      .replace(/\s+height='[^']*'/g, '')
+    return `<svg${cleaned} width="${size}" height="${size}">`
+  })
+}
+
+/** Create a brand logo badge using figma.createNodeFromSvg (real logo on white background). */
+function createLogoBadge(ticker: string, size: number): FrameNode {
+  const svgRaw = getBrandLogoSvg(ticker)!
+  const normalizedSvg = normalizeSvgForFigma(svgRaw, size)
+  const logoFrame = figma.createNodeFromSvg(normalizedSvg)
+  logoFrame.name = 'Badge-' + ticker
+  logoFrame.resize(size, size)
+  logoFrame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+  logoFrame.cornerRadius = JAZZ_RADIUS
+  logoFrame.clipsContent = true
+  return logoFrame
+}
+
+/** Create a letter-avatar badge (colored background + white ticker text). */
+async function createLetterBadge(ticker: string, size: number, fonts: { bold: FontName }): Promise<FrameNode> {
+  const brandRgb = hexToRgb(TICKER_COLORS[ticker] ?? '#005EB8')
+  const badge = figma.createFrame()
+  badge.name = 'Badge-' + ticker
+  badge.layoutMode = 'VERTICAL'
+  badge.primaryAxisAlignItems = 'CENTER'
+  badge.counterAxisAlignItems = 'CENTER'
+  badge.primaryAxisSizingMode = 'FIXED'
+  badge.counterAxisSizingMode = 'FIXED'
+  badge.resize(size, size)
+  badge.cornerRadius = JAZZ_RADIUS
+  badge.fills = [{ type: 'SOLID', color: brandRgb }]
+  const abbr = ticker.length <= 3 ? ticker : ticker.slice(0, 3)
+  const badgeText = await createTextNode(abbr, {
+    fontSize: abbr.length <= 2 ? (size <= 28 ? 11 : 12) : (size <= 28 ? 8 : 9),
+    fontName: fonts.bold,
+    fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+  })
+  badgeText.textAlignHorizontal = 'CENTER'
+  badge.appendChild(badgeText)
+  return badge
+}
 
 /** Convert a #RRGGBB hex string to Figma 0–1 RGB floats. */
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -624,10 +678,9 @@ async function renderBlock(
     }
 
     case 'card': {
-      // Jazz ticker position card: colored brand badge + symbol + value/change
+      // Jazz ticker position card: brand logo badge + symbol + value/change
       if (useJazz && isLikelyTicker(block.title ?? '')) {
         const ticker = block.title!
-        const brandRgb = hexToRgb(TICKER_COLORS[ticker] ?? '#005EB8')
 
         const cardFrame = createAutoLayoutFrameSafe('Card-' + ticker, 'HORIZONTAL', {
           padding: { top: 10, right: 12, bottom: 10, left: 12 },
@@ -639,25 +692,10 @@ async function renderBlock(
         cardFrame.strokeWeight = 1
         cardFrame.cornerRadius = JAZZ_RADIUS
 
-        // Colored brand badge
-        const badge = figma.createFrame()
-        badge.name = 'Badge'
-        badge.layoutMode = 'VERTICAL'
-        badge.primaryAxisAlignItems = 'CENTER'
-        badge.counterAxisAlignItems = 'CENTER'
-        badge.primaryAxisSizingMode = 'FIXED'
-        badge.counterAxisSizingMode = 'FIXED'
-        badge.resize(32, 32)
-        badge.cornerRadius = JAZZ_RADIUS
-        badge.fills = [{ type: 'SOLID', color: brandRgb }]
-        const abbr = ticker.length <= 3 ? ticker : ticker.slice(0, 3)
-        const badgeText = await createTextNode(abbr, {
-          fontSize: abbr.length <= 2 ? 12 : 9,
-          fontName: fonts.bold,
-          fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
-        })
-        badgeText.textAlignHorizontal = 'CENTER'
-        badge.appendChild(badgeText)
+        // Brand logo badge: real SVG if available, letter-avatar fallback
+        const badge = hasBrandLogo(ticker)
+          ? createLogoBadge(ticker, 32)
+          : await createLetterBadge(ticker, 32, fonts)
         cardFrame.appendChild(badge)
 
         // Right info column: symbol on top, value below
@@ -1151,26 +1189,10 @@ async function renderBlock(
           row.paddingBottom = 8
           row.itemSpacing = 8
 
-          // Colored brand badge
-          const brandRgb = hexToRgb(TICKER_COLORS[item.ticker] ?? '#005EB8')
-          const badge = figma.createFrame()
-          badge.name = 'Badge-' + item.ticker
-          badge.layoutMode = 'VERTICAL'
-          badge.primaryAxisAlignItems = 'CENTER'
-          badge.counterAxisAlignItems = 'CENTER'
-          badge.primaryAxisSizingMode = 'FIXED'
-          badge.counterAxisSizingMode = 'FIXED'
-          badge.resize(28, 28)
-          badge.cornerRadius = JAZZ_RADIUS
-          badge.fills = [{ type: 'SOLID', color: brandRgb }]
-          const abbr = item.ticker.length <= 3 ? item.ticker : item.ticker.slice(0, 3)
-          const badgeText = await createTextNode(abbr, {
-            fontSize: abbr.length <= 2 ? 11 : 8,
-            fontName: fonts.bold,
-            fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
-          })
-          badgeText.textAlignHorizontal = 'CENTER'
-          badge.appendChild(badgeText)
+          // Brand logo badge: real SVG if available, letter-avatar fallback
+          const badge = hasBrandLogo(item.ticker)
+            ? createLogoBadge(item.ticker, 28)
+            : await createLetterBadge(item.ticker, 28, fonts)
           row.appendChild(badge)
 
           // Ticker + price column
