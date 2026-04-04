@@ -132,11 +132,13 @@ export function requireAuth(dataDir: string) {
     // --- Local mode: existing cookie/session flow (unchanged) ---
     const session = getSessionFromRequest(req)
     if (!session) {
+      console.log(`[ACE auth] 401 missing session: ${req.method} ${req.path}`)
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
     const user = findUserById(dataDir, session.data.userId)
     if (!user || user.disabled) {
+      console.log(`[ACE auth] 401 invalid/disabled user: ${req.method} ${req.path} userId=${session.data.userId}`)
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
@@ -153,13 +155,15 @@ export function requireAuth(dataDir: string) {
 /**
  * Require admin only. Use after requireAuth. For users CRUD.
  */
-export function requireAdmin(_req: Request, res: Response, next: NextFunction): void {
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   const auth = res.locals.auth as AuthLocals | undefined
   if (!auth) {
+    console.log(`[ACE auth] 401 no auth context: ${req.method} ${req.path}`)
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
   if (!canManageUsers(auth.role)) {
+    console.log(`[ACE auth] 403 role=${auth.role} user=${auth.username} blocked from admin-only route: ${req.method} ${req.path}`)
     res.status(403).json({ error: 'Forbidden' })
     return
   }
@@ -169,13 +173,15 @@ export function requireAdmin(_req: Request, res: Response, next: NextFunction): 
 /**
  * Require admin, manager, or editor (validate/preview/save). Reviewer returns 403.
  */
-export function requireRoleValidateSave(_req: Request, res: Response, next: NextFunction): void {
+export function requireRoleValidateSave(req: Request, res: Response, next: NextFunction): void {
   const auth = res.locals.auth as AuthLocals | undefined
   if (!auth) {
+    console.log(`[ACE auth] 401 no auth context: ${req.method} ${req.path}`)
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
   if (!canValidateAndSave(auth.role)) {
+    console.log(`[ACE auth] 403 role=${auth.role} user=${auth.username} blocked from save/validate route: ${req.method} ${req.path}`)
     res.status(403).json({ error: 'Forbidden' })
     return
   }

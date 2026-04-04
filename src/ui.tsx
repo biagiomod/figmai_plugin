@@ -3411,8 +3411,8 @@ ${htmlTable}
           onGenerate={(prompt) => {
             emit<SendMessageHandler>('SEND_MESSAGE', prompt, false)
           }}
-          onDemoMode={() => {
-            emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'demo-screens', 'design_workshop')
+          onDemoMode={(tag) => {
+            emit<RunQuickActionHandler>('RUN_QUICK_ACTION', `demo-${tag}`, 'design_workshop')
           }}
           onNewPrompt={() => {
             /* panel manages its own prompt state */

@@ -23,7 +23,7 @@ import { extractJsonFromResponse } from '../../output/normalize'
 import { showNuxtDsFallbackHintIfNeeded } from '../../designSystem/nuxtDsHint'
 import { loadFonts, createTextNode } from '../../stage/primitives'
 import { JAZZ_CONTEXT_BLOCK } from '../../designWorkshop/jazzContext'
-import { FIFI_DEMO_PRESET } from '../../designWorkshop/demoPreset'
+import { getDemoPreset } from '../../designWorkshop/demoPreset'
 import type { RenderReport } from '../../designWorkshop/types'
 
 export class DesignWorkshopHandler implements AssistantHandler {
@@ -35,6 +35,9 @@ export class DesignWorkshopHandler implements AssistantHandler {
     return assistantId === 'design_workshop' && (
       actionId === 'generate-screens' ||
       actionId === 'demo-screens' ||
+      actionId === 'demo-dashboard' ||
+      actionId === 'demo-positions' ||
+      actionId === 'demo-flow' ||
       actionId === undefined
     )
   }
@@ -126,14 +129,17 @@ CRITICAL:
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
     const { response, provider, sendAssistantMessage, replaceStatusMessage } = context
-    const isDemoMode = context.actionId === 'demo-screens'
+    const demoTag = context.actionId?.startsWith('demo-')
+      ? (context.actionId.replace('demo-', '') as 'screens' | 'dashboard' | 'positions' | 'flow')
+      : null
+    const isDemoMode = demoTag !== null
     const runId = `dw_${Date.now()}`
 
     // ── Demo mode: bypass LLM and repair entirely ──────────────────────────
     if (isDemoMode) {
       try {
         context.updateStatusStep?.('Loading demo preset...')
-        const normalized = normalizeDesignSpecV1(FIFI_DEMO_PRESET)
+        const normalized = normalizeDesignSpecV1(getDemoPreset(demoTag!))
         context.updateStatusStep?.('Rendering to canvas...')
         const renderResult = await renderDesignSpecToSection(normalized, runId, {
           useNuxtDs: false,
@@ -287,11 +293,24 @@ Required schema:
   "type": "designScreens",
   "version": 1,
   "meta": { "title": "string" },
-  "canvas": { "device": { "kind": "mobile" | "tablet" | "desktop", "width": number, "height": number } },
+  "canvas": { "device": { "kind": "mobile", "width": 375, "height": 812 } },
   "render": { "intent": { "fidelity": "hi" } },
-  "screens": [{ "name": "string", "layout": { "direction": "vertical", "padding": 24, "gap": 16 }, "blocks": [] }]
+  "screens": [
+    {
+      "name": "string",
+      "layout": { "direction": "vertical", "padding": 16, "gap": 8 },
+      "blocks": [
+        { "type": "card", "title": "Label", "content": "Value" },
+        { "type": "bodyText", "text": "Description here" },
+        { "type": "button", "text": "Action", "variant": "primary" }
+      ]
+    }
+  ]
 }
-CRITICAL: Generate 1-5 screens only.
+CRITICAL:
+- Generate 1-5 screens only.
+- Every screen blocks array MUST contain at least 3 blocks — never output "blocks": [].
+- Block types allowed: heading, bodyText, button, input, card, spacer, image, chart, metricsGrid, allocation, watchlist.
 
 Original response:
 ${originalResponse.substring(0, 2000)}`
@@ -339,7 +358,7 @@ ${originalResponse.substring(0, 2000)}`
     isDemoMode: boolean
   ): HandlerResult {
     try {
-      const normalized = normalizeDesignSpecV1(FIFI_DEMO_PRESET)
+      const normalized = normalizeDesignSpecV1(getDemoPreset('screens'))
       renderDesignSpecToSection(normalized, runId, { useNuxtDs: false, useJazz: true })
         .then(() => {
           figma.notify('Used demo preset — open-ended generation failed')

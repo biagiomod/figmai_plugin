@@ -123,6 +123,9 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     quickActions: [
       { id: "generate-screens", label: "Demo: Generate Screens", templateMessage: "Generate screens using Jazz Design System styling at hi fidelity.", executionType: "llm" },
       { id: "demo-screens", label: "Run Demo", templateMessage: "Running FiFi FinTech demo preset.", executionType: "tool-only" },
+      { id: "demo-dashboard", label: "Demo: Dashboard", templateMessage: "Running FiFi dashboard screen.", executionType: "tool-only" },
+      { id: "demo-positions", label: "Demo: Positions", templateMessage: "Running FiFi positions screen.", executionType: "tool-only" },
+      { id: "demo-flow", label: "Demo: Full Flow", templateMessage: "Running FiFi full 5-screen flow.", executionType: "tool-only" },
     ],
     promptTemplate: "# Design Workshop Assistant\n\nYou are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images."
     , instructionBlocks: [

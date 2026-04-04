@@ -31,6 +31,24 @@
           "id": "demo-screens",
           "label": "Run Demo",
           "templateMessage": "Running FiFi FinTech demo preset."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-dashboard",
+          "label": "Demo: Dashboard",
+          "templateMessage": "Running FiFi dashboard screen."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-positions",
+          "label": "Demo: Positions",
+          "templateMessage": "Running FiFi positions screen."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-flow",
+          "label": "Demo: Full Flow",
+          "templateMessage": "Running FiFi full 5-screen flow."
         }
       ],
       "tag": {
