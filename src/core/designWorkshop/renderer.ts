@@ -880,8 +880,7 @@ async function renderBlock(
         gridOuter.name = 'Metrics Grid'
         gridOuter.layoutMode = 'VERTICAL'
         gridOuter.primaryAxisSizingMode = 'AUTO'
-        gridOuter.counterAxisSizingMode = 'FIXED'
-        gridOuter.resize(maxWidth, 10)
+        gridOuter.counterAxisSizingMode = 'AUTO'
         gridOuter.fills = [{ type: 'SOLID', color: JAZZ_RGB.border }]
         gridOuter.cornerRadius = JAZZ_RADIUS
         gridOuter.clipsContent = true
@@ -894,11 +893,13 @@ async function renderBlock(
         const items = block.items
         for (let r = 0; r < Math.ceil(items.length / 2); r++) {
           const rowItems = items.slice(r * 2, r * 2 + 2)
+          // FIXED primary width breaks the FILL-child circular dependency
           const rowFrame = figma.createFrame()
           rowFrame.name = `Row-${r}`
           rowFrame.layoutMode = 'HORIZONTAL'
-          rowFrame.primaryAxisSizingMode = 'AUTO'
+          rowFrame.primaryAxisSizingMode = 'FIXED'
           rowFrame.counterAxisSizingMode = 'AUTO'
+          rowFrame.resize(maxWidth, 1)
           rowFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.border }]
           rowFrame.itemSpacing = 1
           rowFrame.paddingTop = 0
@@ -977,8 +978,7 @@ async function renderBlock(
         allocFrame.name = 'Asset Allocation'
         allocFrame.layoutMode = 'VERTICAL'
         allocFrame.primaryAxisSizingMode = 'AUTO'
-        allocFrame.counterAxisSizingMode = 'FIXED'
-        allocFrame.resize(maxWidth, 10)
+        allocFrame.counterAxisSizingMode = 'AUTO'
         allocFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
         allocFrame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border }]
         allocFrame.strokeWeight = 1
@@ -1111,8 +1111,7 @@ async function renderBlock(
         wlFrame.name = block.title
         wlFrame.layoutMode = 'VERTICAL'
         wlFrame.primaryAxisSizingMode = 'AUTO'
-        wlFrame.counterAxisSizingMode = 'FIXED'
-        wlFrame.resize(maxWidth, 10)
+        wlFrame.counterAxisSizingMode = 'AUTO'
         wlFrame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
         wlFrame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border }]
         wlFrame.strokeWeight = 1
@@ -1139,12 +1138,13 @@ async function renderBlock(
           wlFrame.appendChild(divider)
           divider.layoutSizingHorizontal = 'FILL'
 
-          // Row
+          // Row: FIXED primary width breaks the infoCol FILL circular dependency
           const row = figma.createFrame()
           row.name = item.ticker
           row.layoutMode = 'HORIZONTAL'
-          row.primaryAxisSizingMode = 'AUTO'
+          row.primaryAxisSizingMode = 'FIXED'
           row.counterAxisSizingMode = 'AUTO'
+          row.resize(maxWidth - 24, 1)
           row.counterAxisAlignItems = 'CENTER'
           row.fills = []
           row.paddingTop = 8
