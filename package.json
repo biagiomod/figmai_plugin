@@ -42,6 +42,7 @@
     "generate-knowledge-bases": "tsx scripts/generate-knowledge-bases.ts",
     "generate-nuxt-ds-catalog": "tsx scripts/generate-nuxt-ds-catalog.ts",
     "generate-ignore-rules": "tsx scripts/generate-ignore-rules.ts",
+    "ingest-brand-logos": "tsx scripts/ingest-brand-logos.ts",
     "pull:config": "bash scripts/pull-config-from-s3.sh",
     "sync-config": "tsx scripts/sync-config.ts",
     "seed-s3": "tsx scripts/seed-s3.ts",

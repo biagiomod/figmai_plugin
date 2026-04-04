@@ -9,6 +9,12 @@
 
 import type { DesignSpecV1, BlockSpec } from './types'
 import { isLikelyTicker, getTickerLogoDataUri, getTickerName } from './stockLogos'
+import { getBrandLogoDataUri } from './brandLogos/index'
+
+/** Returns the best available logo URI: real brand SVG > letter-avatar fallback */
+function getLogoUri(ticker: string): string {
+  return getBrandLogoDataUri(ticker) ?? getTickerLogoDataUri(ticker)
+}
 
 const JAZZ_CSS_VARS = `
   --jazz-primary: #005EB8;
@@ -901,7 +907,7 @@ function renderBlock(block: BlockSpec, gap: number): string {
 
       // Position card: ticker-style title (e.g. AAPL) → logo badge + colored delta
       if (isLikelyTicker(cardTitle)) {
-        const logoUri = getTickerLogoDataUri(cardTitle)
+        const logoUri = getLogoUri(cardTitle)
         // Parse content: "150 shares · $148.00 · +9.2%" — last ·-delimited segment starting with +/−
         const parts = cardContent.split('·').map(p => p.trim())
         const last = parts[parts.length - 1]
@@ -1058,7 +1064,7 @@ function renderBlock(block: BlockSpec, gap: number): string {
 
     case 'watchlist': {
       const rows = block.items.map(item => {
-        const logoUri = getTickerLogoDataUri(item.ticker)
+        const logoUri = getLogoUri(item.ticker)
         const chgClass = item.gain ? 'gain' : 'loss'
         return `<div class="block-watchlist-row">
   <img src="${logoUri}" class="block-watchlist-logo" alt="${escapeHtml(item.ticker)}"/>
