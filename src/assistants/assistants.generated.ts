@@ -126,6 +126,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "demo-dashboard", label: "Demo: Dashboard", templateMessage: "Running FiFi dashboard screen.", executionType: "tool-only" },
       { id: "demo-positions", label: "Demo: Positions", templateMessage: "Running FiFi positions screen.", executionType: "tool-only" },
       { id: "demo-flow", label: "Demo: Full Flow", templateMessage: "Running FiFi full 5-screen flow.", executionType: "tool-only" },
+      { id: "demo-exact", label: "Demo: Exact", templateMessage: "Running FiFi exact reference portfolio screen.", executionType: "tool-only" },
     ],
     promptTemplate: "# Design Workshop Assistant\n\nYou are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images."
     , instructionBlocks: [
