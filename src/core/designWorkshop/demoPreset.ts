@@ -35,8 +35,8 @@ const HI_FI_RENDER: DesignSpecV1['render'] = {
   }
 }
 
-// ─── Dashboard preset — matches reference Image #7 ───────────────────────────
-// YTD area chart + portfolio summary tiles + markets + top positions
+// ─── Dashboard preset ────────────────────────────────────────────────────────
+// YTD area chart + portfolio summary tiles + top positions + watchlist
 
 export const FIFI_DASHBOARD_PRESET: DesignSpecV1 = {
   type: 'designScreens',
@@ -66,7 +66,7 @@ export const FIFI_DASHBOARD_PRESET: DesignSpecV1 = {
         {
           type: 'metricsGrid',
           items: [
-            { label: "Day's Gain", value: '$0.00' },
+            { label: "Day's Gain", value: '$5,572.13', gain: true },
             { label: 'Total Gain', value: '+$13,466.95', gain: true },
             { label: 'Est. Annual Income', value: '$10,997.59' },
             { label: 'Cash & Sweep', value: '$728.46' },
@@ -74,24 +74,24 @@ export const FIFI_DASHBOARD_PRESET: DesignSpecV1 = {
         },
         // YTD area chart
         { type: 'chart', height: 150, caption: 'YTD performance' },
-        // Top positions
+        // Top positions — all tickers have brand logos in the asset library
         { type: 'heading', text: 'Positions', level: 3 },
-        { type: 'card', title: 'VTIP', content: '$97,869.33 · +2.4%' },
-        { type: 'card', title: 'BND',  content: '$69,359.97 · +1.1%' },
-        { type: 'card', title: 'VCSH', content: '$54,573.91 · +0.8%' },
-        { type: 'card', title: 'VOO',  content: '$25,893.55 · +3.2%' },
-        { type: 'card', title: 'SCHD', content: '$24,082.26 · +1.9%' },
+        { type: 'card', title: 'AAPL',  content: '$97,869.33 · +2.4%' },
+        { type: 'card', title: 'MSFT',  content: '$69,359.97 · +1.1%' },
+        { type: 'card', title: 'NVDA',  content: '$54,573.91 · +0.8%' },
+        { type: 'card', title: 'AMZN',  content: '$25,893.55 · +3.2%' },
+        { type: 'card', title: 'GOOGL', content: '$24,082.26 · +1.9%' },
         { type: 'button', text: 'Showing 5 of 10 positions', variant: 'secondary' },
-        // Asset allocation
-        { type: 'allocation', equity: 23.32, fixedIncome: 74.89, altAssets: 1.79, total: '$319k' },
-        // Watchlist
+        // Asset allocation — equity-heavy stock portfolio
+        { type: 'allocation', equity: 82.5, fixedIncome: 8.2, altAssets: 9.3, total: '$319k' },
+        // Watchlist — defensive stocks, all with brand logos
         {
           type: 'watchlist',
-          title: 'Recession Investing',
+          title: 'Watchlist',
           items: [
-            { ticker: 'SPLV', price: '$67.21', change: '+0.32%', gain: true },
-            { ticker: 'TLT',  price: '$88.45', change: '-0.18%', gain: false },
-            { ticker: 'VIG',  price: '$185.30', change: '+0.91%', gain: true },
+            { ticker: 'WMT', price: '$96.34',  change: '+0.44%', gain: true },
+            { ticker: 'VZ',  price: '$41.82',  change: '-0.22%', gain: false },
+            { ticker: 'MCD', price: '$289.15', change: '+0.67%', gain: true },
           ]
         }
       ]
@@ -99,8 +99,8 @@ export const FIFI_DASHBOARD_PRESET: DesignSpecV1 = {
   ]
 }
 
-// ─── Positions preset — matches reference Image #5 ───────────────────────────
-// Full ETF position list with ticker logos
+// ─── Positions preset ─────────────────────────────────────────────────────────
+// Full position list — all tickers have brand logos in the asset library
 
 export const FIFI_POSITIONS_PRESET: DesignSpecV1 = {
   type: 'designScreens',
@@ -127,15 +127,16 @@ export const FIFI_POSITIONS_PRESET: DesignSpecV1 = {
         { type: 'card', title: 'Portfolio Value', content: '$319,448.13 · 10 positions' },
         { type: 'card', title: 'Total Gain / Loss', content: '+$13,466.95 (+4.40%)' },
         { type: 'spacer', height: 4 },
-        { type: 'card', title: 'VTIP',  content: '$97,869.33 · +2.4%' },
-        { type: 'card', title: 'BND',   content: '$69,359.97 · +1.1%' },
-        { type: 'card', title: 'VCSH',  content: '$54,573.91 · +0.8%' },
-        { type: 'card', title: 'VOO',   content: '$25,893.55 · +3.2%' },
-        { type: 'card', title: 'SCHD',  content: '$24,082.26 · +1.9%' },
-        { type: 'card', title: 'VDC',   content: '$18,200.00 · -0.6%' },
-        { type: 'card', title: 'SGOV',  content: '$9,948.30 · +0.1%' },
-        { type: 'card', title: 'GLDM',  content: '$8,760.00 · +3.4%' },
-        { type: 'card', title: 'JPM',   content: '$2,100.28 · +0.9%' },
+        { type: 'card', title: 'AAPL',  content: '$97,869.33 · +2.4%' },
+        { type: 'card', title: 'MSFT',  content: '$69,359.97 · +1.1%' },
+        { type: 'card', title: 'NVDA',  content: '$54,573.91 · +0.8%' },
+        { type: 'card', title: 'AMZN',  content: '$25,893.55 · +3.2%' },
+        { type: 'card', title: 'GOOGL', content: '$24,082.26 · +1.9%' },
+        { type: 'card', title: 'V',     content: '$18,200.00 · -0.6%' },
+        { type: 'card', title: 'KO',    content: '$9,948.30 · +0.1%' },
+        { type: 'card', title: 'NKE',   content: '$8,760.00 · +3.4%' },
+        { type: 'card', title: 'DIS',   content: '$5,264.03 · -1.2%' },
+        { type: 'card', title: 'GS',    content: '$2,100.28 · +0.9%' },
         { type: 'spacer', height: 8 },
         { type: 'button', text: 'Add Position', variant: 'primary' }
       ]
@@ -201,7 +202,7 @@ export const FIFI_FLOW_PRESET: DesignSpecV1 = {
         {
           type: 'metricsGrid',
           items: [
-            { label: "Day's Gain", value: '$0.00' },
+            { label: "Day's Gain", value: '$5,572.13', gain: true },
             { label: 'Total Gain', value: '+$13,466.95', gain: true },
             { label: 'Est. Annual Income', value: '$10,997.59' },
             { label: 'Cash & Sweep', value: '$728.46' },
@@ -209,12 +210,12 @@ export const FIFI_FLOW_PRESET: DesignSpecV1 = {
         },
         { type: 'chart', height: 120, caption: 'YTD performance' },
         { type: 'heading', text: 'Top Positions', level: 3 },
-        { type: 'card', title: 'VTIP', content: '$97,869.33 · +2.4%' },
-        { type: 'card', title: 'BND',  content: '$69,359.97 · +1.1%' },
+        { type: 'card', title: 'AAPL', content: '$97,869.33 · +2.4%' },
+        { type: 'card', title: 'MSFT', content: '$69,359.97 · +1.1%' },
         { type: 'button', text: 'See All Positions', variant: 'primary' }
       ]
     },
-    // 4 — Positions list
+    // 4 — Positions list — all tickers have brand logos in the asset library
     {
       name: 'Positions',
       layout: { direction: 'vertical', padding: 16, gap: 8 },
@@ -222,15 +223,16 @@ export const FIFI_FLOW_PRESET: DesignSpecV1 = {
         { type: 'card', title: 'Portfolio Value', content: '$319,448.13 · 10 positions' },
         { type: 'card', title: 'Total Gain / Loss', content: '+$13,466.95 (+4.40%)' },
         { type: 'spacer', height: 4 },
-        { type: 'card', title: 'VTIP',  content: '$97,869.33 · +1.2%' },
-        { type: 'card', title: 'BND',   content: '$69,359.97 · −0.3%' },
-        { type: 'card', title: 'VCSH',  content: '$54,573.91 · +0.4%' },
-        { type: 'card', title: 'VOO',   content: '$25,893.55 · +2.1%' },
-        { type: 'card', title: 'SCHD',  content: '$24,082.26 · +1.8%' },
-        { type: 'card', title: 'VDC',   content: '$18,200.00 · −0.6%' },
-        { type: 'card', title: 'SGOV',  content: '$9,948.30 · +0.1%' },
-        { type: 'card', title: 'GLDM',  content: '$8,760.00 · +3.4%' },
-        { type: 'card', title: 'JPM',   content: '$2,100.28 · +0.9%' },
+        { type: 'card', title: 'AAPL',  content: '$97,869.33 · +1.2%' },
+        { type: 'card', title: 'MSFT',  content: '$69,359.97 · −0.3%' },
+        { type: 'card', title: 'NVDA',  content: '$54,573.91 · +0.4%' },
+        { type: 'card', title: 'AMZN',  content: '$25,893.55 · +2.1%' },
+        { type: 'card', title: 'GOOGL', content: '$24,082.26 · +1.8%' },
+        { type: 'card', title: 'V',     content: '$18,200.00 · −0.6%' },
+        { type: 'card', title: 'KO',    content: '$9,948.30 · +0.1%' },
+        { type: 'card', title: 'NKE',   content: '$8,760.00 · +3.4%' },
+        { type: 'card', title: 'DIS',   content: '$5,264.03 · −1.2%' },
+        { type: 'card', title: 'GS',    content: '$2,100.28 · +0.9%' },
         { type: 'button', text: 'Add Position', variant: 'primary' }
       ]
     },
