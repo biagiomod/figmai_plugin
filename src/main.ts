@@ -134,7 +134,10 @@ import type {
   RequestAnalyticsTaggingScreenshotByMetaHandler,
   ExportAnalyticsTaggingScreenshotsHandler,
   ExportAnalyticsTaggingOneRowHandler,
-  ResizePluginHandler
+  ResizePluginHandler,
+  DwScanScreensHandler,
+  DwClearScanHandler,
+  DwSetDesignModeHandler
 } from './core/types'
 import { loadSession, saveSession } from './core/analyticsTagging/storage'
 import { captureVisibleInArea, exportNodeThumbnailPngBytes } from './core/analyticsTagging/screenshot'
@@ -150,6 +153,8 @@ import { getTopLevelContainerNode } from './core/stage/anchor'
 import { BUILD_VERSION, BUILD_ID, BUILT_AT } from './core/build'
 import type { ExecutionType } from './core/types'
 import { pluginUIPreviewComponent } from './core/figma/artifacts/components/pluginUIPreview'
+import { setScanContext, setDwDesignMode } from './core/designWorkshop/designWorkshopScanStore'
+import type { ScannedDesignContext } from './core/designWorkshop/designWorkshopScanStore'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -2092,6 +2097,159 @@ on<RenderPluginUIPreviewHandler>('RENDER_PLUGIN_UI_PREVIEW', async function (pay
       }
     })
   }
+})
+
+on<DwScanScreensHandler>('DW_SCAN_SCREENS', function () {
+  const selection = figma.currentPage.selection
+
+  if (selection.length === 0) {
+    sendAssistantMessage('Please select a DW-A section or screen on the canvas first.')
+    return
+  }
+
+  // Collect candidate nodes: sections (dwa-origin) and individual screens (dwa-screen)
+  const dwaSections: FrameNode[] = []
+  const dwaScreens: FrameNode[] = []
+  let nonDwCount = 0
+
+  for (const node of selection) {
+    if (node.type !== 'FRAME') { nonDwCount++; continue }
+    const frame = node as FrameNode
+    if (frame.getPluginData('dwa-origin') === '1') {
+      dwaSections.push(frame)
+    } else if (frame.getPluginData('dwa-screen') === '1') {
+      dwaScreens.push(frame)
+    } else {
+      // Name fallback: frame whose name starts with "Design Workshop"
+      if (frame.name.startsWith('Design Workshop')) {
+        dwaSections.push(frame)
+      } else {
+        nonDwCount++
+      }
+    }
+  }
+
+  // Expand sections to their screen children
+  for (const section of dwaSections) {
+    for (const child of section.children) {
+      if (child.type === 'FRAME') {
+        const childFrame = child as FrameNode
+        if (childFrame.getPluginData('dwa-screen') === '1') {
+          if (!dwaScreens.includes(childFrame)) dwaScreens.push(childFrame)
+        }
+      }
+    }
+  }
+
+  if (dwaScreens.length === 0 && dwaSections.length === 0) {
+    sendAssistantMessage("The selected items weren't created by Design Workshop. Select a DW-A generated section or screen frame.")
+    return
+  }
+
+  // Read design mode from the first section's plugin data (fallback: current store value)
+  let designMode: 'jazz' | 'wireframe' = 'jazz'
+  if (dwaSections.length > 0) {
+    // Use first section's mode; multi-section mixed-mode scans are not supported
+    const rawMode = dwaSections[0].getPluginData('dwa-mode')
+    if (rawMode === 'wireframe') designMode = 'wireframe'
+  }
+
+  // Traverse each screen frame — shallow recursion, depth cap 3, skip chrome nodes
+  const CHROME_NAMES = new Set(['Status Bar', 'Nav Bar', 'Tab Bar'])
+  const BLOCK_NAME_MAP: Record<string, string> = {
+    'Metrics Grid': 'metricsGrid',
+    'Asset Allocation': 'allocation',
+    'Chart': 'chart',
+    'Chart Header': 'chart',
+    'Dark Section': 'darkSection',
+    'Body Text': 'bodyText',
+    'Button': 'button',
+    'Input': 'input',
+    'Spacer': 'spacer',
+    'Image': 'image',
+  }
+
+  function classifyNode(node: SceneNode): string | null {
+    if (node.type !== 'FRAME' && node.type !== 'RECTANGLE' && node.type !== 'TEXT') return null
+    if ('getPluginData' in node && node.getPluginData('dwa-chrome') === '1') return null
+    if (CHROME_NAMES.has(node.name)) return null
+    const n = node.name
+    if (BLOCK_NAME_MAP[n]) return BLOCK_NAME_MAP[n]
+    if (n.startsWith('Heading')) return 'heading'
+    if (n.startsWith('Card-') || n === 'Card' || n === 'Promo-Card') return 'card'
+    return null
+  }
+
+  function traverseScreen(screenFrame: FrameNode): { blockTypes: string[]; textSnippets: string[] } {
+    const blockTypes: string[] = []
+    const textSnippets: string[] = []
+    const seen = new Set<string>()
+
+    function walk(node: SceneNode, depth: number) {
+      if (depth > 3) return
+      if (node.type === 'FRAME') {
+        const frame = node as FrameNode
+        if (frame.getPluginData('dwa-chrome') === '1' || CHROME_NAMES.has(frame.name)) return
+        const bt = classifyNode(frame)
+        if (bt && !seen.has(bt + frame.name)) {
+          blockTypes.push(bt)
+          seen.add(bt + frame.name)
+        }
+        // Recurse into Content frames and named block frames
+        if (frame.name === 'Content' || bt !== null) {
+          for (const child of frame.children) walk(child, depth + 1)
+        }
+      } else if (node.type === 'TEXT') {
+        const chars = (node as TextNode).characters?.trim()
+        if (chars && chars.length > 0 && textSnippets.length < 10) {
+          textSnippets.push(chars.slice(0, 80))
+        }
+      }
+    }
+
+    for (const child of screenFrame.children) walk(child, 0)
+    return { blockTypes, textSnippets }
+  }
+
+  const screens: ScannedDesignContext['screens'] = []
+  for (const screenFrame of dwaScreens) {
+    const { blockTypes, textSnippets } = traverseScreen(screenFrame)
+    screens.push({ name: screenFrame.name, blockTypes, textSnippets })
+  }
+
+  if (screens.length === 0 || screens.every(s => s.blockTypes.length === 0)) {
+    sendAssistantMessage("The selected screens don't contain recognizable design blocks. Try selecting the outer Design Workshop section frame.")
+    return
+  }
+
+  const screenNames = screens.map(s => s.name).join(' · ')
+  const rawSummary = `${screens.length} screen${screens.length > 1 ? 's' : ''}: ${screenNames}`
+  const ctx: ScannedDesignContext = { screens, designMode, rawSummary }
+
+  setScanContext(ctx)
+
+  const blockInventory = Array.from(new Set(screens.flatMap(s => s.blockTypes))).join(', ')
+  const confirmMsg = nonDwCount > 0
+    ? `Mixed selection detected — ${screens.length} DW-A screen(s) found and scanned. Non-DW-A items ignored.\n✓ ${rawSummary} (${blockInventory}). What would you like to refine?`
+    : `✓ Scanned ${rawSummary} (${blockInventory}). What would you like to refine?`
+
+  sendAssistantMessage(confirmMsg)
+  figma.ui.postMessage({ pluginMessage: {
+    type: 'DW_SCAN_RESULT',
+    ok: true,
+    summary: rawSummary,
+    screenCount: screens.length,
+    designMode
+  }})
+  // ui.tsx Task 8 integration will handle this message in the DW_SCAN_RESULT case
+})
+
+on<DwClearScanHandler>('DW_CLEAR_SCAN', function () {
+  setScanContext(null)
+})
+
+on<DwSetDesignModeHandler>('DW_SET_DESIGN_MODE', function (mode: 'jazz' | 'wireframe') {
+  setDwDesignMode(mode)
 })
 
 on<ResizePluginHandler>('RESIZE_PLUGIN', (width, height) => {

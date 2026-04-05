@@ -67,10 +67,18 @@ CRITICAL SCREEN COMPOSITION RULES:
 SCREEN ARCHETYPES:
 
 DASHBOARD / OVERVIEW:
-- No redundant heading. Start directly with metric cards.
-- Metric card pattern: { type: "card", title: "Short Label", content: "$X,XXX.XX" }
-- Stack 2-3 metric cards (gap 8), then a spacer, then a list section label (bodyText), then compact list cards, then CTA.
-- Change/delta values: include inline — e.g. content: "+$1,230.00 (+1.1%)"
+- No redundant heading. Start directly with a metricsGrid, then supporting data blocks.
+- Use metricsGrid for the top-level KPI row (2–4 metrics with labels and values).
+  Example: { type: "metricsGrid", metrics: [{ label: "Portfolio Value", value: "$124,530.00", delta: "+$1,230.00 (+1.1%)" }, { label: "Day's Gain", value: "+$430.20", delta: "+0.35%" }] }
+- Follow with a chart block for performance/trend visualization.
+  Example: { type: "chart", title: "Portfolio Performance", chartType: "line", period: "1M" }
+- Add a watchlist block for tracked symbols/positions below the chart.
+  Example: { type: "watchlist", title: "Watchlist", items: [{ symbol: "AAPL", name: "Apple Inc.", price: "$178.45", delta: "+1.2%" }, { symbol: "TSLA", name: "Tesla Inc.", price: "$242.10", delta: "−0.8%" }] }
+- Use an allocation block to show asset/sector breakdown.
+  Example: { type: "allocation", title: "Asset Allocation", segments: [{ label: "Equities", value: "62%" }, { label: "Fixed Income", value: "28%" }, { label: "Cash", value: "10%" }] }
+- Positive delta values: prefix with "+" — renderer will apply gain color (#128842).
+- Negative delta values: prefix with "−" — renderer will apply loss color (#DA0B16).
+- End with a spacer then a CTA button.
 
 POSITIONS / LIST SCREENS:
 - Start with a summary card (total count or total value).
@@ -97,7 +105,70 @@ BUTTONS:
 FIDELITY: Always "hi". DENSITY: "comfortable".
 
 BLOCK VOCABULARY — only these types:
-heading | bodyText | button | input | card | spacer | image | chart | metricsGrid | allocation | watchlist
+heading | bodyText | button | input | card | spacer | image | chart | metricsGrid | allocation | watchlist | darkSection
 
 Every screen MUST have at least 3 blocks. Never output an empty blocks array.
 `
+
+/** Wireframe-mode prompt block — neutral palette, structure-focused, no Jazz color tokens */
+export const WIREFRAME_CONTEXT_BLOCK = `
+=== WIREFRAME MODE — STRUCTURAL FIDELITY ===
+You are generating a wireframe, not a branded design. Follow these rules strictly.
+
+PALETTE: Neutral only. Do NOT use any Jazz brand color tokens (no primary blue, no CTA green, no navy hero bg, no loss red).
+- Background: #F5F5F5
+- Card / panel surface: #FFFFFF
+- Borders and dividers: #D0D0D0
+- Primary text: #1A1A1A
+- Secondary / muted text: #6B6B6B
+- Interactive elements (buttons, links): #404040
+- Fills and highlights: #E0E0E0
+
+BORDER RADIUS: 8px on all elements (not 4px — wireframes use softer rounding for clarity).
+
+CHROME: No mobile chrome. Do NOT include status bars, navigation bars, or tab bars.
+
+FIDELITY: "wireframe". DENSITY: "comfortable".
+
+CONTENT — SEMANTIC PRESERVATION RULE:
+Wireframes must preserve realistic, semantic content. Do NOT replace values with placeholder text.
+- Correct: { title: "Portfolio Value", content: "$124,530.00" }
+- Correct: { symbol: "AAPL", name: "Apple Inc.", price: "$178.45", delta: "+1.2%" }
+- WRONG: { title: "Label", content: "Value Here" }
+- WRONG: { title: "Metric", content: "Text Here" }
+Realistic labels, values, names, and figures communicate structure AND intent. Use them.
+
+BLOCK VOCABULARY — same 12 types apply in wireframe mode:
+heading | bodyText | button | input | card | spacer | image | chart | metricsGrid | allocation | watchlist | darkSection
+
+ARCHETYPE RECIPES (wireframe):
+
+DASHBOARD / OVERVIEW:
+- metricsGrid (2–4 KPIs with realistic labels and values)
+- chart (line or bar, with a descriptive title and realistic period label)
+- watchlist (3–5 items with real symbol, name, price, delta)
+- allocation (2–4 segments with real category labels and percentages)
+- spacer → button (CTA)
+
+POSITIONS / LIST:
+- card (summary: total count or value)
+- Repeated card items (primary identifier + one-line details with realistic figures)
+- spacer → button (CTA)
+
+FORM / AUTH:
+- heading (form title — not the screen name, but the action, e.g. "Sign In", "Add Position")
+- input blocks (stacked, gap 12, realistic placeholder text)
+- spacer → button (primary CTA)
+- bodyText (secondary action hint)
+
+ONBOARDING / SPLASH:
+- spacer (top)
+- heading (value proposition statement)
+- bodyText (supporting subtitle)
+- spacer
+- button (primary CTA)
+- button (secondary action)
+
+Every screen MUST have at least 3 blocks. Never output an empty blocks array.
+`
+

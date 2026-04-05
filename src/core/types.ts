@@ -461,5 +461,20 @@ export interface ResizePluginHandler extends EventHandler {
   handler: (width: number, height: number) => void
 }
 
+export interface DwScanScreensHandler extends EventHandler {
+  name: 'DW_SCAN_SCREENS'
+  handler: () => void
+}
+
+export interface DwClearScanHandler extends EventHandler {
+  name: 'DW_CLEAR_SCAN'
+  handler: () => void
+}
+
+export interface DwSetDesignModeHandler extends EventHandler {
+  name: 'DW_SET_DESIGN_MODE'
+  handler: (mode: 'jazz' | 'wireframe') => void
+}
+
 // Re-export content table types
 export type { UniversalContentTableV1, TableFormatPreset }

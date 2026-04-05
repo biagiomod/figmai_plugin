@@ -101,6 +101,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 export interface RenderDesignSpecOptions {
   useNuxtDs?: boolean
   useJazz?: boolean
+  useWireframe?: boolean
 }
 
 /**
@@ -291,17 +292,22 @@ export async function renderDesignSpecToSection(
   section.paddingBottom = 40
   section.paddingLeft = 40
 
+  // DW-A origin markers for scan traversal
+  section.setPluginData('dwa-origin', '1')
+  section.setPluginData('dwa-mode', options?.useWireframe === true ? 'wireframe' : 'jazz')
+
   // Create screen frames
   const screens: FrameNode[] = []
   const fidelity = spec.render.intent.fidelity
   const intent = spec.meta?.intent
   const useNuxtDs = options?.useNuxtDs === true
   const useJazz = options?.useJazz === true
+  const useWireframe = options?.useWireframe === true
   const nuxtAllowlist: NuxtDemoAllowlistEntry[] = useNuxtDs ? getNuxtDemoAllowlist() : []
   let usedDsFallback = false
 
   for (const screenSpec of spec.screens) {
-    const screenResult = await renderScreen(screenSpec, spec.canvas.device, fidelity, intent, useNuxtDs, nuxtAllowlist, useJazz)
+    const screenResult = await renderScreen(screenSpec, spec.canvas.device, fidelity, intent, useNuxtDs, nuxtAllowlist, useJazz, useWireframe)
     section.appendChild(screenResult.frame)
     screens.push(screenResult.frame)
     if (screenResult.usedDsFallback) usedDsFallback = true
@@ -316,6 +322,54 @@ export async function renderDesignSpecToSection(
   return { section, screens, report, usedDsFallback }
 }
 
+const ARCHETYPE_TABS: Record<string, string[]> = {
+  fintech:   ['Portfolio', 'Markets', 'Transfer', 'Invest', 'More'],
+  banking:   ['Home', 'Accounts', 'Transfer', 'Cards', 'More'],
+  fitness:   ['Home', 'Workout', 'Progress', 'Profile', 'More'],
+  health:    ['Home', 'Vitals', 'Activity', 'Profile', 'More'],
+  social:    ['Home', 'Explore', 'Post', 'Notifications', 'Profile'],
+  ecommerce: ['Home', 'Search', 'Cart', 'Orders', 'Profile'],
+  dashboard: ['Dashboard', 'Analytics', 'Reports', 'Settings', 'Profile'],
+  default:   ['Home', 'Explore', 'Activity', 'Profile', 'More'],
+}
+
+/** Lucide icon SVG inner content keyed by tab label (24×24 viewBox, stroke-based). */
+const LUCIDE_TAB_SVGS: Record<string, string> = {
+  Portfolio:     `<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>`,
+  Markets:       `<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>`,
+  Transfer:      `<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>`,
+  Invest:        `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
+  More:          `<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`,
+  Home:          `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
+  Accounts:      `<rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>`,
+  Cards:         `<rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>`,
+  Workout:       `<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>`,
+  Progress:      `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
+  Profile:       `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`,
+  Vitals:        `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
+  Activity:      `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
+  Explore:       `<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>`,
+  Post:          `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>`,
+  Notifications: `<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>`,
+  Search:        `<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`,
+  Cart:          `<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>`,
+  Orders:        `<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>`,
+  Dashboard:     `<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>`,
+  Analytics:     `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
+  Reports:       `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>`,
+  Settings:      `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
+}
+
+/** Build a 20×20 Lucide icon frame via figma.createNodeFromSvg for use in the tab bar. */
+function createLucideTabIcon(label: string, color: string): FrameNode {
+  const paths = LUCIDE_TAB_SVGS[label] ?? LUCIDE_TAB_SVGS['Activity']
+  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`
+  const node = figma.createNodeFromSvg(svgStr) as FrameNode
+  node.name = `Icon-${label}`
+  node.resize(20, 20)
+  return node
+}
+
 /**
  * Render a single screen frame.
  * When useNuxtDs is true, tries Nuxt DS for button/input/card blocks; falls back to primitives on failure.
@@ -327,14 +381,16 @@ async function renderScreen(
   intent?: DesignSpecV1['meta']['intent'],
   useNuxtDs?: boolean,
   nuxtAllowlist: NuxtDemoAllowlistEntry[] = [],
-  useJazz?: boolean
+  useJazz?: boolean,
+  useWireframe?: boolean
 ): Promise<{ frame: FrameNode, usedDsFallback: boolean }> {
   const screenFrame = figma.createFrame()
   screenFrame.name = screenSpec.name || 'Screen'
+  screenFrame.setPluginData('dwa-screen', '1')
   screenFrame.resize(device.width, device.height)
 
   const layout = screenSpec.layout || { direction: 'vertical', padding: 16, gap: 12 }
-  const useChrome = useJazz === true && device.kind === 'mobile'
+  const useChrome = useJazz === true && useWireframe !== true && device.kind === 'mobile'
 
   let blockContainer: FrameNode
   let maxWidth: number
@@ -342,7 +398,7 @@ async function renderScreen(
   if (useChrome) {
     // Jazz mobile: fixed-size screen frame with status bar + nav bar chrome
     screenFrame.layoutMode = 'VERTICAL'
-    screenFrame.primaryAxisSizingMode = 'AUTO'
+    screenFrame.primaryAxisSizingMode = 'FIXED'
     screenFrame.counterAxisSizingMode = 'FIXED'
     screenFrame.itemSpacing = 0
     screenFrame.paddingTop = 0
@@ -364,20 +420,9 @@ async function renderScreen(
     navBar.layoutSizingHorizontal = 'FILL'
 
     // Content frame below chrome — holds all blocks
-    let padTop: number, padRight: number, padBottom: number, padLeft: number
-    if (typeof layout.padding === 'number') {
-      padTop = padBottom = layout.padding
-      padLeft = padRight = layout.padding
-    } else if (layout.padding) {
-      padTop = layout.padding.top ?? 24
-      padBottom = layout.padding.bottom ?? 24
-      padLeft = layout.padding.left ?? 20
-      padRight = layout.padding.right ?? 20
-    } else {
-      padTop = padBottom = 24
-      padLeft = padRight = 20
-    }
-    const gap = layout.gap ?? 16
+    // Jazz DS enforces minimum padding/gap — spec values of 0 are overridden
+    const padTop = 16, padRight = 16, padBottom = 16, padLeft = 16
+    const gap = Math.max(layout.gap ?? 16, 16)
 
     const contentFrame = figma.createFrame()
     contentFrame.name = 'Content'
@@ -394,7 +439,7 @@ async function renderScreen(
 
     screenFrame.appendChild(contentFrame)
     contentFrame.layoutSizingHorizontal = 'FILL'
-    contentFrame.layoutSizingVertical = 'HUG'
+    contentFrame.layoutSizingVertical = 'FILL'
 
     maxWidth = device.width - padLeft - padRight
     blockContainer = contentFrame
@@ -404,9 +449,15 @@ async function renderScreen(
     screenFrame.primaryAxisSizingMode = 'AUTO'
     screenFrame.counterAxisSizingMode = 'AUTO'
 
-    const defaultPadV = useJazz ? 24 : 16
-    const defaultPadH = useJazz ? 20 : 16
-    if (typeof layout.padding === 'number') {
+    const defaultPadV = useJazz ? 24 : 20
+    const defaultPadH = useJazz ? 20 : 20
+    // Wireframe enforces minimum padding/gap — spec values of 0 are overridden
+    if (useWireframe) {
+      screenFrame.paddingTop = 20
+      screenFrame.paddingRight = 20
+      screenFrame.paddingBottom = 20
+      screenFrame.paddingLeft = 20
+    } else if (typeof layout.padding === 'number') {
       screenFrame.paddingTop = layout.padding
       screenFrame.paddingRight = layout.padding
       screenFrame.paddingBottom = layout.padding
@@ -422,7 +473,7 @@ async function renderScreen(
       screenFrame.paddingBottom = defaultPadV
       screenFrame.paddingLeft = defaultPadH
     }
-    screenFrame.itemSpacing = layout.gap ?? (useJazz ? 16 : 12)
+    screenFrame.itemSpacing = useWireframe ? 16 : (layout.gap ?? (useJazz ? 16 : 12))
     maxWidth = device.width - (screenFrame.paddingLeft + screenFrame.paddingRight)
     blockContainer = screenFrame
   }
@@ -448,7 +499,7 @@ async function renderScreen(
         if (nuxtNode) { appendBlock(blockContainer, nuxtNode); continue }
         usedDsFallback = true
       }
-      appendBlock(blockContainer, await renderBlock(block, fidelity, maxWidth, intent, useJazz))
+      appendBlock(blockContainer, await renderBlock(block, fidelity, maxWidth, intent, useJazz, useWireframe))
     }
 
     if (actionBlocks.length > 0 && bodyBlocks.length > 0) {
@@ -469,7 +520,7 @@ async function renderScreen(
         if (nuxtNode) { appendBlock(blockContainer, nuxtNode); continue }
         usedDsFallback = true
       }
-      appendBlock(blockContainer, await renderBlock(block, fidelity, maxWidth, intent, useJazz))
+      appendBlock(blockContainer, await renderBlock(block, fidelity, maxWidth, intent, useJazz, useWireframe))
     }
   } else {
     // Non-chrome: render blocks in original order
@@ -482,7 +533,7 @@ async function renderScreen(
         }
         usedDsFallback = true
       }
-      blockContainer.appendChild(await renderBlock(block, fidelity, maxWidth, intent, useJazz))
+      blockContainer.appendChild(await renderBlock(block, fidelity, maxWidth, intent, useJazz, useWireframe))
     }
   }
 
@@ -506,8 +557,10 @@ async function renderScreen(
     tabBar.primaryAxisAlignItems = 'SPACE_BETWEEN'
     tabBar.counterAxisAlignItems = 'CENTER'
     tabBar.itemSpacing = 0
+    tabBar.setPluginData('dwa-chrome', '1')
 
-    const tabItems = ['Home', 'Watchlist', 'Transfer', 'Invest', 'More']
+    const appType = intent?.appType?.toLowerCase() ?? 'default'
+    const tabItems = ARCHETYPE_TABS[appType] ?? ARCHETYPE_TABS['default']
     for (const label of tabItems) {
       const tabItem = figma.createFrame()
       tabItem.name = label
@@ -519,11 +572,10 @@ async function renderScreen(
       tabItem.fills = []
       tabItem.itemSpacing = 2
 
-      const iconDot = figma.createEllipse()
-      iconDot.resize(16, 16)
-      const isActive = label === 'Invest'
-      iconDot.fills = [{ type: 'SOLID', color: isActive ? JAZZ_RGB.primary : hexToRgb('#C8CDD0') }]
-      tabItem.appendChild(iconDot)
+      const isActive = label === tabItems[0]
+      const iconColor = isActive ? '#1B5EF7' : '#C8CDD0'
+      const iconNode = createLucideTabIcon(label, iconColor)
+      tabItem.appendChild(iconNode)
 
       const tabLabel = await createTextNode(label, {
         fontSize: 9, fontName: isActive ? fonts.bold : fonts.regular,
@@ -541,7 +593,7 @@ async function renderScreen(
   }
 
   // Apply fidelity styling to outer screen frame
-  applyFidelityStyling(screenFrame, fidelity, intent, useJazz)
+  applyFidelityStyling(screenFrame, fidelity, intent, useJazz, useWireframe)
 
   // Jazz chrome screens use a larger corner radius for phone appearance
   if (useChrome) {
@@ -573,6 +625,7 @@ async function createStatusBar(
   bar.primaryAxisAlignItems = 'SPACE_BETWEEN'
   bar.counterAxisAlignItems = 'CENTER'
   bar.itemSpacing = 0
+  bar.setPluginData('dwa-chrome', '1')
 
   const white: Paint = { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }
   const timeText = await createTextNode('9:41', { fontSize: 12, fontName: fonts.bold, fills: [white] })
@@ -606,6 +659,7 @@ async function createNavBar(
   bar.paddingRight = 20
   bar.counterAxisAlignItems = 'CENTER'
   bar.itemSpacing = 0
+  bar.setPluginData('dwa-chrome', '1')
 
   const white: Paint = { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }
   const titleText = await createTextNode(title, { fontSize: 13, fontName: fonts.bold, fills: [white] })
@@ -660,7 +714,8 @@ async function renderBlock(
   fidelity: DesignSpecV1['render']['intent']['fidelity'],
   maxWidth: number,
   intent?: DesignSpecV1['meta']['intent'],
-  useJazz?: boolean
+  useJazz?: boolean,
+  useWireframe?: boolean
 ): Promise<SceneNode> {
   const fonts = useJazz ? await loadJazzFonts() : await loadFonts()
 
@@ -991,16 +1046,19 @@ async function renderBlock(
       }
 
       // Non-Jazz: labeled placeholder
+      const chartH = Math.max(totalH, 80) // enforce minimum visible height
       const chartFrame = figma.createFrame()
       chartFrame.name = 'Chart'
-      chartFrame.resize(maxWidth, totalH)
-      chartFrame.fills = [getImageFill(fidelity, useJazz)]
-      chartFrame.strokes = [getImageStroke(fidelity, intent)]
-      chartFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
       chartFrame.layoutMode = 'VERTICAL'
       chartFrame.primaryAxisAlignItems = 'CENTER'
       chartFrame.counterAxisAlignItems = 'CENTER'
-      const chartLabel = await createTextNode('Portfolio Performance Chart', {
+      chartFrame.fills = [getImageFill(fidelity, useJazz)]
+      chartFrame.strokes = [getImageStroke(fidelity, intent)]
+      chartFrame.cornerRadius = getCornerRadius(fidelity, intent, useJazz)
+      chartFrame.resize(maxWidth, chartH)
+      chartFrame.primaryAxisSizingMode = 'FIXED'
+      chartFrame.counterAxisSizingMode = 'FIXED'
+      const chartLabel = await createTextNode(block.caption ?? 'Chart', {
         fontSize: 11,
         fontName: fonts.regular,
         fills: [getPlaceholderColor(fidelity)]
@@ -1088,6 +1146,52 @@ async function renderBlock(
         gridOuter.primaryAxisSizingMode = 'AUTO'   // height wraps rows
 
         return gridOuter
+      }
+
+      if (useWireframe) {
+        const gridFrame = figma.createFrame()
+        gridFrame.name = 'Metrics Grid'
+        gridFrame.layoutMode = 'VERTICAL'
+        gridFrame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+        gridFrame.strokes = [{ type: 'SOLID', color: { r: 0.82, g: 0.82, b: 0.82 } }]
+        gridFrame.strokeWeight = 1
+        gridFrame.cornerRadius = 12
+        gridFrame.paddingTop = 12
+        gridFrame.paddingRight = 16
+        gridFrame.paddingBottom = 12
+        gridFrame.paddingLeft = 16
+        gridFrame.itemSpacing = 0
+        for (const item of block.items) {
+          const row = figma.createFrame()
+          row.name = item.label
+          row.layoutMode = 'HORIZONTAL'
+          row.primaryAxisAlignItems = 'SPACE_BETWEEN'
+          row.counterAxisAlignItems = 'CENTER'
+          row.fills = []
+          row.paddingTop = 10
+          row.paddingRight = 0
+          row.paddingBottom = 10
+          row.paddingLeft = 0
+          const labelText = await createTextNode(item.label, {
+            fontSize: 11, fontName: fonts.regular,
+            fills: [{ type: 'SOLID', color: { r: 0.53, g: 0.53, b: 0.53 } }]
+          })
+          row.appendChild(labelText)
+          const valueText = await createTextNode(item.value, {
+            fontSize: 11, fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
+          })
+          row.appendChild(valueText)
+          gridFrame.appendChild(row)
+          row.resize(maxWidth - 32, row.height)
+          row.primaryAxisSizingMode = 'FIXED'
+          row.counterAxisSizingMode = 'AUTO'
+          row.layoutSizingHorizontal = 'FILL'
+        }
+        gridFrame.resize(maxWidth, gridFrame.height || 10)
+        gridFrame.counterAxisSizingMode = 'FIXED'
+        gridFrame.primaryAxisSizingMode = 'AUTO'
+        return gridFrame
       }
 
       // Non-Jazz placeholder
@@ -1222,6 +1326,63 @@ async function renderBlock(
         return allocFrame
       }
 
+      if (useWireframe) {
+        const allocFrame = createAutoLayoutFrameSafe('Asset Allocation', 'VERTICAL', {
+          padding: { top: 16, right: 16, bottom: 16, left: 16 }, gap: 10
+        })
+        allocFrame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+        allocFrame.strokes = [{ type: 'SOLID', color: { r: 0.82, g: 0.82, b: 0.82 } }]
+        allocFrame.strokeWeight = 1
+        allocFrame.cornerRadius = 12
+        const total = Math.max(block.equity + block.fixedIncome + block.altAssets, 1)
+        const segments = [
+          { pct: block.equity / total, color: { r: 0.6, g: 0.6, b: 0.6 }, label: 'Equity', value: block.equity },
+          { pct: block.fixedIncome / total, color: { r: 0.72, g: 0.72, b: 0.72 }, label: 'Fixed Income', value: block.fixedIncome },
+          { pct: block.altAssets / total, color: { r: 0.83, g: 0.83, b: 0.83 }, label: 'Alt Assets', value: block.altAssets },
+        ]
+        const barW = maxWidth - 24
+        const barFrame = figma.createFrame()
+        barFrame.name = 'Bar'
+        barFrame.layoutMode = 'HORIZONTAL'
+        barFrame.resize(barW, 20)
+        barFrame.primaryAxisSizingMode = 'FIXED'
+        barFrame.counterAxisSizingMode = 'FIXED'
+        barFrame.fills = []
+        barFrame.cornerRadius = 4
+        barFrame.itemSpacing = 2
+        barFrame.clipsContent = true
+        for (const seg of segments) {
+          const segF = figma.createFrame()
+          segF.fills = [{ type: 'SOLID', color: seg.color }]
+          segF.resize(Math.max(2, Math.round(barW * seg.pct)), 20)
+          segF.primaryAxisSizingMode = 'FIXED'
+          segF.counterAxisSizingMode = 'FIXED'
+          barFrame.appendChild(segF)
+        }
+        allocFrame.appendChild(barFrame)
+        barFrame.layoutSizingHorizontal = 'FILL'
+        for (const seg of segments) {
+          const row = createAutoLayoutFrameSafe('Row-' + seg.label, 'HORIZONTAL', { gap: 6 })
+          row.fills = []
+          row.counterAxisAlignItems = 'CENTER'
+          const dot = figma.createRectangle()
+          dot.resize(8, 8)
+          dot.cornerRadius = 4
+          dot.fills = [{ type: 'SOLID', color: seg.color }]
+          row.appendChild(dot)
+          const legText = await createTextNode(`${seg.label}  ${(seg.pct * 100).toFixed(1)}%`, {
+            fontSize: 10, fontName: fonts.regular,
+            fills: [{ type: 'SOLID', color: { r: 0.53, g: 0.53, b: 0.53 } }]
+          })
+          row.appendChild(legText)
+          allocFrame.appendChild(row)
+          row.layoutSizingHorizontal = 'FILL'
+        }
+        allocFrame.resize(maxWidth, allocFrame.height)
+        allocFrame.counterAxisSizingMode = 'FIXED'
+        return allocFrame
+      }
+
       // Non-Jazz placeholder
       const allocFrame = figma.createFrame()
       allocFrame.name = 'Asset Allocation'
@@ -1325,6 +1486,93 @@ async function renderBlock(
         return wlFrame
       }
 
+      if (useWireframe) {
+        const wlFrame = figma.createFrame()
+        wlFrame.name = block.title
+        wlFrame.layoutMode = 'VERTICAL'
+        wlFrame.primaryAxisSizingMode = 'AUTO'
+        wlFrame.counterAxisSizingMode = 'AUTO'
+        wlFrame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+        wlFrame.strokes = [{ type: 'SOLID', color: { r: 0.82, g: 0.82, b: 0.82 } }]
+        wlFrame.strokeWeight = 1
+        wlFrame.cornerRadius = 12
+        wlFrame.paddingTop = 14
+        wlFrame.paddingRight = 16
+        wlFrame.paddingBottom = 14
+        wlFrame.paddingLeft = 16
+        wlFrame.itemSpacing = 0
+        const titleText = await createTextNode(block.title.toUpperCase(), {
+          fontSize: 10, fontName: fonts.bold,
+          fills: [{ type: 'SOLID', color: { r: 0.53, g: 0.53, b: 0.53 } }]
+        })
+        wlFrame.appendChild(titleText)
+        titleText.layoutSizingHorizontal = 'FILL'
+        for (const item of block.items) {
+          const divider = figma.createRectangle()
+          divider.name = 'Divider'
+          divider.resize(maxWidth - 32, 1)
+          divider.fills = [{ type: 'SOLID', color: { r: 0.88, g: 0.88, b: 0.88 } }]
+          wlFrame.appendChild(divider)
+          divider.layoutSizingHorizontal = 'FILL'
+          const row = figma.createFrame()
+          row.name = item.ticker
+          row.layoutMode = 'HORIZONTAL'
+          row.resize(maxWidth - 32, 10)
+          row.primaryAxisSizingMode = 'FIXED'
+          row.counterAxisSizingMode = 'AUTO'
+          row.counterAxisAlignItems = 'CENTER'
+          row.fills = []
+          row.paddingTop = 10
+          row.paddingBottom = 10
+          row.itemSpacing = 10
+          // Neutral gray badge (no brand colors in wireframe)
+          const badge = figma.createFrame()
+          badge.name = 'Badge-' + item.ticker
+          badge.layoutMode = 'VERTICAL'
+          badge.primaryAxisAlignItems = 'CENTER'
+          badge.counterAxisAlignItems = 'CENTER'
+          badge.primaryAxisSizingMode = 'FIXED'
+          badge.counterAxisSizingMode = 'FIXED'
+          badge.resize(28, 28)
+          badge.cornerRadius = 4
+          badge.fills = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.8 } }]
+          const abbr = item.ticker.length <= 3 ? item.ticker : item.ticker.slice(0, 3)
+          const badgeText = await createTextNode(abbr, {
+            fontSize: abbr.length <= 2 ? 11 : 8,
+            fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+          })
+          badge.appendChild(badgeText)
+          row.appendChild(badge)
+          const infoCol = createAutoLayoutFrameSafe('Info-' + item.ticker, 'VERTICAL', { gap: 1 })
+          infoCol.fills = []
+          const tickerText = await createTextNode(item.ticker, {
+            fontSize: 12, fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }]
+          })
+          infoCol.appendChild(tickerText)
+          const priceText = await createTextNode(item.price, {
+            fontSize: 10, fontName: fonts.regular,
+            fills: [{ type: 'SOLID', color: { r: 0.53, g: 0.53, b: 0.53 } }]
+          })
+          infoCol.appendChild(priceText)
+          row.appendChild(infoCol)
+          infoCol.layoutGrow = 1
+          infoCol.layoutSizingHorizontal = 'FILL'
+          const changeText = await createTextNode(item.change, {
+            fontSize: 11, fontName: fonts.bold,
+            fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }]
+          })
+          row.appendChild(changeText)
+          wlFrame.appendChild(row)
+          row.layoutSizingHorizontal = 'FILL'
+        }
+        wlFrame.resize(maxWidth, wlFrame.height || 10)
+        wlFrame.counterAxisSizingMode = 'FIXED'
+        wlFrame.primaryAxisSizingMode = 'AUTO'
+        return wlFrame
+      }
+
       // Non-Jazz placeholder
       const wlFrame = figma.createFrame()
       wlFrame.name = block.title
@@ -1382,7 +1630,7 @@ async function renderBlock(
 /**
  * Apply fidelity-specific styling to screen frame
  */
-function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean): void {
+function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']['intent']['fidelity'], intent?: DesignSpecV1['meta']['intent'], useJazz?: boolean, useWireframe?: boolean): void {
   if (useJazz) {
     frame.fills = [{ type: 'SOLID', color: JAZZ_RGB.surface0 }]
     frame.strokes = [{ type: 'SOLID', color: JAZZ_RGB.border, opacity: 1 }]
@@ -1398,12 +1646,20 @@ function applyFidelityStyling(frame: FrameNode, fidelity: DesignSpecV1['render']
     }]
     return
   }
+  if (useWireframe === true) {
+    frame.fills = [{ type: 'SOLID', color: { r: 0.973, g: 0.973, b: 0.973 } }] // #F8F8F8 very light gray
+    frame.strokes = [{ type: 'SOLID', color: { r: 0.82, g: 0.82, b: 0.82 }, opacity: 1 }]
+    frame.strokeWeight = 1
+    frame.cornerRadius = 12
+    frame.effects = []
+    return
+  }
   switch (fidelity) {
     case 'wireframe':
-      frame.fills = [{ type: 'SOLID', color: { r: 0.88, g: 0.88, b: 0.88 } }] // #E0E0E0
-      frame.strokes = [{ type: 'SOLID', color: { r: 0.6, g: 0.6, b: 0.6 }, opacity: 1 }] // #999999
+      frame.fills = [{ type: 'SOLID', color: { r: 0.973, g: 0.973, b: 0.973 } }] // #F8F8F8 very light gray
+      frame.strokes = [{ type: 'SOLID', color: { r: 0.82, g: 0.82, b: 0.82 }, opacity: 1 }]
       frame.strokeWeight = 1
-      frame.cornerRadius = 0
+      frame.cornerRadius = 12
       frame.effects = []
       break
     case 'medium':
@@ -1545,24 +1801,24 @@ function getButtonFill(variant: 'primary' | 'secondary' | 'tertiary', fidelity: 
     if (variant === 'secondary') return { type: 'SOLID', color: JAZZ_RGB.surface0 } // white fill, bordered
     return { type: 'SOLID', color: JAZZ_RGB.surface0 }
   }
-  // Use intent primary color if available and variant is primary
-  if (variant === 'primary' && intent?.primaryColor) {
-    const color = parseColor(intent.primaryColor)
-    if (color) {
-      return { type: 'SOLID', color }
+  // Wireframe uses fixed palette — skip intent color overrides
+  if (fidelity !== 'wireframe') {
+    // Use intent primary color if available and variant is primary
+    if (variant === 'primary' && intent?.primaryColor) {
+      const color = parseColor(intent.primaryColor)
+      if (color) return { type: 'SOLID', color }
     }
-  }
-  
-  // Use intent accent color for secondary if available
-  if (variant === 'secondary' && intent?.accentColors && intent.accentColors.length > 0) {
-    const color = parseColor(intent.accentColors[0])
-    if (color) {
-      return { type: 'SOLID', color }
+    // Use intent accent color for secondary if available
+    if (variant === 'secondary' && intent?.accentColors && intent.accentColors.length > 0) {
+      const color = parseColor(intent.accentColors[0])
+      if (color) return { type: 'SOLID', color }
     }
   }
   switch (fidelity) {
     case 'wireframe':
-      return { type: 'SOLID', color: { r: 0.88, g: 0.88, b: 0.88 } } // #E0E0E0
+      if (variant === 'primary') return { type: 'SOLID', color: { r: 0.071, g: 0.533, b: 0.259 } } // #128842 green
+      if (variant === 'secondary') return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }            // white
+      return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }                                         // tertiary: white
     case 'medium':
       if (variant === 'primary') {
         return { type: 'SOLID', color: { r: 0, g: 0.4, b: 0.8 } } // #0066CC
@@ -1593,7 +1849,8 @@ function getButtonTextColor(variant: 'primary' | 'secondary' | 'tertiary', fidel
   }
   switch (fidelity) {
     case 'wireframe':
-      return { type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } } // #666666
+      if (variant === 'primary') return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } }        // white on green
+      return { type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2 } }                             // dark gray on white
     case 'medium':
     case 'hi':
       if (variant === 'primary') {
@@ -1673,7 +1930,7 @@ function getInputFill(fidelity: DesignSpecV1['render']['intent']['fidelity'], us
   if (useJazz) return { type: 'SOLID', color: JAZZ_RGB.surface0 }
   switch (fidelity) {
     case 'wireframe':
-      return { type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } }
+      return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } } // white
     case 'medium':
     case 'hi':
       return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } } // White
@@ -1734,7 +1991,7 @@ function getCardFill(fidelity: DesignSpecV1['render']['intent']['fidelity'], use
   if (useJazz) return { type: 'SOLID', color: JAZZ_RGB.surface0 }
   switch (fidelity) {
     case 'wireframe':
-      return { type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } }
+      return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } } // white — elevated above #F8F8F8 background
     case 'medium':
     case 'hi':
       return { type: 'SOLID', color: { r: 1, g: 1, b: 1 } } // White
@@ -1806,7 +2063,7 @@ function getImageFill(fidelity: DesignSpecV1['render']['intent']['fidelity'], us
   if (useJazz) return { type: 'SOLID', color: { r: 0.910, g: 0.941, b: 0.980 } } // #E8F0FA Jazz icon-bg
   switch (fidelity) {
     case 'wireframe':
-      return { type: 'SOLID', color: { r: 1, g: 1, b: 1 }, opacity: 0 } // Transparent fill, just stroke
+      return { type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 } } // #E6E6E6 visible light gray placeholder
     case 'medium':
       return { type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } } // Light gray
     case 'hi':
@@ -1854,7 +2111,7 @@ function getCornerRadius(fidelity: DesignSpecV1['render']['intent']['fidelity'],
   let baseRadius: number
   switch (fidelity) {
     case 'wireframe':
-      baseRadius = 0
+      baseRadius = 12
       break
     case 'medium':
       baseRadius = 6

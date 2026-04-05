@@ -170,7 +170,7 @@ export const FIFI_FLOW_PRESET: DesignSpecV1 = {
       layout: { direction: 'vertical', padding: 24, gap: 16 },
       blocks: [
         { type: 'spacer', height: 48 },
-        { type: 'heading', text: 'Manage your portfolio', level: 1 },
+        { type: 'heading', text: 'Welcome to FiFi', level: 1 },
         { type: 'bodyText', text: 'Track positions, monitor performance, and act on opportunities — all in one place.' },
         { type: 'spacer', height: 32 },
         { type: 'button', text: 'Get Started', variant: 'primary' },
@@ -183,8 +183,8 @@ export const FIFI_FLOW_PRESET: DesignSpecV1 = {
       layout: { direction: 'vertical', padding: 24, gap: 12 },
       blocks: [
         { type: 'spacer', height: 24 },
-        { type: 'heading', text: 'Welcome back', level: 2 },
-        { type: 'bodyText', text: 'Sign in to your FiFi account.' },
+        { type: 'heading', text: 'Welcome back to FiFi', level: 2 },
+        { type: 'bodyText', text: 'Sign in to your account.' },
         { type: 'spacer', height: 8 },
         { type: 'input', label: 'Email Address', placeholder: 'your@email.com', inputType: 'email' },
         { type: 'input', label: 'Password', placeholder: 'Enter your password', inputType: 'password' },

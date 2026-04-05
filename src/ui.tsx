@@ -92,6 +92,7 @@ import { AnalyticsTaggingTable } from './ui/components/AnalyticsTaggingTable'
 import { AnalyticsTaggingWelcome } from './ui/components/AnalyticsTaggingWelcome'
 import { AnalyticsTaggingView } from './ui/components/AnalyticsTaggingView'
 import { DesignWorkshopPanel } from './ui/components/DesignWorkshopPanel'
+import { BottomToolbar } from './ui/components/BottomToolbar'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
 import { parseRichText } from './core/richText/parseRichText'
 import { enhanceRichText, estimateEnhancedTextLength } from './core/richText/enhancers'
@@ -128,7 +129,10 @@ import type {
   ExportAnalyticsTaggingOneRowHandler,
   SaveSettingsHandler,
   RequestSettingsHandler,
-  ResizePluginHandler
+  ResizePluginHandler,
+  DwScanScreensHandler,
+  DwClearScanHandler,
+  DwSetDesignModeHandler
 } from './core/types'
 import type { AnalyticsTaggingExportCompactRow } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
@@ -175,7 +179,6 @@ import {
   SelectionNoneIcon,
   SelectionRequiredIcon,
   SelectionHasIcon,
-  ArrowUpIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   DarkmodeIcon,
@@ -499,6 +502,12 @@ function Plugin() {
   const [debugTsv, setDebugTsv] = useState('')
   const [copyStatus, setCopyStatus] = useState<{ success: boolean; message: string } | null>(null)
   const [dwExportHtml, setDwExportHtml] = useState<string | null>(null)
+  const [dwDesignMode, setDwDesignMode] = useState<'jazz' | 'wireframe'>('jazz')
+  const [dwHasScanContext, setDwHasScanContext] = useState(false)
+  const [dwScanSummary, setDwScanSummary] = useState<string | null>(null)
+  const [dwInput, setDwInput] = useState('')
+  const [dwDemoActive, setDwDemoActive] = useState(false)
+  const [dwDemoTag, setDwDemoTag] = useState<'dashboard' | 'positions' | 'flow' | 'exact'>('flow')
 
   // Design Workshop HTML export download handler
   const handleDwExportHtml = useCallback(() => {
@@ -1137,6 +1146,16 @@ function Plugin() {
             setTheme(resolved.cssThemeValue)
           }
           break
+        case 'DW_SCAN_RESULT':
+          if (message.ok) {
+            setDwHasScanContext(true)
+            setDwScanSummary(message.summary ?? null)
+            if (message.designMode === 'wireframe' || message.designMode === 'jazz') {
+              setDwDesignMode(message.designMode)
+              emit<DwSetDesignModeHandler>('DW_SET_DESIGN_MODE', message.designMode)
+            }
+          }
+          break
         case 'DW_HTML_EXPORT_READY':
           if (typeof message.html === 'string') {
             setDwExportHtml(message.html)
@@ -1421,7 +1440,7 @@ function Plugin() {
     if (selected) {
       setAssistant(selected)
       emit<SetAssistantHandler>('SET_ASSISTANT', assistantId)
-      
+
       // Code2Design: Auto-open SEND JSON modal on first selection
       if (assistantId === 'code2design' && !hasAutoOpenedSendJson) {
         setHasAutoOpenedSendJson(true)
@@ -1432,6 +1451,13 @@ function Plugin() {
       } else {
         setHasShownCode2DesignHelper(false)
       }
+
+      // Clear DW-A state when switching assistants
+      setDwHasScanContext(false)
+      setDwScanSummary(null)
+      setDwInput('')
+      setDwDemoActive(false)
+      emit<DwClearScanHandler>('DW_CLEAR_SCAN')
     }
     setShowAssistantModal(false)
   }, [hasAutoOpenedSendJson])
@@ -1477,6 +1503,17 @@ function Plugin() {
   }, [selectionState.hasSelection, showSelectionHint])
   
   const handleSend = useCallback(() => {
+    // DW-A: prompt and demo state are separate from the regular input
+    if (assistant.id === 'design_workshop') {
+      if (dwDemoActive) {
+        emit<RunQuickActionHandler>('RUN_QUICK_ACTION', `demo-${dwDemoTag}`, 'design_workshop')
+      } else {
+        const trimmed = dwInput.trim()
+        if (trimmed) emit<SendMessageHandler>('SEND_MESSAGE', trimmed, false)
+      }
+      return
+    }
+
     // Check for empty input first
     if (!input.trim()) {
       setShowEmptyInputWarning(true)
@@ -1485,17 +1522,17 @@ function Plugin() {
       }, 3000)
       return
     }
-    
+
     // Check selection requirement
     if (selectionRequired && !selectionState.hasSelection) return
-    
+
     console.log('[UI] postMessage SEND_MESSAGE', { input: input.substring(0, 50) + '...', includeSelection: includeSelection || selectionRequired })
     emit<SendMessageHandler>('SEND_MESSAGE', input, includeSelection || selectionRequired)
     setInput('')
     setSelectionRequired(false)
     setIncludeSelection(false)
     inputRef.current?.focus()
-  }, [input, includeSelection, selectionRequired, selectionState])
+  }, [assistant.id, dwInput, dwDemoActive, dwDemoTag, input, includeSelection, selectionRequired, selectionState])
   
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -3394,22 +3431,33 @@ ${htmlTable}
       {assistant.id === 'design_workshop' ? (
         <DesignWorkshopPanel
           isGenerating={activeStatus !== null}
-          onGenerate={(prompt) => {
-            emit<SendMessageHandler>('SEND_MESSAGE', prompt, false)
-          }}
-          onDemoMode={(tag) => {
-            emit<RunQuickActionHandler>('RUN_QUICK_ACTION', `demo-${tag}`, 'design_workshop')
-          }}
-          onNewPrompt={() => {
-            /* panel manages its own prompt state */
-          }}
+          prompt={dwInput}
+          onPromptChange={setDwInput}
+          demoActive={dwDemoActive}
+          onDemoActiveChange={setDwDemoActive}
+          demoTag={dwDemoTag}
+          onDemoTagChange={setDwDemoTag}
           exportHtml={dwExportHtml}
           onExportHtml={handleDwExportHtml}
+          designMode={dwDesignMode}
+          onDesignModeChange={(mode) => {
+            setDwDesignMode(mode)
+            emit<DwSetDesignModeHandler>('DW_SET_DESIGN_MODE', mode)
+          }}
+          hasScanContext={dwHasScanContext}
+          scanSummary={dwScanSummary}
+          onScan={() => emit<DwScanScreensHandler>('DW_SCAN_SCREENS')}
+          onClearScan={() => {
+            setDwHasScanContext(false)
+            setDwScanSummary(null)
+            emit<DwClearScanHandler>('DW_CLEAR_SCAN')
+          }}
+          hasSelection={selectionState.hasSelection}
         />
       ) : (
       <div style={{
         borderTop: '1px solid var(--border)',
-        padding: 'var(--spacing-md)',
+        padding: 'var(--spacing-md) var(--spacing-md) 0',
         backgroundColor: 'var(--bg)',
         flexShrink: 0,
         display: 'flex',
@@ -3603,134 +3651,27 @@ ${htmlTable}
         />
         )}
         
-        {/* Bottom Controls */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--spacing-sm)'
-        }}>
-          {/* Selection Indicator */}
-          <button
-            onClick={handleSelectionIndicatorClick}
-            style={{
-              flex: 1,
-              height: '36px',
-              padding: 'var(--spacing-sm)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: selectionState.hasSelection 
-                ? 'var(--success)' 
-                : (selectionRequired 
-                  ? 'var(--error)' 
-                  : (showSelectionHint 
-                    ? 'var(--hint-bg)' 
-                    : 'var(--bg)')),
-              color: selectionState.hasSelection ? 'var(--success-text)' : selectionRequired ? 'var(--error-text)' : 'var(--fg)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: 'var(--spacing-xs)',
-              overflow: 'hidden',
-              textAlign: 'left'
-            }}
-            title={
-              selectionState.hasSelection && selectionState.names
-                ? selectionState.names.join(', ')
-                : selectionState.hasSelection
-                ? `${selectionState.count} item(s) selected`
-                : 'No selection'
-            }
-          >
-            {getSelectionIcon()}
-            {showSelectionHint && !selectionState.hasSelection && !selectionRequired ? (
-              <span style={{
-                fontSize: '10px',
-                fontFamily: 'var(--font-family)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                flex: 1,
-                minWidth: 0,
-                textAlign: 'left'
-              }}>
-                Select element/s (frame, layer, etc.)
-              </span>
-            ) : selectionState.hasSelection && selectionState.names && selectionState.names.length > 0 ? (
-              <span style={{
-                fontSize: 'var(--font-size-sm)',
-                fontFamily: 'var(--font-family)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                flex: 1,
-                minWidth: 0,
-                textAlign: 'left'
-              }}>
-                {selectionState.names.length === 1 
-                  ? selectionState.names[0]
-                  : selectionState.names.length <= 3
-                  ? selectionState.names.join(', ')
-                  : `${selectionState.names.slice(0, 2).join(', ')} +${selectionState.names.length - 2} more`}
-              </span>
-            ) : null}
-          </button>
-          
-          {/* Assistant Selector */}
-          <button
-            onClick={handleAssistantClick}
-            style={{
-              height: '36px',
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--bg)',
-              color: 'var(--fg)',
-              cursor: 'pointer',
-              fontSize: 'var(--font-size-sm)',
-              fontFamily: 'var(--font-family)',
-              whiteSpace: 'nowrap',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-xs)',
-              flexShrink: 0
-            }}
-            title="Select assistant"
-          >
-            {getAssistantIcon(assistant.iconId)}
-            {assistant.label}
-            <ChevronDownIcon width={12} height={12} />
-          </button>
-          
-          {/* Send Button — hidden for tool-mode assistants (CT-A, AT-A) */}
-          {assistant.uiMode !== 'tool' && (
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={mode === 'content-mvp' || (selectionRequired && !selectionState.hasSelection)}
-            style={{
-              width: '36px',
-              height: '36px',
-              padding: '0',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: (mode === 'content-mvp' || (selectionRequired && !selectionState.hasSelection)) ? 'var(--muted)' : 'var(--accent)',
-              cursor: (mode === 'content-mvp' || (selectionRequired && !selectionState.hasSelection)) ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}
-            title="Send message"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: '#ffffff' }}>
-              <path d="M11.5264 4.41794C11.8209 4.17763 12.2557 4.19509 12.5303 4.4697L18.5303 10.4697C18.8232 10.7626 18.8232 11.2374 18.5303 11.5302C18.2374 11.8231 17.7626 11.8231 17.4697 11.5302L12.75 6.81052V19C12.75 19.4142 12.4142 19.75 12 19.75C11.5858 19.75 11.25 19.4142 11.25 19V6.81052L6.53027 11.5302C6.23738 11.8231 5.76262 11.8231 5.46973 11.5302C5.17684 11.2374 5.17685 10.7626 5.46973 10.4697L11.4697 4.4697L11.5264 4.41794Z" fill="#ffffff"/>
-            </svg>
-          </button>
-          )}
-        </div>
       </div>
       )}
+
+      {/* Shell bottom controls — always rendered regardless of active assistant */}
+      <BottomToolbar
+        selectionState={selectionState}
+        selectionRequired={selectionRequired}
+        showSelectionHint={showSelectionHint}
+        onSelectionClick={handleSelectionIndicatorClick}
+        assistant={assistant}
+        onAssistantClick={handleAssistantClick}
+        onSend={handleSend}
+        isGenerating={activeStatus !== null}
+        canSend={
+          assistant.id === 'design_workshop'
+            ? (dwDemoActive || dwInput.trim().length > 0)
+            : !(mode === 'content-mvp' || (selectionRequired && !selectionState.hasSelection))
+        }
+        getSelectionIcon={getSelectionIcon}
+        getAssistantIcon={getAssistantIcon}
+      />
 
       {/* Assistant Modal */}
       {showAssistantModal && (
@@ -3799,17 +3740,50 @@ ${htmlTable}
                   if (assistant.id !== a.id) {
                     e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
                   }
-                  const button = e.currentTarget
-                  const description = button.querySelector('[data-description]') as HTMLElement
-                  if (description) description.style.display = 'block'
+                  const btn = e.currentTarget as HTMLElement & { _tooltipTimer?: number }
+                  const desc = getHoverSummary(a)
+                  if (!desc) return
+                  btn._tooltipTimer = window.setTimeout(() => {
+                    let tip = document.getElementById('assistant-picker-tooltip')
+                    if (!tip) {
+                      tip = document.createElement('div')
+                      tip.id = 'assistant-picker-tooltip'
+                      tip.style.cssText = [
+                        'position:fixed',
+                        'z-index:99999',
+                        'background:#1a1a1a',
+                        'color:#fff',
+                        'font-size:11px',
+                        'padding:6px 10px',
+                        'border-radius:4px',
+                        'max-width:240px',
+                        'line-height:1.4',
+                        'pointer-events:none',
+                        'box-shadow:0 2px 8px rgba(0,0,0,0.28)',
+                        'display:none'
+                      ].join(';')
+                      document.body.appendChild(tip)
+                    }
+                    tip.textContent = desc
+                    const rect = btn.getBoundingClientRect()
+                    tip.style.left = rect.left + 'px'
+                    tip.style.top = (rect.bottom + 6) + 'px'
+                    tip.style.display = 'block'
+                    const tipRect = tip.getBoundingClientRect()
+                    const overflowRight = tipRect.right - window.innerWidth + 8
+                    if (overflowRight > 0) {
+                      tip.style.left = (rect.left - overflowRight) + 'px'
+                    }
+                  }, 2500)
                 }}
                 onMouseLeave={(e) => {
                   if (assistant.id !== a.id) {
                     e.currentTarget.style.backgroundColor = 'var(--surface-row)'
                   }
-                  const button = e.currentTarget
-                  const description = button.querySelector('[data-description]') as HTMLElement
-                  if (description) description.style.display = 'none'
+                  const btn = e.currentTarget as HTMLElement & { _tooltipTimer?: number }
+                  clearTimeout(btn._tooltipTimer)
+                  const tip = document.getElementById('assistant-picker-tooltip')
+                  if (tip) tip.style.display = 'none'
                 }}
                   style={{
                     padding: 'var(--spacing-md)',
@@ -3852,17 +3826,6 @@ ${htmlTable}
                         {getAssistantTagLabel(a.tag)}
                       </span>
                     )}
-                    </div>
-                  <div 
-                    data-description
-                    style={{
-                      fontSize: 'var(--font-size-xs)',
-                      opacity: assistant.id === a.id ? 0.9 : 0.7,
-                      display: 'none',
-                      lineHeight: 1.4
-                    }}
-                  >
-                    {getHoverSummary(a)}
                     </div>
                   </div>
                 </button>
