@@ -160,7 +160,6 @@ export const customConfig: CustomConfig | null = {
       "enabled": false,
       "level": "compact"
     },
-    "provider": "proxy",
     "proxy": {
       "baseUrl": "",
       "defaultModel": "gpt-4.1-mini",

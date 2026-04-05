@@ -9,6 +9,7 @@ import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
+import { isTlsError } from './src/tls-errors'
 import cookieParser from 'cookie-parser'
 import { loadModel } from './src/model'
 import { validateModel, adminEditableModelSchema, saveRequestBodySchema } from './src/schema'
@@ -94,6 +95,17 @@ function sentenceCase (value: string): string {
 function normalizeIntroLine (intro: string): string {
   const oneLine = String(intro || '').replace(/\n+/g, ' ').replace(/\*\*/g, '').trim()
   return oneLine.length > 220 ? oneLine.slice(0, 217) + '...' : oneLine
+}
+
+function setupCorporateCATrust(): void {
+  if (process.env.NODE_EXTRA_CA_CERTS) {
+    console.log(`[ACE] NODE_EXTRA_CA_CERTS=${process.env.NODE_EXTRA_CA_CERTS} (set by start.ts wrapper)`)
+  } else {
+    const conventionCertPath = path.join(adminEditorDir, 'certs', 'corp-ca.pem')
+    if (fs.existsSync(conventionCertPath) && process.env.NODE_ENV !== 'production') {
+      console.log(`[ACE] Note: ${conventionCertPath} exists but NODE_EXTRA_CA_CERTS is not set. Run via npm run admin to enable CA trust.`)
+    }
+  }
 }
 
 function loadAssistantsFromManifest (): ManifestAssistant[] {
@@ -811,13 +823,17 @@ app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, 
       return res.json({ success: true, message: 'Connection successful. The Internal API endpoint responded.', diagnostics })
     } catch (err: any) {
       const msg: string = err?.message ?? String(err)
-      let message = `Connection test failed: ${msg}`
-      if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND')) {
+      let message: string
+      if (isTlsError(err)) {
+        message = 'TLS certificate verification failed. Node.js does not trust this endpoint\'s certificate chain (common with corporate or self-signed CAs). Fix: place your corporate CA cert at admin-editor/certs/corp-ca.pem and restart ACE. See docs/guides/ace-tls.md for details.'
+      } else if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND')) {
         message = `Cannot reach endpoint: ${msg}. Check that the URL is correct and the service is running.`
       } else if (err?.name === 'TimeoutError' || msg.includes('timeout')) {
         message = 'Connection timed out. The endpoint did not respond within 15 seconds.'
+      } else {
+        message = `Connection test failed: ${msg}`
       }
-      return res.json({ success: false, message, diagnostics: { url, error: msg } })
+      return res.json({ success: false, message, diagnostics: { url, errorCode: err?.code, errorCauseCode: err?.cause?.code, error: msg } })
     }
   } else {
     const baseUrl = (typeof proxy?.baseUrl === 'string' ? proxy.baseUrl : '').trim().replace(/\/+$/, '')
@@ -846,13 +862,17 @@ app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, 
       return res.json({ success: true, message: 'Connection successful. The Proxy /health endpoint responded.', diagnostics })
     } catch (err: any) {
       const msg: string = err?.message ?? String(err)
-      let message = `Connection test failed: ${msg}`
-      if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND')) {
+      let message: string
+      if (isTlsError(err)) {
+        message = 'TLS certificate verification failed. Node.js does not trust this proxy\'s certificate chain (common with corporate or self-signed CAs). Fix: place your corporate CA cert at admin-editor/certs/corp-ca.pem and restart ACE. See docs/guides/ace-tls.md for details.'
+      } else if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND')) {
         message = `Cannot reach proxy: ${msg}. Check that the base URL is correct.`
       } else if (err?.name === 'TimeoutError' || msg.includes('timeout')) {
         message = 'Connection timed out. The proxy did not respond within 15 seconds.'
+      } else {
+        message = `Connection test failed: ${msg}`
       }
-      return res.json({ success: false, message, diagnostics: { url: healthUrl, error: msg } })
+      return res.json({ success: false, message, diagnostics: { url: healthUrl, errorCode: err?.code, errorCauseCode: err?.cause?.code, error: msg } })
     }
   }
 })
@@ -936,8 +956,14 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
       return res.json({ success: true, response: responseText, assistantId: assistant.id || '(unknown)', kbName: resolvedKbName })
     } catch (err: any) {
       const msg: string = err?.message ?? String(err)
-      let message = `Test request failed: ${msg}`
-      if (err?.name === 'TimeoutError' || msg.includes('timeout')) message = 'Request timed out after 60 seconds.'
+      let message: string
+      if (isTlsError(err)) {
+        message = 'TLS certificate verification failed. Node.js does not trust this endpoint\'s certificate chain (common with corporate or self-signed CAs). Fix: place your corporate CA cert at admin-editor/certs/corp-ca.pem and restart ACE. See docs/guides/ace-tls.md for details.'
+      } else if (err?.name === 'TimeoutError' || msg.includes('timeout')) {
+        message = 'Request timed out after 60 seconds.'
+      } else {
+        message = `Test request failed: ${msg}`
+      }
       return res.json({ success: false, message })
     }
   } else {
@@ -986,8 +1012,14 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
       return res.json({ success: true, response: responseText, assistantId: assistant.id || '(unknown)', kbName: resolvedKbName })
     } catch (err: any) {
       const msg: string = err?.message ?? String(err)
-      let message = `Test request failed: ${msg}`
-      if (err?.name === 'TimeoutError' || msg.includes('timeout')) message = 'Request timed out after 60 seconds.'
+      let message: string
+      if (isTlsError(err)) {
+        message = 'TLS certificate verification failed. Node.js does not trust this proxy\'s certificate chain (common with corporate or self-signed CAs). Fix: place your corporate CA cert at admin-editor/certs/corp-ca.pem and restart ACE. See docs/guides/ace-tls.md for details.'
+      } else if (err?.name === 'TimeoutError' || msg.includes('timeout')) {
+        message = 'Request timed out after 60 seconds.'
+      } else {
+        message = `Test request failed: ${msg}`
+      }
       return res.json({ success: false, message })
     }
   }
@@ -995,6 +1027,7 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
 
 const PORT = process.env.ADMIN_EDITOR_PORT ? parseInt(process.env.ADMIN_EDITOR_PORT, 10) : 3333
 const HOST = process.env.ADMIN_EDITOR_HOST || (ACE_AUTH_MODE === 'wrapper' ? '127.0.0.1' : '0.0.0.0')
+setupCorporateCATrust()
 app.listen(PORT, HOST, () => {
   console.log(`Admin Config Editor server at http://${HOST}:${PORT}`)
   console.log(`Auth mode: ${ACE_AUTH_MODE}${ACE_AUTH_MODE === 'wrapper' ? ' (Spring wrapper — Node login disabled, identity from headers)' : ' (local cookie/session auth)'}`)

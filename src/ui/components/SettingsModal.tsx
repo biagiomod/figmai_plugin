@@ -10,7 +10,7 @@ import type {
 } from '../../core/types'
 import type { Settings } from '../../core/settings'
 import type { Mode } from '../../core/types'
-import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings, getCustomConfig, getLlmUiMode, getHideInternalApiSettings, getHideProxySettings, getHideTestConnectionButton } from '../../custom/config'
+import { shouldHideContentMvpMode, getCustomLlmEndpoint, shouldHideLlmModelSettings, getCustomConfig, getLlmUiMode, getHideInternalApiSettings, getHideProxySettings, getHideTestConnectionButton, getLlmProvider } from '../../custom/config'
 import { BUILD_VERSION, BUILD_ID } from '../../core/build'
 import { debugLog } from '../utils/debug'
 import { getInitialMode } from '../utils/mode'
@@ -45,6 +45,9 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
   // - Otherwise: show full settings
   const showConnectionOnly = !!customEndpoint && llmUiMode === 'connection-only' && !hideModelSettings
   const showFullLlmSettings = !hideModelSettings && !showConnectionOnly
+  const lockedProvider   = getLlmProvider()
+  const isProviderLocked = lockedProvider != null
+  const isEndpointLocked = lockedProvider === 'internal-api' && !!customEndpoint
   
   // Initialize mode from currentMode prop (reflects actual current mode)
   // If currentMode is not provided, use getInitialMode() for consistent fallback logic
@@ -639,7 +642,16 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
                 }}
               />
             </div>
-            
+
+            {isProviderLocked && (
+              <div style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--fg-secondary)',
+                marginTop: 'var(--spacing-xs)'
+              }}>
+                Locked by config
+              </div>
+            )}
             {!hideTestBtn && (
             <div style={{ marginTop: 'var(--spacing-md)' }}>
               <Button
@@ -680,11 +692,13 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
             <button
               onClick={() => setConnectionType('internal-api')}
               onKeyDown={(e) => {
+                if (isProviderLocked) return
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
                   setConnectionType('internal-api')
                 }
               }}
+              disabled={isProviderLocked}
               style={{
                 flex: 1,
                 padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -693,7 +707,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
                 borderRadius: 0,
                 backgroundColor: connectionType === 'internal-api' ? '#ffffff' : 'var(--surface-modal)',
                 color: connectionType === 'internal-api' ? '#000000' : 'var(--fg-secondary)',
-                cursor: 'pointer',
+                cursor: isProviderLocked ? 'not-allowed' : 'pointer',
+                opacity: isProviderLocked && connectionType !== 'internal-api' ? 0.5 : 1,
                 textAlign: 'center',
                 fontFamily: 'var(--font-family)',
                 fontSize: 'var(--font-size-sm)',
@@ -727,11 +742,13 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
             <button
               onClick={() => setConnectionType('proxy')}
               onKeyDown={(e) => {
+                if (isProviderLocked) return
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
                   setConnectionType('proxy')
                 }
               }}
+              disabled={isProviderLocked}
               style={{
                 flex: 1,
                 padding: 'var(--spacing-sm) var(--spacing-md)',
@@ -739,7 +756,8 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
                 borderRadius: 0,
                 backgroundColor: connectionType === 'proxy' ? '#ffffff' : 'var(--surface-modal)',
                 color: connectionType === 'proxy' ? '#000000' : 'var(--fg-secondary)',
-                cursor: 'pointer',
+                cursor: isProviderLocked ? 'not-allowed' : 'pointer',
+                opacity: isProviderLocked && connectionType !== 'proxy' ? 0.5 : 1,
                 textAlign: 'center',
                 fontFamily: 'var(--font-family)',
                 fontSize: 'var(--font-size-sm)',
@@ -770,6 +788,16 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
             </button>
             )}
           </div>
+          {isProviderLocked && (
+            <div style={{
+              fontSize: 'var(--font-size-xs)',
+              color: 'var(--fg-secondary)',
+              marginTop: 'var(--spacing-xs)',
+              textAlign: 'center'
+            }}>
+              Locked by config
+            </div>
+          )}
         </div>
 
         {!hideInternalApi && connectionType === 'internal-api' && proxyBaseUrl.trim() !== '' && (
@@ -941,8 +969,10 @@ export function SettingsModal({ onClose, currentMode, onModeChange, currentSkin,
               value={internalApiUrl}
               onValueInput={setInternalApiUrl}
               placeholder="https://api.example.com/llm/endpoint"
+              disabled={isEndpointLocked}
               style={{
-                width: '100%'
+                width: '100%',
+                ...(isEndpointLocked ? { opacity: 0.7 } : {})
               }}
             />
             {/* Manifest validation warning */}
