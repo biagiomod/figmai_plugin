@@ -436,6 +436,34 @@ export interface AnalyticsTaggingScreenshotErrorHandler extends EventHandler {
   handler: (refId: string, message: string) => void
 }
 
+// ============================================================================
+// AT-A Near-Miss Repair
+// ============================================================================
+
+/**
+ * Serializable near-miss finding (no SceneNode — safe to cross plugin/UI boundary).
+ * The main thread keeps NearMissResult (with node ref); UI only receives NearMissInfo.
+ */
+export interface NearMissInfo {
+  nodeId: string
+  nodeName: string
+  /** Raw category label found, e.g. "Screen ID" */
+  nearMissLabel: string
+  canonicalLabel: 'ScreenID' | 'ActionID'
+}
+
+/** Main → UI: near-miss findings after a scan. Empty array clears the banner. */
+export interface AnalyticsTaggingNearMissesHandler extends EventHandler {
+  name: 'ANALYTICS_TAGGING_NEAR_MISSES'
+  handler: (nearMisses: NearMissInfo[]) => void
+}
+
+/** UI → Main: user requested repair of stored near-misses. */
+export interface FixAnnotationNearMissesHandler extends EventHandler {
+  name: 'FIX_ANNOTATION_NEAR_MISSES'
+  handler: () => void
+}
+
 export interface RunPlaceholderScorecardHandler extends EventHandler {
   name: 'RUN_PLACEHOLDER_SCORECARD'
   handler: () => void

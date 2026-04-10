@@ -602,15 +602,16 @@ async function collectTextNodes(
 }
 
 /**
- * Export node as thumbnail image (~100px width)
+ * Export node as thumbnail image (max 400×400px, aspect ratio preserved)
  * Returns base64 data URL or undefined if export fails
  */
 async function exportThumbnail(node: SceneNode): Promise<string | undefined> {
   try {
-    // Calculate scale to get ~100px width
-    const targetWidth = 100
-    const nodeWidth = 'width' in node ? node.width : 100
-    const scale = Math.min(1, targetWidth / nodeWidth)
+    // Scale to fit within 400×400, never upscale
+    const targetMax = 400
+    const nodeWidth = 'width' in node ? node.width : targetMax
+    const nodeHeight = 'height' in node ? node.height : targetMax
+    const scale = Math.min(1, targetMax / nodeWidth, targetMax / nodeHeight)
     
     // Export as PNG
     const bytes = await node.exportAsync({

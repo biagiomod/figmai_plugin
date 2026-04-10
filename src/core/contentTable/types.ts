@@ -27,7 +27,7 @@ export interface TableMetaV1 {
   rootNodeName: string
   /** Root node URL (browser-safe Figma URL) */
   rootNodeUrl: string
-  /** Thumbnail image data URL (base64 PNG, ~100px width) */
+  /** Thumbnail image data URL (base64 PNG, max 400×400px, aspect ratio preserved) */
   thumbnailDataUrl?: string
 }
 

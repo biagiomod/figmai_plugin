@@ -17,6 +17,8 @@ import type {
   RequestAnalyticsTaggingScreenshotByMetaHandler
 } from '../../core/types'
 import { emit } from '@create-figma-plugin/utilities'
+import { AnalyticsTaggingRepairBanner } from './AnalyticsTaggingRepairBanner'
+import type { NearMissInfo } from '../../core/types'
 import { ImageDownloadIcon, CloseIcon } from '../icons'
 import { TH, TD, CELL_INPUT, TOOL_BTN, actionBtnStyle } from './toolTableStyles'
 
@@ -35,6 +37,10 @@ interface AnalyticsTaggingViewProps {
   isCopying: boolean
   screenshotPreviews: Record<string, string>
   screenshotErrors: Record<string, string>
+  nearMisses: NearMissInfo[]
+  onFixNearMisses: () => void
+  onDismissNearMisses: () => void
+  isFixingNearMisses: boolean
 }
 
 export function AnalyticsTaggingView({
@@ -49,7 +55,11 @@ export function AnalyticsTaggingView({
   onExportRowRefImage,
   isCopying,
   screenshotPreviews,
-  screenshotErrors
+  screenshotErrors,
+  nearMisses,
+  onFixNearMisses,
+  onDismissNearMisses,
+  isFixingNearMisses
 }: AnalyticsTaggingViewProps) {
   const [loadingRefIds, setLoadingRefIds] = useState<Set<string>>(new Set())
 
@@ -133,6 +143,16 @@ export function AnalyticsTaggingView({
           Restart
         </button>
       </div>
+
+      {nearMisses.length > 0 && (
+        <AnalyticsTaggingRepairBanner
+          nearMisses={nearMisses}
+          hasRows={session.rows.length > 0}
+          onFix={onFixNearMisses}
+          onDismiss={onDismissNearMisses}
+          isFixing={isFixingNearMisses}
+        />
+      )}
 
       {/* Table container */}
       <div style={{

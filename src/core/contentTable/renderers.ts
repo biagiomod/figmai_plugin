@@ -32,10 +32,10 @@ function escapeHtml(text: string): string {
  */
 function renderMetaRowHtml(meta: UniversalContentTableV1['meta'], columnCount: number): string {
   const thumbnailHtml = meta.thumbnailDataUrl
-    ? `<img src="${escapeHtml(meta.thumbnailDataUrl)}" alt="Preview" style="width: 100px; height: auto; display: block;" />`
+    ? `<img src="${escapeHtml(meta.thumbnailDataUrl)}" alt="Preview" style="max-width: 400px; width: 100%; height: auto; display: block;" />`
     : '<span style="color: #999;">No preview</span>'
-  
-  const thumbnailCell = `<td style="border: 1px solid #ddd; padding: 8px; vertical-align: top; width: 100px; background-color: #ffffff;">
+
+  const thumbnailCell = `<td style="border: 1px solid #ddd; padding: 8px; vertical-align: top; width: 400px; background-color: #ffffff;">
     <a href="${escapeHtml(meta.rootNodeUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0066ff; text-decoration: underline;">
       ${thumbnailHtml}
     </a>

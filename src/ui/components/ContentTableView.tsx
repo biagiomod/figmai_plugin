@@ -225,7 +225,7 @@ export function ContentTableView({
           </div>
           <button
             onClick={() => setShowTokens(v => !v)}
-            title={showTokens ? 'Tokens visible — click to hide' : 'Tokens hidden — click to show'}
+            title={showTokens ? 'Variables visible — click to hide' : 'Variables hidden — click to show'}
             style={{
               padding: '3px 8px',
               border: '1px solid var(--border)',
@@ -247,7 +247,7 @@ export function ContentTableView({
               display: 'inline-block',
               flexShrink: 0
             }} />
-            Tokens
+            Variables
           </button>
           <button
             onClick={onRestart}

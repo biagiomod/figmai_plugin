@@ -36,6 +36,12 @@
           "templateMessage": "Start a new analytics tagging session"
         },
         {
+          "executionType": "tool-only",
+          "id": "fix-annotation-near-misses",
+          "label": "Fix Near-Miss Annotations",
+          "templateMessage": "Fix annotation category near-misses and re-scan."
+        },
+        {
           "executionType": "ui-only",
           "id": "export-screenshots",
           "label": "Export Screenshots",

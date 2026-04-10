@@ -135,6 +135,7 @@ import type {
   DwSetDesignModeHandler
 } from './core/types'
 import type { AnalyticsTaggingExportCompactRow } from './core/types'
+import type { NearMissInfo } from './core/types'
 import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
 import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { projectContentTable } from './core/contentTable/projection'
@@ -493,6 +494,9 @@ function Plugin() {
   const analyticsTaggingExportItemsRef = useRef<Array<{ rowId: string; screenId: string; actionId: string; base64?: string; error?: string }>>([])
   const analyticsTaggingExportInProgressRef = useRef(false)
   const analyticsTaggingExportProgressRef = useRef<{ done: number; total: number; failed: number } | null>(null)
+  const [ataNearMisses, setAtaNearMisses] = useState<NearMissInfo[]>([])
+  const [ataIsFixingNearMisses, setAtaIsFixingNearMisses] = useState(false)
+  const [ataNearMissesDismissed, setAtaNearMissesDismissed] = useState(false)
   useEffect(() => {
     analyticsTaggingSessionRef.current = analyticsTaggingSession
   }, [analyticsTaggingSession])
@@ -531,6 +535,8 @@ function Plugin() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastAssistantBubbleRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  /** Tracks pending assistant-picker tooltip timer so it can be cancelled when the modal closes. */
+  const pickerTooltipTimerRef = useRef<number | undefined>(undefined)
   /** Per-component-instance ID for chat render tracing (detect duplicate mounts). */
   const chatInstanceIdRef = useRef<string | null>(null)
   if (chatInstanceIdRef.current === null) chatInstanceIdRef.current = Math.random().toString(36).slice(2)
@@ -995,6 +1001,13 @@ function Plugin() {
             else setAnalyticsTaggingWarning(null)
           }
           break
+        case 'ANALYTICS_TAGGING_NEAR_MISSES': {
+          const incoming = (message.nearMisses ?? []) as NearMissInfo[]
+          setAtaNearMisses(incoming)
+          setAtaNearMissesDismissed(false)
+          setAtaIsFixingNearMisses(false)
+          break
+        }
         case 'ANALYTICS_TAGGING_OPEN_EXPORT':
           if (message.session) {
             setAnalyticsTaggingExportSession(message.session as Session)
@@ -1465,17 +1478,27 @@ function Plugin() {
   // Handle Escape key to close assistant modal
   useEffect(() => {
     if (!showAssistantModal) return
-    
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setShowAssistantModal(false)
       }
     }
-    
+
     window.addEventListener('keydown', handleEscape)
     return () => {
       window.removeEventListener('keydown', handleEscape)
     }
+  }, [showAssistantModal])
+
+  // When the assistant picker modal closes (any path: click, Escape, reset), cancel any
+  // pending tooltip timer and hide the tooltip so it never bleeds into the target view.
+  useEffect(() => {
+    if (showAssistantModal) return
+    clearTimeout(pickerTooltipTimerRef.current)
+    pickerTooltipTimerRef.current = undefined
+    const tip = document.getElementById('assistant-picker-tooltip')
+    if (tip) tip.style.display = 'none'
   }, [showAssistantModal])
   
   const handleSelectionIndicatorClick = useCallback(() => {
@@ -1763,6 +1786,17 @@ function Plugin() {
   const handleAnalyticsTaggingDeleteRow = useCallback((rowId: string) => {
     emit<AnalyticsTaggingDeleteRowHandler>('ANALYTICS_TAGGING_DELETE_ROW', rowId)
   }, [])
+
+  const handleFixNearMisses = useCallback(() => {
+    setAtaIsFixingNearMisses(true)
+    emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'fix-annotation-near-misses', 'analytics_tagging')
+  }, [])
+
+  const handleDismissNearMisses = useCallback(() => {
+    setAtaNearMissesDismissed(true)
+  }, [])
+
+  const displayedNearMisses = ataNearMissesDismissed ? [] : ataNearMisses
 
   const downloadPngDataUrl = useCallback((filename: string, dataUrl: string) => {
     const a = document.createElement('a')
@@ -2855,6 +2889,9 @@ ${htmlTable}
               onRestart={() => {
                 handleQuickAction('new-session')
                 setAnalyticsTaggingSession(null)
+                setAtaNearMisses([])
+                setAtaNearMissesDismissed(false)
+                setAtaIsFixingNearMisses(false)
               }}
               onExportRowRefImage={(row) => {
                 const compact: AnalyticsTaggingExportCompactRow = {
@@ -2869,11 +2906,19 @@ ${htmlTable}
               isCopying={isCopyingAnalyticsTable}
               screenshotPreviews={analyticsTaggingScreenshotPreviews}
               screenshotErrors={analyticsTaggingScreenshotErrors}
+              nearMisses={displayedNearMisses}
+              onFixNearMisses={handleFixNearMisses}
+              onDismissNearMisses={handleDismissNearMisses}
+              isFixingNearMisses={ataIsFixingNearMisses}
             />
           ) : (
             <AnalyticsTaggingWelcome
               hasSelection={selectionState.hasSelection}
               onGetTags={() => handleQuickAction('get-analytics-tags')}
+              nearMisses={displayedNearMisses}
+              onFixNearMisses={handleFixNearMisses}
+              onDismissNearMisses={handleDismissNearMisses}
+              isFixingNearMisses={ataIsFixingNearMisses}
             />
           )
         ) : assistant.id === 'content_table' ? (
@@ -3735,7 +3780,12 @@ ${htmlTable}
             {listAssistantsByMode(mode).map((a: AssistantType) => (
                 <button
                   key={a.id}
-                  onClick={() => handleAssistantSelect(a.id)}
+                  onClick={(e) => {
+                    clearTimeout((e.currentTarget as HTMLElement & { _tooltipTimer?: number })._tooltipTimer)
+                    const tip = document.getElementById('assistant-picker-tooltip')
+                    if (tip) tip.style.display = 'none'
+                    handleAssistantSelect(a.id)
+                  }}
                 onMouseEnter={(e) => {
                   if (assistant.id !== a.id) {
                     e.currentTarget.style.backgroundColor = 'var(--surface-row-hover)'
@@ -3743,7 +3793,7 @@ ${htmlTable}
                   const btn = e.currentTarget as HTMLElement & { _tooltipTimer?: number }
                   const desc = getHoverSummary(a)
                   if (!desc) return
-                  btn._tooltipTimer = window.setTimeout(() => {
+                  pickerTooltipTimerRef.current = btn._tooltipTimer = window.setTimeout(() => {
                     let tip = document.getElementById('assistant-picker-tooltip')
                     if (!tip) {
                       tip = document.createElement('div')
@@ -3782,6 +3832,7 @@ ${htmlTable}
                   }
                   const btn = e.currentTarget as HTMLElement & { _tooltipTimer?: number }
                   clearTimeout(btn._tooltipTimer)
+                  pickerTooltipTimerRef.current = undefined
                   const tip = document.getElementById('assistant-picker-tooltip')
                   if (tip) tip.style.display = 'none'
                 }}

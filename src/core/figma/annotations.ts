@@ -244,3 +244,63 @@ export function showOnceUserHint(key: string, _message: string): boolean {
   shownHintKeys.add(key)
   return true
 }
+
+/**
+ * Fix near-miss annotations on a set of nodes.
+ * For each result:
+ *   1. ensureAnnotationCategory(canonicalLabel) → canonical category ID (resolved once per unique label)
+ *   2. Read node.annotations
+ *   3. Find entries whose resolved category label is the near-miss label
+ *   4. Replace their categoryId with the canonical ID (preserve array order)
+ *   5. safeSetNativeAnnotations(node, updatedAnnotations)
+ * After all nodes processed: clears the shared category cache.
+ * Returns count of nodes successfully updated.
+ */
+export async function repairNearMissAnnotations(
+  nearMisses: import('../analyticsTagging/nearMissDetector').NearMissResult[]
+): Promise<number> {
+  if (nearMisses.length === 0) return 0
+
+  // Resolve canonical category IDs once per unique canonicalLabel (at most 2 API calls)
+  const canonicalIds = new Map<'ScreenID' | 'ActionID', string>()
+  for (const label of ['ScreenID', 'ActionID'] as const) {
+    if (nearMisses.some(r => r.canonicalLabel === label)) {
+      const id = await ensureAnnotationCategory(label)
+      if (id) canonicalIds.set(label, id)
+    }
+  }
+
+  // Re-read category map after category creation
+  const categoryMap = await getCategoryMapShared()
+
+  let repaired = 0
+  for (const result of nearMisses) {
+    try {
+      const canonicalId = canonicalIds.get(result.canonicalLabel)
+      if (!canonicalId) continue
+
+      const node = result.node
+      if (!('annotations' in node)) continue
+      const annotatable = node as SceneNode & { annotations?: AnnotationEntry[] }
+      const raw = annotatable.annotations
+      if (!Array.isArray(raw) || raw.length === 0) continue
+
+      // Build updated array — preserve order, only replace matching categoryId entries
+      const nearMissLabelLower = result.nearMissLabel.toLowerCase().trim()
+      const updated = raw.map(entry => {
+        if (!entry.categoryId) return entry
+        const resolvedLabel = categoryMap.get(entry.categoryId)?.trim().toLowerCase()
+        if (resolvedLabel !== nearMissLabelLower) return entry
+        return { ...entry, categoryId: canonicalId }
+      })
+
+      const wrote = safeSetNativeAnnotations(node, updated)
+      if (wrote) repaired++
+    } catch {
+      // Skip this node; continue with others
+    }
+  }
+
+  clearAnnotationCategoryCache()
+  return repaired
+}
