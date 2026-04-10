@@ -452,6 +452,34 @@ export interface NearMissInfo {
   canonicalLabel: 'ScreenID' | 'ActionID'
 }
 
+/** Result returned by autoAnnotateScreens. All counts are non-negative integers. */
+export interface AutoAnnotateResult {
+  screensProcessed: number    // root frames processed
+  screenIdAdded: number       // frames that received a new ScreenID annotation
+  actionIdAdded: number       // total ActionID annotations written
+  skippedExisting: number     // elements skipped because they already had ActionID (valid or near-miss)
+  writeFailed: number         // nodes where safeSetNativeAnnotations returned false
+}
+
+/**
+ * Main → UI: sent once at plugin init to tell the UI which Figma editor
+ * is hosting the plugin ('figma' = Design Mode, 'dev' = Dev Mode).
+ */
+export interface EditorTypeMessage {
+  type: 'EDITOR_TYPE'
+  editorType: 'figma' | 'dev'
+}
+
+/**
+ * Main → UI: sent on every terminal outcome of the add-annotations action (success and error).
+ * The UI uses this to reset ataIsAddingAnnotations. Never omitted.
+ */
+export interface AnalyticsTaggingAddAnnotationsDoneMessage {
+  type: 'ANALYTICS_TAGGING_ADD_ANNOTATIONS_DONE'
+  result: AutoAnnotateResult | null   // non-null on success (including partial)
+  error: string | null                // non-null when the run failed at the action level
+}
+
 /** Main → UI: near-miss findings after a scan. Empty array clears the banner. */
 export interface AnalyticsTaggingNearMissesHandler extends EventHandler {
   name: 'ANALYTICS_TAGGING_NEAR_MISSES'

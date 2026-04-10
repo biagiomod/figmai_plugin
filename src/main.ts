@@ -155,6 +155,7 @@ import type { ExecutionType } from './core/types'
 import { pluginUIPreviewComponent } from './core/figma/artifacts/components/pluginUIPreview'
 import { setScanContext, setDwDesignMode } from './core/designWorkshop/designWorkshopScanStore'
 import type { ScannedDesignContext } from './core/designWorkshop/designWorkshopScanStore'
+import { setEditorType, isDevMode } from './core/editorMode'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -1661,7 +1662,11 @@ export default function () {
     width: 400,
     title: getDisplayBrand().appName
   })
-  
+
+  // Detect and propagate editor mode (Design vs Dev)
+  setEditorType(figma.editorType as 'figma' | 'dev')
+  figma.ui.postMessage({ pluginMessage: { type: 'EDITOR_TYPE', editorType: figma.editorType } })
+
   // Set up selection change listener
   figma.on('selectionchange', function () {
     // Update selection order: maintain order as items are selected/deselected
@@ -1880,6 +1885,10 @@ on<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', async fu
 })
 
 on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: RenderTableOnStagePayload) {
+  if (isDevMode()) {
+    figma.notify('Stage rendering requires Design mode.', { error: true })
+    return
+  }
   const FRAME_NAME = 'Evergreens Table Preview'
   const { headers, rows, existingFrameId, presetId } = payload
 

@@ -497,6 +497,8 @@ function Plugin() {
   const [ataNearMisses, setAtaNearMisses] = useState<NearMissInfo[]>([])
   const [ataIsFixingNearMisses, setAtaIsFixingNearMisses] = useState(false)
   const [ataNearMissesDismissed, setAtaNearMissesDismissed] = useState(false)
+  const [ataIsAddingAnnotations, setAtaIsAddingAnnotations] = useState(false)
+  const [editorType, setEditorType] = useState<'figma' | 'dev'>('figma')
   useEffect(() => {
     analyticsTaggingSessionRef.current = analyticsTaggingSession
   }, [analyticsTaggingSession])
@@ -1008,6 +1010,14 @@ function Plugin() {
           setAtaIsFixingNearMisses(false)
           break
         }
+        case 'ANALYTICS_TAGGING_ADD_ANNOTATIONS_DONE': {
+          setAtaIsAddingAnnotations(false)
+          break
+        }
+        case 'EDITOR_TYPE': {
+          setEditorType(message.editorType as 'figma' | 'dev')
+          break
+        }
         case 'ANALYTICS_TAGGING_OPEN_EXPORT':
           if (message.session) {
             setAnalyticsTaggingExportSession(message.session as Session)
@@ -1256,13 +1266,20 @@ function Plugin() {
     } else if (mode === 'simple') {
       // In simple mode, ensure current assistant is available in simple mode
       // If not, default to General
-      const simpleAssistants = listAssistantsByMode('simple')
+      const simpleAssistants = listAssistantsByMode('simple', editorType)
       const isCurrentAssistantAvailable = simpleAssistants.some(a => a.id === assistant.id)
       if (!isCurrentAssistantAvailable) {
-        setAssistant(getDefaultAssistant('simple'))
+        setAssistant(getDefaultAssistant('simple', editorType))
+      }
+    } else if (mode === 'advanced' && editorType === 'dev') {
+      // In Dev Mode, validate current assistant is allowed even in advanced mode
+      const devAssistants = listAssistantsByMode('advanced', editorType)
+      const isCurrentAssistantAvailable = devAssistants.some(a => a.id === assistant.id)
+      if (!isCurrentAssistantAvailable) {
+        setAssistant(getDefaultAssistant(undefined, editorType))
       }
     }
-  }, [mode, assistant.id])
+  }, [mode, assistant.id, editorType])
   
   // Comprehensive UI reset function - restores all state to initial values
   const resetUIState = useCallback((currentMode: Mode) => {
@@ -1357,7 +1374,7 @@ function Plugin() {
       hasResizeMountedRef.current = true
       return
     }
-    if (assistant?.id !== 'content_table' && pluginSizeMode !== 'portrait') {
+    if (assistant?.id !== 'content_table' && assistant?.id !== 'analytics_tagging' && pluginSizeMode !== 'portrait') {
       resetPluginSize()
     }
   }, [assistant?.id, pluginSizeMode, resetPluginSize])
@@ -1415,10 +1432,10 @@ function Plugin() {
       emit<SetAssistantHandler>('SET_ASSISTANT', contentTableAssistant.id)
     } else if (selectedMode === 'simple') {
       // In simple mode, default to General if current assistant is not available in simple mode
-      const simpleAssistants = listAssistantsByMode('simple')
+      const simpleAssistants = listAssistantsByMode('simple', editorType)
       const isCurrentAssistantAvailable = simpleAssistants.some(a => a.id === assistant.id)
       if (!isCurrentAssistantAvailable) {
-        setAssistant(getDefaultAssistant('simple'))
+        setAssistant(getDefaultAssistant('simple', editorType))
       }
     } else if (selectedMode === 'advanced') {
       // In advanced mode, keep current assistant or default to General
@@ -1795,6 +1812,13 @@ function Plugin() {
   const handleDismissNearMisses = useCallback(() => {
     setAtaNearMissesDismissed(true)
   }, [])
+
+  const handleAddAnnotations = useCallback(() => {
+    if (ataIsAddingAnnotations) return
+    if (!selectionState.hasSelection) return
+    setAtaIsAddingAnnotations(true)
+    emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'add-annotations', 'analytics_tagging')
+  }, [ataIsAddingAnnotations, selectionState.hasSelection])
 
   const displayedNearMisses = ataNearMissesDismissed ? [] : ataNearMisses
 
@@ -2622,6 +2646,12 @@ ${htmlTable}
   //   - generate-table: always visible
   //   - add-to-table:   visible only when a session already has items
   //   - ui-only actions: visible only when a table exists
+  // Dev Mode: actions that require canvas writes are hidden entirely.
+  const DESIGN_MODE_ONLY_ACTIONS = new Set([
+    'fix-annotation-near-misses',
+    'add-annotations',
+    'export-screenshots',
+  ])
   const quickActionsSource =
     assistant.id === 'content_table'
       ? assistant.quickActions.filter((a: QuickAction) => {
@@ -2633,6 +2663,7 @@ ${htmlTable}
       : assistant.quickActions
   const quickActions = quickActionsSource.filter((action: QuickAction) => {
     if (action.requiresSelection && !selectionState.hasSelection) return false
+    if (editorType === 'dev' && DESIGN_MODE_ONLY_ACTIONS.has(action.id)) return false
     return true
   })
 
@@ -2743,7 +2774,7 @@ ${htmlTable}
           justifyContent: 'flex-end',
           flex: '1 1 0'
         }}>
-          {assistant?.id === 'content_table' && (
+          {(assistant?.id === 'content_table' || assistant?.id === 'analytics_tagging') && (
             <button
               onClick={handleResizeCycle}
               style={{
@@ -2865,7 +2896,7 @@ ${htmlTable}
               onUpdateRow={handleAnalyticsTaggingUpdateRow}
               onDeleteRow={handleAnalyticsTaggingDeleteRow}
               onAppend={() => handleQuickAction('append-analytics-tags')}
-              onViewOnStage={() => {
+              onViewOnStage={editorType !== 'dev' ? () => {
                 if (!analyticsTaggingSession) return
                 const table = sessionToTable(analyticsTaggingSession)
                 const atStageProjected = projectContentTable('analytics-tagging', table.items)
@@ -2877,7 +2908,7 @@ ${htmlTable}
                   existingFrameId: stageFrameIdRef.current,
                   columnKeys: atStageProjected.columnKeys
                 })
-              }}
+              } : undefined}
               onCopyToClipboard={async () => {
                 setIsCopyingAnalyticsTable(true)
                 try {
@@ -2910,6 +2941,8 @@ ${htmlTable}
               onFixNearMisses={handleFixNearMisses}
               onDismissNearMisses={handleDismissNearMisses}
               isFixingNearMisses={ataIsFixingNearMisses}
+              onAddAnnotations={handleAddAnnotations}
+              isAddingAnnotations={ataIsAddingAnnotations}
             />
           ) : (
             <AnalyticsTaggingWelcome
@@ -2919,6 +2952,8 @@ ${htmlTable}
               onFixNearMisses={handleFixNearMisses}
               onDismissNearMisses={handleDismissNearMisses}
               isFixingNearMisses={ataIsFixingNearMisses}
+              onAddAnnotations={handleAddAnnotations}
+              isAddingAnnotations={ataIsAddingAnnotations}
             />
           )
         ) : assistant.id === 'content_table' ? (
@@ -2928,7 +2963,7 @@ ${htmlTable}
               onSessionChange={setCtSession}
               hasSelection={selectionState.hasSelection}
               onAppend={() => handleQuickAction('add-to-table')}
-              onViewOnStage={(visibleItems) => {
+              onViewOnStage={editorType !== 'dev' ? (visibleItems) => {
                 if (!contentTable) return
                 const ctStageProjected = projectContentTable(selectedFormat, visibleItems)
                 emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
@@ -2940,7 +2975,7 @@ ${htmlTable}
                   columnKeys: ctStageProjected.columnKeys,
                   presetId: selectedFormat
                 })
-              }}
+              } : undefined}
               onCopyToClipboard={(visibleItems) => handleCopyTable(selectedFormat, 'html', false, visibleItems)}
               onCopyRowsToClipboard={(visibleItems) => handleCopyTable(selectedFormat, 'html', true, visibleItems)}
               onRestart={() => {
@@ -3777,7 +3812,7 @@ ${htmlTable}
               flex: 1,
               minHeight: 0
             }}>
-            {listAssistantsByMode(mode).map((a: AssistantType) => (
+            {listAssistantsByMode(mode, editorType).map((a: AssistantType) => (
                 <button
                   key={a.id}
                   onClick={(e) => {
@@ -4523,36 +4558,38 @@ ${htmlTable}
                   )}
                   {isCopyingRefImage ? 'Getting...' : 'Get Ref Image'}
                 </button>
-                <button
-                  onClick={() => {
-                    if (!ctSession || !contentTable) return
-                    const items = getEffectiveItems(ctSession)
-                    const modalStageProjected = projectContentTable(selectedFormat, items)
-                    emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
-                      headers: modalStageProjected.headers,
-                      headerRows: modalStageProjected.headerRows,
-                      rows: modalStageProjected.rows,
-                      title: contentTable.meta?.rootNodeName || CTA_STAGE_PREVIEW_TITLE,
-                      existingFrameId: stageFrameIdRef.current,
-                      columnKeys: modalStageProjected.columnKeys,
-                      presetId: selectedFormat
-                    })
-                  }}
-                  disabled={!ctSession}
-                  style={{
-                    padding: 'var(--spacing-sm) var(--spacing-md)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: !ctSession ? 'var(--muted)' : 'var(--accent)',
-                    color: !ctSession ? 'var(--fg)' : 'var(--accent-text)',
-                    cursor: !ctSession ? 'not-allowed' : 'pointer',
-                    fontSize: 'var(--font-size-sm)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    opacity: !ctSession ? 0.6 : 1
-                  }}
-                >
-                  Add to Stage
-                </button>
+                {editorType !== 'dev' && (
+                  <button
+                    onClick={() => {
+                      if (!ctSession || !contentTable) return
+                      const items = getEffectiveItems(ctSession)
+                      const modalStageProjected = projectContentTable(selectedFormat, items)
+                      emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
+                        headers: modalStageProjected.headers,
+                        headerRows: modalStageProjected.headerRows,
+                        rows: modalStageProjected.rows,
+                        title: contentTable.meta?.rootNodeName || CTA_STAGE_PREVIEW_TITLE,
+                        existingFrameId: stageFrameIdRef.current,
+                        columnKeys: modalStageProjected.columnKeys,
+                        presetId: selectedFormat
+                      })
+                    }}
+                    disabled={!ctSession}
+                    style={{
+                      padding: 'var(--spacing-sm) var(--spacing-md)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: !ctSession ? 'var(--muted)' : 'var(--accent)',
+                      color: !ctSession ? 'var(--fg)' : 'var(--accent-text)',
+                      cursor: !ctSession ? 'not-allowed' : 'pointer',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      opacity: !ctSession ? 0.6 : 1
+                    }}
+                  >
+                    Add to Stage
+                  </button>
+                )}
                 {CONFIG.dev.enableClipboardDebugLogging && (
                   <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
                     <button

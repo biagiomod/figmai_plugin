@@ -2,8 +2,8 @@
  * AT-A inline table view — active state with auto-commit edits.
  *
  * Column order:
- *   # | Screen ID | Screenshot | Description | Action Type | Component |
- *   Action ID | Action Name | Figma Link | Population | Note | Tools
+ *   # | ScreenID | Screenshot | Description | Action Type | Component |
+ *   ActionID | Action Name | Figma Link | Population | Note | Tools
  *
  * Tools column: Delete + Export ref image (mirrors CT-A).
  * Editable cells auto-commit on blur (no Edit/Save/Cancel buttons).
@@ -30,7 +30,7 @@ interface AnalyticsTaggingViewProps {
   onUpdateRow: (rowId: string, updates: Record<string, unknown>) => void
   onDeleteRow: (rowId: string) => void
   onAppend: () => void
-  onViewOnStage: () => void
+  onViewOnStage?: () => void
   onCopyToClipboard: () => void
   onRestart: () => void
   onExportRowRefImage: (row: Row) => void
@@ -41,6 +41,8 @@ interface AnalyticsTaggingViewProps {
   onFixNearMisses: () => void
   onDismissNearMisses: () => void
   isFixingNearMisses: boolean
+  onAddAnnotations: () => void
+  isAddingAnnotations: boolean
 }
 
 export function AnalyticsTaggingView({
@@ -59,7 +61,9 @@ export function AnalyticsTaggingView({
   nearMisses,
   onFixNearMisses,
   onDismissNearMisses,
-  isFixingNearMisses
+  isFixingNearMisses,
+  onAddAnnotations,
+  isAddingAnnotations
 }: AnalyticsTaggingViewProps) {
   const [loadingRefIds, setLoadingRefIds] = useState<Set<string>>(new Set())
 
@@ -98,11 +102,11 @@ export function AnalyticsTaggingView({
     onUpdateRow(rowId, { [field]: value })
   }, [onUpdateRow])
 
-  const textCols: Array<{ key: keyof Row; label: string; maxWidth?: number }> = [
-    { key: 'screenId', label: 'Screen ID' },
+  const textCols: Array<{ key: keyof Row; label: string; maxWidth?: number; minWidth?: number }> = [
+    { key: 'screenId', label: 'ScreenID', minWidth: 140 },
     { key: 'description', label: 'Description', maxWidth: 120 },
     { key: 'component', label: 'Component' },
-    { key: 'actionId', label: 'Action ID' },
+    { key: 'actionId', label: 'ActionID', minWidth: 140 },
     { key: 'actionName', label: 'Action Name' },
     { key: 'population', label: 'Population' },
     { key: 'note', label: 'Note', maxWidth: 120 }
@@ -169,7 +173,7 @@ export function AnalyticsTaggingView({
             <tr style={{ backgroundColor: '#f5f5f5', position: 'sticky', top: 0, zIndex: 1 }}>
               <th style={{ ...TH, width: '30px' }}>#</th>
               {textCols.slice(0, 1).map(c => (
-                <th key={c.key} style={{ ...TH, minWidth: '80px' }}>{c.label}</th>
+                <th key={c.key} style={{ ...TH, minWidth: c.minWidth ? `${c.minWidth}px` : '80px' }}>{c.label}</th>
               ))}
               <th style={{ ...TH, minWidth: '70px' }}>Screenshot</th>
               {textCols.slice(1, 2).map(c => (
@@ -177,7 +181,7 @@ export function AnalyticsTaggingView({
               ))}
               <th style={{ ...TH, minWidth: '90px' }}>Action Type</th>
               {textCols.slice(2).map(c => (
-                <th key={c.key} style={{ ...TH, minWidth: c.maxWidth ? `${c.maxWidth}px` : '80px' }}>{c.label}</th>
+                <th key={c.key} style={{ ...TH, minWidth: c.minWidth ? `${c.minWidth}px` : (c.maxWidth ? `${c.maxWidth}px` : '80px') }}>{c.label}</th>
               ))}
               <th style={{ ...TH, minWidth: '80px' }}>Figma Link</th>
               <th style={{ ...TH, width: '64px', textAlign: 'center' }}>Tools</th>
@@ -196,16 +200,17 @@ export function AnalyticsTaggingView({
                   {/* # */}
                   <td style={{ ...TD, color: '#999', fontSize: '10px' }}>{idx + 1}</td>
 
-                  {/* Screen ID */}
+                  {/* ScreenID */}
                   <td style={TD}>
-                    <input
-                      type="text"
+                    <textarea
                       defaultValue={row.screenId}
                       onBlur={(e) => {
                         const v = e.currentTarget.value
                         if (v !== row.screenId) commitField(row.id, 'screenId', v)
                       }}
-                      style={CELL_INPUT}
+                      style={{ ...CELL_INPUT, resize: 'none', overflowY: 'hidden', minHeight: '20px', lineHeight: '1.45', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap', display: 'block' }}
+                      ref={(el: HTMLTextAreaElement | null) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` } }}
+                      onInput={(e) => { const el = e.currentTarget as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#0d99ff'; e.currentTarget.style.backgroundColor = '#fff' }}
                       onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent' }}
                     />
@@ -298,16 +303,17 @@ export function AnalyticsTaggingView({
                     />
                   </td>
 
-                  {/* Action ID */}
+                  {/* ActionID */}
                   <td style={TD}>
-                    <input
-                      type="text"
+                    <textarea
                       defaultValue={row.actionId}
                       onBlur={(e) => {
                         const v = e.currentTarget.value
                         if (v !== row.actionId) commitField(row.id, 'actionId', v)
                       }}
-                      style={CELL_INPUT}
+                      style={{ ...CELL_INPUT, resize: 'none', overflowY: 'hidden', minHeight: '20px', lineHeight: '1.45', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap', display: 'block' }}
+                      ref={(el: HTMLTextAreaElement | null) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` } }}
+                      onInput={(e) => { const el = e.currentTarget as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }}
                       onFocus={(e) => { e.currentTarget.style.borderColor = '#0d99ff'; e.currentTarget.style.backgroundColor = '#fff' }}
                       onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.backgroundColor = 'transparent' }}
                     />
@@ -416,9 +422,19 @@ export function AnalyticsTaggingView({
         >
           Append Selection
         </button>
-        <button onClick={onViewOnStage} style={actionBtnStyle(false)}>
-          View on Stage
+        <button
+          onClick={onAddAnnotations}
+          disabled={!hasSelection || isAddingAnnotations}
+          title={hasSelection ? 'Detect interactive elements and add placeholder annotations' : 'Select frames first'}
+          style={actionBtnStyle(!hasSelection || isAddingAnnotations)}
+        >
+          {isAddingAnnotations ? 'Adding…' : 'Add Annotations'}
         </button>
+        {onViewOnStage && (
+          <button onClick={onViewOnStage} style={actionBtnStyle(false)}>
+            View on Stage
+          </button>
+        )}
         <button onClick={onCopyToClipboard} disabled={isCopying} style={actionBtnStyle(isCopying)}>
           {isCopying ? 'Copying...' : 'Copy to Clipboard'}
         </button>

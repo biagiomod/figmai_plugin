@@ -11,8 +11,10 @@ import type { Session, Row } from '../../analyticsTagging/types'
 import { resolveSelection } from '../../figma/selectionResolver'
 import { detectNearMisses } from '../../analyticsTagging/nearMissDetector'
 import type { NearMissResult } from '../../analyticsTagging/nearMissDetector'
-import type { NearMissInfo } from '../../types'
+import type { NearMissInfo, AutoAnnotateResult } from '../../types'
 import { repairNearMissAnnotations } from '../../figma/annotations'
+import { autoAnnotateScreens, buildSummaryMessage } from '../../analyticsTagging/autoAnnotator'
+import { isDevMode } from '../../editorMode'
 
 /**
  * Stores live NearMissResult[] (with SceneNode refs) from the most recent scan.
@@ -33,12 +35,13 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
       actionId === 'append-analytics-tags' ||
       actionId === 'copy-table' ||
       actionId === 'new-session' ||
-      actionId === 'fix-annotation-near-misses'
+      actionId === 'fix-annotation-near-misses' ||
+      actionId === 'add-annotations'
     )
   }
 
   async handleResponse(context: HandlerContext): Promise<HandlerResult> {
-    const { actionId, replaceStatusMessage } = context
+    const { actionId, replaceStatusMessage, selectionOrder } = context
 
     if (actionId === 'new-session') {
       _lastNearMisses = []
@@ -81,6 +84,10 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
     }
 
     if (actionId === 'fix-annotation-near-misses') {
+      if (isDevMode()) {
+        replaceStatusMessage('Annotation writes require Design mode.', true)
+        return { handled: true }
+      }
       const toFix = _lastNearMisses
       _lastNearMisses = []
       if (toFix.length === 0) {
@@ -95,8 +102,43 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
         figma.ui.postMessage({ pluginMessage: { type: 'ANALYTICS_TAGGING_NEAR_MISSES', nearMisses: [] } })
         return { handled: true }
       }
-      // Re-run get-analytics-tags after successful repair
-      return this._runGetAnalyticsTags(context, false)
+      // Re-run as append so existing rows from prior scans are preserved
+      return this._runGetAnalyticsTags(context, true)
+    }
+
+    if (actionId === 'add-annotations') {
+      if (isDevMode()) {
+        replaceStatusMessage('Annotation writes require Design mode.', true)
+        return { handled: true }
+      }
+      const resolvedSelection = await resolveSelection(selectionOrder, {
+        containerStrategy: 'expand',
+        skipHidden: true
+      })
+
+      if (resolvedSelection.scanRoots.length === 0) {
+        const errorMsg = 'No screens found in selection. Select a frame to continue.'
+        figma.ui.postMessage({
+          pluginMessage: { type: 'ANALYTICS_TAGGING_ADD_ANNOTATIONS_DONE', result: null, error: errorMsg }
+        })
+        replaceStatusMessage(errorMsg, true)
+        return { handled: true }
+      }
+
+      let result: AutoAnnotateResult | null = null
+      let errorMsg: string | null = null
+      try {
+        result = await autoAnnotateScreens(resolvedSelection.scanRoots)
+      } catch (e) {
+        errorMsg = e instanceof Error ? e.message : 'Unknown error during annotation'
+      } finally {
+        figma.ui.postMessage({
+          pluginMessage: { type: 'ANALYTICS_TAGGING_ADD_ANNOTATIONS_DONE', result, error: errorMsg }
+        })
+        const summary = buildSummaryMessage(result, errorMsg)
+        replaceStatusMessage(summary, errorMsg != null)
+      }
+      return { handled: true }
     }
 
     if (actionId === 'get-analytics-tags' || actionId === 'append-analytics-tags') {

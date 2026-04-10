@@ -32,7 +32,7 @@ interface ContentTableViewProps {
   onSessionChange: (session: ContentTableSession) => void
   hasSelection: boolean
   onAppend: () => void
-  onViewOnStage: (visibleItems: ContentItemV1[]) => void
+  onViewOnStage?: (visibleItems: ContentItemV1[]) => void
   onCopyToClipboard: (visibleItems: ContentItemV1[]) => void
   onCopyRowsToClipboard: (visibleItems: ContentItemV1[]) => void
   onRestart: () => void
@@ -535,9 +535,11 @@ export function ContentTableView({
         >
           {CTA_ACTION_LABELS.appendSelection}
         </button>
-        <button onClick={() => onViewOnStage(items)} style={actionBtnStyle(false)}>
-          {CTA_ACTION_LABELS.viewOnStage}
-        </button>
+        {onViewOnStage && (
+          <button onClick={() => onViewOnStage(items)} style={actionBtnStyle(false)}>
+            {CTA_ACTION_LABELS.viewOnStage}
+          </button>
+        )}
         <button
           onClick={() => onCopyToClipboard(items)}
           disabled={isCopying}

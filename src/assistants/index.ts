@@ -58,6 +58,9 @@ export function listAssistants(): Assistant[] {
 const DEFAULT_SIMPLE_MODE_IDS = ['general', 'content_table', 'design_critique', 'design_workshop']
 const DEFAULT_CONTENT_MVP_ASSISTANT_ID = 'content_table'
 
+/** Assistants available in Figma Dev Mode (read-only; no canvas-write operations). */
+const DEV_MODE_ASSISTANT_IDS = ['analytics_tagging', 'content_table', 'general']
+
 /** Design order for Advanced mode (must match ACE). Assistants not in this list follow in manifest order. */
 const ADVANCED_DESIGN_ORDER = [
   'general',
@@ -98,40 +101,58 @@ function getAdvancedOrderedAssistants(): Assistant[] {
  * Simple mode: configurable list and order from custom config (ui.simpleModeIds).
  * Content-MVP mode: single assistant from custom config (ui.contentMvpAssistantId).
  * Advanced mode: configurable list and order from custom config (ui.advancedModeIds); if absent, all in design order.
+ * Dev Mode: further filtered to DEV_MODE_ASSISTANT_IDS (read-only capable assistants only).
  */
-export function listAssistantsByMode(mode: 'simple' | 'advanced' | 'content-mvp'): Assistant[] {
+export function listAssistantsByMode(
+  mode: 'simple' | 'advanced' | 'content-mvp',
+  editorType?: 'figma' | 'dev'
+): Assistant[] {
+  let result: Assistant[]
+
   if (mode === 'content-mvp') {
     const id = customConfig?.ui?.contentMvpAssistantId ?? DEFAULT_CONTENT_MVP_ASSISTANT_ID
-    return ASSISTANTS.filter((a) => a.id === id)
-  }
-
-  if (mode === 'simple') {
+    result = ASSISTANTS.filter((a) => a.id === id)
+  } else if (mode === 'simple') {
     const ids = customConfig?.ui?.simpleModeIds ?? DEFAULT_SIMPLE_MODE_IDS
-    return ASSISTANTS.filter((a) => ids.includes(a.id)).sort((a, b) => {
+    result = ASSISTANTS.filter((a) => ids.includes(a.id)).sort((a, b) => {
       const indexA = ids.indexOf(a.id)
       const indexB = ids.indexOf(b.id)
       return indexA - indexB
     })
+  } else {
+    const ids = customConfig?.ui?.advancedModeIds
+    if (Array.isArray(ids) && ids.length > 0) {
+      result = ASSISTANTS.filter((a) => ids.includes(a.id)).sort((a, b) => {
+        const indexA = ids.indexOf(a.id)
+        const indexB = ids.indexOf(b.id)
+        return indexA - indexB
+      })
+    } else {
+      result = getAdvancedOrderedAssistants()
+    }
   }
 
-  const ids = customConfig?.ui?.advancedModeIds
-  if (Array.isArray(ids) && ids.length > 0) {
-    return ASSISTANTS.filter((a) => ids.includes(a.id)).sort((a, b) => {
-      const indexA = ids.indexOf(a.id)
-      const indexB = ids.indexOf(b.id)
-      return indexA - indexB
-    })
+  if (editorType === 'dev') {
+    result = result.filter((a) => DEV_MODE_ASSISTANT_IDS.includes(a.id))
   }
-  return getAdvancedOrderedAssistants()
+
+  return result
 }
 
 /**
  * Get default assistant.
+ * Dev Mode: always returns 'general' (first read-only capable assistant).
  * Content-MVP: assistant from config (contentMvpAssistantId).
  * Simple: first in simpleModeIds or General.
  * Advanced: first in advancedModeIds (or design order) or General.
  */
-export function getDefaultAssistant(mode?: 'simple' | 'advanced' | 'content-mvp'): Assistant {
+export function getDefaultAssistant(
+  mode?: 'simple' | 'advanced' | 'content-mvp',
+  editorType?: 'figma' | 'dev'
+): Assistant {
+  if (editorType === 'dev') {
+    return ASSISTANTS.find((x) => x.id === 'general') ?? ASSISTANTS[0]
+  }
   if (mode === 'content-mvp') {
     const id = customConfig?.ui?.contentMvpAssistantId ?? DEFAULT_CONTENT_MVP_ASSISTANT_ID
     const a = ASSISTANTS.find((x) => x.id === id)
