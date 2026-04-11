@@ -10,6 +10,8 @@ import type { NearMissInfo } from '../../core/types'
 interface AnalyticsTaggingWelcomeProps {
   hasSelection: boolean
   onGetTags: () => void
+  onAddAnnotations: () => void
+  isAddingAnnotations: boolean
   nearMisses: NearMissInfo[]
   onFixNearMisses: () => void
   onDismissNearMisses: () => void
@@ -19,6 +21,8 @@ interface AnalyticsTaggingWelcomeProps {
 export function AnalyticsTaggingWelcome({
   hasSelection,
   onGetTags,
+  onAddAnnotations,
+  isAddingAnnotations,
   nearMisses,
   onFixNearMisses,
   onDismissNearMisses,
@@ -71,6 +75,24 @@ export function AnalyticsTaggingWelcome({
           }}
         >
           Get Analytics Tags
+        </button>
+        <button
+          data-at-button="add-annotations"
+          onClick={onAddAnnotations}
+          disabled={!hasSelection || isAddingAnnotations}
+          style={{
+            padding: '10px 24px',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'transparent',
+            color: (!hasSelection || isAddingAnnotations) ? 'var(--fg-muted)' : 'var(--fg)',
+            cursor: (!hasSelection || isAddingAnnotations) ? 'not-allowed' : 'pointer',
+            fontSize: '13px',
+            fontWeight: 500,
+            opacity: isAddingAnnotations ? 0.6 : 1
+          }}
+        >
+          {isAddingAnnotations ? 'Adding…' : 'Add Annotations'}
         </button>
         {!hasSelection && (
           <div data-at-helper style={{ fontSize: '11px' }}>

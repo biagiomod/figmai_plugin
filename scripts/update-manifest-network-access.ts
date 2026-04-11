@@ -136,6 +136,9 @@ function patchManifest(manifestPath: string, finalAllowedDomains: string[]): boo
   // Required for figma.fileKey (e.g. AT-A https links). Only has effect for private/internal plugins.
   manifest.enablePrivatePluginApi = true
 
+  // Required for the plugin to surface in Figma Dev Mode (Inspect panel + Plugins menu).
+  manifest.capabilities = ['inspect']
+
   try {
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
     console.log(

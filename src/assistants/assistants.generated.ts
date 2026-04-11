@@ -57,6 +57,7 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "copy-table", label: "Copy Table", templateMessage: "Copy analytics table to clipboard.", executionType: "tool-only" },
       { id: "new-session", label: "New session", templateMessage: "Start a new analytics tagging session", executionType: "tool-only" },
       { id: "fix-annotation-near-misses", label: "Fix Near-Miss Annotations", templateMessage: "Fix annotation category near-misses and re-scan.", executionType: "tool-only" },
+      { id: "add-annotations", label: "Add Annotations", templateMessage: "Detect interactive elements and add ScreenID/ActionID placeholder annotations.", executionType: "tool-only", requiresSelection: true },
       { id: "export-screenshots", label: "Export Screenshots", templateMessage: "Export screenshots for analytics tagging rows", executionType: "ui-only" },
     ],
     promptTemplate: "# Analytics Tagging Assistant\n\nYou are **Ableza's Analytics Tagging Assistant**. You help document analytics tags. Select one or more frames/components with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations."

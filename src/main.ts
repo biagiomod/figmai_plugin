@@ -1652,48 +1652,55 @@ on<CopyTableStatusHandler>('COPY_TABLE_STATUS', function (status: 'success' | 'e
 
 // Initialize plugin
 export default function () {
-  console.log('[BUILD_ID]', { version: BUILD_VERSION, builtAt: BUILT_AT })
+  try {
+    console.log('[BUILD_ID]', { version: BUILD_VERSION, builtAt: BUILT_AT })
 
-  // Track plugin open
-  getAnalytics().track('plugin_open')
+    // Track plugin open
+    getAnalytics().track('plugin_open')
 
-  showUI({
-    height: 600,
-    width: 400,
-    title: getDisplayBrand().appName
-  })
+    showUI({
+      height: 600,
+      width: 400,
+      title: getDisplayBrand().appName
+    })
 
-  // Detect and propagate editor mode (Design vs Dev)
-  setEditorType(figma.editorType as 'figma' | 'dev')
-  figma.ui.postMessage({ pluginMessage: { type: 'EDITOR_TYPE', editorType: figma.editorType } })
+    // Detect and propagate editor mode (Design vs Dev)
+    setEditorType(figma.editorType as 'figma' | 'dev')
+    figma.ui.postMessage({ pluginMessage: { type: 'EDITOR_TYPE', editorType: figma.editorType } })
 
-  // Set up selection change listener
-  figma.on('selectionchange', function () {
-    // Update selection order: maintain order as items are selected/deselected
-    const currentSelection = figma.currentPage.selection
-    const currentIds = new Set(currentSelection.map(node => node.id))
-    const previousIds = new Set(selectionOrder)
-    
-    // Remove deselected items from order
-    selectionOrder = selectionOrder.filter(id => currentIds.has(id))
-    
-    // Add newly selected items to the end (right side) of the list
-    for (const node of currentSelection) {
-      if (!previousIds.has(node.id)) {
-        // This is a newly selected item, append it
-        selectionOrder.push(node.id)
+    // Set up selection change listener
+    figma.on('selectionchange', function () {
+      // Update selection order: maintain order as items are selected/deselected
+      const currentSelection = figma.currentPage.selection
+      const currentIds = new Set(currentSelection.map(node => node.id))
+      const previousIds = new Set(selectionOrder)
+
+      // Remove deselected items from order
+      selectionOrder = selectionOrder.filter(id => currentIds.has(id))
+
+      // Add newly selected items to the end (right side) of the list
+      for (const node of currentSelection) {
+        if (!previousIds.has(node.id)) {
+          // This is a newly selected item, append it
+          selectionOrder.push(node.id)
+        }
       }
-    }
-    
+
+      sendSelectionState()
+    })
+
+    // Initialize selection order
+    const initialSelection = figma.currentPage.selection
+    selectionOrder = initialSelection.map(node => node.id)
+
+    // Send initial selection state
     sendSelectionState()
-  })
-  
-  // Initialize selection order
-  const initialSelection = figma.currentPage.selection
-  selectionOrder = initialSelection.map(node => node.id)
-  
-  // Send initial selection state
-  sendSelectionState()
+  } catch (e) {
+    // Surface any init crash as a visible error so it's not silent in Dev Mode
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('[FigmAI] Plugin init failed:', msg)
+    figma.notify(`FigmAI failed to open: ${msg}`, { error: true, timeout: 8000 })
+  }
 }
 
 // Handle Placeholder Scorecard

@@ -14,7 +14,6 @@ import type { NearMissResult } from '../../analyticsTagging/nearMissDetector'
 import type { NearMissInfo, AutoAnnotateResult } from '../../types'
 import { repairNearMissAnnotations } from '../../figma/annotations'
 import { autoAnnotateScreens, buildSummaryMessage } from '../../analyticsTagging/autoAnnotator'
-import { isDevMode } from '../../editorMode'
 
 /**
  * Stores live NearMissResult[] (with SceneNode refs) from the most recent scan.
@@ -84,10 +83,6 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
     }
 
     if (actionId === 'fix-annotation-near-misses') {
-      if (isDevMode()) {
-        replaceStatusMessage('Annotation writes require Design mode.', true)
-        return { handled: true }
-      }
       const toFix = _lastNearMisses
       _lastNearMisses = []
       if (toFix.length === 0) {
@@ -107,10 +102,6 @@ export class AnalyticsTaggingHandler implements AssistantHandler {
     }
 
     if (actionId === 'add-annotations') {
-      if (isDevMode()) {
-        replaceStatusMessage('Annotation writes require Design mode.', true)
-        return { handled: true }
-      }
       const resolvedSelection = await resolveSelection(selectionOrder, {
         containerStrategy: 'expand',
         skipHidden: true

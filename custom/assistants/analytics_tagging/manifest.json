@@ -42,6 +42,13 @@
           "templateMessage": "Fix annotation category near-misses and re-scan."
         },
         {
+          "executionType": "tool-only",
+          "id": "add-annotations",
+          "label": "Add Annotations",
+          "requiresSelection": true,
+          "templateMessage": "Detect interactive elements and add ScreenID/ActionID placeholder annotations."
+        },
+        {
           "executionType": "ui-only",
           "id": "export-screenshots",
           "label": "Export Screenshots",

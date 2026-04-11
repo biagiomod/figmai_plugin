@@ -2646,10 +2646,11 @@ ${htmlTable}
   //   - generate-table: always visible
   //   - add-to-table:   visible only when a session already has items
   //   - ui-only actions: visible only when a table exists
-  // Dev Mode: actions that require canvas writes are hidden entirely.
+  // Dev Mode: hide actions that require canvas node writes (create/modify frames etc).
+  // Annotation writes (add-annotations, fix-annotation-near-misses) are intentionally
+  // allowed in Dev Mode — Figma permits annotation API calls in the handoff context.
+  // export-screenshots requires figma.createFrame() which IS blocked in Dev Mode.
   const DESIGN_MODE_ONLY_ACTIONS = new Set([
-    'fix-annotation-near-misses',
-    'add-annotations',
     'export-screenshots',
   ])
   const quickActionsSource =
