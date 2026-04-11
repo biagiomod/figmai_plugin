@@ -9,7 +9,17 @@
     "@create-figma-plugin/utilities": "4.0.3",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
-    "preact": "10.28.1"
+    "preact": "10.28.1",
+    "@smart-detector/pipeline":        "file:vendor/sdt/smart-detector-pipeline-0.1.0-alpha.0.tgz",
+    "@smart-detector/schema":          "file:vendor/sdt/smart-detector-schema-0.1.0-alpha.0.tgz",
+    "@smart-detector/taxonomy-bridge": "file:vendor/sdt/smart-detector-taxonomy-bridge-0.1.0-alpha.0.tgz",
+    "@smart-detector/detector-figma":  "file:vendor/sdt/smart-detector-detector-figma-0.1.0-alpha.0.tgz",
+    "@smart-detector/normalizer":      "file:vendor/sdt/smart-detector-normalizer-0.1.0-alpha.0.tgz",
+    "@smart-detector/scorer":          "file:vendor/sdt/smart-detector-scorer-0.1.0-alpha.0.tgz",
+    "@smart-detector/reviewer":        "file:vendor/sdt/smart-detector-reviewer-0.1.0-alpha.0.tgz",
+    "@smart-detector/taxonomy-contract":"file:vendor/sdt/smart-detector-taxonomy-contract-0.1.0-alpha.0.tgz",
+    "@design-system-toolkit/schema":           "file:vendor/ds-t-schema",
+    "@design-system-toolkit/renderer-figma":   "file:vendor/ds-t-renderer-figma"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1000.0",
@@ -35,7 +45,8 @@
     "deps:clean-install": "rm -rf node_modules package-lock.json && npm install",
     "deps:reset-ci": "rm -rf node_modules && npm ci",
     "build-assistants": "tsx scripts/build-assistants.ts",
-    "generate-assistants": "tsx scripts/generate-assistants-from-manifest.ts",
+    "compile-skills": "tsx scripts/compile-skills.ts",
+    "generate-assistants": "tsx scripts/compile-skills.ts",
     "generate-presets": "tsx scripts/generate-presets.ts",
     "generate-custom-overlay": "tsx scripts/generate-custom-overlay.ts",
     "generate-dark-demo-cards": "tsx scripts/generate-dark-demo-cards.ts",
@@ -59,7 +70,7 @@
     "build:offline": "npm run build",
     "postbuild": "node scripts/check-sync-api.js && node scripts/check-banned-phrases.js && node scripts/check-figma-bundle-compat.js && tsx scripts/update-manifest-network-access.ts && npm run invariants",
     "assert-prompt-pipeline": "tsx scripts/assert-prompt-pipeline.ts",
-    "test": "tsx scripts/build-assistants.test.ts && tsx src/core/assistants/instructionAssembly.test.ts && tsx src/core/assistants/instructionParity.test.ts && tsx src/core/assistants/routing.regression.test.ts && tsx src/core/assistants/handlers/contentReview.test.ts && tsx src/core/knowledgeBases/resolveKb.test.ts && tsx tests/accessibility-config.test.ts && tsx tests/kb-normalization.test.ts && tsx tests/kb-routes.test.ts && tsx tests/generate-knowledge-bases.test.ts && tsx tests/duplicates.test.ts && tsx tests/exclusionRules.test.ts && tsx tests/selectionResolver.test.ts && tsx admin-editor/src/content-models-parser.test.ts && tsx src/core/figma/textLinkRanges.test.ts && tsx src/core/figma/annotations.test.ts && tsx src/core/contentTable/presetOrder.test.ts && tsx src/core/contentTable/renderers.test.ts && tsx tests/semanticTokenizer.test.ts && tsx src/core/detection/smartDetector/smartDetector.test.ts && tsx src/core/contentTable/projection.test.ts && tsx src/core/richText/reportFormat.test.ts && tsx src/core/richText/enhancers.test.ts && tsx admin-editor/src/auth-middleware.test.ts && tsx admin-editor/src/tls-errors.test.ts && tsx tests/nearMissDetector.test.ts && tsx tests/autoAnnotator.test.ts",
+    "test": "tsx scripts/build-assistants.test.ts && tsx src/core/assistants/instructionAssembly.test.ts && tsx src/core/assistants/instructionParity.test.ts && tsx src/core/assistants/routing.regression.test.ts && tsx src/core/assistants/handlers/contentReview.test.ts && tsx src/core/knowledgeBases/resolveKb.test.ts && tsx tests/accessibility-config.test.ts && tsx tests/kb-normalization.test.ts && tsx tests/kb-routes.test.ts && tsx tests/generate-knowledge-bases.test.ts && tsx tests/duplicates.test.ts && tsx tests/exclusionRules.test.ts && tsx tests/selectionResolver.test.ts && tsx admin-editor/src/content-models-parser.test.ts && tsx src/core/figma/textLinkRanges.test.ts && tsx src/core/figma/annotations.test.ts && tsx src/core/contentTable/presetOrder.test.ts && tsx src/core/contentTable/renderers.test.ts && tsx tests/semanticTokenizer.test.ts && tsx src/core/detection/smartDetector/smartDetector.test.ts && tsx src/core/contentTable/projection.test.ts && tsx src/core/richText/reportFormat.test.ts && tsx src/core/richText/enhancers.test.ts && tsx admin-editor/src/auth-middleware.test.ts && tsx admin-editor/src/tls-errors.test.ts && tsx tests/nearMissDetector.test.ts && tsx tests/autoAnnotator.test.ts && tsx tests/sdk/smartDetectionPort.test.ts && tsx tests/sdk/designSystemPort.test.ts && tsx tests/sdk/conversationManager.test.ts && tsx tests/sdk/statusChannel.test.ts && tsx tests/sdk/assistantConfig.test.ts",
     "kb:convert": "tsx scripts/convert-kb.ts",
     "invariants": "tsx scripts/assert-invariants.ts",
     "watch": "npm run build-assistants && npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && tsx scripts/update-manifest-network-access.ts --watch && build-figma-plugin --typecheck --watch"
