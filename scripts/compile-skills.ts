@@ -307,22 +307,300 @@ ${entries}
 `
 }
 
-export function compile(rootDir: string): string {
-  // coveredIds: Set of assistant IDs already resolved via per-directory scanning.
-  // Stubbed as empty in this task — all assistants come from the flat manifest.
+// --- SKILL.md parser ---
+
+const STRUCTURAL_QUICK_ACTION_FIELDS = ['executionType', 'requiresSelection', 'requiresVision', 'maxImages', 'imageScale']
+
+const CANONICAL_SECTIONS = ['identity', 'behavior', 'instruction blocks', 'output guidance', 'quick actions']
+
+interface SkillQuickActionOverlay {
+  templateMessage?: string
+  guidance?: string
+}
+
+interface ParsedSkill {
+  id: string
+  sections: { name: string; content: string }[]
+  quickActionOverlays: Map<string, SkillQuickActionOverlay>
+}
+
+function parseSkillMd(content: string, dirName: string): ParsedSkill {
+  // 1. Extract frontmatter
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/)
+  if (!fmMatch) {
+    console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}": missing YAML frontmatter block (--- ... ---)`)
+    process.exit(1)
+  }
+  const frontmatter = fmMatch[1]
+
+  // Parse skillVersion
+  const svMatch = frontmatter.match(/^skillVersion:\s+(.+)$/m)
+  if (!svMatch || !/^\d+$/.test(svMatch[1].trim()) || parseInt(svMatch[1].trim(), 10) !== 1) {
+    console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}": missing or invalid skillVersion (must be exactly integer 1)`)
+    process.exit(1)
+  }
+
+  // Parse id
+  const idMatch = frontmatter.match(/^id:\s+(.+)$/m)
+  if (!idMatch) {
+    console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}": missing "id" in frontmatter`)
+    process.exit(1)
+  }
+  const skillId = idMatch[1].trim()
+  if (skillId !== dirName) {
+    console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}": frontmatter id "${skillId}" does not match directory name "${dirName}"`)
+    process.exit(1)
+  }
+
+  // 2. Parse sections (split by ## headings, after removing frontmatter)
+  const afterFrontmatter = content.slice(fmMatch[0].length)
+  const sectionChunks = afterFrontmatter.split(/(?=^## )/m).filter(s => s.trim() !== '')
+
+  const sections: { name: string; content: string }[] = []
+  let quickActionOverlays = new Map<string, SkillQuickActionOverlay>()
+  let hasIdentity = false
+
+  for (const chunk of sectionChunks) {
+    const headingMatch = chunk.match(/^## (.+)$/m)
+    if (!headingMatch) continue
+    const rawHeading = headingMatch[1].trim()
+    const lowerHeading = rawHeading.toLowerCase()
+
+    if (!CANONICAL_SECTIONS.includes(lowerHeading)) {
+      console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}": unknown section "## ${rawHeading}"`)
+      process.exit(1)
+    }
+
+    // Content = everything after the heading line
+    const sectionContent = chunk.slice(headingMatch.index! + headingMatch[0].length).trim()
+
+    if (lowerHeading === 'identity') {
+      hasIdentity = true
+      sections.push({ name: 'identity', content: sectionContent })
+    } else if (lowerHeading === 'quick actions') {
+      // Parse ### subsections
+      quickActionOverlays = parseQuickActionsSection(sectionContent, dirName)
+    } else {
+      sections.push({ name: lowerHeading, content: sectionContent })
+    }
+  }
+
+  if (!hasIdentity) {
+    console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}": missing required "## Identity" section`)
+    process.exit(1)
+  }
+
+  return { id: skillId, sections, quickActionOverlays }
+}
+
+function parseBlockScalar(text: string, fieldName: string): string | undefined {
+  // Matches: fieldName: |\n  <indented content>
+  const re = new RegExp(`^${fieldName}:\\s*\\|\\n((  [^\\n]*\\n?)*)`, 'm')
+  const m = text.match(re)
+  if (!m) return undefined
+  // Strip 2-space indent from each line
+  return m[1]
+    .split('\n')
+    .map(l => (l.startsWith('  ') ? l.slice(2) : l))
+    .join('\n')
+    .trimEnd()
+}
+
+function parseInlineField(text: string, fieldName: string): string | undefined {
+  const re = new RegExp(`^${fieldName}:\\s+(.+)$`, 'm')
+  const m = text.match(re)
+  return m ? m[1].trim() : undefined
+}
+
+function parseQuickActionsSection(sectionContent: string, dirName: string): Map<string, SkillQuickActionOverlay> {
+  const overlays = new Map<string, SkillQuickActionOverlay>()
+
+  // Split by ### headings
+  const subsectionChunks = sectionContent.split(/(?=^### )/m).filter(s => s.trim() !== '')
+
+  for (const chunk of subsectionChunks) {
+    const headingMatch = chunk.match(/^### (.+)$/m)
+    if (!headingMatch) continue
+    const actionId = headingMatch[1].trim()
+    const body = chunk.slice(headingMatch.index! + headingMatch[0].length).trim()
+
+    // Check for structural fields (hard error)
+    for (const field of STRUCTURAL_QUICK_ACTION_FIELDS) {
+      const re = new RegExp(`^${field}:\\s*`, 'm')
+      if (re.test(body)) {
+        console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}", quick action "${actionId}": structural field "${field}" is not allowed in SKILL.md`)
+        process.exit(1)
+      }
+    }
+
+    const overlay: SkillQuickActionOverlay = {}
+
+    // Parse templateMessage (block scalar or inline)
+    const tmBlock = parseBlockScalar(body, 'templateMessage')
+    if (tmBlock !== undefined) {
+      overlay.templateMessage = tmBlock
+    } else {
+      const tmInline = parseInlineField(body, 'templateMessage')
+      if (tmInline !== undefined) overlay.templateMessage = tmInline
+    }
+
+    // Parse guidance (block scalar or inline)
+    const gBlock = parseBlockScalar(body, 'guidance')
+    if (gBlock !== undefined) {
+      overlay.guidance = gBlock
+    } else {
+      const gInline = parseInlineField(body, 'guidance')
+      if (gInline !== undefined) overlay.guidance = gInline
+    }
+
+    overlays.set(actionId, overlay)
+  }
+
+  return overlays
+}
+
+function assemblePromptTemplate(sections: { name: string; content: string }[]): string {
+  // Canonical order: identity, behavior, instruction blocks, output guidance
+  const order = ['identity', 'behavior', 'instruction blocks', 'output guidance']
+  const sorted = order
+    .map(name => sections.find(s => s.name === name))
+    .filter((s): s is { name: string; content: string } => s !== undefined && s.content !== '')
+  return sorted.map(s => s.content).join('\n\n')
+}
+
+function loadPerDirManifest(manifestPath: string, dirName: string): AssistantManifestEntry {
+  let raw: unknown
+  try {
+    raw = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+  } catch (err) {
+    console.error(`[SKILL_COMPILER] Failed to read/parse manifest at ${manifestPath}:`, err)
+    process.exit(1)
+  }
+  const obj = raw as Record<string, unknown>
+  if (!obj.id || typeof obj.id !== 'string') {
+    console.error(`[SKILL_COMPILER] Per-directory manifest "${manifestPath}": missing "id" field`)
+    process.exit(1)
+  }
+  if (obj.id !== dirName) {
+    console.error(`[SKILL_COMPILER] Per-directory manifest "${manifestPath}": id "${obj.id}" does not match directory name "${dirName}"`)
+    process.exit(1)
+  }
+  return raw as AssistantManifestEntry
+}
+
+function mergeSkillIntoEntry(entry: AssistantManifestEntry, skill: ParsedSkill, dirName: string): AssistantManifestEntry {
+  // Build promptTemplate from SKILL.md sections
+  const promptTemplate = assemblePromptTemplate(skill.sections)
+
+  // Merge quick action overlays
+  const quickActions = entry.quickActions.map(qa => {
+    const overlay = skill.quickActionOverlays.get(qa.id)
+    if (!overlay) return qa
+    return {
+      ...qa,
+      ...(overlay.templateMessage !== undefined ? { templateMessage: overlay.templateMessage } : {}),
+      ...(overlay.guidance !== undefined ? { guidance: overlay.guidance } : {})
+    } as QuickActionEntry
+  })
+
+  // Validate: all overlay keys must reference known quick action IDs
+  for (const [actionId] of skill.quickActionOverlays) {
+    if (!entry.quickActions.find(qa => qa.id === actionId)) {
+      console.error(`[SKILL_COMPILER] SKILL.md in "${dirName}": quick action overlay references unknown id "${actionId}" (not in manifest.json)`)
+      process.exit(1)
+    }
+  }
+
+  // Validate: all quick actions must have templateMessage (manifest or overlay)
+  for (const qa of quickActions) {
+    if (typeof qa.templateMessage !== 'string' || qa.templateMessage === '') {
+      console.error(`[SKILL_COMPILER] Assistant "${dirName}", quick action "${qa.id}": missing templateMessage (not in manifest.json and not in SKILL.md overlay)`)
+      process.exit(1)
+    }
+  }
+
+  return { ...entry, promptTemplate, quickActions }
+}
+
+function scanPerDirectoryEntries(rootDir: string): { entries: AssistantManifestEntry[]; coveredIds: Set<string> } {
+  const assistantsDir = path.join(rootDir, 'custom', 'assistants')
   const coveredIds = new Set<string>()
+  const entries: AssistantManifestEntry[] = []
+
+  if (!fs.existsSync(assistantsDir)) return { entries, coveredIds }
+
+  const subdirs = fs.readdirSync(assistantsDir, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+    .map(d => d.name)
+
+  for (const dirName of subdirs) {
+    const dirPath = path.join(assistantsDir, dirName)
+    const manifestPath = path.join(dirPath, 'manifest.json')
+    const skillPath = path.join(dirPath, 'SKILL.md')
+
+    const hasManifest = fs.existsSync(manifestPath)
+    const hasSkill = fs.existsSync(skillPath)
+
+    if (!hasManifest) continue
+
+    // Determine format
+    let rawManifest: Record<string, unknown>
+    try {
+      rawManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+    } catch (err) {
+      console.error(`[SKILL_COMPILER] Failed to read/parse ${manifestPath}:`, err)
+      process.exit(1)
+    }
+
+    // Old format: has top-level "assistants" array → silently skip
+    if (Array.isArray(rawManifest['assistants'])) {
+      continue
+    }
+
+    // New flat entry format: has "id" at top level
+    // Partial migration error: flat manifest but no SKILL.md
+    if (!hasSkill) {
+      console.error(`[SKILL_COMPILER] Partial migration error: "${dirName}" has a flat-entry manifest.json but no SKILL.md`)
+      process.exit(1)
+    }
+
+    // Both manifest.json (flat) + SKILL.md present → process
+    const entry = loadPerDirManifest(manifestPath, dirName)
+    const skillContent = fs.readFileSync(skillPath, 'utf-8')
+    const skill = parseSkillMd(skillContent, dirName)
+    const merged = mergeSkillIntoEntry(entry, skill, dirName)
+
+    entries.push(merged)
+    coveredIds.add(dirName)
+  }
+
+  return { entries, coveredIds }
+}
+
+export function compile(rootDir: string): string {
+  // 1. Scan custom/assistants/<id>/ for new-format entries (manifest.json flat + SKILL.md)
+  // 2. Add found entries to coveredIds + perDirEntries
+  // 3. Flat manifest fallback for uncovered IDs (with warnings)
+  const { entries: perDirEntries, coveredIds } = scanPerDirectoryEntries(rootDir)
 
   const { manifest } = loadFlatManifest(rootDir)
   validateManifest(manifest)
 
   // Warn for each assistant resolved via flat manifest fallback
+  const flatEntries: AssistantManifestEntry[] = []
   for (const a of manifest.assistants) {
     if (!coveredIds.has(a.id)) {
       console.warn(`[SKILL_COMPILER WARNING] "${a.id}" resolved via flat manifest fallback`)
+      flatEntries.push(a)
     }
   }
 
-  return generateTs(manifest)
+  // Merge per-directory entries into manifest for generation
+  // Per-directory entries are appended; flat manifest entries that are covered are replaced
+  const allEntries: AssistantManifestEntry[] = [...perDirEntries, ...flatEntries]
+  const mergedManifest: ManifestRoot = { assistants: allEntries }
+
+  return generateTs(mergedManifest)
 }
 
 function main(): void {
