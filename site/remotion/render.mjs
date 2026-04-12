@@ -1,5 +1,6 @@
 import { bundle } from '@remotion/bundler'
 import { renderMedia, selectComposition } from '@remotion/renderer'
+import { mkdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -14,6 +15,8 @@ const ASSISTANT_IDS = [
 ]
 
 async function main() {
+  mkdirSync(path.resolve(__dirname, '..', 'public', 'videos'), { recursive: true })
+
   console.log('Bundling Remotion composition...')
 
   const bundleLocation = await bundle({
