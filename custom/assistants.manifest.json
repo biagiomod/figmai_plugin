@@ -1,69 +1,6 @@
 {
   "assistants": [
     {
-      "hoverSummary": "Screen generator specialist",
-      "iconId": "LightBulbRaysIcon",
-      "id": "design_workshop",
-      "instructionBlocks": [
-        {
-          "content": "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape.",
-          "enabled": true,
-          "id": "design_workshop-output",
-          "kind": "format"
-        }
-      ],
-      "intro": "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
-      "kind": "ai",
-      "knowledgeBaseRefs": [
-        "design-workshop"
-      ],
-      "label": "Design Workshop",
-      "promptTemplate": "# Design Workshop Assistant\n\nYou are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images.",
-      "quickActions": [
-        {
-          "executionType": "llm",
-          "id": "generate-screens",
-          "label": "Demo: Generate Screens",
-          "templateMessage": "Generate screens using Jazz Design System styling at hi fidelity."
-        },
-        {
-          "executionType": "tool-only",
-          "id": "demo-screens",
-          "label": "Run Demo",
-          "templateMessage": "Running FiFi FinTech demo preset."
-        },
-        {
-          "executionType": "tool-only",
-          "id": "demo-dashboard",
-          "label": "Demo: Dashboard",
-          "templateMessage": "Running FiFi dashboard screen."
-        },
-        {
-          "executionType": "tool-only",
-          "id": "demo-positions",
-          "label": "Demo: Positions",
-          "templateMessage": "Running FiFi positions screen."
-        },
-        {
-          "executionType": "tool-only",
-          "id": "demo-flow",
-          "label": "Demo: Full Flow",
-          "templateMessage": "Running FiFi full 5-screen flow."
-        },
-        {
-          "executionType": "tool-only",
-          "id": "demo-exact",
-          "label": "Demo: Exact",
-          "templateMessage": "Running FiFi exact reference portfolio screen."
-        }
-      ],
-      "tag": {
-        "isVisible": true,
-        "label": "Alpha",
-        "variant": "alpha"
-      }
-    },
-    {
       "hoverSummary": "Discovery process specialist",
       "iconId": "PathIcon",
       "id": "discovery_copilot",

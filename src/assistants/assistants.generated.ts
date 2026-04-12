@@ -29,28 +29,6 @@ export interface AssistantManifestEntry {
 
 export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
-    id: "design_workshop",
-    label: "Design Workshop",
-    intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
-    hoverSummary: "Screen generator specialist",
-    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "LightBulbRaysIcon",
-    kind: "ai",
-    quickActions: [
-      { id: "generate-screens", label: "Demo: Generate Screens", templateMessage: "Generate screens using Jazz Design System styling at hi fidelity.", executionType: "llm" },
-      { id: "demo-screens", label: "Run Demo", templateMessage: "Running FiFi FinTech demo preset.", executionType: "tool-only" },
-      { id: "demo-dashboard", label: "Demo: Dashboard", templateMessage: "Running FiFi dashboard screen.", executionType: "tool-only" },
-      { id: "demo-positions", label: "Demo: Positions", templateMessage: "Running FiFi positions screen.", executionType: "tool-only" },
-      { id: "demo-flow", label: "Demo: Full Flow", templateMessage: "Running FiFi full 5-screen flow.", executionType: "tool-only" },
-      { id: "demo-exact", label: "Demo: Exact", templateMessage: "Running FiFi exact reference portfolio screen.", executionType: "tool-only" },
-    ],
-    promptTemplate: "# Design Workshop Assistant\n\nYou are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\nYou generate 1-5 Figma screens from user descriptions, creating complete screen layouts with headings, text, buttons, inputs, cards, and images."
-    , instructionBlocks: [
-      { id: "design_workshop-output", kind: "format", content: "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape." },
-    ]
-    , knowledgeBaseRefs: ["design-workshop"]
-  },
-  {
     id: "discovery_copilot",
     label: "Discovery Copilot",
     intro: "**Welcome to Discovery Copilot!**\n\nI'll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you're solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet's begin! What are you discovering today? (e.g., \"redesigning checkout flow\", \"building a new feature\")",
@@ -163,6 +141,28 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     ],
     promptTemplate: "You are **Ableza's Design Critique Assistant**, an expert UX and UI design reviewer embedded in a Figma plugin.\n\nYour core principle: **give structured, actionable critique grounded in evidence, not opinion.**\nEvery finding must include a specific fix. Scores are earned, not rounded up.\n\n- Structure output with: overall score (1–10), top wins (what is working), critical fixes (must address), minor improvements (optional), and a one-sentence summary.\n- Every fix must be specific: name the element, describe the problem, state the exact change.\n- Reference the KB when it supplies relevant heuristics — don't invent principles.\n- For deceptive review: name the dark pattern category (from the KB), describe how it harms users, and state whether it's accidental or intentional based on visual evidence.\n- If the selection has insufficient visual context (low fidelity, placeholder content), say so explicitly before critiquing."
     , knowledgeBaseRefs: ["design-critique", "dark-deceptive-practices"]
+  },
+  {
+    id: "design_workshop",
+    label: "Design Workshop",
+    intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
+    hoverSummary: "Screen generator specialist",
+    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
+    iconId: "LightBulbRaysIcon",
+    kind: "ai",
+    quickActions: [
+      { id: "generate-screens", label: "Demo: Generate Screens", templateMessage: "Generate screens using Jazz Design System styling at hi fidelity.", executionType: "llm" },
+      { id: "demo-screens", label: "Run Demo", templateMessage: "Running FiFi FinTech demo preset.", executionType: "tool-only" },
+      { id: "demo-dashboard", label: "Demo: Dashboard", templateMessage: "Running FiFi dashboard screen.", executionType: "tool-only" },
+      { id: "demo-positions", label: "Demo: Positions", templateMessage: "Running FiFi positions screen.", executionType: "tool-only" },
+      { id: "demo-flow", label: "Demo: Full Flow", templateMessage: "Running FiFi full 5-screen flow.", executionType: "tool-only" },
+      { id: "demo-exact", label: "Demo: Exact", templateMessage: "Running FiFi exact reference portfolio screen.", executionType: "tool-only" },
+    ],
+    promptTemplate: "You are **Ableza's Design Workshop Assistant**, a screen generator embedded inside a Figma plugin.\n\nYour core principle: **generate complete, renderable screens — not placeholders.**\nEvery screen must have enough layout detail, content blocks, and component intent to be placed directly on the Figma canvas.\n\n- Generate 1–5 screens per request. If the user asks for more, generate the 5 most representative and note what was omitted.\n- Output is always valid JSON matching DesignSpecV1. The JSON format contract is enforced by the format instruction block — do not emit prose or explanations alongside the JSON.\n- Infer device type from context (mobile, tablet, desktop) if not specified. Default to mobile if ambiguous.\n- When a design system is named (e.g. Jazz), apply its component vocabulary and fidelity conventions. If no design system is specified, use generic component types.\n- Do not ask clarifying questions before generating — produce a reasonable interpretation and let the user iterate."
+    , instructionBlocks: [
+      { id: "design_workshop-output", kind: "format", content: "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape." },
+    ]
+    , knowledgeBaseRefs: ["design-workshop"]
   },
   {
     id: "dev_handoff",
