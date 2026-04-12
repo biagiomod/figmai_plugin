@@ -111,14 +111,18 @@ async function run() {
 
   // ── Per-directory path ────────────────────────────────────────────────────
 
+  await test('per-dir: empty flat manifest allowed when all assistants are per-directory', () => {
+    const repo = makeTempRepo('perdir-empty-flat')
+    writeFlatManifest(repo, [])
+    writePerDirAssistant(repo, 'general', MINIMAL_PER_DIR_MANIFEST, MINIMAL_SKILL_MD)
+    // Should compile without error — per-directory entry is the full source of truth
+    const output = compile(repo)
+    assert(output.includes('You are a design assistant'), 'per-dir content compiled from empty flat manifest')
+  })
+
   await test('per-dir: Identity content assembled into promptTemplate (no ## Identity heading in output)', () => {
     const repo = makeTempRepo('perdir-identity')
     writeFlatManifest(repo, [])
-    // flat manifest needs at least one entry to pass validateManifest — use a dummy
-    // Actually compile() calls loadFlatManifest then validateManifest. Since per-dir covers
-    // the assistant, the flat manifest just needs to be valid (non-empty).
-    const dummyFlat = { ...MINIMAL_FLAT_ENTRY, id: 'dummy', label: 'Dummy', promptTemplate: 'Dummy.' }
-    writeFlatManifest(repo, [dummyFlat])
     writePerDirAssistant(repo, 'general', MINIMAL_PER_DIR_MANIFEST, MINIMAL_SKILL_MD)
     const output = compile(repo)
     assert(output.includes('You are a design assistant'), 'identity content in promptTemplate')
@@ -127,8 +131,7 @@ async function run() {
 
   await test('per-dir: templateMessage from SKILL.md overlay appears in emitted quickActions', () => {
     const repo = makeTempRepo('perdir-tm')
-    const dummyFlat = { ...MINIMAL_FLAT_ENTRY, id: 'dummy', label: 'Dummy', promptTemplate: 'Dummy.' }
-    writeFlatManifest(repo, [dummyFlat])
+    writeFlatManifest(repo, [])
     writePerDirAssistant(repo, 'general', MINIMAL_PER_DIR_MANIFEST, MINIMAL_SKILL_MD)
     const output = compile(repo)
     assert(output.includes('Explain this.'), 'templateMessage from SKILL.md overlay present in output')
@@ -163,8 +166,7 @@ templateMessage: Explain this.
 
   await test('per-dir: Behavior section content appended to promptTemplate after Identity', () => {
     const repo = makeTempRepo('perdir-behavior')
-    const dummyFlat = { ...MINIMAL_FLAT_ENTRY, id: 'dummy', label: 'Dummy', promptTemplate: 'Dummy.' }
-    writeFlatManifest(repo, [dummyFlat])
+    writeFlatManifest(repo, [])
     const skillMd = `---
 skillVersion: 1
 id: general

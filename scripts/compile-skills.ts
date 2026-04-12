@@ -95,10 +95,11 @@ function loadFlatManifest(rootDir: string): { manifest: ManifestRoot; ids: Set<s
 }
 
 function validateManifest(manifest: ManifestRoot): void {
-  if (!Array.isArray(manifest.assistants) || manifest.assistants.length === 0) {
-    console.error('[SKILL_COMPILER] Manifest must have a non-empty "assistants" array')
+  if (!Array.isArray(manifest.assistants)) {
+    console.error('[SKILL_COMPILER] Manifest must have an "assistants" array')
     process.exit(1)
   }
+  // Empty flat manifest is allowed when all assistants use per-directory format.
   const ids = new Set<string>()
   const missingExecutionType: { assistantId: string; actionId: string }[] = []
   for (let i = 0; i < manifest.assistants.length; i++) {

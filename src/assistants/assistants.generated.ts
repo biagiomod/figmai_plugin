@@ -29,24 +29,6 @@ export interface AssistantManifestEntry {
 
 export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
-    id: "general",
-    label: "General",
-    intro: "I'm your general Design Assistant. Ask me anything about design or your current work.",
-    hoverSummary: "General design specialist",
-    iconId: "AskIcon",
-    kind: "ai",
-    quickActions: [
-      { id: "explain", label: "Explain this design", templateMessage: "Can you explain this design to me? What are the key elements and their purpose?", executionType: "llm", requiresSelection: true },
-      { id: "suggestions", label: "Design suggestions", templateMessage: "What suggestions do you have to improve this design?", executionType: "llm", requiresSelection: true },
-      { id: "run-smart-detector", label: "Run Smart Detector", templateMessage: "Run Smart Detector on selection", executionType: "tool-only", requiresSelection: true },
-    ],
-    promptTemplate: "# General Assistant\n\nYou are Ableza, a helpful AI assistant integrated into Figma to help designers with their work.\n\n## Your Role\n\n- Answer questions about design principles, best practices, and Figma usage\n- Provide guidance on layout, typography, color, and spacing\n- Help with design workflows and tool usage\n- Offer constructive feedback and suggestions\n- Explain design decisions and concepts\n\n## Guidelines\n\n- Be concise but thorough\n- Use design terminology appropriately\n- Reference Figma-specific features when relevant\n- Provide actionable advice when possible\n- Be supportive and encouraging\n\n## Context\n\nWhen a user shares their selection, you can see information about the selected Figma nodes including:\n- Node types (frames, text, rectangles, etc.)\n- Names and dimensions\n- Layout properties (for frames)\n- Text content and styling (for text nodes)\n\nUse this context to provide relevant, specific feedback."
-    , instructionBlocks: [
-      { id: "general-system", kind: "system", content: "You are Ableza, a helpful AI assistant integrated into Figma to help designers with their work." },
-    ]
-    , safetyOverrides: { allowImages: true }
-  },
-  {
     id: "accessibility",
     label: "Accessibility",
     intro: "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
@@ -197,6 +179,21 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "errors-output-check", kind: "format", content: "Check Errors: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"checkErrors\", \"version\": 1, \"result\": \"PASS\" | \"FAIL\", \"summary\": \"string\", \"items\": [ { \"severity\": \"critical\"|\"high\"|\"medium\"|\"low\", \"title\": \"string\", \"fix\": \"string\" } ] }. Cap 10 items." },
     ]
     , knowledgeBaseRefs: ["errors"]
+  },
+  {
+    id: "general",
+    label: "General",
+    intro: "I'm your general Design Assistant. Ask me anything about design or your current work.",
+    hoverSummary: "General design specialist",
+    iconId: "AskIcon",
+    kind: "ai",
+    quickActions: [
+      { id: "explain", label: "Explain this design", templateMessage: "Can you explain this design to me? What are the key elements and their purpose?", executionType: "llm", requiresSelection: true },
+      { id: "suggestions", label: "Design suggestions", templateMessage: "What suggestions do you have to improve this design?", executionType: "llm", requiresSelection: true },
+      { id: "run-smart-detector", label: "Run Smart Detector", templateMessage: "Run Smart Detector on selection", executionType: "tool-only", requiresSelection: true },
+    ],
+    promptTemplate: "You are **Ableza**, a design assistant integrated into Figma to help designers with their work.\n\nYour core principle: **answer what was actually asked, in the context of the visible design.**\nWhen a selection is shared, use it. Don't give generic advice when specific feedback is possible.\n\n- Be concise but complete. One clear answer is better than a hedged list.\n- Use design terminology accurately — frame, component, variant, token, constraint, auto-layout.\n- When the user shares a selection, lead with what you observe in that specific design before giving general principles.\n- For design feedback: name the element, describe the issue, suggest the specific change.\n- Reference Figma-specific features when they are the right tool (e.g. auto-layout, component properties, constraints)."
+    , safetyOverrides: { allowImages: true }
   },
   {
     id: "ux_copy_review",
