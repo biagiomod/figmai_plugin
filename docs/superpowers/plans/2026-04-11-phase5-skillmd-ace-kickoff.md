@@ -1,16 +1,27 @@
 # Phase 5 — SKILL.md + ACE Hybrid Editor: Kickoff Plan
 
-> **Status:** Slice 1 complete ✅ (2026-04-11)
+> **Status:** Slice 2 complete ✅ (2026-04-12) — all 11 assistants migrated, 0 flat manifest warnings
 > **Branch:** `sdk-toolkit-foundation`
 > **Prerequisite:** SDK stabilization wave complete ✅ (2026-04-11)
+
+## Phase 5 Slice 2 Status (completed 2026-04-12)
+
+- All 11 assistants migrated to per-directory SKILL.md format ✅
+- Flat manifest retired (empty, kept for compiler compatibility) ✅
+- Authoring quality pass applied to all assistants ✅
+- Compiler ordering fix (flat manifest as position anchor) ✅
+- validateManifest relaxed for all-migrated end state ✅
+- instructionParity.test.ts retired (migration-era test, now obsolete) ✅
+- assistants.md updated to reflect per-directory model ✅
+- ACE manual validation: ⏳ Pending (user action required)
 
 ## Phase 5 Slice 1 Status (completed 2026-04-11)
 
 - compile-skills.ts: ✅ Live
 - migrate-assistant-to-skillmd.ts: ✅ Live
 - ACE SKILL.md panel: ✅ Live
-- Production migrations: ⏳ Deferred (run per-assistant when ready)
-- Authoring quality pass: ⏳ Deferred (use Skill Writer docs when ready)
+- Production migrations: ✅ Complete (Slice 2)
+- Authoring quality pass: ✅ Complete (Slice 2)
 
 ---
 
