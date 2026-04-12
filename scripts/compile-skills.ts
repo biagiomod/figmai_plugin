@@ -595,10 +595,18 @@ export function compile(rootDir: string): string {
     }
   }
 
-  // Merge per-directory entries into manifest for generation
-  // Per-directory entries are appended; flat manifest entries that are covered are replaced
-  const allEntries: AssistantManifestEntry[] = [...perDirEntries, ...flatEntries]
-  const mergedManifest: ManifestRoot = { assistants: allEntries }
+  // Merge per-directory entries into manifest for generation.
+  // Use flat manifest order as the canonical slot order so that migrating an assistant
+  // does not change its position in the generated array (and therefore the plugin UI).
+  // Per-directory entries slot into the same position as their flat manifest counterpart.
+  // Entries with per-directory files but no flat manifest entry are appended at the end.
+  const perDirById = new Map(perDirEntries.map((e) => [e.id, e]))
+  const orderedEntries: AssistantManifestEntry[] = manifest.assistants.map((a) => perDirById.get(a.id) ?? a)
+  // Append any per-directory entries not present in the flat manifest (edge case)
+  for (const e of perDirEntries) {
+    if (!manifest.assistants.find((a) => a.id === e.id)) orderedEntries.push(e)
+  }
+  const mergedManifest: ManifestRoot = { assistants: orderedEntries }
 
   return generateTs(mergedManifest)
 }
