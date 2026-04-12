@@ -14,7 +14,7 @@ type Props = { assistantId: string }
  * Top-level 1280×720 composition.
  * Routes to Intro (0–89), Steps (90–419), or Closing (420–539) based on current frame.
  */
-export const AssistantVideo: React.FC<Props> = ({ assistantId }) => {
+export function AssistantVideo({ assistantId }: Props) {
   const frame = useCurrentFrame()
   const assistant = VIDEO_ASSISTANTS.find(a => a.id === assistantId)
 

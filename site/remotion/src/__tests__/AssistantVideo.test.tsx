@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import { AssistantVideo } from '../AssistantVideo'
 
 vi.mock('remotion', () => ({
@@ -17,6 +17,10 @@ vi.mock('@remotion/google-fonts/Inter', () => ({
 const ASSISTANT_IDS = ['general', 'evergreens', 'accessibility', 'design-workshop', 'analytics-tagging']
 
 describe('AssistantVideo', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   for (const id of ASSISTANT_IDS) {
     it(`renders without crashing for assistantId="${id}" at frame 0 (Intro)`, () => {
       const { container } = render(<AssistantVideo assistantId={id} />)
@@ -24,17 +28,19 @@ describe('AssistantVideo', () => {
     })
   }
 
-  it('renders Steps act at frame 90', async () => {
+  it('renders Steps act at frame 90 (shows step content, not tagline)', async () => {
     const remotion = await import('remotion')
     vi.mocked(remotion.useCurrentFrame).mockReturnValue(90)
-    const { container } = render(<AssistantVideo assistantId="general" />)
-    expect(container.firstChild).toBeTruthy()
+    render(<AssistantVideo assistantId="general" />)
+    // Steps renders the step title from howToUse; Intro would render the tagline instead
+    expect(screen.getByText('Open the plugin in Figma')).toBeInTheDocument()
   })
 
-  it('renders Closing act at frame 420', async () => {
+  it('renders Closing act at frame 420 (shows CTA)', async () => {
     const remotion = await import('remotion')
     vi.mocked(remotion.useCurrentFrame).mockReturnValue(420)
-    const { container } = render(<AssistantVideo assistantId="evergreens" />)
-    expect(container.firstChild).toBeTruthy()
+    render(<AssistantVideo assistantId="evergreens" />)
+    // Closing renders the "Open in Figma" CTA; Steps and Intro do not
+    expect(screen.getByText('Open in Figma')).toBeInTheDocument()
   })
 })

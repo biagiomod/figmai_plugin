@@ -1,7 +1,7 @@
 import { Composition } from 'remotion'
 import { AssistantVideo } from './AssistantVideo'
 
-export const RemotionRoot: React.FC = () => {
+export function RemotionRoot() {
   return (
     <Composition
       id="AssistantVideo"
