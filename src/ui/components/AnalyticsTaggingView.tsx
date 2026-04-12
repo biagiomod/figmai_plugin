@@ -19,7 +19,7 @@ import type {
 import { emit } from '@create-figma-plugin/utilities'
 import { AnalyticsTaggingRepairBanner } from './AnalyticsTaggingRepairBanner'
 import type { NearMissInfo } from '../../core/types'
-import { ImageDownloadIcon, CloseIcon } from '../icons'
+import { ImageDownloadIcon, CloseIcon, ScanIcon, PlusIcon, ViewIcon, CopyIcon } from '../icons'
 import { TH, TD, CELL_INPUT, TOOL_BTN, actionBtnStyle } from './toolTableStyles'
 
 const ACTION_TYPES: ActionType[] = ['Action', 'Interaction', 'Screen Event', 'Personalization Event']
@@ -418,25 +418,29 @@ export function AnalyticsTaggingView({
           onClick={onAppend}
           disabled={!hasSelection}
           title={hasSelection ? 'Scan additional screens' : 'Select frames with ScreenID first'}
-          style={actionBtnStyle(!hasSelection)}
+          style={{ ...actionBtnStyle(!hasSelection), display: 'flex', alignItems: 'center', gap: '4px' }}
         >
-          Append Selection
+          <ScanIcon width={12} height={12} />
+          Selection
         </button>
         <button
           onClick={onAddAnnotations}
           disabled={!hasSelection || isAddingAnnotations}
           title={hasSelection ? 'Detect interactive elements and add placeholder annotations' : 'Select frames first'}
-          style={actionBtnStyle(!hasSelection || isAddingAnnotations)}
+          style={{ ...actionBtnStyle(!hasSelection || isAddingAnnotations), display: 'flex', alignItems: 'center', gap: '4px' }}
         >
-          {isAddingAnnotations ? 'Adding…' : 'Add Annotations'}
+          <PlusIcon width={12} height={12} />
+          {isAddingAnnotations ? 'Adding…' : 'Annotations'}
         </button>
         {onViewOnStage && (
-          <button onClick={onViewOnStage} style={actionBtnStyle(false)}>
-            View on Stage
+          <button onClick={onViewOnStage} style={{ ...actionBtnStyle(false), display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <ViewIcon width={12} height={12} />
+            on Stage
           </button>
         )}
-        <button onClick={onCopyToClipboard} disabled={isCopying} style={actionBtnStyle(isCopying)}>
-          {isCopying ? 'Copying...' : 'Copy to Clipboard'}
+        <button onClick={onCopyToClipboard} disabled={isCopying} style={{ ...actionBtnStyle(isCopying), display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <CopyIcon width={12} height={12} />
+          {isCopying ? 'Copying...' : 'Table'}
         </button>
       </div>
     </div>
