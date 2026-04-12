@@ -1,0 +1,35 @@
+.section { background: var(--bg-section-alt); padding: 64px 40px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; gap: 24px; }
+.eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.headline { font-size: 32px; font-weight: 800; color: var(--text-on-dark); line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 12px; font-family: var(--font-display); }
+.accent { color: var(--accent); }
+.body { font-size: 13px; color: var(--text-on-dark-muted); max-width: 400px; line-height: 1.6; }
+.actions { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; flex-shrink: 0; }
+.btnPrimary {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--accent); color: #fff;
+  border-radius: var(--radius-sm); padding: 9px 16px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.btnGhost {
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.7); border-radius: var(--radius-sm);
+  padding: 8px 16px; font-size: 12px; font-weight: 500;
+}
+.grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 3px solid var(--ac-color);
+  border-radius: var(--radius-card); padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.cardHeader { display: flex; align-items: center; gap: 8px; }
+.cardIcon { width: 26px; height: 26px; background: var(--ac-color); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; }
+.cardName { font-size: 13px; font-weight: 700; color: var(--text-on-dark); }
+.avatars { display: flex; gap: 4px; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--ac-color); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; }
+.avatarEmpty { width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed rgba(255,255,255,0.25); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.65); }
+.viewLink { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--ac-color); margin-top: auto; }
