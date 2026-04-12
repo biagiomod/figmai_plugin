@@ -5147,6 +5147,12 @@
       if (summary.success) {
         state.originalModel = getEditedModel()
         state.editedModel = deepClone(state.originalModel)
+        state.skillMdEdits = {}
+        if (state.originalModel.skillMdContent) {
+          for (var _smId2 in state.originalModel.skillMdContent) {
+            state.skillMdEdits[_smId2] = state.originalModel.skillMdContent[_smId2] || ''
+          }
+        }
         if (summary.meta) state.meta = summary.meta
         if (ACE_DEBUG) {
           var postRev = (summary.meta && summary.meta.revision) ? summary.meta.revision : ''
@@ -5301,6 +5307,12 @@
       discardBtn.onclick = function () {
         if (!state.originalModel) return
         state.editedModel = deepClone(state.originalModel)
+        state.skillMdEdits = {}
+        if (state.originalModel.skillMdContent) {
+          for (var _smId in state.originalModel.skillMdContent) {
+            state.skillMdEdits[_smId] = state.originalModel.skillMdContent[_smId] || ''
+          }
+        }
         showUnsavedBanner()
         renderAllPanels()
       }
