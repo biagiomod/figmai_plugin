@@ -2275,6 +2275,7 @@
     html += '<div class="ae-field-group">'
     html += '<label for="ae-sm-cp">Core Principle</label>'
     html += '<p class="ae-helper">One sentence shown in bold — the non-negotiable guiding value.</p>'
+    html += '<p class="ae-helper" style="color:var(--ace-text-muted)">Note: bold markers (**) are added automatically — do not include them in this field.</p>'
     html += '<input type="text" id="ae-sm-cp" class="ace-field ae-skillmd-field" data-field="corePrinciple" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(fields.corePrinciple) + '">'
     html += '</div>'
     html += '<div class="ae-skillmd-identity-preview">'
@@ -2299,6 +2300,7 @@
     // Quick Actions
     html += '<h3 class="ae-section-heading">Quick Actions</h3>'
     html += '<p class="ae-helper" style="margin-bottom:8px">Each action is a button in the plugin. Expanding shows what gets sent to the LLM.</p>'
+    html += '<p class="ae-helper" style="color:var(--ace-text-muted);margin-bottom:8px">Quick action IDs in SKILL.md must match IDs defined in <code>manifest.json</code>. Use the generated ID as-is or align it with manifest.json before saving.</p>'
     if (fields.quickActions.length === 0) {
       html += '<div class="ae-empty-state">No quick actions defined. Add one below.</div>'
     } else {
@@ -2595,9 +2597,9 @@
   }
 
   function _parseSkillMd (content) {
-    // Returns { assistantName, corePrinciple, behaviorRules: string[], quickActions: QA[] }
+    // Returns { assistantName, corePrinciple, behaviorRules: string[], quickActions: QA[], passthroughSections: [] }
     // QA = { id: string, templateMessage: string, guidance: string }
-    var result = { assistantName: '', corePrinciple: '', behaviorRules: [], quickActions: [] }
+    var result = { assistantName: '', corePrinciple: '', behaviorRules: [], quickActions: [], passthroughSections: [] }
     if (!content) return result
     var lines = content.split('\n')
     var section = null
@@ -2623,7 +2625,21 @@
       if (/^## Identity/i.test(line)) { section = 'identity'; continue }
       if (/^## Behavior/i.test(line)) { section = 'behavior'; currentQa = null; continue }
       if (/^## Quick Actions/i.test(line)) { section = 'quick-actions'; currentQa = null; continue }
-      if (/^## /i.test(line)) { section = 'other'; currentQa = null; continue }
+      if (/^## /i.test(line)) {
+        // Unknown section — collect all lines until the next ## or end of file
+        var ptName = line.replace(/^##\s+/, '').trim()
+        var ptLines = []
+        i++
+        while (i < lines.length && !/^## /i.test(lines[i])) {
+          ptLines.push(lines[i])
+          i++
+        }
+        i-- // Back up one — outer loop will increment past the last collected line
+        result.passthroughSections.push({ name: ptName, content: ptLines.join('\n').trimEnd() })
+        section = 'other'
+        currentQa = null
+        continue
+      }
 
       if (section === 'identity') {
         var nameMatch = line.match(/You are \*\*[^']*'s\s+(.+?)\*\*/)
@@ -2682,6 +2698,16 @@
       })
       lines.push('')
     }
+    if (fields.passthroughSections && fields.passthroughSections.length > 0) {
+      fields.passthroughSections.forEach(function (sec) {
+        lines.push('## ' + sec.name)
+        lines.push('')
+        if (sec.content) {
+          sec.content.split('\n').forEach(function (l) { lines.push(l) })
+          lines.push('')
+        }
+      })
+    }
     if (fields.quickActions && fields.quickActions.length > 0) {
       lines.push('## Quick Actions')
       lines.push('')
@@ -2707,6 +2733,13 @@
     var preview = document.querySelector('.ae-skillmd-identity-preview')
     if (!preview) return
     preview.innerHTML = 'You are <strong>Design AI Toolkit\'s ' + escapeHtml(fields.assistantName || '…') + ' Assistant</strong>, an expert embedded inside a Figma plugin.<br>Your core principle: <strong>' + escapeHtml(fields.corePrinciple || '…') + '</strong>'
+  }
+
+  function _commitSkillMd (aid, content) {
+    state.skillMdEdits[aid] = content
+    if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+    state.editedModel.skillMdContent[aid] = content
+    showUnsavedBanner()
   }
 
   function _aeKnowledgeTab (a) {
@@ -3333,12 +3366,9 @@
         var field = this.getAttribute('data-field')
         if (!aid || !field) return
         var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
-        fields[field] = this.value
+        fields[field] = this.value.replace(/\*\*/g, '')
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
         _updateSkillMdPreview(aid, fields)
       }
       el.onchange = handler
@@ -3354,10 +3384,7 @@
         var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
         fields.behaviorRules[idx] = this.value
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
         _updateSkillMdPreview(aid, fields)
       }
       el.onchange = handler
@@ -3373,10 +3400,7 @@
         var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
         fields.behaviorRules.splice(idx, 1)
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
         renderAssistantsTab()
       }
     })
@@ -3389,10 +3413,7 @@
         var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
         fields.behaviorRules.push('')
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
         renderAssistantsTab()
       }
     })
@@ -3420,10 +3441,7 @@
         if (!fields.quickActions[qidx]) return
         fields.quickActions[qidx].templateMessage = this.value
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
       }
       el.onchange = handler
       el.oninput = handler
@@ -3439,10 +3457,7 @@
         if (!fields.quickActions[qidx]) return
         fields.quickActions[qidx].guidance = this.value
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
       }
       el.onchange = handler
       el.oninput = handler
@@ -3457,10 +3472,7 @@
         var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
         fields.quickActions.splice(qidx, 1)
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
         renderAssistantsTab()
       }
     })
@@ -3473,10 +3485,7 @@
         var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
         fields.quickActions.push({ id: 'action-' + (fields.quickActions.length + 1), templateMessage: '', guidance: '' })
         var newContent = _serializeSkillMd(aid, fields)
-        state.skillMdEdits[aid] = newContent
-        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
-        state.editedModel.skillMdContent[aid] = newContent
-        showUnsavedBanner()
+        _commitSkillMd(aid, newContent)
         renderAssistantsTab()
       }
     })
