@@ -29,21 +29,6 @@ export interface AssistantManifestEntry {
 
 export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
-    id: "code2design",
-    label: "Code2Design",
-    intro: "Import/export JSON templates to create and manage Figma designs.",
-    hoverSummary: "Use JSON to create designs and get JSON from your designs",
-    tag: { isVisible: true, label: "Beta", variant: "beta" },
-    iconId: "CodeIcon",
-    kind: "hybrid",
-    quickActions: [
-      { id: "send-json", label: "SEND JSON", templateMessage: "Paste an Ableza Template JSON to generate Figma elements", executionType: "hybrid" },
-      { id: "get-json", label: "GET JSON", templateMessage: "Export selected frames to JSON template format", executionType: "hybrid", requiresSelection: true },
-      { id: "json-format-help", label: "How to format JSON", templateMessage: "Explain the Ableza Template JSON format and schema requirements", executionType: "llm" },
-    ],
-    promptTemplate: "# General Assistant\n\nYou are Ableza, a helpful AI assistant integrated into Figma to help designers with their work.\n\n## Your Role\n\n- Answer questions about design principles, best practices, and Figma usage\n- Provide guidance on layout, typography, color, and spacing\n- Help with design workflows and tool usage\n- Offer constructive feedback and suggestions\n- Explain design decisions and concepts\n\n## Guidelines\n\n- Be concise but thorough\n- Use design terminology appropriately\n- Reference Figma-specific features when relevant\n- Provide actionable advice when possible\n- Be supportive and encouraging\n\n## Context\n\nWhen a user shares their selection, you can see information about the selected Figma nodes including:\n- Node types (frames, text, rectangles, etc.)\n- Names and dimensions\n- Layout properties (for frames)\n- Text content and styling (for text nodes)\n\nUse this context to provide relevant, specific feedback."
-  },
-  {
     id: "design_workshop",
     label: "Design Workshop",
     intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
@@ -129,6 +114,21 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "export-screenshots", label: "Export Screenshots", templateMessage: "Export screenshots for analytics tagging rows", executionType: "ui-only" },
     ],
     promptTemplate: "You are **Ableza's Analytics Tagging Assistant**, a tool for documenting analytics instrumentation directly from Figma designs.\n\nYour core principle: **ScreenID and ActionID are read from dev-mode annotations — not inferred.**\nSelect frames with a ScreenID annotation before scanning. The tool reads what is explicitly annotated; it does not guess."
+  },
+  {
+    id: "code2design",
+    label: "Code2Design",
+    intro: "Import/export JSON templates to create and manage Figma designs.",
+    hoverSummary: "Use JSON to create designs and get JSON from your designs",
+    tag: { isVisible: true, label: "Beta", variant: "beta" },
+    iconId: "CodeIcon",
+    kind: "hybrid",
+    quickActions: [
+      { id: "send-json", label: "SEND JSON", templateMessage: "Paste an Ableza Template JSON to generate Figma elements", executionType: "hybrid" },
+      { id: "get-json", label: "GET JSON", templateMessage: "Export selected frames to JSON template format", executionType: "hybrid", requiresSelection: true },
+      { id: "json-format-help", label: "How to format JSON", templateMessage: "Explain the Ableza Template JSON format and schema requirements", executionType: "llm" },
+    ],
+    promptTemplate: "You are **Ableza's Code2Design Assistant**, a JSON template specialist embedded inside a Figma plugin.\n\nYour core principle: **JSON in, Figma elements out — and Figma elements in, JSON out.**\nYou are the bridge between code-defined templates and Figma designs. You parse, validate, and explain the Ableza Template JSON format.\n\n- When receiving JSON (SEND): validate the structure before generating. If the JSON is malformed or missing required fields, explain what is wrong and what to fix — do not silently fail.\n- When exporting JSON (GET): produce clean, well-formed Ableza Template JSON from the selected frames. Preserve layer names, constraints, and layout properties accurately.\n- When explaining format (json-format-help): provide the schema with required vs. optional fields, valid types, and a minimal working example.\n- Do not invent field names or values that are not part of the Ableza Template JSON schema."
   },
   {
     id: "content_table",
