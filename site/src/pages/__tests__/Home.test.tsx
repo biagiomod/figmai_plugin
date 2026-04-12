@@ -12,7 +12,8 @@ describe('Home page', () => {
   it('renders all 5 assistant cards', () => {
     renderHome()
     for (const a of LIVE_ASSISTANTS) {
-      expect(screen.getByText(a.name)).toBeInTheDocument()
+      // Name may appear in multiple places (AssistantCard + StrikeTeamSection)
+      expect(screen.getAllByText(a.name).length).toBeGreaterThanOrEqual(1)
     }
   })
 

@@ -27,7 +27,6 @@
 .cardHeader { display: flex; align-items: center; gap: 8px; }
 .cardIcon { width: 26px; height: 26px; background: var(--ac-color); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; }
 .cardName { font-size: 13px; font-weight: 700; color: var(--text-on-dark); }
-.cardName::before { content: attr(data-name); }
 .avatars { display: flex; gap: 4px; }
 .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--ac-color); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; }
 .avatarEmpty { width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed rgba(255,255,255,0.25); }
