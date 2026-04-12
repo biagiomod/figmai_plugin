@@ -63,24 +63,6 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     promptTemplate: "# General Assistant\n\nYou are Ableza, a helpful AI assistant integrated into Figma to help designers with their work.\n\n## Your Role\n\n- Answer questions about design principles, best practices, and Figma usage\n- Provide guidance on layout, typography, color, and spacing\n- Help with design workflows and tool usage\n- Offer constructive feedback and suggestions\n- Explain design decisions and concepts\n\n## Guidelines\n\n- Be concise but thorough\n- Use design terminology appropriately\n- Reference Figma-specific features when relevant\n- Provide actionable advice when possible\n- Be supportive and encouraging\n\n## Context\n\nWhen a user shares their selection, you can see information about the selected Figma nodes including:\n- Node types (frames, text, rectangles, etc.)\n- Names and dimensions\n- Layout properties (for frames)\n- Text content and styling (for text nodes)\n\nUse this context to provide relevant, specific feedback."
   },
   {
-    id: "content_table",
-    label: "Evergreens",
-    intro: "**Welcome to your Evergreens Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.",
-    hoverSummary: "Evergreens specialist",
-    tag: { isVisible: true, label: "MVP", variant: "beta" },
-    iconId: "ContentTableIcon",
-    kind: "tool",
-    quickActions: [
-      { id: "generate-table", label: "GENERATE TABLE", templateMessage: "Scan selected container and generate evergreen table", executionType: "tool-only", requiresSelection: true },
-      { id: "add-to-table", label: "ADD", templateMessage: "Add selected container(s) to existing table", executionType: "tool-only", requiresSelection: true },
-      { id: "copy-table", label: "Copy Table", templateMessage: "Copy table to clipboard", executionType: "ui-only" },
-      { id: "view-table", label: "View Table", templateMessage: "View table in plugin", executionType: "ui-only" },
-      { id: "copy-ref-image", label: "Get Ref Image", templateMessage: "Get reference image", executionType: "ui-only" },
-      { id: "generate-new-table", label: "Generate New Table", templateMessage: "Generate a new evergreen table", executionType: "ui-only", requiresSelection: true },
-    ],
-    promptTemplate: "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/evergreens/knowledge.md]"
-  },
-  {
     id: "design_workshop",
     label: "Design Workshop",
     intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
@@ -162,6 +144,24 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "contrast-analysis", label: "Color contrast analysis", templateMessage: "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
     ],
     promptTemplate: "You are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.\n\nYour core principle: **accessibility barriers are defects, not polish.**\nEvery finding must include a specific, measurable fix — not a recommendation to \"consider\" something.\n\n- Classify every issue by WCAG level: A (must fix), AA (should fix), AAA (nice to have). Lead with A and AA violations.\n- Provide exact values where measurable: contrast ratios, font sizes in px, touch target sizes in px.\n- When contrast cannot be measured from the screenshot (e.g. transparent overlays, complex gradients), flag it explicitly rather than skipping.\n- Do not flag decorative images or icons as missing alt text unless they convey meaning.\n- For keyboard/focus order issues: describe the expected tab order and what is wrong with the current one."
+  },
+  {
+    id: "content_table",
+    label: "Evergreens",
+    intro: "**Welcome to your Evergreens Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.",
+    hoverSummary: "Evergreens specialist",
+    tag: { isVisible: true, label: "MVP", variant: "beta" },
+    iconId: "ContentTableIcon",
+    kind: "tool",
+    quickActions: [
+      { id: "generate-table", label: "GENERATE TABLE", templateMessage: "Scan selected container and generate evergreen table", executionType: "tool-only", requiresSelection: true },
+      { id: "add-to-table", label: "ADD", templateMessage: "Add selected container(s) to existing table", executionType: "tool-only", requiresSelection: true },
+      { id: "copy-table", label: "Copy Table", templateMessage: "Copy table to clipboard", executionType: "ui-only" },
+      { id: "view-table", label: "View Table", templateMessage: "View table in plugin", executionType: "ui-only" },
+      { id: "copy-ref-image", label: "Get Ref Image", templateMessage: "Get reference image", executionType: "ui-only" },
+      { id: "generate-new-table", label: "Generate New Table", templateMessage: "Generate a new evergreen table", executionType: "ui-only", requiresSelection: true },
+    ],
+    promptTemplate: "You are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\n\nYour core principle: **every text node in a design is a content decision that deserves tracking.**\nYou generate structured content inventories that give teams a single source of truth for all text in their designs."
   },
   {
     id: "design_critique",
