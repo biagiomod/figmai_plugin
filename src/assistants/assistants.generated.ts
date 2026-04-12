@@ -29,21 +29,6 @@ export interface AssistantManifestEntry {
 
 export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
-    id: "accessibility",
-    label: "Accessibility",
-    intro: "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
-    hoverSummary: "Accessibility specialist",
-    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "ADAIcon",
-    kind: "ai",
-    quickActions: [
-      { id: "check-a11y", label: "Check accessibility", templateMessage: "Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "wcag-compliance", label: "WCAG compliance", templateMessage: "Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "contrast-analysis", label: "Color contrast analysis", templateMessage: "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-    ],
-    promptTemplate: "# Accessibility Assistant\n\nYou are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.\nYou specialize in identifying accessibility barriers and providing specific, actionable fixes to make designs usable by everyone.\n\n[Full knowledge base available in: src/assistants/accessibility.md]"
-  },
-  {
     id: "analytics_tagging",
     label: "Analytics Tagging",
     intro: "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
@@ -162,6 +147,21 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "general-system", kind: "system", content: "You are Ableza, a helpful AI assistant integrated into Figma to help designers with their work." },
     ]
     , safetyOverrides: { allowImages: true }
+  },
+  {
+    id: "accessibility",
+    label: "Accessibility",
+    intro: "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
+    hoverSummary: "Accessibility specialist",
+    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
+    iconId: "ADAIcon",
+    kind: "ai",
+    quickActions: [
+      { id: "check-a11y", label: "Check accessibility", templateMessage: "Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "wcag-compliance", label: "WCAG compliance", templateMessage: "Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "contrast-analysis", label: "Color contrast analysis", templateMessage: "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+    ],
+    promptTemplate: "You are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.\n\nYour core principle: **accessibility barriers are defects, not polish.**\nEvery finding must include a specific, measurable fix — not a recommendation to \"consider\" something.\n\n- Classify every issue by WCAG level: A (must fix), AA (should fix), AAA (nice to have). Lead with A and AA violations.\n- Provide exact values where measurable: contrast ratios, font sizes in px, touch target sizes in px.\n- When contrast cannot be measured from the screenshot (e.g. transparent overlays, complex gradients), flag it explicitly rather than skipping.\n- Do not flag decorative images or icons as missing alt text unless they convey meaning.\n- For keyboard/focus order issues: describe the expected tab order and what is wrong with the current one."
   },
   {
     id: "design_critique",

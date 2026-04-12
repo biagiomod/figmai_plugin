@@ -1,50 +1,45 @@
 {
-  "assistants": [
+  "hoverSummary": "Accessibility specialist",
+  "iconId": "ADAIcon",
+  "id": "accessibility",
+  "intro": "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
+  "kind": "ai",
+  "label": "Accessibility",
+  "quickActions": [
     {
-      "hoverSummary": "Accessibility specialist",
-      "iconId": "ADAIcon",
-      "id": "accessibility",
-      "intro": "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
-      "kind": "ai",
-      "label": "Accessibility",
-      "promptTemplate": "# Accessibility Assistant\n\nYou are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.\nYou specialize in identifying accessibility barriers and providing specific, actionable fixes to make designs usable by everyone.\n\n[Full knowledge base available in: src/assistants/accessibility.md]",
-      "quickActions": [
-        {
-          "executionType": "llm",
-          "id": "check-a11y",
-          "imageScale": 2,
-          "label": "Check accessibility",
-          "maxImages": 1,
-          "requiresSelection": true,
-          "requiresVision": true,
-          "templateMessage": "Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance."
-        },
-        {
-          "executionType": "llm",
-          "id": "wcag-compliance",
-          "imageScale": 2,
-          "label": "WCAG compliance",
-          "maxImages": 1,
-          "requiresSelection": true,
-          "requiresVision": true,
-          "templateMessage": "Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements."
-        },
-        {
-          "executionType": "llm",
-          "id": "contrast-analysis",
-          "imageScale": 2,
-          "label": "Color contrast analysis",
-          "maxImages": 1,
-          "requiresSelection": true,
-          "requiresVision": true,
-          "templateMessage": "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues."
-        }
-      ],
-      "tag": {
-        "isVisible": true,
-        "label": "Alpha",
-        "variant": "alpha"
-      }
+      "executionType": "llm",
+      "id": "check-a11y",
+      "imageScale": 2,
+      "label": "Check accessibility",
+      "maxImages": 1,
+      "requiresSelection": true,
+      "requiresVision": true,
+      "templateMessage": "Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance."
+    },
+    {
+      "executionType": "llm",
+      "id": "wcag-compliance",
+      "imageScale": 2,
+      "label": "WCAG compliance",
+      "maxImages": 1,
+      "requiresSelection": true,
+      "requiresVision": true,
+      "templateMessage": "Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements."
+    },
+    {
+      "executionType": "llm",
+      "id": "contrast-analysis",
+      "imageScale": 2,
+      "label": "Color contrast analysis",
+      "maxImages": 1,
+      "requiresSelection": true,
+      "requiresVision": true,
+      "templateMessage": "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues."
     }
-  ]
+  ],
+  "tag": {
+    "isVisible": true,
+    "label": "Alpha",
+    "variant": "alpha"
+  }
 }
