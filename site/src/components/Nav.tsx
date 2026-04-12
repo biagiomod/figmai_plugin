@@ -30,6 +30,14 @@ export function Nav() {
         >
           Resources
         </NavLink>
+        <a
+          href={import.meta.env.VITE_ACE_URL ?? '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.link}
+        >
+          ACE ↗
+        </a>
         <ThemeToggle />
       </div>
     </nav>
