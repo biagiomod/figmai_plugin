@@ -256,7 +256,8 @@ export const adminEditableModelSchema = z
     assistantsManifest: assistantsManifestSchema,
     customKnowledge: z.record(z.string()),
     contentModelsRaw: z.string().optional(),
-    designSystemRegistries: z.record(z.unknown()).optional()
+    designSystemRegistries: z.record(z.unknown()).optional(),
+    skillMdContent: z.record(z.string()).optional()
   })
   .strict()
 

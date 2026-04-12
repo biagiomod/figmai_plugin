@@ -17,6 +17,7 @@ export interface ModelMeta {
     customKnowledge: Record<string, string> // assistantId -> absolute path
     contentModels: string
     designSystemRegistries: Record<string, string> // registryId -> absolute path
+    skillMd: Record<string, string> // assistantId -> absolute path
   }
   lastModified: Record<string, string> // path -> ISO string (best-effort)
   /** path -> { mtimeMs, size } for all loaded editable files */
@@ -109,6 +110,31 @@ function loadDesignSystemRegistries(repoRoot: string): {
   return { registries, paths }
 }
 
+/**
+ * Load custom/assistants/<id>/SKILL.md for each migrated assistant directory.
+ * Returns map by assistantId -> content, and assistantId -> absolute path.
+ */
+function loadSkillMdContent(repoRoot: string): { byId: Record<string, string>; paths: Record<string, string> } {
+  const assistantsDir = path.join(repoRoot, 'custom', 'assistants')
+  const byId: Record<string, string> = {}
+  const paths: Record<string, string> = {}
+  if (!fs.existsSync(assistantsDir)) return { byId, paths }
+  try {
+    const entries = fs.readdirSync(assistantsDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const skillPath = path.join(assistantsDir, entry.name, 'SKILL.md')
+      if (fs.existsSync(skillPath)) {
+        byId[entry.name] = readText(skillPath)
+        paths[entry.name] = skillPath
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { byId, paths }
+}
+
 export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: ModelMeta } {
   const configPath = path.join(repoRoot, 'custom', 'config.json')
   const manifestPath = path.join(repoRoot, 'custom', 'assistants.manifest.json')
@@ -119,13 +145,15 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
   const { byId: customKnowledge, paths: knowledgePaths } = loadCustomKnowledge(repoRoot)
   const contentModelsRaw = readText(contentModelsPath)
   const { registries: designSystemRegistries, paths: registryPaths } = loadDesignSystemRegistries(repoRoot)
+  const { byId: skillMdContent, paths: skillMdPaths } = loadSkillMdContent(repoRoot)
 
   const model: AdminEditableModel = {
     config,
     assistantsManifest: manifest,
     customKnowledge,
     contentModelsRaw: contentModelsRaw || undefined,
-    designSystemRegistries: Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined
+    designSystemRegistries: Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined,
+    skillMdContent: Object.keys(skillMdContent).length > 0 ? skillMdContent : undefined
   }
 
   const lastModified: Record<string, string> = {}
@@ -136,7 +164,8 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
     manifestPath,
     contentModelsPath,
     ...Object.values(knowledgePaths),
-    ...Object.values(registryPaths)
+    ...Object.values(registryPaths),
+    ...Object.values(skillMdPaths)
   ]
   for (const p of allPaths) {
     const m = safeStatMtime(p)
@@ -157,7 +186,8 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
       assistantsManifest: manifestPath,
       customKnowledge: knowledgePaths,
       contentModels: contentModelsPath,
-      designSystemRegistries: registryPaths
+      designSystemRegistries: registryPaths,
+      skillMd: skillMdPaths
     },
     lastModified,
     files,
