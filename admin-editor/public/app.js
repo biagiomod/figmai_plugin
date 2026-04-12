@@ -43,6 +43,10 @@
     selectedAssistantDetailTab: 'skill-md',
     skillMdEdits: {},   // assistantId -> edited SKILL.md content (unsaved)
     skillMdMode: {},    // assistantId -> 'form' | 'raw'
+    selectedDsId: null,           // null = top-level SKILL.md; string = DS id
+    selectedDsSubTab: 'skill-md', // 'skill-md' | 'registry' | 'internal-kb' | 'metadata'
+    dsSkillMdEdits: {},           // dsId -> edited content ('__top_level__' for top-level)
+    dsSkillMdMode: {},            // dsId -> 'form' | 'raw'
     playgroundActive: false,
     playgroundAssistantId: null,
     playgroundActionId: null,
@@ -676,6 +680,13 @@
       if (data.model.skillMdContent) {
         for (var _smId in data.model.skillMdContent) {
           state.skillMdEdits[_smId] = data.model.skillMdContent[_smId] || ''
+        }
+      }
+      // Initialize dsSkillMdEdits from loaded model
+      state.dsSkillMdEdits = {}
+      if (data.model.dsSkillMdContent) {
+        for (var _dsId in data.model.dsSkillMdContent) {
+          state.dsSkillMdEdits[_dsId] = data.model.dsSkillMdContent[_dsId] || ''
         }
       }
       state.instructionsMap = deepClone(data.model.instructions || {})
@@ -4805,53 +4816,242 @@
 
   // ——— Registries tab ———
   function renderRegistriesTab () {
-    const panel = document.getElementById('panel-registries')
-    const regs = state.editedModel?.designSystemRegistries || {}
-    const ids = Object.keys(regs)
+    var panel = document.getElementById('panel-registries')
+    if (!panel) return
+    var regs = (state.editedModel && state.editedModel.designSystemRegistries) || {}
+    var dsIds = Object.keys(regs)
+    var selectedDsId = state.selectedDsId   // null = top-level
 
-    let html = '<div class="ace-section-header-row">'
-    html += '<h2 class="ace-section-title">Design System Registries</h2>'
+    // Section header with reset button
+    var html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">Design Systems</h2>'
     html += '<button type="button" class="ace-section-header-btn" id="reset-registries-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
-    html += '<p class="danger-zone-label">Raw registry JSON per design system — invalid JSON will fail validation.</p>'
-    ids.forEach(id => {
-      const val = regs[id]
-      const str = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val)
-      html += '<div class="registry-block danger-zone"><label>' + escapeHtml(id) + ' (registry.json)</label>'
-      html += '<textarea id="registry-' + escapeHtml(id) + '" class="large ace-field--full" rows="10" aria-describedby="registry-error-' + escapeHtml(id) + '">' + escapeHtml(str) + '</textarea>'
-      html += '<span id="registry-error-' + escapeHtml(id) + '" class="inline-error" aria-live="polite"></span></div>'
+
+    // Two-pane layout
+    html += '<div class="ace-ds-layout">'
+
+    // --- Sidebar ---
+    html += '<div class="ace-ds-sidebar">'
+    html += '<div class="ace-ds-group-label">Global</div>'
+    var topSel = selectedDsId === null
+    html += '<div class="ace-ds-sidebar-item' + (topSel ? ' sel' : '') + '" data-ds-id="__top_level__">Top-level SKILL.md</div>'
+    html += '<div class="ace-ds-group-label" style="margin-top:8px">Design Systems</div>'
+    dsIds.forEach(function (id) {
+      var sel = selectedDsId === id
+      var hasSkillMd = !!(state.dsSkillMdEdits && state.dsSkillMdEdits[id])
+      html += '<div class="ace-ds-sidebar-item' + (sel ? ' sel' : '') + '" data-ds-id="' + escapeHtml(id) + '">'
+      html += escapeHtml(id)
+      if (hasSkillMd) html += ' <span class="ace-badge ace-badge--active">active</span>'
+      html += '</div>'
     })
-    if (ids.length === 0) html += '<p>No registries present.</p>'
+    html += '</div>'
+
+    // --- Editor pane ---
+    html += '<div class="ace-ds-editor">'
+
+    if (topSel) {
+      html += _dsTopLevelSkillMdEditor()
+    } else if (selectedDsId && dsIds.includes(selectedDsId)) {
+      html += _dsPerDsEditor(selectedDsId, regs[selectedDsId])
+    } else {
+      html += '<p class="ae-helper">Select a design system from the sidebar.</p>'
+    }
+
+    html += '</div>'
+    html += '</div>'
+
     panel.innerHTML = html
 
-    ids.forEach(id => {
-      const ta = document.getElementById('registry-' + id)
-      const errEl = document.getElementById('registry-error-' + id)
-      if (ta) ta.onchange = ta.oninput = function () {
-        try {
-          state.editedModel.designSystemRegistries[id] = JSON.parse(this.value)
-          if (!state.registryParseErrors) state.registryParseErrors = {}
-          state.registryParseErrors[id] = false
-          if (errEl) { errEl.textContent = ''; errEl.classList.remove('visible') }
-          showUnsavedBanner()
-        } catch (_) {
-          if (!state.registryParseErrors) state.registryParseErrors = {}
-          state.registryParseErrors[id] = true
-          if (errEl) { errEl.textContent = 'Invalid JSON'; errEl.classList.add('visible') }
-          showUnsavedBanner()
-        }
+    // Sidebar click
+    panel.querySelectorAll('.ace-ds-sidebar-item[data-ds-id]').forEach(function (item) {
+      item.onclick = function () {
+        var dsId = this.getAttribute('data-ds-id')
+        state.selectedDsId = dsId === '__top_level__' ? null : dsId
+        state.selectedDsSubTab = 'skill-md'
+        renderRegistriesTab()
       }
     })
-    const resetRegBtn = document.getElementById('reset-registries-btn')
-    if (resetRegBtn) {
-      resetRegBtn.onclick = function () {
+
+    // Sub-tab clicks (for per-DS editor)
+    panel.querySelectorAll('.ace-ds-sub-tab[data-ds-subtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedDsSubTab = this.getAttribute('data-ds-subtab')
+        renderRegistriesTab()
+      }
+    })
+
+    // Form/Raw toggle clicks (DS SKILL.md)
+    panel.querySelectorAll('[data-ds-skillmd-mode]').forEach(function (btn) {
+      btn.onclick = function () {
+        var dsId = this.getAttribute('data-ds-id')
+        var mode = this.getAttribute('data-ds-skillmd-mode')
+        if (!state.dsSkillMdMode) state.dsSkillMdMode = {}
+        state.dsSkillMdMode[dsId] = mode
+        renderRegistriesTab()
+      }
+    })
+
+    // DS SKILL.md raw textarea input
+    var rawTa = panel.querySelector('.ace-ds-skillmd-raw')
+    if (rawTa) {
+      rawTa.oninput = rawTa.onchange = function () {
+        var dsId = this.getAttribute('data-ds-id')
+        if (!state.dsSkillMdEdits) state.dsSkillMdEdits = {}
+        state.dsSkillMdEdits[dsId] = this.value
+        if (!state.editedModel.dsSkillMdContent) state.editedModel.dsSkillMdContent = {}
+        state.editedModel.dsSkillMdContent[dsId] = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+
+    // Reset button
+    var resetBtn = document.getElementById('reset-registries-btn')
+    if (resetBtn) {
+      resetBtn.onclick = function () {
         if (!state.originalModel) return
-        state.editedModel.designSystemRegistries = state.originalModel.designSystemRegistries ? deepClone(state.originalModel.designSystemRegistries) : undefined
+        state.editedModel.designSystemRegistries = state.originalModel.designSystemRegistries
+          ? deepClone(state.originalModel.designSystemRegistries) : undefined
+        state.dsSkillMdEdits = {}
+        if (state.originalModel.dsSkillMdContent) {
+          for (var id in state.originalModel.dsSkillMdContent) {
+            state.dsSkillMdEdits[id] = state.originalModel.dsSkillMdContent[id] || ''
+          }
+        }
+        state.editedModel.dsSkillMdContent = state.originalModel.dsSkillMdContent
+          ? deepClone(state.originalModel.dsSkillMdContent) : undefined
         state.registryParseErrors = {}
         showUnsavedBanner()
         renderRegistriesTab()
       }
     }
+  }
+
+  function _dsTopLevelSkillMdEditor () {
+    var dsId = '__top_level__'
+    var mode = (state.dsSkillMdMode && state.dsSkillMdMode[dsId]) || 'form'
+    var content = (state.dsSkillMdEdits && state.dsSkillMdEdits[dsId]) || ''
+    var html = ''
+
+    html += '<div class="ae-skillmd-header" style="margin-bottom:12px">'
+    html += '<span class="ae-helper" style="flex:1">Routing &amp; selection logic across all design systems.</span>'
+    html += '<div class="ae-toggle-pill">'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-ds-skillmd-mode="form" data-ds-id="' + dsId + '">Form</button>'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-ds-skillmd-mode="raw" data-ds-id="' + dsId + '">Raw</button>'
+    html += '</div>'
+    html += '</div>'
+
+    if (!content) {
+      html += '<p class="ae-helper">No top-level SKILL.md found at <code>custom/design-systems/SKILL.md</code>. Create the file to enable routing logic.</p>'
+      return html
+    }
+
+    if (mode === 'raw') {
+      html += '<textarea class="ace-field ace-textarea ace-skillmd-editor ace-ds-skillmd-raw" data-ds-id="' + dsId + '" rows="20" style="font-family:monospace;font-size:13px;white-space:pre;">' + escapeHtml(content) + '</textarea>'
+      return html
+    }
+
+    // Form mode — read-only preview (editing via Raw)
+    var fields = _parseSkillMd(content)
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Identity</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-ds-top-name">Router Name</label>'
+    html += '<input type="text" id="ae-ds-top-name" class="ace-field" value="' + escapeHtml(fields.assistantName) + '" readonly>'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-ds-top-cp">Core Principle</label>'
+    html += '<input type="text" id="ae-ds-top-cp" class="ace-field" value="' + escapeHtml(fields.corePrinciple) + '" readonly>'
+    html += '</div>'
+    html += '<h3 class="ae-section-heading">Behavior Rules</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:8px">Routing rules applied across all design systems.</p>'
+    fields.behaviorRules.forEach(function (rule) {
+      html += '<div style="display:flex;gap:7px;align-items:center;margin-bottom:6px">'
+      html += '<span style="font-size:11px;color:var(--ace-text-muted)">&#8943;</span>'
+      html += '<input type="text" class="ace-field" value="' + escapeHtml(rule) + '" readonly>'
+      html += '</div>'
+    })
+    html += '<p style="font-size:10px;color:var(--ace-text-muted);margin-top:8px">Switch to Raw to edit — top-level DS SKILL.md form editing coming in a follow-on update.</p>'
+    html += '<div style="margin-top:12px;padding:8px 10px;background:var(--ace-card-bg,#f8f8f8);border:1px solid var(--ace-border,#e0e0e0);border-radius:6px;font-size:10px;color:var(--ace-text-muted)">DS SKILL.md files do not have Quick Actions — those live in assistant SKILL.md files.</div>'
+    return html
+  }
+
+  function _dsPerDsEditor (dsId, registryObj) {
+    var subTab = state.selectedDsSubTab || 'skill-md'
+    var html = ''
+
+    // Sub-tabs
+    html += '<div class="ace-ds-sub-tabs">'
+    ;['skill-md', 'registry', 'internal-kb', 'metadata'].forEach(function (t) {
+      var labels = { 'skill-md': 'SKILL.md', 'registry': 'Registry', 'internal-kb': 'Internal KB', 'metadata': 'Metadata' }
+      html += '<button type="button" class="ace-ds-sub-tab' + (subTab === t ? ' active' : '') + '" data-ds-subtab="' + t + '">' + labels[t] + '</button>'
+    })
+    html += '</div>'
+
+    if (subTab === 'skill-md') {
+      var mode = (state.dsSkillMdMode && state.dsSkillMdMode[dsId]) || 'form'
+      var content = (state.dsSkillMdEdits && state.dsSkillMdEdits[dsId]) || ''
+
+      html += '<div class="ae-skillmd-header" style="margin-bottom:12px;margin-top:14px">'
+      html += '<span class="ae-helper" style="flex:1">Per-DS behavior instructions loaded when this system is in scope.</span>'
+      html += '<div class="ae-toggle-pill">'
+      html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-ds-skillmd-mode="form" data-ds-id="' + escapeHtml(dsId) + '">Form</button>'
+      html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-ds-skillmd-mode="raw" data-ds-id="' + escapeHtml(dsId) + '">Raw</button>'
+      html += '</div>'
+      html += '</div>'
+
+      if (!content) {
+        html += '<p class="ae-helper">No SKILL.md for this design system. Create <code>custom/design-systems/' + escapeHtml(dsId) + '/SKILL.md</code>.</p>'
+      } else if (mode === 'raw') {
+        html += '<textarea class="ace-field ace-textarea ace-skillmd-editor ace-ds-skillmd-raw" data-ds-id="' + escapeHtml(dsId) + '" rows="18" style="font-family:monospace;font-size:13px;white-space:pre;">' + escapeHtml(content) + '</textarea>'
+      } else {
+        var fields = _parseSkillMd(content)
+        html += '<div class="ae-field-group"><label>DS Name</label><input type="text" class="ace-field" value="' + escapeHtml(dsId) + '" readonly></div>'
+        html += '<div class="ae-field-group"><label>Core Principle</label><input type="text" class="ace-field" value="' + escapeHtml(fields.corePrinciple) + '" readonly></div>'
+        html += '<h3 class="ae-section-heading">Behavior Rules</h3>'
+        fields.behaviorRules.forEach(function (rule) {
+          html += '<div style="display:flex;gap:7px;align-items:center;margin-bottom:6px">'
+          html += '<span style="font-size:11px;color:var(--ace-text-muted)">&#8943;</span>'
+          html += '<input type="text" class="ace-field" value="' + escapeHtml(rule) + '" readonly>'
+          html += '</div>'
+        })
+        html += '<p style="font-size:10px;color:var(--ace-text-muted);margin-top:8px">Switch to Raw to edit DS behavior rules.</p>'
+        html += '<div style="margin-top:12px;padding:8px 10px;background:var(--ace-card-bg,#f8f8f8);border:1px solid var(--ace-border,#e0e0e0);border-radius:6px;font-size:10px;color:var(--ace-text-muted)">DS SKILL.md does not have Quick Actions — those live in assistant SKILL.md files.</div>'
+      }
+    } else if (subTab === 'registry') {
+      var components = (registryObj && Array.isArray(registryObj.components)) ? registryObj.components : []
+      html += '<div style="margin:14px 0 10px">'
+      html += '<div style="font-size:11px;color:var(--ace-text-secondary,#666);margin-bottom:8px">' + components.length + ' components registered</div>'
+      if (components.length === 0) {
+        html += '<p class="ae-helper">No components in registry.</p>'
+      } else {
+        components.slice(0, 20).forEach(function (c) {
+          var variants = Array.isArray(c.variants) ? c.variants.length : 0
+          html += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--ace-border,#e0e0e0);border-radius:6px;margin-bottom:5px;font-size:11px">'
+          html += '<span style="font-weight:600;flex:1">' + escapeHtml(c.id || c.name || '?') + '</span>'
+          if (variants > 0) html += '<span style="font-size:10px;color:var(--ace-text-muted,#999)">' + variants + ' variants</span>'
+          html += '</div>'
+        })
+        if (components.length > 20) html += '<p style="font-size:11px;color:var(--ace-text-muted,#999)">+ ' + (components.length - 20) + ' more</p>'
+      }
+      html += '<p style="font-size:10px;color:var(--ace-text-muted,#999);margin-top:10px;padding-top:8px;border-top:1px solid var(--ace-border,#e0e0e0)">Registry is read-only in ACE. Edit the catalog JSON file directly.</p>'
+      html += '</div>'
+    } else if (subTab === 'internal-kb') {
+      html += '<p class="ae-helper" style="margin-top:14px">Internal KB for this design system — large reference docs for LLM Helpers or hosted retrieval.</p>'
+      html += '<p class="ae-helper">File: <code>custom/design-systems/' + escapeHtml(dsId) + '/kb.md</code> (KB editor not yet wired to ACE). Coming in a follow-on update.</p>'
+    } else if (subTab === 'metadata') {
+      html += '<div style="margin-top:14px">'
+      html += '<div class="ae-field-group"><label>DS ID</label><input type="text" class="ace-field" value="' + escapeHtml(dsId) + '" readonly></div>'
+      var regName = (registryObj && registryObj.name) ? registryObj.name : ''
+      var regVersion = (registryObj && registryObj.version) ? registryObj.version : ''
+      var regDesc = (registryObj && registryObj.description) ? registryObj.description : ''
+      html += '<div class="ae-field-group"><label>Name</label><input type="text" class="ace-field" value="' + escapeHtml(regName) + '" readonly></div>'
+      html += '<div class="ae-field-group"><label>Version</label><input type="text" class="ace-field" value="' + escapeHtml(regVersion) + '" readonly></div>'
+      html += '<div class="ae-field-group"><label>Description</label><input type="text" class="ace-field" value="' + escapeHtml(regDesc) + '" readonly></div>'
+      html += '</div>'
+    }
+
+    return html
   }
 
   function doLogout () {
@@ -5548,6 +5748,12 @@
             state.skillMdEdits[_smId2] = state.originalModel.skillMdContent[_smId2] || ''
           }
         }
+        state.dsSkillMdEdits = {}
+        if (state.originalModel.dsSkillMdContent) {
+          for (var _dsId2 in state.originalModel.dsSkillMdContent) {
+            state.dsSkillMdEdits[_dsId2] = state.originalModel.dsSkillMdContent[_dsId2] || ''
+          }
+        }
         if (summary.meta) state.meta = summary.meta
         if (ACE_DEBUG) {
           var postRev = (summary.meta && summary.meta.revision) ? summary.meta.revision : ''
@@ -5706,6 +5912,12 @@
         if (state.originalModel.skillMdContent) {
           for (var _smId in state.originalModel.skillMdContent) {
             state.skillMdEdits[_smId] = state.originalModel.skillMdContent[_smId] || ''
+          }
+        }
+        state.dsSkillMdEdits = {}
+        if (state.originalModel.dsSkillMdContent) {
+          for (var _dsId3 in state.originalModel.dsSkillMdContent) {
+            state.dsSkillMdEdits[_dsId3] = state.originalModel.dsSkillMdContent[_dsId3] || ''
           }
         }
         showUnsavedBanner()

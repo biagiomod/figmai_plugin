@@ -18,6 +18,7 @@ export interface ModelMeta {
     contentModels: string
     designSystemRegistries: Record<string, string> // registryId -> absolute path
     skillMd: Record<string, string> // assistantId -> absolute path
+    dsSkillMd: Record<string, string> // dsId -> absolute path ('__top_level__' for top-level)
   }
   lastModified: Record<string, string> // path -> ISO string (best-effort)
   /** path -> { mtimeMs, size } for all loaded editable files */
@@ -135,6 +136,40 @@ function loadSkillMdContent(repoRoot: string): { byId: Record<string, string>; p
   return { byId, paths }
 }
 
+/**
+ * Load custom/design-systems/SKILL.md (top-level) and
+ * custom/design-systems/<id>/SKILL.md (per-DS).
+ * Returns map by dsId -> content, and dsId -> absolute path.
+ * '__top_level__' key is used for the top-level SKILL.md.
+ */
+function loadDesignSystemSkillMd(repoRoot: string): { byId: Record<string, string>; paths: Record<string, string> } {
+  const dsDir = path.join(repoRoot, 'custom', 'design-systems')
+  const byId: Record<string, string> = {}
+  const paths: Record<string, string> = {}
+  if (!fs.existsSync(dsDir)) return { byId, paths }
+  try {
+    // Top-level SKILL.md
+    const topLevelPath = path.join(dsDir, 'SKILL.md')
+    if (fs.existsSync(topLevelPath)) {
+      byId['__top_level__'] = readText(topLevelPath)
+      paths['__top_level__'] = topLevelPath
+    }
+    // Per-DS SKILL.md
+    const entries = fs.readdirSync(dsDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const skillPath = path.join(dsDir, entry.name, 'SKILL.md')
+      if (fs.existsSync(skillPath)) {
+        byId[entry.name] = readText(skillPath)
+        paths[entry.name] = skillPath
+      }
+    }
+  } catch {
+    // ignore errors — DS SKILL.md is optional
+  }
+  return { byId, paths }
+}
+
 export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: ModelMeta } {
   const configPath = path.join(repoRoot, 'custom', 'config.json')
   const manifestPath = path.join(repoRoot, 'custom', 'assistants.manifest.json')
@@ -146,6 +181,7 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
   const contentModelsRaw = readText(contentModelsPath)
   const { registries: designSystemRegistries, paths: registryPaths } = loadDesignSystemRegistries(repoRoot)
   const { byId: skillMdContent, paths: skillMdPaths } = loadSkillMdContent(repoRoot)
+  const { byId: dsSkillMdContent, paths: dsSkillMdPaths } = loadDesignSystemSkillMd(repoRoot)
 
   const model: AdminEditableModel = {
     config,
@@ -153,7 +189,8 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
     customKnowledge,
     contentModelsRaw: contentModelsRaw || undefined,
     designSystemRegistries: Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined,
-    skillMdContent: Object.keys(skillMdContent).length > 0 ? skillMdContent : undefined
+    skillMdContent: Object.keys(skillMdContent).length > 0 ? skillMdContent : undefined,
+    dsSkillMdContent: Object.keys(dsSkillMdContent).length > 0 ? dsSkillMdContent : undefined
   }
 
   const lastModified: Record<string, string> = {}
@@ -165,7 +202,8 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
     contentModelsPath,
     ...Object.values(knowledgePaths),
     ...Object.values(registryPaths),
-    ...Object.values(skillMdPaths)
+    ...Object.values(skillMdPaths),
+    ...Object.values(dsSkillMdPaths)
   ]
   for (const p of allPaths) {
     const m = safeStatMtime(p)
@@ -187,7 +225,8 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
       customKnowledge: knowledgePaths,
       contentModels: contentModelsPath,
       designSystemRegistries: registryPaths,
-      skillMd: skillMdPaths
+      skillMd: skillMdPaths,
+      dsSkillMd: dsSkillMdPaths
     },
     lastModified,
     files,

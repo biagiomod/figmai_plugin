@@ -140,6 +140,17 @@ function computeFilesWouldWrite(
     }
   }
 
+  if (model.dsSkillMdContent && meta.filePaths.dsSkillMd) {
+    for (const [id, content] of Object.entries(model.dsSkillMdContent)) {
+      if (!content) continue
+      const filePath = meta.filePaths.dsSkillMd[id]
+      if (filePath && typeof content === 'string') {
+        const normalized = normalizeSkillMd(content)
+        if (getExistingContent(filePath) !== normalized) wouldWrite.push(filePath)
+      }
+    }
+  }
+
   return wouldWrite
 }
 
@@ -354,7 +365,24 @@ export function saveModel(
     }
   }
 
-  // 7) Run generators (NOT build/publish)
+  // 7) Backup and write custom/design-systems/SKILL.md and custom/design-systems/<id>/SKILL.md
+  if (model.dsSkillMdContent && meta.filePaths.dsSkillMd) {
+    for (const [id, content] of Object.entries(model.dsSkillMdContent)) {
+      if (!content) continue
+      const filePath = meta.filePaths.dsSkillMd[id]
+      if (filePath && typeof content === 'string') {
+        if (fs.existsSync(filePath)) {
+          backupFile(filePath, backupRoot, repoRoot)
+        }
+        const normalized = normalizeSkillMd(content)
+        if (writeFileIfChanged(filePath, normalized)) {
+          filesWritten.push(filePath)
+        }
+      }
+    }
+  }
+
+  // 8) Run generators (NOT build/publish)
   const generatorsRun: GeneratorRunResult[] = []
   for (const name of GENERATOR_SCRIPTS) {
     const result = runGenerator(repoRoot, name)

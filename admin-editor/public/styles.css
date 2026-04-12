@@ -2889,3 +2889,76 @@ body.ace-home-page {
   color: var(--ace-text-muted, #666);
   margin: 0;
 }
+
+/* Design Systems tab layout */
+.ace-ds-layout {
+  display: flex;
+  gap: 0;
+  height: 100%;
+  min-height: 400px;
+}
+.ace-ds-sidebar {
+  width: 200px;
+  min-width: 160px;
+  border-right: 1px solid var(--ace-border, #e0e0e0);
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+.ace-ds-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ace-text-muted, #888);
+  padding: 4px 8px;
+}
+.ace-ds-sidebar-item {
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.ace-ds-sidebar-item:hover {
+  background: var(--ace-hover-bg, #f5f5f5);
+}
+.ace-ds-sidebar-item.sel {
+  background: var(--ace-active-bg, #f0f0f0);
+  font-weight: 600;
+}
+.ace-ds-add {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--ace-accent, #0066cc);
+  cursor: pointer;
+  margin-top: 8px;
+}
+.ace-ds-editor {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+.ace-ds-sub-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--ace-border, #e0e0e0);
+  padding-bottom: 8px;
+}
+.ace-ds-sub-tab {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ace-text-secondary, #666);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.ace-ds-sub-tab.active {
+  background: var(--ace-active-bg, #f0f0f0);
+  color: var(--ace-text, #222);
+}
+.ace-ds-sub-tab:hover:not(.active) {
+  background: var(--ace-hover-bg, #f5f5f5);
+}
