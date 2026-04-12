@@ -9,7 +9,8 @@ export function StrikeTeamProfile({ teamName, strikeTeam }: Props) {
   return (
     <section className={styles.section}>
       <div className={styles.eyebrow}>Strike Team</div>
-      <h2 className={styles.headline}>Meet the {teamName} team</h2>
+      <h2 className={styles.headline}>Meet the team</h2>
+      <div className={styles.teamName}>{teamName}</div>
       <p className={styles.subtext}>A cross-functional group responsible for building, maintaining, and improving this assistant. Open slots are listed below.</p>
       <div className={styles.body}>
         <div className={styles.members}>

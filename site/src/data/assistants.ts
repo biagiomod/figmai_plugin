@@ -18,7 +18,7 @@ export const ASSISTANTS: Assistant[] = [
     ],
     quickActions: ['Explain this design', 'Design suggestions', 'Run Smart Detector'],
     resources: [
-      { title: 'Prompt Writing Best Practices', description: 'How to write effective prompts for consistent output.', tag: 'Doc', href: '#' },
+      { title: 'Prompt Writing Guide', description: 'How to write effective prompts for consistent output.', tag: 'Doc', href: '#' },
       { title: 'Smart Detector Guide', description: 'What the Smart Detector scans and how to read its output.', tag: 'Guide', href: '#' },
       { title: 'Example Conversations', description: 'Real examples of productive General assistant sessions.', tag: 'Examples', href: '#' },
     ],
