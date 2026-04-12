@@ -58,7 +58,8 @@
     instructionsMap: {},
     skillsRegistry: { skills: [] },
     selectedSkillId: null,
-    selectedSkillContent: ''
+    selectedSkillContent: '',
+    selectedGeneralSubTab: 'plugin'   // 'plugin' | 'site'
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
@@ -728,7 +729,7 @@
   }
 
   var SECTION_STATE_KEY = 'ace.ui.configSectionExpanded.v1'
-  var CONFIG_SECTION_KEYS = ['default-mode', 'mode-settings', 'ai-api-endpoint', 'resource-links', 'credits', 'accessibility-hat', 'advanced-raw-json']
+  var CONFIG_SECTION_KEYS = ['default-mode', 'mode-settings', 'branding', 'resource-links', 'credits', 'advanced-raw-json']
   function getDefaultExpandedState () {
     var out = {}
     for (var i = 0; i < CONFIG_SECTION_KEYS.length; i++) {
@@ -956,6 +957,25 @@
       panel.innerHTML = '<p>No config loaded.</p>'
       return
     }
+
+    // Sub-tab header
+    var subTab = state.selectedGeneralSubTab || 'plugin'
+    var subTabHtml = '<div class="ace-sub-tab-row">'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (subTab === 'plugin' ? ' active' : '') + '" data-general-subtab="plugin">Plugin</button>'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (subTab === 'site' ? ' active' : '') + '" data-general-subtab="site">Site <span class="ace-badge ace-badge--upcoming">Upcoming</span></button>'
+    subTabHtml += '</div>'
+
+    if (subTab === 'site') {
+      panel.innerHTML = subTabHtml + renderGeneralSitePlaceholder()
+      panel.querySelectorAll('.ace-sub-tab-btn[data-general-subtab]').forEach(function (btn) {
+        btn.onclick = function () {
+          state.selectedGeneralSubTab = this.getAttribute('data-general-subtab')
+          renderConfigTab()
+        }
+      })
+      return
+    }
+
     const ui = m.config.ui || {}
     const assistants = state.editedModel?.assistantsManifest?.assistants || []
     const simpleSet = new Set(Array.isArray(ui.simpleModeIds) ? ui.simpleModeIds : [])
@@ -963,7 +983,8 @@
     const canonicalOrder = getAdvancedOrderedAssistants(assistants)
     const effectiveAdvancedIds = new Set(getEffectiveAdvancedModeIds(ui, assistants))
 
-    let html = '<div class="ace-config-desc-bar">'
+    let html = subTabHtml
+    html += '<div class="ace-config-desc-bar">'
     html += '<p class="ace-config-page-desc">Plugin settings, display mode, and branding.</p>'
     html += '<button type="button" class="ace-config-reset-btn" id="reset-config-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
@@ -1044,7 +1065,7 @@
       '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showAppName" ' + (brandingShowAppName ? 'checked' : '') + '> Show App Name</label></div>' +
       '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showLogline" ' + (brandingShowLogline ? 'checked' : '') + '> Show Logline</label></div>' +
       '<label for="config-branding-appName" class="ace-field-label">App Name</label>' +
-      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="Ableza" value="' + escapeHtml(brandingAppName) + '">' +
+      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="Design AI Toolkit" value="' + escapeHtml(brandingAppName) + '">' +
       '<label for="config-branding-logline" class="ace-field-label">Logline</label>' +
       '<input type="text" id="config-branding-logline" class="ace-text-input ace-field" placeholder="AI Powered" value="' + escapeHtml(brandingLogline) + '">' +
       '<label for="config-branding-logoPath" class="ace-field-label">Logo Path</label>' +
@@ -1115,20 +1136,6 @@
       })() +
       '</div>',
       expandedMap['credits'])
-    var hatList = Array.isArray(m.config.accessibility && m.config.accessibility.hatRequiredComponents) ? m.config.accessibility.hatRequiredComponents.slice() : []
-    html += collapsibleSection('accessibility-hat', 'Accessibility — HAT-required components',
-      '<div class="ace-card ace-hat-components-card">' +
-      '<p class="ace-card-subtext">Component/instance names that should always be treated as requiring HAT (accessible label). Used by Content Review Assistant &quot;Add HAT&quot; quick action.</p>' +
-      '<div class="ace-hat-list" id="hat-required-components-list">' +
-      hatList.map(function (name, idx) {
-        return '<div class="ace-hat-row" data-index="' + idx + '"><span class="ace-hat-name">' + escapeHtml(name) + '</span><button type="button" class="ace-hat-remove" data-index="' + idx + '" aria-label="Remove">Remove</button></div>'
-      }).join('') +
-      '</div>' +
-      '<div class="ace-hat-add-row">' +
-      '<input type="text" id="hat-new-component-name" class="ace-text-input ace-field" placeholder="e.g. IconButton, ToolbarIconOnly">' +
-      '<button type="button" id="hat-add-btn" class="ace-btn">Add</button>' +
-      '</div></div>',
-      expandedMap['accessibility-hat'])
     html += collapsibleSection('advanced-raw-json', 'Advanced: Raw JSON Config',
       '<div class="ace-card danger-zone ace-raw-json-card">' +
       '<p class="ace-raw-json-warning">Warning: Invalid JSON will fail validation</p>' +
@@ -1138,6 +1145,13 @@
       expandedMap['advanced-raw-json'])
     html += '</div>'
     panel.innerHTML = html
+
+    panel.querySelectorAll('.ace-sub-tab-btn[data-general-subtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedGeneralSubTab = this.getAttribute('data-general-subtab')
+        renderConfigTab()
+      }
+    })
 
     panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
       btn.onclick = function () {
@@ -1299,50 +1313,6 @@
       })
     }
 
-    // HAT-required components: ensure config.accessibility.hatRequiredComponents exists and wire Add/Remove
-    if (!state.editedModel.config.accessibility) state.editedModel.config.accessibility = {}
-    if (!Array.isArray(state.editedModel.config.accessibility.hatRequiredComponents)) state.editedModel.config.accessibility.hatRequiredComponents = []
-    var hatListEl = document.getElementById('hat-required-components-list')
-    var hatAddBtn = document.getElementById('hat-add-btn')
-    var hatNewInput = document.getElementById('hat-new-component-name')
-    if (hatAddBtn && hatNewInput && hatListEl) {
-      hatAddBtn.onclick = function () {
-        var name = (hatNewInput.value || '').trim()
-        if (!name) return
-        state.editedModel.config.accessibility.hatRequiredComponents.push(name)
-        var row = document.createElement('div')
-        row.className = 'ace-hat-row'
-        row.innerHTML = '<span class="ace-hat-name">' + escapeHtml(name) + '</span><button type="button" class="ace-hat-remove" aria-label="Remove">Remove</button>'
-        hatListEl.appendChild(row)
-        row.querySelector('.ace-hat-remove').onclick = function () {
-          var arr = state.editedModel.config.accessibility.hatRequiredComponents
-          var i = arr.indexOf(name)
-          if (i !== -1) arr.splice(i, 1)
-          row.remove()
-          showUnsavedBanner()
-          updateFooterButtons()
-        }
-        hatNewInput.value = ''
-        showUnsavedBanner()
-        updateFooterButtons()
-      }
-    }
-    if (hatListEl) {
-      hatListEl.querySelectorAll('.ace-hat-remove').forEach(function (btn) {
-        btn.onclick = function () {
-          var row = btn.closest('.ace-hat-row')
-          var nameEl = row && row.querySelector('.ace-hat-name')
-          var name = nameEl ? nameEl.textContent : ''
-          var arr = state.editedModel.config.accessibility.hatRequiredComponents
-          var i = arr.indexOf(name)
-          if (i !== -1) arr.splice(i, 1)
-          if (row) row.remove()
-          showUnsavedBanner()
-          updateFooterButtons()
-        }
-      })
-    }
-
     // Branding bindings
     function ensureUiBrandingConfig () {
       if (!state.editedModel.config) state.editedModel.config = {}
@@ -1470,6 +1440,19 @@
       errDiv.textContent = 'Missing DOM nodes: ' + missingIds.join(', ')
       panel.insertBefore(errDiv, panel.firstChild)
     }
+  }
+
+  function renderGeneralSitePlaceholder () {
+    var html = '<div class="ace-site-placeholder">'
+    html += '<p class="ae-helper" style="margin-bottom:12px">The Site tab will manage marketing site content alongside each assistant.</p>'
+    html += '<div class="ace-placeholder-card">'
+    html += '<h3 class="ace-placeholder-card-title">Site Data Management — Deferred</h3>'
+    html += '<p class="ace-placeholder-card-body">Fields coming here: tagline, accent color, video filename, howToUse steps, quickAction chips, per-assistant resource links, bestPractices, strike team slots.</p>'
+    html += '<p class="ace-placeholder-card-body" style="margin-top:8px">Architecture question under review: JSON layer vs. TypeScript authoring.</p>'
+    html += '</div>'
+    html += '<p class="ae-helper" style="margin-top:14px">Until this tab ships, edit site data directly in <code>site/src/data/assistants.ts</code>.</p>'
+    html += '</div>'
+    return html
   }
 
   // ——— AI tab (AI API Endpoint section moved from General) ———
@@ -3966,7 +3949,7 @@
     var headers = tpl.headerRows || []
     var cols = Math.max(1, (model.columns || []).length)
     var sampleContainers = [
-      { containerName: 'HeroCard', containerUrl: 'https://www.figma.com/file/demo?node-id=1%3A1', items: [{ content: 'Welcome to Ableza' }, { content: 'Get Started' }] },
+      { containerName: 'HeroCard', containerUrl: 'https://www.figma.com/file/demo?node-id=1%3A1', items: [{ content: 'Welcome to Design AI Toolkit' }, { content: 'Get Started' }] },
       { containerName: 'Checkout', containerUrl: 'https://www.figma.com/file/demo?node-id=2%3A2', items: [{ content: 'Pay now' }, { content: 'Use saved card' }] }
     ]
     var html = '<div style="overflow:auto;border:1px solid #e0e0e0;border-radius:8px;background:#fff"><table style="border-collapse:collapse;min-width:100%"><thead>'
