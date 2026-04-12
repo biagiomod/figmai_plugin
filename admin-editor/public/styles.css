@@ -2821,3 +2821,71 @@ body.ace-home-page {
 .ace-pg-history-entry:last-child {
   border-bottom: none;
 }
+
+/* Sub-tab row (General tab, Resources tab) */
+.ace-sub-tab-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--ace-border, #e0e0e0);
+  padding-bottom: 8px;
+}
+.ace-sub-tab-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ace-text-muted, #666);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.ace-sub-tab-btn.active {
+  background: var(--ace-active-bg, #f0f0f0);
+  color: var(--ace-text, #222);
+}
+.ace-sub-tab-btn:hover:not(.active) {
+  background: var(--ace-hover-bg, #f5f5f5);
+}
+
+/* Badge (upcoming / active labels) */
+.ace-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.ace-badge--upcoming {
+  background: var(--ace-bg-muted, #e8e8e8);
+  color: var(--ace-text-muted, #888);
+}
+.ace-badge--active {
+  background: var(--ace-green-bg, #d4edda);
+  color: var(--ace-green-text, #155724);
+}
+
+/* Site placeholder (General tab / assistant Site sub-tab) */
+.ace-site-placeholder {
+  padding: 16px 0;
+}
+.ace-placeholder-card {
+  background: var(--ace-card-bg, #f8f8f8);
+  border: 1px solid var(--ace-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px 0;
+}
+.ace-placeholder-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.ace-placeholder-card-body {
+  font-size: 12px;
+  color: var(--ace-text-muted, #666);
+  margin: 0;
+}
