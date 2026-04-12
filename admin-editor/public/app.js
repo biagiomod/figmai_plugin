@@ -41,6 +41,7 @@
     kbPreviewDoc: null,
     kbEditDoc: null,
     selectedAssistantDetailTab: 'overview',
+    skillMdEdits: {},   // assistantId -> edited SKILL.md content (unsaved)
     playgroundActive: false,
     playgroundAssistantId: null,
     playgroundActionId: null,
@@ -667,6 +668,13 @@
       const canonical = canonicalizeModel(data.model)
       state.originalModel = canonical
       state.editedModel = deepClone(canonical)
+      // Initialize skillMdEdits from loaded model
+      state.skillMdEdits = {}
+      if (data.model.skillMdContent) {
+        for (var _smId in data.model.skillMdContent) {
+          state.skillMdEdits[_smId] = data.model.skillMdContent[_smId] || ''
+        }
+      }
       state.instructionsMap = deepClone(data.model.instructions || {})
       state.skillsRegistry = data.model.skillsRegistry || { skills: [] }
       state.meta = data.meta || null
@@ -2303,6 +2311,7 @@
     html += '<div class="ae-preview-card-intro">' + escapeHtml((a.intro || '').slice(0, 80)) + '</div>'
     html += '</div></div>'
     html += '<p class="ae-helper" style="margin-top:6px">This preview reflects the last-saved label, intro, type, and tag. Changes you make above appear here when you navigate away and return.</p>'
+    html += _aeSkillMdPanel(a.id)
     return html
   }
   function _getInstr (assistantId) {
@@ -2483,6 +2492,33 @@
     html += '<p class="ae-helper">Shows what the LLM receives based on current skill blocks (unsaved state).</p>'
     html += '<button type="button" class="btn-small" id="ae-assemble-btn">Assemble prompt</button>'
     html += '<div class="ae-assemble-preview" id="ae-assemble-preview"><pre id="ae-assemble-pre"></pre></div>'
+    return html
+  }
+  function _aeSkillMdPanel (assistantId) {
+    var model = state.editedModel
+    var skillMdContent = (model && model.skillMdContent && model.skillMdContent[assistantId]) || null
+    var editedContent = state.skillMdEdits[assistantId] || ''
+    var html = ''
+
+    html += '<div class="ae-section-block">'
+    html += '<h3 class="ae-section-heading">SKILL.md</h3>'
+
+    if (!skillMdContent && !editedContent) {
+      html += '<div class="ae-helper">'
+      html += 'This assistant has not been migrated to per-assistant SKILL.md yet. '
+      html += 'Run <code>npx tsx scripts/migrate-assistant-to-skillmd.ts ' + escapeHtml(assistantId) + '</code> to scaffold the files.'
+      html += '</div>'
+    } else {
+      html += '<p class="ae-helper">Edit the SKILL.md authored behavior. Changes are saved atomically with the manifest.</p>'
+      html += '<textarea'
+      html += ' class="ace-field ace-textarea ace-skillmd-editor"'
+      html += ' data-assistant-id="' + escapeHtml(assistantId) + '"'
+      html += ' rows="20"'
+      html += ' style="font-family: monospace; font-size: 13px; white-space: pre;"'
+      html += '>' + escapeHtml(editedContent || skillMdContent || '') + '</textarea>'
+    }
+
+    html += '</div>'
     return html
   }
   function _aeKnowledgeTab (a) {
@@ -3069,6 +3105,22 @@
           }
         } catch (err) { if (rubricStatus) rubricStatus.textContent = 'Network error.' }
       }
+    }
+
+    // SKILL.md textarea handler
+    var skillMdEl = document.querySelector('.ace-skillmd-editor')
+    if (skillMdEl) {
+      var skillMdHandler = function () {
+        var aId = this.getAttribute('data-assistant-id')
+        if (aId) {
+          state.skillMdEdits[aId] = this.value
+          if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+          state.editedModel.skillMdContent[aId] = this.value
+          showUnsavedBanner()
+        }
+      }
+      skillMdEl.onchange = skillMdHandler
+      skillMdEl.oninput = skillMdHandler
     }
   }
 
