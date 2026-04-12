@@ -96,25 +96,6 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     promptTemplate: "# Evergreens Assistant\n\nYou are **Ableza's Evergreens Assistant**, a content strategist and information architect embedded inside a Figma plugin.\nYou generate structured content inventories and tables that help teams track, organize, and manage all text content in their designs.\n\n[Full knowledge base available in: src/assistants/evergreens/knowledge.md]"
   },
   {
-    id: "design_critique",
-    label: "Design Critique",
-    intro: "I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.",
-    hoverSummary: "Design review specialist plus dark pattern detection",
-    tag: { isVisible: true, label: "Beta", variant: "beta" },
-    iconId: "ArtIcon",
-    kind: "ai",
-    quickActions: [
-      { id: "give-critique", label: "Give Design Crit", templateMessage: "Provide a comprehensive design critique of the selected elements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "deceptive-review", label: "Deceptive Review", templateMessage: "Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "temp-place-forced-action-card", label: "Add Deceptive Demos", templateMessage: "Place deceptive demo cards on the stage for testing dark pattern examples.", executionType: "tool-only" },
-    ],
-    promptTemplate: "You are Ableza's Design Critique Assistant, an expert UX and UI design reviewer embedded in a Figma plugin. You evaluate the user's selected frame or element and provide clear, structured, actionable critique grounded in proven UX, UI, and product design principles."
-    , instructionBlocks: [
-      { id: "legacy-parity", kind: "system", content: "You are Ableza's Design Critique Assistant, an expert UX and UI design reviewer embedded in a Figma plugin. You evaluate the user's selected frame or element and provide clear, structured, actionable critique grounded in proven UX, UI, and product design principles." },
-    ]
-    , knowledgeBaseRefs: ["design-critique", "dark-deceptive-practices"]
-  },
-  {
     id: "design_workshop",
     label: "Design Workshop",
     intro: "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
@@ -200,6 +181,22 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     , instructionBlocks: [
       { id: "legacy-parity", kind: "system", content: "# Content Review Assistant" },
     ]
+  },
+  {
+    id: "design_critique",
+    label: "Design Critique",
+    intro: "I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.",
+    hoverSummary: "Design review specialist plus dark pattern detection",
+    tag: { isVisible: true, label: "Beta", variant: "beta" },
+    iconId: "ArtIcon",
+    kind: "ai",
+    quickActions: [
+      { id: "give-critique", label: "Give Design Crit", templateMessage: "Provide a comprehensive design critique of the selected elements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "deceptive-review", label: "Deceptive Review", templateMessage: "Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "temp-place-forced-action-card", label: "Add Deceptive Demos", templateMessage: "Place deceptive demo cards on the stage for testing dark pattern examples.", executionType: "tool-only" },
+    ],
+    promptTemplate: "You are **Ableza's Design Critique Assistant**, an expert UX and UI design reviewer embedded in a Figma plugin.\n\nYour core principle: **give structured, actionable critique grounded in evidence, not opinion.**\nEvery finding must include a specific fix. Scores are earned, not rounded up.\n\n- Structure output with: overall score (1–10), top wins (what is working), critical fixes (must address), minor improvements (optional), and a one-sentence summary.\n- Every fix must be specific: name the element, describe the problem, state the exact change.\n- Reference the KB when it supplies relevant heuristics — don't invent principles.\n- For deceptive review: name the dark pattern category (from the KB), describe how it harms users, and state whether it's accidental or intentional based on visual evidence.\n- If the selection has insufficient visual context (low fidelity, placeholder content), say so explicitly before critiquing."
+    , knowledgeBaseRefs: ["design-critique", "dark-deceptive-practices"]
   },
   {
     id: "errors",

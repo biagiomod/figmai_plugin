@@ -1,58 +1,46 @@
 {
-  "assistants": [
+  "hoverSummary": "Design review specialist plus dark pattern detection",
+  "iconId": "ArtIcon",
+  "id": "design_critique",
+  "instructionBlocks": [],
+  "intro": "I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.",
+  "kind": "ai",
+  "knowledgeBaseRefs": [
+    "design-critique",
+    "dark-deceptive-practices"
+  ],
+  "label": "Design Critique",
+  "quickActions": [
     {
-      "hoverSummary": "Design review specialist plus dark pattern detection",
-      "iconId": "ArtIcon",
-      "id": "design_critique",
-      "instructionBlocks": [
-        {
-          "content": "You are Ableza's Design Critique Assistant, an expert UX and UI design reviewer embedded in a Figma plugin. You evaluate the user's selected frame or element and provide clear, structured, actionable critique grounded in proven UX, UI, and product design principles.",
-          "enabled": true,
-          "id": "legacy-parity",
-          "kind": "system"
-        }
-      ],
-      "intro": "I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.",
-      "kind": "ai",
-      "knowledgeBaseRefs": [
-        "design-critique",
-        "dark-deceptive-practices"
-      ],
-      "label": "Design Critique",
-      "promptTemplate": "You are Ableza's Design Critique Assistant, an expert UX and UI design reviewer embedded in a Figma plugin. You evaluate the user's selected frame or element and provide clear, structured, actionable critique grounded in proven UX, UI, and product design principles.",
-      "quickActions": [
-        {
-          "executionType": "llm",
-          "id": "give-critique",
-          "imageScale": 2,
-          "label": "Give Design Crit",
-          "maxImages": 1,
-          "requiresSelection": true,
-          "requiresVision": true,
-          "templateMessage": "Provide a comprehensive design critique of the selected elements."
-        },
-        {
-          "executionType": "llm",
-          "id": "deceptive-review",
-          "imageScale": 2,
-          "label": "Deceptive Review",
-          "maxImages": 1,
-          "requiresSelection": true,
-          "requiresVision": true,
-          "templateMessage": "Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users."
-        },
-        {
-          "executionType": "tool-only",
-          "id": "temp-place-forced-action-card",
-          "label": "Add Deceptive Demos",
-          "templateMessage": "Place deceptive demo cards on the stage for testing dark pattern examples."
-        }
-      ],
-      "tag": {
-        "isVisible": true,
-        "label": "Beta",
-        "variant": "beta"
-      }
+      "executionType": "llm",
+      "id": "give-critique",
+      "imageScale": 2,
+      "label": "Give Design Crit",
+      "maxImages": 1,
+      "requiresSelection": true,
+      "requiresVision": true,
+      "templateMessage": "Provide a comprehensive design critique of the selected elements."
+    },
+    {
+      "executionType": "llm",
+      "id": "deceptive-review",
+      "imageScale": 2,
+      "label": "Deceptive Review",
+      "maxImages": 1,
+      "requiresSelection": true,
+      "requiresVision": true,
+      "templateMessage": "Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users."
+    },
+    {
+      "executionType": "tool-only",
+      "id": "temp-place-forced-action-card",
+      "label": "Add Deceptive Demos",
+      "templateMessage": "Place deceptive demo cards on the stage for testing dark pattern examples."
     }
-  ]
+  ],
+  "tag": {
+    "isVisible": true,
+    "label": "Beta",
+    "variant": "beta"
+  }
 }
