@@ -36,6 +36,7 @@ export const Steps: React.FC<Props> = ({ assistant }) => {
     to: 0,
   })
   const enterOpacity = interpolate(stepLocalFrame, [0, 18], [0, 1], {
+    extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   })
 
