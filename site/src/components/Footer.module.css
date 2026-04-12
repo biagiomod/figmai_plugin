@@ -1,0 +1,23 @@
+.footer {
+  background: var(--bg-nav);
+  padding: 28px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.left { display: flex; flex-direction: column; gap: 4px; }
+.logo {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+.logoIcon {
+  width: 22px; height: 22px;
+  background: var(--accent);
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+}
+.copy { font-size: 11px; color: rgba(255,255,255,0.3); }
+.links { display: flex; gap: 20px; }
+.link { font-size: 12px; color: rgba(255,255,255,0.45); transition: color 0.15s; }
+.link:hover { color: rgba(255,255,255,0.8); }
