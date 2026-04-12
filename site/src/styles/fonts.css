@@ -1,0 +1,40 @@
+@font-face {
+  font-family: 'Industry Inc';
+  src: url('/fonts/Industry/Industry_Inc_Base.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Industry Inc';
+  src: url('/fonts/Industry/Industry_Inc_Bold.otf') format('opentype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Protipo';
+  src: url('/fonts/Protipo/Protipo-Regular.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Protipo';
+  src: url('/fonts/Protipo/Protipo-Semibold.otf') format('opentype');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Protipo';
+  src: url('/fonts/Protipo/Protipo-Bold.otf') format('opentype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Protipo';
+  src: url('/fonts/Protipo/Protipo-Extrabold.otf') format('opentype');
+  font-weight: 800; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Carbon';
+  src: url('/fonts/Carbon/Carbon-Regular.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Carbon';
+  src: url('/fonts/Carbon/Carbon-Bold.otf') format('opentype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
