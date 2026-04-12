@@ -24,7 +24,7 @@ export function StrikeTeamSection() {
           <div key={a.id} className={styles.card} style={{ '--ac-color': a.accent } as React.CSSProperties}>
             <div className={styles.cardHeader}>
               <span className={styles.cardIcon}><a.icon size={14} style={{ opacity: 0.7 }} /></span>
-              <span className={styles.cardName}>{a.name}</span>
+              <span className={styles.cardName} data-name={a.name} />
             </div>
             <div className={styles.avatars}>
               {a.strikeTeam.members.slice(0, 3).map(m => (

@@ -1,0 +1,25 @@
+.page { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* Hero */
+.hero { background: var(--bg-hero); padding: 72px 40px 64px; text-align: center; }
+.heroEyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+.heroHeadline { font-size: 52px; font-weight: 800; color: var(--text-on-dark); line-height: 1.1; letter-spacing: -0.03em; margin-bottom: 16px; font-family: var(--font-display); }
+.heroAccent { color: var(--accent); }
+.heroSub { font-size: 16px; color: var(--text-on-dark-muted); max-width: 500px; margin: 0 auto 32px; line-height: 1.6; }
+.heroCtas { display: flex; gap: 12px; justify-content: center; }
+.btnPrimary { background: var(--accent); color: #fff; border-radius: var(--radius-sm); padding: 11px 22px; font-size: 13px; font-weight: 600; }
+.btnGhost { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.8); border-radius: var(--radius-sm); padding: 10px 22px; font-size: 13px; font-weight: 500; }
+
+/* Philosophy */
+.philosophy { background: var(--bg-section-alt); padding: 56px 40px; display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+.philCard { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-card); padding: 28px; }
+.philIcon { width: 40px; height: 40px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 16px; }
+.philTitle { font-size: 15px; font-weight: 700; color: var(--text-on-dark); margin-bottom: 8px; }
+.philBody { font-size: 13px; color: var(--text-on-dark-muted); line-height: 1.65; }
+
+/* Assistants section */
+.assistants { padding: 56px 40px; background: var(--bg-body); }
+.sectionHeader { margin-bottom: 28px; }
+.sectionEyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.sectionTitle { font-size: 28px; font-weight: 800; color: var(--text-primary); font-family: var(--font-display); }
+.grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
