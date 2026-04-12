@@ -1,4 +1,4 @@
-import { Composition } from 'remotion'
+import { Composition, registerRoot } from 'remotion'
 import { AssistantVideo } from './AssistantVideo'
 
 export function RemotionRoot() {
@@ -14,3 +14,5 @@ export function RemotionRoot() {
     />
   )
 }
+
+registerRoot(RemotionRoot)

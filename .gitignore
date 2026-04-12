@@ -70,3 +70,6 @@ manifest.json
 # ACE corporate CA certs — placed manually per environment, never committed.
 # Place your cert at admin-editor/certs/corp-ca.pem (copy from corp-ca.pem.example).
 admin-editor/certs/*.pem
+
+# Remotion rendered output — generated artifacts, not committed
+site/public/videos/*.mp4
