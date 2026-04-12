@@ -131,7 +131,7 @@ function computeFilesWouldWrite(
 
   if (model.skillMdContent) {
     for (const [assistantId, content] of Object.entries(model.skillMdContent)) {
-      if (!content) continue
+      if (!content) continue // skip if content was cleared; SKILL.md deletion is not supported
       const filePath =
         meta.filePaths.skillMd[assistantId] ??
         path.join(repoRoot, 'custom', 'assistants', assistantId, 'SKILL.md')
@@ -232,7 +232,8 @@ export function saveModelDryRun(
 /**
  * Save model to disk: validate, backup, write, run generators.
  * Writes only: custom/config.json, custom/assistants.manifest.json,
- * custom/knowledge/<id>.md, docs/content-models.md, custom/design-systems/<id>/registry.json.
+ * custom/knowledge/<id>.md, docs/content-models.md, custom/design-systems/<id>/registry.json,
+ * custom/assistants/<id>/SKILL.md (migrated assistants only).
  */
 export function saveModel(
   model: AdminEditableModel,
@@ -339,11 +340,10 @@ export function saveModel(
   // 6) Backup and write custom/assistants/<id>/SKILL.md (migrated assistants only)
   if (model.skillMdContent) {
     for (const [assistantId, content] of Object.entries(model.skillMdContent)) {
-      if (!content) continue
+      if (!content) continue // skip if content was cleared; SKILL.md deletion is not supported
       const filePath =
         meta.filePaths.skillMd[assistantId] ??
         path.join(repoRoot, 'custom', 'assistants', assistantId, 'SKILL.md')
-      fs.mkdirSync(path.dirname(filePath), { recursive: true })
       if (fs.existsSync(filePath)) {
         backupFile(filePath, backupRoot, repoRoot)
       }
