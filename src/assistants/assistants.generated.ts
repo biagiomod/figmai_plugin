@@ -29,25 +29,6 @@ export interface AssistantManifestEntry {
 
 export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
   {
-    id: "analytics_tagging",
-    label: "Analytics Tagging",
-    intro: "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
-    hoverSummary: "Analytics tagging from ScreenID and ActionID annotations",
-    tag: { isVisible: true, label: "Beta", variant: "beta" },
-    iconId: "AnalyticsIcon",
-    kind: "tool",
-    quickActions: [
-      { id: "get-analytics-tags", label: "Get Analytics Tags", templateMessage: "Scan selected screen(s) for ActionID annotations and fill the table.", executionType: "tool-only", requiresSelection: true },
-      { id: "append-analytics-tags", label: "Append Selection", templateMessage: "Append additional screen(s) to the existing analytics tagging table.", executionType: "tool-only", requiresSelection: true },
-      { id: "copy-table", label: "Copy Table", templateMessage: "Copy analytics table to clipboard.", executionType: "tool-only" },
-      { id: "new-session", label: "New session", templateMessage: "Start a new analytics tagging session", executionType: "tool-only" },
-      { id: "fix-annotation-near-misses", label: "Fix Near-Miss Annotations", templateMessage: "Fix annotation category near-misses and re-scan.", executionType: "tool-only" },
-      { id: "add-annotations", label: "Add Annotations", templateMessage: "Detect interactive elements and add ScreenID/ActionID placeholder annotations.", executionType: "tool-only", requiresSelection: true },
-      { id: "export-screenshots", label: "Export Screenshots", templateMessage: "Export screenshots for analytics tagging rows", executionType: "ui-only" },
-    ],
-    promptTemplate: "# Analytics Tagging Assistant\n\nYou are **Ableza's Analytics Tagging Assistant**. You help document analytics tags. Select one or more frames/components with a ScreenID annotation, then run Get Analytics Tags to scan visible descendants for ActionID. Screen ID and Action ID are read from dev-mode annotations."
-  },
-  {
     id: "code2design",
     label: "Code2Design",
     intro: "Import/export JSON templates to create and manage Figma designs.",
@@ -129,6 +110,25 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "contrast-analysis", label: "Color contrast analysis", templateMessage: "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
     ],
     promptTemplate: "You are **Ableza's Accessibility Assistant**, an expert in inclusive design and WCAG compliance embedded inside a Figma plugin.\n\nYour core principle: **accessibility barriers are defects, not polish.**\nEvery finding must include a specific, measurable fix — not a recommendation to \"consider\" something.\n\n- Classify every issue by WCAG level: A (must fix), AA (should fix), AAA (nice to have). Lead with A and AA violations.\n- Provide exact values where measurable: contrast ratios, font sizes in px, touch target sizes in px.\n- When contrast cannot be measured from the screenshot (e.g. transparent overlays, complex gradients), flag it explicitly rather than skipping.\n- Do not flag decorative images or icons as missing alt text unless they convey meaning.\n- For keyboard/focus order issues: describe the expected tab order and what is wrong with the current one."
+  },
+  {
+    id: "analytics_tagging",
+    label: "Analytics Tagging",
+    intro: "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
+    hoverSummary: "Analytics tagging from ScreenID and ActionID annotations",
+    tag: { isVisible: true, label: "Beta", variant: "beta" },
+    iconId: "AnalyticsIcon",
+    kind: "tool",
+    quickActions: [
+      { id: "get-analytics-tags", label: "Get Analytics Tags", templateMessage: "Scan selected screen(s) for ActionID annotations and fill the table.", executionType: "tool-only", requiresSelection: true },
+      { id: "append-analytics-tags", label: "Append Selection", templateMessage: "Append additional screen(s) to the existing analytics tagging table.", executionType: "tool-only", requiresSelection: true },
+      { id: "copy-table", label: "Copy Table", templateMessage: "Copy analytics table to clipboard.", executionType: "tool-only" },
+      { id: "new-session", label: "New session", templateMessage: "Start a new analytics tagging session", executionType: "tool-only" },
+      { id: "fix-annotation-near-misses", label: "Fix Near-Miss Annotations", templateMessage: "Fix annotation category near-misses and re-scan.", executionType: "tool-only" },
+      { id: "add-annotations", label: "Add Annotations", templateMessage: "Detect interactive elements and add ScreenID/ActionID placeholder annotations.", executionType: "tool-only", requiresSelection: true },
+      { id: "export-screenshots", label: "Export Screenshots", templateMessage: "Export screenshots for analytics tagging rows", executionType: "ui-only" },
+    ],
+    promptTemplate: "You are **Ableza's Analytics Tagging Assistant**, a tool for documenting analytics instrumentation directly from Figma designs.\n\nYour core principle: **ScreenID and ActionID are read from dev-mode annotations — not inferred.**\nSelect frames with a ScreenID annotation before scanning. The tool reads what is explicitly annotated; it does not guess."
   },
   {
     id: "content_table",
