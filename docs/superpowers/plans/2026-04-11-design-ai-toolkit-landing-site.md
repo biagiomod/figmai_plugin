@@ -524,161 +524,179 @@ export type RoadmapEntry = {
 
 - [ ] **Step 4: Create `site/src/data/assistants.ts`**
 
+> **Source provenance note:** All `tagline`, `howToUse`, and `quickActions` fields below are derived directly from `custom/assistants.manifest.json` (intro text, quick action labels) and `src/assistants/evergreens/knowledge.md`. Strike team members are FPO — replace with real names before launch. Fields marked `// FPO` must be replaced.
+
 ```ts
-import { MessageSquare, Leaf, Eye, Lightbulb, BarChart2 } from 'lucide-react'
+import { MessageSquare, Leaf, Eye, Monitor, BarChart2 } from 'lucide-react'
 import type { Assistant } from './types'
 
 export const ASSISTANTS: Assistant[] = [
   {
     id: 'general',
     name: 'General',
-    tagline: 'Open-ended design Q&A, component briefs, and design rationale.',
+    // Source: manifest intro — "I'm your general Design Assistant. Ask me anything about design or your current work."
+    tagline: "Ask me anything about your design. I'll help you explain, improve, and document your work.",
     accent: '#4a90e2',
     icon: MessageSquare,
     status: 'live',
     video: 'general.mp4',
     howToUse: [
-      { number: 1, title: 'Open the plugin in Figma', description: 'Launch the Design AI Toolkit plugin from the Figma plugin menu.' },
-      { number: 2, title: 'Select General', description: 'Choose the General assistant from the assistant selector.' },
-      { number: 3, title: 'Type your question or brief', description: 'Ask a design question, describe a component you need, or request a rationale review.' },
-      { number: 4, title: 'Review and apply the output', description: 'Copy relevant content or apply suggestions directly to your Figma file.' },
+      { number: 1, title: 'Open the plugin in Figma', description: 'Launch the Design AI Toolkit from the Figma plugin menu.' },
+      { number: 2, title: 'Select General', description: 'Choose General from the assistant selector at the top of the plugin.' },
+      { number: 3, title: 'Ask your question or describe your work', description: 'Type a design question, ask for feedback on a selected element, or request help with copy.' },
+      { number: 4, title: 'Apply the response', description: 'Copy text, use the suggestions in Figma, or continue the conversation to refine.' },
     ],
-    quickActions: ['Write a component brief', 'Explain this design decision', 'Suggest alternatives', 'Review this pattern'],
+    // Source: manifest quickActions ids — explain, suggestions, run-smart-detector
+    quickActions: ['Explain this design', 'Design suggestions', 'Run Smart Detector'],
     resources: [
-      { title: 'General Assistant Docs', description: 'Full capability reference and example prompts.', tag: 'Doc', href: '#' },
-      { title: 'Prompt Writing Guide', description: 'How to write effective prompts for consistent output.', tag: 'Guide', href: '#' },
-      { title: 'Example Conversations', description: 'Real examples of productive General assistant sessions.', tag: 'Examples', href: '#' },
+      { title: 'Prompt Writing Best Practices', description: 'How to write effective prompts for consistent output.', tag: 'Doc', href: '#' }, // FPO href
+      { title: 'Smart Detector Guide', description: 'What the Smart Detector scans and how to read its output.', tag: 'Guide', href: '#' }, // FPO href
+      { title: 'Example Conversations', description: 'Real examples of productive General assistant sessions.', tag: 'Examples', href: '#' }, // FPO href
     ],
     strikeTeam: {
       members: [
-        { name: 'FPO Team Lead', role: 'Product Design', isLead: true, avatarInitials: 'TL' },
-        { name: 'FPO Member', role: 'Engineering', isLead: false, avatarInitials: 'MB' },
+        { name: 'FPO Team Lead', role: 'Product Design', isLead: true, avatarInitials: 'TL' }, // FPO
+        { name: 'FPO Member', role: 'Engineering', isLead: false, avatarInitials: 'MB' }, // FPO
       ],
-      openSlots: [{ role: 'Content Strategist', description: 'Prompt design and output quality review', applyHref: '#' }],
+      openSlots: [{ role: 'Content Strategist', description: 'Prompt design and output quality review', applyHref: '#' }], // FPO href
     },
   },
   {
     id: 'evergreens',
     name: 'Evergreens',
-    tagline: 'Find, update, and create reusable design pattern entries.',
+    // Source: manifest intro — "I generate structured content inventories and tables from your designs."
+    tagline: 'Select a Figma frame to generate a structured content inventory of all text elements.',
     accent: '#007a39',
     icon: Leaf,
     status: 'live',
     video: 'evergreens.mp4',
     howToUse: [
-      { number: 1, title: 'Open the plugin in Figma', description: 'Launch the Design AI Toolkit plugin from the Figma plugin menu.' },
-      { number: 2, title: 'Select Evergreens', description: 'Choose the Evergreens assistant from the assistant selector.' },
-      { number: 3, title: 'Search for a pattern', description: 'Type a pattern name or description to find existing Evergreen entries.' },
-      { number: 4, title: 'Review or update the entry', description: 'Read the entry details, propose updates, or create a new entry if no match exists.' },
+      // Source: src/assistants/evergreens/handler.ts — generate-table scans selected containers
+      { number: 1, title: 'Select a container in Figma', description: 'Click on a frame, section, or component that contains the text content you want to document.' },
+      { number: 2, title: 'Open the plugin and select Evergreens', description: 'Launch the Design AI Toolkit and choose the Evergreens assistant.' },
+      { number: 3, title: 'Run GENERATE TABLE', description: 'Click the "GENERATE TABLE" quick action. The assistant scans all text layers and outputs a structured content table.' },
+      { number: 4, title: 'Review the content inventory', description: 'The table shows each element with its type, content, variants/states, and notes. Use Copy Table to export it.' },
+      { number: 5, title: 'Add more frames with ADD', description: 'Select additional containers and click "ADD" to append their content rows to the existing table.' },
     ],
-    quickActions: ['Find a pattern', 'Update an Evergreen', 'Create new entry', 'Check for duplicates'],
+    // Source: manifest quickActions labels — GENERATE TABLE, ADD, Copy Table, View Table
+    quickActions: ['GENERATE TABLE', 'ADD', 'Copy Table', 'View Table'],
     resources: [
-      { title: 'Evergreens Content Model', description: 'How Evergreen entries are structured and authored.', tag: 'Doc', href: '#' },
-      { title: 'Update Process', description: 'Who can update entries and the review/approval flow.', tag: 'Guide', href: '#' },
-      { title: 'Evergreens Figma File', description: 'Figma file for authoring and reviewing pattern entries.', tag: 'Figma', href: '#' },
+      { title: 'Content Inventory Format', description: 'The structured output format: element, type, content, variants/states, notes.', tag: 'Doc', href: '#' }, // FPO href
+      { title: 'Evergreens Update Process', description: 'Who can update the knowledge base and the review/approval flow.', tag: 'Guide', href: '#' }, // FPO href
+      { title: 'Ignore Rules Reference', description: 'How to configure which Figma elements are excluded from scans.', tag: 'Doc', href: '#' }, // FPO href
     ],
+    // Source: src/assistants/evergreens/knowledge.md — content model fields
     bestPractices: [
-      { title: 'Writing Good Evergreens', description: 'Be specific, use real examples from the design system, and link to the Figma component.' },
-      { title: 'When to Create vs. Update', description: 'Update an existing entry when adding guidance. Create a new one only when the pattern is truly distinct.' },
-      { title: 'Content Model Conventions', description: "Follow the structured fields: name, description, usage guidance, do/don't examples, and Figma link." },
-      { title: 'Review Checklist', description: 'Before submitting, verify the entry has been reviewed by at least one lead and all links resolve.' },
+      { title: 'Select the right container', description: 'Select the highest-level container that contains the content you need. PAGE and DOCUMENT nodes are skipped automatically.' },
+      { title: 'Hidden layers are excluded', description: 'The scanner skips hidden layers by default. Make visible all content you want captured before running the scan.' },
+      { title: 'Use ADD for multi-frame inventories', description: 'Run GENERATE TABLE on the first frame, then use ADD to append subsequent frames without losing prior rows.' },
+      { title: 'Document variants and states', description: 'For interactive elements, describe hover, disabled, and error states in the Notes column so nothing is missed at handoff.' },
     ],
     strikeTeam: {
       members: [
-        { name: 'FPO Team Lead', role: 'Content Design', isLead: true, avatarInitials: 'BG' },
-        { name: 'FPO Member', role: 'Product Manager', isLead: false, avatarInitials: 'TM' },
-        { name: 'FPO Member', role: 'Engineering', isLead: false, avatarInitials: 'SR' },
+        { name: 'FPO Team Lead', role: 'Content Design', isLead: true, avatarInitials: 'BG' }, // FPO
+        { name: 'FPO Member', role: 'Product Manager', isLead: false, avatarInitials: 'TM' }, // FPO
+        { name: 'FPO Member', role: 'Engineering', isLead: false, avatarInitials: 'SR' }, // FPO
       ],
-      openSlots: [{ role: 'Content Strategist', description: 'Content modeling, taxonomy review, stakeholder alignment', applyHref: '#' }],
+      openSlots: [{ role: 'Content Strategist', description: 'Content modeling, taxonomy review, stakeholder alignment', applyHref: '#' }], // FPO href
     },
   },
   {
     id: 'accessibility',
     name: 'Accessibility',
-    tagline: 'Run WCAG checks, generate remediation copy, and export audits.',
+    // Source: manifest intro — "I help ensure your designs are accessible and inclusive."
+    tagline: 'Select any element and get an instant WCAG compliance review with specific, actionable findings.',
     accent: '#e07b00',
     icon: Eye,
     status: 'live',
     video: 'accessibility.mp4',
     howToUse: [
-      { number: 1, title: 'Select a frame or component in Figma', description: 'Click on the element you want to audit before opening the plugin.' },
+      // Source: manifest quickActions — check-a11y requiresSelection + requiresVision: true
+      { number: 1, title: 'Select a frame or component in Figma', description: 'Click on the element you want to review. The assistant uses a screenshot of your selection for the analysis.' },
       { number: 2, title: 'Open the plugin and select Accessibility', description: 'Launch the Design AI Toolkit and choose the Accessibility assistant.' },
-      { number: 3, title: 'Run the check', description: 'Click "Run check" to analyze the selected element against WCAG 2.2 criteria.' },
-      { number: 4, title: 'Review findings and export', description: 'Read the findings, generate remediation copy, and export the audit report.' },
+      { number: 3, title: 'Run "Check accessibility"', description: 'Click the quick action. The assistant reviews your selection for color contrast, text sizing, interactive elements, and WCAG compliance.' },
+      { number: 4, title: 'Review findings and act', description: 'Read the findings. Each issue includes the criterion, severity, and a remediation suggestion you can act on directly.' },
     ],
-    quickActions: ['Check this component', 'Generate alt text', 'WCAG criteria reference', 'Export audit'],
+    // Source: manifest quickActions labels — check-a11y, wcag-compliance (+ others FPO)
+    quickActions: ['Check accessibility', 'WCAG compliance'],
     resources: [
-      { title: 'Accessibility Standards Reference', description: 'WCAG 2.2 criteria mapped to our component library.', tag: 'Doc', href: '#' },
-      { title: 'Audit Sheet Template', description: 'Spreadsheet for tracking WCAG review findings.', tag: 'Template', href: '#' },
-      { title: 'Remediation Guide', description: 'How to write effective remediation copy for common issues.', tag: 'Guide', href: '#' },
+      { title: 'WCAG 2.2 AA Criteria Reference', description: 'The full set of criteria the assistant checks against.', tag: 'Doc', href: '#' }, // FPO href
+      { title: 'Audit Sheet Template', description: 'Spreadsheet for tracking findings across multiple screens.', tag: 'Template', href: '#' }, // FPO href
+      { title: 'Remediation Patterns', description: 'Common fixes for the most frequently flagged accessibility issues.', tag: 'Guide', href: '#' }, // FPO href
     ],
     strikeTeam: {
       members: [
-        { name: 'FPO Team Lead', role: 'Accessibility', isLead: true, avatarInitials: 'AL' },
-        { name: 'FPO Member', role: 'Product Design', isLead: false, avatarInitials: 'PS' },
+        { name: 'FPO Team Lead', role: 'Accessibility', isLead: true, avatarInitials: 'AL' }, // FPO
+        { name: 'FPO Member', role: 'Product Design', isLead: false, avatarInitials: 'PS' }, // FPO
       ],
       openSlots: [
-        { role: 'Engineering', description: 'ARIA implementation review and automated testing integration', applyHref: '#' },
-        { role: 'Product', description: 'Stakeholder requirements and compliance tracking', applyHref: '#' },
+        { role: 'Engineering', description: 'ARIA implementation review and automated testing integration', applyHref: '#' }, // FPO href
+        { role: 'Product', description: 'Stakeholder requirements and compliance tracking', applyHref: '#' }, // FPO href
       ],
     },
   },
   {
     id: 'design-workshop',
     name: 'Design Workshop',
-    tagline: 'Structured ideation sessions and workshop artifact export.',
+    // Source: manifest intro — "I can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas."
+    tagline: 'Describe the screens you need and the assistant generates them directly on your Figma canvas.',
     accent: '#7c3aed',
-    icon: Lightbulb,
+    icon: Monitor,
     status: 'live',
     video: 'design-workshop.mp4',
     howToUse: [
-      { number: 1, title: 'Define your workshop goal', description: "Decide what problem you're solving and who the participants are before opening the plugin." },
-      { number: 2, title: 'Open the plugin and select Design Workshop', description: 'Launch the Design AI Toolkit and choose the Design Workshop assistant.' },
-      { number: 3, title: 'Run a session prompt', description: 'Choose a session type (HMW, concept sprint, prioritization) and provide your context.' },
-      { number: 4, title: 'Export workshop artifacts', description: 'Download session outputs as Figma frames, sticky notes, or a summary document.' },
+      // Source: manifest intro + quickActions — generate-screens, demo-screens
+      { number: 1, title: 'Open the plugin and select Design Workshop', description: 'Launch the Design AI Toolkit and choose the Design Workshop assistant.' },
+      { number: 2, title: 'Describe the screens you want', description: 'Type a description of the screens you need — what they are for, what content they should show, and any styling guidance.' },
+      { number: 3, title: 'Run "Demo: Generate Screens"', description: 'Click the quick action. The assistant creates 1–5 Figma screens on your canvas based on your description.' },
+      { number: 4, title: 'Review and refine', description: 'Inspect the generated frames. Continue the conversation to adjust layout, content, or styling as needed.' },
     ],
-    quickActions: ['Run ideation session', 'Generate HMW questions', 'Prioritize concepts', 'Export summary'],
+    // Source: manifest quickActions labels — generate-screens, demo-screens, demo-dashboard
+    quickActions: ['Demo: Generate Screens', 'Run Demo', 'Demo: Dashboard'],
     resources: [
-      { title: 'Workshop Facilitation Deck', description: 'Slides for running an AI-assisted workshop with your team.', tag: 'Slides', href: '#' },
-      { title: 'Session Types Reference', description: 'When to use HMW, concept sprints, and prioritization sessions.', tag: 'Doc', href: '#' },
-      { title: 'Workshop Figma Template', description: 'Pre-structured Figma file for workshop artifact capture.', tag: 'Figma', href: '#' },
+      { title: 'Screen Generation Guide', description: 'How to write effective screen descriptions for best results.', tag: 'Guide', href: '#' }, // FPO href
+      { title: 'Jazz Design System Reference', description: 'The design system the generator uses for hi-fidelity output.', tag: 'Doc', href: '#' }, // FPO href
+      { title: 'Demo Presets', description: 'Pre-built demo configurations for common screen types.', tag: 'Template', href: '#' }, // FPO href
     ],
     strikeTeam: {
       members: [
-        { name: 'FPO Team Lead', role: 'UX Research', isLead: true, avatarInitials: 'MK' },
-        { name: 'FPO Member', role: 'Product Design', isLead: false, avatarInitials: 'JP' },
+        { name: 'FPO Team Lead', role: 'Product Design', isLead: true, avatarInitials: 'MK' }, // FPO
+        { name: 'FPO Member', role: 'Engineering', isLead: false, avatarInitials: 'JP' }, // FPO
       ],
       openSlots: [
-        { role: 'UX Design', description: 'Workshop template design and session facilitation', applyHref: '#' },
-        { role: 'Product', description: 'Use case definition and stakeholder coordination', applyHref: '#' },
+        { role: 'UX Design', description: 'Screen template design and generation quality review', applyHref: '#' }, // FPO href
+        { role: 'Product', description: 'Use case definition and demo preset maintenance', applyHref: '#' }, // FPO href
       ],
     },
   },
   {
     id: 'analytics-tagging',
     name: 'Analytics Tagging',
-    tagline: 'Generate taxonomy-aligned Jira tags for design handoff.',
+    // Source: manifest intro — "Select one or more frames with a ScreenID annotation, then run Get Analytics Tags to scan for ActionID annotations."
+    tagline: 'Scan annotated Figma frames for ScreenID and ActionID tags and export a clean analytics table.',
     accent: '#008282',
     icon: BarChart2,
     status: 'live',
     video: 'analytics-tagging.mp4',
     howToUse: [
-      { number: 1, title: 'Select a component or screen in Figma', description: 'Click on the element you want to tag before opening the plugin.' },
-      { number: 2, title: 'Open the plugin and select Analytics Tagging', description: 'Launch the Design AI Toolkit and choose the Analytics Tagging assistant.' },
-      { number: 3, title: 'Generate tags', description: 'Click "Generate tags" to get taxonomy-aligned Jira tag suggestions for the selected element.' },
-      { number: 4, title: 'Copy tags to Jira', description: 'Review and accept tags, then copy the formatted output directly into your Jira ticket.' },
+      // Source: manifest intro + quickActions — get-analytics-tags requiresSelection: true
+      { number: 1, title: 'Annotate your screens with ScreenID', description: 'Each frame you want to tag must have a ScreenID annotation placed in Figma before scanning.' },
+      { number: 2, title: 'Select annotated frames', description: 'Select one or more frames that have ScreenID annotations. Multi-select is supported.' },
+      { number: 3, title: 'Run "Get Analytics Tags"', description: 'Click the quick action. The assistant scans the selected frames for ScreenID and ActionID annotations and builds the table.' },
+      { number: 4, title: 'Copy the table', description: 'Use "Copy Table" to export the results. Paste directly into your analytics tracking doc or Jira ticket.' },
     ],
-    quickActions: ['Tag this component', 'Suggest taxonomy', 'Review existing tags', 'Format for Jira'],
+    // Source: manifest quickActions labels — get-analytics-tags, append-analytics-tags, copy-table
+    quickActions: ['Get Analytics Tags', 'Append Selection', 'Copy Table'],
     resources: [
-      { title: 'Analytics Taxonomy Spec', description: 'Complete tagging vocabulary, naming conventions, and Jira field mappings.', tag: 'Doc', href: '#' },
-      { title: 'Tagging Taxonomy Reference', description: 'Quick-reference card for the most common tag types.', tag: 'Template', href: '#' },
-      { title: 'Jira Integration Guide', description: 'How to paste generated tags into Jira and align with the analytics team.', tag: 'Guide', href: '#' },
+      { title: 'Analytics Taxonomy Spec', description: 'Complete tagging vocabulary, naming conventions, and field definitions.', tag: 'Doc', href: '#' }, // FPO href
+      { title: 'ScreenID Annotation Guide', description: 'How to place ScreenID annotations correctly in Figma.', tag: 'Guide', href: '#' }, // FPO href
+      { title: 'ActionID Annotation Guide', description: 'How to annotate interactive elements with ActionID for scan detection.', tag: 'Guide', href: '#' }, // FPO href
     ],
     strikeTeam: {
       members: [
-        { name: 'FPO Team Lead', role: 'Analytics', isLead: true, avatarInitials: 'AL' },
-        { name: 'FPO Member', role: 'Product Design', isLead: false, avatarInitials: 'FP' },
-        { name: 'FPO Member', role: 'Engineering', isLead: false, avatarInitials: 'MK' },
+        { name: 'FPO Team Lead', role: 'Analytics', isLead: true, avatarInitials: 'AL' }, // FPO
+        { name: 'FPO Member', role: 'Product Design', isLead: false, avatarInitials: 'FP' }, // FPO
+        { name: 'FPO Member', role: 'Engineering', isLead: false, avatarInitials: 'MK' }, // FPO
       ],
       openSlots: [],
     },
@@ -1403,20 +1421,32 @@ export function AssistantCard({ assistant }: Props) {
 
 - [ ] **Step 5: Create `site/src/components/VideoPlayer.tsx`**
 
+> Video is progressive enhancement (Cursor AI point 6): if the asset is missing or fails to load, the component renders a placeholder state — the rest of the page is unaffected.
+
 ```tsx
 import { useState, useRef } from 'react'
-import { Play } from 'lucide-react'
+import { Play, VideoOff } from 'lucide-react'
 import styles from './VideoPlayer.module.css'
 
 type Props = { src: string; poster?: string; title: string }
 
 export function VideoPlayer({ src, poster, title }: Props) {
   const [playing, setPlaying] = useState(false)
+  const [errored, setErrored] = useState(false)
   const ref = useRef<HTMLVideoElement>(null)
 
   function handlePlay() {
     setPlaying(true)
     ref.current?.play()
+  }
+
+  if (errored) {
+    return (
+      <div className={styles.placeholder} aria-label={`Video unavailable: ${title}`}>
+        <VideoOff size={28} style={{ opacity: 0.4 }} />
+        <span className={styles.placeholderText}>Video coming soon</span>
+      </div>
+    )
   }
 
   return (
@@ -1428,6 +1458,7 @@ export function VideoPlayer({ src, poster, title }: Props) {
         poster={poster}
         controls={playing}
         aria-label={title}
+        onError={() => setErrored(true)}
       />
       {!playing && (
         <button className={styles.playBtn} onClick={handlePlay} aria-label={`Play ${title}`}>
@@ -1458,6 +1489,20 @@ export function VideoPlayer({ src, poster, title }: Props) {
   transition: background 0.15s;
 }
 .playBtn:hover { background: rgba(0,0,0,0.5); }
+/* Graceful degradation: shown when video src is missing or fails to load */
+.placeholder {
+  aspect-ratio: 16/9;
+  border-radius: var(--radius-card);
+  background: var(--bg-card);
+  border: 1px dashed var(--border-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+.placeholderText { font-size: 13px; }
 ```
 
 - [ ] **Step 7: Run test — verify it passes**
@@ -2848,30 +2893,88 @@ Replace the FPO placeholders in `public/videos/` with final Remotion-rendered MP
 ```bash
 cd site && VITE_BASE_PATH=/design-ai-toolkit/ npm run build
 ```
-Expected: `dist/` created. No TypeScript or Vite errors.
+Expected: `dist/` created with no TypeScript or Vite errors.
 
-Check that `dist/index.html` references assets with `/design-ai-toolkit/` prefix:
+Check asset paths include the base prefix:
 ```bash
 grep 'design-ai-toolkit' site/dist/index.html | head -3
 ```
-Expected: asset paths like `/design-ai-toolkit/assets/index-xxxxx.js`
+Expected: paths like `/design-ai-toolkit/assets/index-xxxxx.js`
 
-- [ ] **Step 4: Verify local preview build**
+- [ ] **Step 4: Verify local preview — all routes and assets**
 
 ```bash
 cd site && npm run build && npm run preview
 ```
-Open `http://localhost:4173`. Confirm all 4 routes load without blank screens:
-- `/`
-- `/assistants/evergreens`
-- `/roadmap`
-- `/resources`
+Open `http://localhost:4173` and manually verify each route:
 
-Confirm `/assistants/unknown` redirects to `/`.
+| URL | Expected |
+|-----|---------|
+| `http://localhost:4173/` | Homepage renders: hero, 5 assistant cards, Strike Teams section |
+| `http://localhost:4173/assistants/general` | General assistant page renders |
+| `http://localhost:4173/assistants/evergreens` | Evergreens page renders with Best Practices section visible |
+| `http://localhost:4173/assistants/accessibility` | Accessibility page renders |
+| `http://localhost:4173/assistants/design-workshop` | Design Workshop page renders |
+| `http://localhost:4173/assistants/analytics-tagging` | Analytics Tagging page renders |
+| `http://localhost:4173/roadmap` | Roadmap renders with 3 columns, filter pills work |
+| `http://localhost:4173/resources` | Resources page renders all sections |
+| `http://localhost:4173/assistants` | Redirects to `/` |
+| `http://localhost:4173/assistants/unknown` | Redirects to `/` |
 
-- [ ] **Step 5: Commit**
+Asset checks — open browser DevTools Network tab on `/`:
+- Fonts load from `/fonts/Protipo/Protipo-Regular.otf` (status 200, not 404)
+- No console errors about missing assets
+
+- [ ] **Step 5: Verify video graceful degradation**
+
+With the dev server running, temporarily rename one FPO video:
+```bash
+mv site/public/videos/general.mp4 site/public/videos/general.mp4.bak
+```
+Visit `http://localhost:5173/assistants/general`. Confirm the video section shows "Video coming soon" placeholder with no page errors.
+
+Restore:
+```bash
+mv site/public/videos/general.mp4.bak site/public/videos/general.mp4
+```
+
+- [ ] **Step 6: Verify Design AI Toolkit naming is consistent throughout**
+
+Check that the public name "Design AI Toolkit" appears (not "FigmAI" or "Ableza") in:
+- `<title>` in `index.html`
+- Nav logo wordmark (visible in browser)
+- Hero headline on homepage
+- README.md title
+- S3 deploy path comment in README.md
 
 ```bash
-git add site/README.md
-git commit -m "feat(site): add README with setup, font copy, FPO video, and S3 deploy instructions"
+grep -r "FigmAI\|Ableza" site/src/ site/index.html site/README.md
+```
+Expected: no matches. If any appear, replace with "Design AI Toolkit".
+
+- [ ] **Step 7: Add ACE link to Nav (if applicable)**
+
+If ACE is accessible at a known URL in the deployed environment, add it as an external link in `Nav.tsx`:
+
+```tsx
+// Add inside .links, after the Resources NavLink:
+<a href={ACE_URL} target="_blank" rel="noopener noreferrer" className={styles.link}>
+  ACE ↗
+</a>
+```
+
+Where `ACE_URL` is an env var: `import.meta.env.VITE_ACE_URL ?? '#'`
+
+Add to `site/.env.example`:
+```
+VITE_ACE_URL=http://localhost:PORT/index.html
+```
+
+If ACE URL is not yet finalized, leave the link as `href="#"` and mark it `// FPO`.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add site/README.md site/src/
+git commit -m "feat(site): add README, verify all routes, assets, and deployment"
 ```
