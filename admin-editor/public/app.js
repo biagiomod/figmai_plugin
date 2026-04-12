@@ -3618,7 +3618,7 @@
     skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the SKILL.md Quick Actions package box.</p>'
     var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
     if (allSkills.length === 0) {
-      skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No universal skills yet. Click "New skill" to create the first one.</div>'
+      skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No shared skills yet. Click "New skill" to create the first one.</div>'
     } else {
       skillsHtml += '<div class="list-panel" style="margin-bottom:var(--ace-space-24);min-height:auto">'
       skillsHtml += '<div class="list" id="ace-skills-list" style="width:260px">'
@@ -3725,11 +3725,10 @@
 
     if (resSubTab === 'shared-skills') {
       panel.innerHTML = subTabHtml + skillsHtml
-      wireResourcesSubTabBtns(panel)
     } else {
       panel.innerHTML = subTabHtml + html
-      wireResourcesSubTabBtns(panel)
     }
+    wireResourcesSubTabBtns(panel)
 
     var kbCreateBtn = document.getElementById('kb-create-btn')
     if (kbCreateBtn) {
@@ -3813,9 +3812,11 @@
       }
     })
 
-    if (createMode) bindKbImportForm()
-    else if (selectedId && editDoc) bindKbEditForm(editDoc)
-    else if (selectedId) loadKbDocThenRender(selectedId)
+    if (resSubTab === 'internal-kbs') {
+      if (createMode) bindKbImportForm()
+      else if (selectedId && editDoc) bindKbEditForm(editDoc)
+      else if (selectedId) loadKbDocThenRender(selectedId)
+    }
 
     // Skills panel event handlers
     var skillsList = document.getElementById('ace-skills-list')
