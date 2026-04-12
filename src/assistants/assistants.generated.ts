@@ -85,21 +85,6 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     , knowledgeBaseRefs: ["design-workshop"]
   },
   {
-    id: "dev_handoff",
-    label: "Dev Handoff",
-    intro: "I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.",
-    hoverSummary: "Generate developer specifications",
-    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "CodeIcon",
-    kind: "ai",
-    quickActions: [
-      { id: "generate-specs", label: "Generate specs", templateMessage: "Generate comprehensive developer specifications including layout, typography, colors, components, interactions, and accessibility requirements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
-      { id: "export-measurements", label: "Export measurements", templateMessage: "Export all measurements, spacing, and sizing information for the selected elements.", executionType: "llm", requiresSelection: true },
-      { id: "component-details", label: "Component details", templateMessage: "Provide detailed component specifications including variants, states, and implementation notes.", executionType: "llm", requiresSelection: true },
-    ],
-    promptTemplate: "# Dev Handoff Assistant\n\nYou are **Ableza's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.\nYou generate developer-friendly specifications, measurements, and implementation guidance from Figma designs.\n\n[Full knowledge base available in: src/assistants/devHandoff.md]"
-  },
-  {
     id: "discovery_copilot",
     label: "Discovery Copilot",
     intro: "**Welcome to Discovery Copilot!**\n\nI'll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you're solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet's begin! What are you discovering today? (e.g., \"redesigning checkout flow\", \"building a new feature\")",
@@ -178,6 +163,21 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     ],
     promptTemplate: "You are **Ableza's Design Critique Assistant**, an expert UX and UI design reviewer embedded in a Figma plugin.\n\nYour core principle: **give structured, actionable critique grounded in evidence, not opinion.**\nEvery finding must include a specific fix. Scores are earned, not rounded up.\n\n- Structure output with: overall score (1–10), top wins (what is working), critical fixes (must address), minor improvements (optional), and a one-sentence summary.\n- Every fix must be specific: name the element, describe the problem, state the exact change.\n- Reference the KB when it supplies relevant heuristics — don't invent principles.\n- For deceptive review: name the dark pattern category (from the KB), describe how it harms users, and state whether it's accidental or intentional based on visual evidence.\n- If the selection has insufficient visual context (low fidelity, placeholder content), say so explicitly before critiquing."
     , knowledgeBaseRefs: ["design-critique", "dark-deceptive-practices"]
+  },
+  {
+    id: "dev_handoff",
+    label: "Dev Handoff",
+    intro: "I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.",
+    hoverSummary: "Generate developer specifications",
+    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
+    iconId: "CodeIcon",
+    kind: "ai",
+    quickActions: [
+      { id: "generate-specs", label: "Generate specs", templateMessage: "Generate comprehensive developer specifications including layout, typography, colors, components, interactions, and accessibility requirements.", executionType: "llm", requiresSelection: true, requiresVision: true, maxImages: 1, imageScale: 2 },
+      { id: "export-measurements", label: "Export measurements", templateMessage: "Export all measurements, spacing, and sizing information for the selected elements.", executionType: "llm", requiresSelection: true },
+      { id: "component-details", label: "Component details", templateMessage: "Provide detailed component specifications including variants, states, and implementation notes.", executionType: "llm", requiresSelection: true },
+    ],
+    promptTemplate: "You are **Ableza's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.\n\nYour core principle: **output what a developer needs to implement, not what a designer sees.**\nTranslate visual decisions into implementation-ready specifications: exact values, named tokens, component states, and edge cases.\n\n- Always provide exact values: px dimensions, hex colors, font size/weight/line-height, border radii, spacing.\n- Use token names where they are visible in layer names or component names (e.g. `color/brand/primary`, `spacing/md`).\n- Flag anything ambiguous or missing: undefined hover states, missing dark mode variants, unclear interaction behavior.\n- Group output by concern: layout → typography → color → components → interactions → accessibility.\n- Do not describe what the design looks like — describe what the developer needs to produce it."
   },
   {
     id: "errors",
