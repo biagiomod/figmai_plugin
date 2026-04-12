@@ -6,7 +6,7 @@ import { LIVE_ASSISTANTS } from '../data/assistants'
 import styles from './Home.module.css'
 
 const PHILOSOPHY = [
-  { icon: '⚡', title: 'Speed without shortcuts', body: 'AI-assisted design compresses research, documentation, and ideation cycles — so your team can move faster without cutting corners.' },
+  { icon: '⚡', title: 'Speed without shortcuts', body: 'AI-assisted design compresses research, documentation, and ideation cycles, so your team can move faster without cutting corners.' },
   { icon: '🎯', title: 'Consistency at scale', body: 'From Evergreens to accessibility, every assistant is wired to your design system, standards, and taxonomy by default.' },
   { icon: '💡', title: 'Confident decisions', body: 'Better context, faster synthesis, and real-time guidance means your team ships with more confidence and less second-guessing.' },
 ]
@@ -23,7 +23,7 @@ export function Home() {
           Design moves fast.<br />
           <span className={styles.heroAccent}>Your tools should too.</span>
         </h1>
-        <p className={styles.heroSub}>Five AI assistants built for designers — wired to your system, your standards, and your workflow.</p>
+        <p className={styles.heroSub}>Five AI assistants built for designers, wired to your system, your standards, and your workflow.</p>
         <div className={styles.heroCtas}>
           <a href="#assistants" className={styles.btnPrimary}>Explore Assistants</a>
           <a href="/roadmap" className={styles.btnGhost}>View Roadmap</a>

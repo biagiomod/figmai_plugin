@@ -33,3 +33,11 @@
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.65); }
 .viewLink { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--ac-color); margin-top: auto; }
+
+@media (max-width: 768px) {
+  .section { padding: 48px 20px; }
+  .headline { font-size: 24px; }
+  .header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .actions { align-items: flex-start; width: 100%; }
+  .grid { grid-template-columns: 1fr; }
+}

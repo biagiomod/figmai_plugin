@@ -33,3 +33,16 @@
 .contactSub { font-size: 12px; color: rgba(255,255,255,0.45); }
 .contactActions { display: flex; gap: 10px; }
 .contactBtn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 12px; font-weight: 500; }
+
+@media (max-width: 768px) {
+  .hero { padding: 40px 20px 36px; }
+  .headline { font-size: 26px; }
+  .body { padding: 24px 20px; gap: 28px; }
+  .featured { flex-direction: column; align-items: flex-start; }
+  .featuredCta { align-self: stretch; justify-content: center; }
+  .grid3 { grid-template-columns: 1fr; }
+  .twoCol { grid-template-columns: 1fr; gap: 16px; }
+  .contactBar { flex-direction: column; align-items: flex-start; }
+  .contactActions { width: 100%; }
+  .contactBtn { flex: 1; text-align: center; }
+}

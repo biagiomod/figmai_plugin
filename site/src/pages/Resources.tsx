@@ -24,7 +24,7 @@ export function Resources() {
           <div className={styles.featuredIcon}><Play size={20} style={{ opacity: 0.7 }} /></div>
           <div className={styles.featuredText}>
             <div className={styles.featuredLabel}>Start here</div>
-            <div className={styles.featuredTitle}>Design AI Toolkit — Intro Video</div>
+            <div className={styles.featuredTitle}>Design AI Toolkit: Intro Video</div>
             <div className={styles.featuredDesc}>5-minute walkthrough of all five assistants, how they connect, and when to use each one.</div>
           </div>
           <a href="#" className={styles.featuredCta}><Play size={12} /> Watch now</a>

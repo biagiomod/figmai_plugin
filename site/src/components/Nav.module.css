@@ -38,3 +38,9 @@
 }
 .link:hover { color: rgba(255,255,255,0.85); }
 .active { color: #fff !important; }
+
+@media (max-width: 768px) {
+  .nav { padding: 0 20px; }
+  .links { gap: 16px; }
+  .link { font-size: 11px; }
+}

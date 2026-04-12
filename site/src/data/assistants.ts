@@ -107,7 +107,7 @@ export const ASSISTANTS: Assistant[] = [
     video: 'design-workshop.mp4',
     howToUse: [
       { number: 1, title: 'Open the plugin and select Design Workshop', description: 'Launch the Design AI Toolkit and choose the Design Workshop assistant.' },
-      { number: 2, title: 'Describe the screens you want', description: 'Type a description of the screens you need — what they are for, what content they should show, and any styling guidance.' },
+      { number: 2, title: 'Describe the screens you want', description: 'Type a description of the screens you need: what they are for, what content they should show, and any styling guidance.' },
       { number: 3, title: 'Run "Demo: Generate Screens"', description: 'Click the quick action. The assistant creates 1–5 Figma screens on your canvas based on your description.' },
       { number: 4, title: 'Review and refine', description: 'Inspect the generated frames. Continue the conversation to adjust layout, content, or styling as needed.' },
     ],

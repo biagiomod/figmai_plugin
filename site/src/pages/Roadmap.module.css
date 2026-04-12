@@ -13,3 +13,10 @@
 .colTitle { font-size: 13px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.02em; }
 .colCount { font-size: 11px; color: var(--text-muted); }
 .cards { display: flex; flex-direction: column; gap: 10px; }
+
+@media (max-width: 768px) {
+  .hero { padding: 40px 20px 36px; }
+  .headline { font-size: 26px; }
+  .body { padding: 24px 20px; }
+  .columns { grid-template-columns: 1fr; gap: 16px; }
+}

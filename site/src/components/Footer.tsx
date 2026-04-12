@@ -10,7 +10,7 @@ export function Footer() {
           <span className={styles.logoIcon}><Cpu size={13} style={{ opacity: 0.7 }} /></span>
           Design AI Toolkit
         </span>
-        <span className={styles.copy}>© {new Date().getFullYear()} — All rights reserved</span>
+        <span className={styles.copy}>© {new Date().getFullYear()}, All rights reserved</span>
       </div>
       <nav className={styles.links}>
         <NavLink to="/" className={styles.link}>Assistants</NavLink>

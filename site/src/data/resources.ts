@@ -47,7 +47,7 @@ export const RESOURCES_SECTIONS: ResourceSection[] = [
     iconName: 'wrench',
     color: '#9a5500',
     items: [
-      { title: 'Figma Plugin — Install', description: 'Install Design AI Toolkit in Figma', tag: 'External', tagColor: '#9a5500', source: 'Figma', href: '#' },
+      { title: 'Figma Plugin: Install', description: 'Install Design AI Toolkit in Figma', tag: 'External', tagColor: '#9a5500', source: 'Figma', href: '#' },
       { title: '#design-ai-toolkit Slack', description: 'Questions, feedback, announcements', tag: 'External', tagColor: '#9a5500', source: 'Slack', href: '#' },
       { title: 'Jira Project Board', description: 'Track requests, bugs, and roadmap items', tag: 'External', tagColor: '#9a5500', source: 'Jira', href: '#' },
       { title: 'GitHub Repository', description: 'Source code and contributing guide', tag: 'External', tagColor: '#9a5500', source: 'GitHub', href: '#' },
