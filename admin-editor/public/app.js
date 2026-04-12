@@ -60,7 +60,8 @@
     skillsRegistry: { skills: [] },
     selectedSkillId: null,
     selectedSkillContent: '',
-    selectedGeneralSubTab: 'plugin'   // 'plugin' | 'site'
+    selectedGeneralSubTab: 'plugin',   // 'plugin' | 'site'
+    selectedResourcesSubTab: 'shared-skills'   // 'shared-skills' | 'internal-kbs'
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
@@ -3582,6 +3583,15 @@
       })
   }
 
+  function wireResourcesSubTabBtns (panel) {
+    panel.querySelectorAll('.ace-sub-tab-btn[data-resources-subtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedResourcesSubTab = this.getAttribute('data-resources-subtab')
+        renderKnowledgeBasesTabContent()
+      }
+    })
+  }
+
   function renderKnowledgeBasesTabContent () {
     const panel = document.getElementById('panel-knowledge-bases')
     if (!panel || !state.panelKnowledgeBasesReady) return
@@ -3592,13 +3602,20 @@
     const previewDoc = state.kbPreviewDoc
     const editDoc = state.kbEditDoc
 
+    var resSubTab = state.selectedResourcesSubTab || 'shared-skills'
+
+    var subTabHtml = '<div class="ace-sub-tab-row">'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (resSubTab === 'shared-skills' ? ' active' : '') + '" data-resources-subtab="shared-skills">Shared Skills</button>'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (resSubTab === 'internal-kbs' ? ' active' : '') + '" data-resources-subtab="internal-kbs">Internal KBs</button>'
+    subTabHtml += '</div>'
+
     // Skills panel
     var skillsHtml = ''
     skillsHtml += '<div class="ace-section-header-row">'
-    skillsHtml += '<h2 class="ace-section-title">Universal Skills</h2>'
+    skillsHtml += '<h2 class="ace-section-title">Shared Skills</h2>'
     skillsHtml += '<button type="button" class="ace-section-header-btn" id="ace-skill-new-btn">New skill</button>'
     skillsHtml += '</div>'
-    skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the Assistant Skills tab.</p>'
+    skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the SKILL.md Quick Actions package box.</p>'
     var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
     if (allSkills.length === 0) {
       skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No universal skills yet. Click "New skill" to create the first one.</div>'
@@ -3666,7 +3683,7 @@
     skillsHtml += '<div id="ace-skill-new-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
     skillsHtml += '</div>'
 
-    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div>'
+    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Internal KBs</h2></div>'
     html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference resources by id.</p>'
     html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import Resource</button>'
     html += '<div class="list-panel">'
@@ -3705,14 +3722,24 @@
       html += '<div class="empty">Select a resource or click Create / Import Resource</div>'
     }
     html += '</div></div>'
-    panel.innerHTML = skillsHtml + html
 
-    document.getElementById('kb-create-btn').onclick = function () {
-      state.kbCreateMode = true
-      state.kbPreviewDoc = null
-      state.selectedKbId = null
-      state.kbEditDoc = null
-      renderKnowledgeBasesTabContent()
+    if (resSubTab === 'shared-skills') {
+      panel.innerHTML = subTabHtml + skillsHtml
+      wireResourcesSubTabBtns(panel)
+    } else {
+      panel.innerHTML = subTabHtml + html
+      wireResourcesSubTabBtns(panel)
+    }
+
+    var kbCreateBtn = document.getElementById('kb-create-btn')
+    if (kbCreateBtn) {
+      kbCreateBtn.onclick = function () {
+        state.kbCreateMode = true
+        state.kbPreviewDoc = null
+        state.selectedKbId = null
+        state.kbEditDoc = null
+        renderKnowledgeBasesTabContent()
+      }
     }
     document.querySelectorAll('#kb-list .item[data-id]').forEach(function (el) {
       const id = el.getAttribute('data-id')
