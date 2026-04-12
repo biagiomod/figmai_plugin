@@ -948,6 +948,16 @@
     return getAdvancedOrderedAssistants(assistants).map(function (a) { return a.id })
   }
 
+  // ——— Config tab helpers ———
+  function wireGeneralSubTabBtns (panel) {
+    panel.querySelectorAll('.ace-sub-tab-btn[data-general-subtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedGeneralSubTab = this.getAttribute('data-general-subtab')
+        renderConfigTab()
+      }
+    })
+  }
+
   // ——— Config tab (General Plugin Settings — card layout) ———
   function renderConfigTab () {
     const panel = document.getElementById('panel-config')
@@ -967,12 +977,7 @@
 
     if (subTab === 'site') {
       panel.innerHTML = subTabHtml + renderGeneralSitePlaceholder()
-      panel.querySelectorAll('.ace-sub-tab-btn[data-general-subtab]').forEach(function (btn) {
-        btn.onclick = function () {
-          state.selectedGeneralSubTab = this.getAttribute('data-general-subtab')
-          renderConfigTab()
-        }
-      })
+      wireGeneralSubTabBtns(panel)
       return
     }
 
@@ -1146,12 +1151,7 @@
     html += '</div>'
     panel.innerHTML = html
 
-    panel.querySelectorAll('.ace-sub-tab-btn[data-general-subtab]').forEach(function (btn) {
-      btn.onclick = function () {
-        state.selectedGeneralSubTab = this.getAttribute('data-general-subtab')
-        renderConfigTab()
-      }
-    })
+    wireGeneralSubTabBtns(panel)
 
     panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
       btn.onclick = function () {
