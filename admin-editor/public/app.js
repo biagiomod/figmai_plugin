@@ -40,7 +40,7 @@
     kbCreateMode: false,
     kbPreviewDoc: null,
     kbEditDoc: null,
-    selectedAssistantDetailTab: 'overview',
+    selectedAssistantDetailTab: 'skill-md',
     skillMdEdits: {},   // assistantId -> edited SKILL.md content (unsaved)
     playgroundActive: false,
     playgroundAssistantId: null,
@@ -2154,7 +2154,7 @@
       if (item) {
         const newId = item.getAttribute('data-id')
         if (newId !== state.selectedAssistantId) {
-          state.selectedAssistantDetailTab = 'overview'
+          state.selectedAssistantDetailTab = 'skill-md'
         }
         state.selectedAssistantId = newId
         renderAssistantsTab()
@@ -2207,31 +2207,39 @@
   }
 
   function assistantEditorHtml (a) {
-    var activeTab = state.selectedAssistantDetailTab || 'overview'
+    var activeTab = state.selectedAssistantDetailTab || 'skill-md'
     var DETAIL_TABS = [
-      { id: 'overview', label: 'Overview' },
-      { id: 'instructions', label: 'Instructions' },
-      { id: 'skills', label: 'Skills' },
+      { id: 'skill-md', label: 'SKILL.md' },
+      { id: 'identity', label: 'Identity' },
+      { id: 'site', label: 'Site', badge: 'upcoming' },
       { id: 'knowledge', label: 'Knowledge' },
-      { id: 'quick-actions', label: 'Quick Actions' }
+      { id: 'settings', label: 'Settings' }
     ]
     var html = '<div class="ae-detail-tabs">'
     DETAIL_TABS.forEach(function (t) {
       var sel = activeTab === t.id
-      html += '<button type="button" class="ae-detail-tab-btn' + (sel ? ' active' : '') + '" data-detail-tab="' + t.id + '">' + t.label + '</button>'
+      var label = t.label
+      if (t.badge === 'upcoming') label += ' <span class="ace-badge ace-badge--upcoming">Upcoming</span>'
+      html += '<button type="button" class="ae-detail-tab-btn' + (sel ? ' active' : '') + '" data-detail-tab="' + t.id + '">' + label + '</button>'
     })
     html += '</div>'
     html += '<div class="ae-detail-tab-content">'
-    if (activeTab === 'overview') html += _aeOverviewTab(a)
-    else if (activeTab === 'instructions') html += _aeInstructionsTab(a)
-    else if (activeTab === 'skills') html += _aeSkillsTab(a)
+    if (activeTab === 'skill-md') html += _aeSkillMdTab(a)
+    else if (activeTab === 'identity') html += _aeIdentityTab(a)
+    else if (activeTab === 'site') html += renderGeneralSitePlaceholder()
     else if (activeTab === 'knowledge') html += _aeKnowledgeTab(a)
-    else if (activeTab === 'quick-actions') html += _aeQuickActionsTab(a)
+    else if (activeTab === 'settings') html += _aeSettingsTab(a)
     html += '</div>'
     return html
   }
 
-  function _aeOverviewTab (a) {
+  function _aeSkillMdTab (a) {
+    // Task 3 will replace this with the full form wizard.
+    // For now: render the existing raw SKILL.md editor.
+    return _aeSkillMdPanel(a.id)
+  }
+
+  function _aeIdentityTab (a) {
     var type = _kindToType(a.kind)
     var html = ''
     // Label
@@ -2294,7 +2302,6 @@
     html += '<div class="ae-preview-card-intro">' + escapeHtml((a.intro || '').slice(0, 80)) + '</div>'
     html += '</div></div>'
     html += '<p class="ae-helper" style="margin-top:6px">This preview reflects the last-saved label, intro, type, and tag. Changes you make above appear here when you navigate away and return.</p>'
-    html += _aeSkillMdPanel(a.id)
     return html
   }
   function _getInstr (assistantId) {
@@ -2302,7 +2309,7 @@
     return state.instructionsMap[assistantId]
   }
 
-  function _aeInstructionsTab (a) {
+  function _aeSettingsTab (a) {
     var instr = _getInstr(a.id)
     var html = ''
     html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Instructions tell the <strong>plugin</strong> how to manage this assistant\'s interactions — deterministic settings read before any LLM call.</p>'
@@ -2356,13 +2363,6 @@
     html += '<p class="ae-helper">Enables image input for this assistant. Only enable if the assistant needs to process images.</p>'
     html += '</div>'
 
-    // Tone/style preset (legacy)
-    html += '<h3 class="ae-section-heading">Style preset <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
-    html += '<div class="ae-field-group">'
-    html += '<label for="ae-toneStylePreset">Tone/style preset</label>'
-    html += '<input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
-    html += '<p class="ae-helper">Optional legacy preset. Superseded by skill blocks in the Skills tab.</p>'
-    html += '</div>'
     return html
   }
   function _aeSkillsTab (a) {
@@ -2747,9 +2747,6 @@
       showUnsavedBanner()
       renderAssistantsTab()
     }
-    const toneEl = document.getElementById('ae-toneStylePreset')
-    if (toneEl) toneEl.onchange = function () { a.toneStylePreset = this.value || undefined; showUnsavedBanner() }
-    if (toneEl) toneEl.oninput = function () { a.toneStylePreset = this.value || undefined; showUnsavedBanner() }
     const schemaEl = document.getElementById('ae-outputSchemaId')
     if (schemaEl) schemaEl.onchange = function () { a.outputSchemaId = this.value || undefined; showUnsavedBanner() }
     if (schemaEl) schemaEl.oninput = function () { a.outputSchemaId = this.value || undefined; showUnsavedBanner() }
