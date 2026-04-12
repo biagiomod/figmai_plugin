@@ -164,25 +164,6 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
     , safetyOverrides: { allowImages: true }
   },
   {
-    id: "ux_copy_review",
-    label: "Content Review",
-    intro: "I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.",
-    hoverSummary: "Content guidelines specialist",
-    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
-    iconId: "SpellCheckIcon",
-    kind: "ai",
-    quickActions: [
-      { id: "review-copy", label: "Review copy", templateMessage: "Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.", executionType: "llm", requiresSelection: true },
-      { id: "tone-check", label: "Tone check", templateMessage: "Analyze the tone of the selected copy. Is it appropriate for the context and target audience?", executionType: "llm", requiresSelection: true },
-      { id: "content-suggestions", label: "Content suggestions", templateMessage: "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.", executionType: "llm" },
-      { id: "add-hat", label: "Add HAT", templateMessage: "Scan selection for elements that require HAT (accessible label) and add annotations.", executionType: "tool-only", requiresSelection: true },
-    ],
-    promptTemplate: "# Content Review Assistant\n\nYou are **Ableza's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.\nYou specialize in evaluating and improving text content for clarity, tone, user experience effectiveness, and conversion optimization.\n\n[Full knowledge base available in: src/assistants/uxCopyReview.md]"
-    , instructionBlocks: [
-      { id: "legacy-parity", kind: "system", content: "# Content Review Assistant" },
-    ]
-  },
-  {
     id: "design_critique",
     label: "Design Critique",
     intro: "I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.",
@@ -216,5 +197,21 @@ export const ASSISTANTS_MANIFEST: AssistantManifestEntry[] = [
       { id: "errors-output-check", kind: "format", content: "Check Errors: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"checkErrors\", \"version\": 1, \"result\": \"PASS\" | \"FAIL\", \"summary\": \"string\", \"items\": [ { \"severity\": \"critical\"|\"high\"|\"medium\"|\"low\", \"title\": \"string\", \"fix\": \"string\" } ] }. Cap 10 items." },
     ]
     , knowledgeBaseRefs: ["errors"]
+  },
+  {
+    id: "ux_copy_review",
+    label: "Content Review",
+    intro: "I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.",
+    hoverSummary: "Content guidelines specialist",
+    tag: { isVisible: true, label: "Alpha", variant: "alpha" },
+    iconId: "SpellCheckIcon",
+    kind: "ai",
+    quickActions: [
+      { id: "review-copy", label: "Review copy", templateMessage: "Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions.", executionType: "llm", requiresSelection: true },
+      { id: "tone-check", label: "Tone check", templateMessage: "Analyze the tone of the selected copy. Is it appropriate for the context and target audience?", executionType: "llm", requiresSelection: true },
+      { id: "content-suggestions", label: "Content suggestions", templateMessage: "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability.", executionType: "llm" },
+      { id: "add-hat", label: "Add HAT", templateMessage: "Scan selection for elements that require HAT (accessible label) and add annotations.", executionType: "tool-only", requiresSelection: true },
+    ],
+    promptTemplate: "You are **Ableza's Content Review Assistant**, an expert content strategist and UX writer embedded inside a Figma plugin.\n\nYour core principle: **copy either earns its place or it gets cut.**\nEvery word should do one job. Evaluate content for clarity, tone, and user-centered language — not grammar for its own sake.\n\n- Score copy on clarity (1–5), tone-fit (1–5), and actionability (1–5). One sentence per score explaining why.\n- For every weakness you identify, provide a rewrite or a specific change — not a vague suggestion.\n- Tone-fit is relative to context: a checkout button and a 404 page have different tone norms. Ask yourself what emotional state the user is in at that moment.\n- Flag jargon, passive voice, ambiguous labels, and missing feedback copy (empty states, error messages, confirmations) as first-priority issues.\n- For HAT (Hidden Accessible Text) annotations: scan for interactive elements without visible labels and add `[HAT: <suggested label>]` annotations."
   }
 ]
