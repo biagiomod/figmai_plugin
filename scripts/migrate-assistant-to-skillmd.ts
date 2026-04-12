@@ -136,6 +136,7 @@ function main(): void {
   console.log(`Wrote: custom/assistants/${assistantId}/manifest.json`)
 
   // 6. Build SKILL.md
+  const hadH2Headings = /^## /m.test(promptTemplate)
   const skillMdContent = buildSkillMd(assistantId, promptTemplate, entry.quickActions ?? [])
   fs.writeFileSync(skillMdPath, skillMdContent, 'utf-8')
   console.log(`Wrote: custom/assistants/${assistantId}/SKILL.md`)
@@ -162,11 +163,13 @@ function main(): void {
   console.log('  will use the per-directory files and also emit a warning for the flat entry.')
   console.log('  The warning will disappear once the flat entry is removed.')
   console.log('')
-  console.log('  NOTE: any \'## \' headings inside the original promptTemplate have been')
-  console.log('  converted to \'### \' in SKILL.md/Identity. This is structurally required —')
-  console.log('  the SKILL.md parser uses \'## \' as section boundaries. The compiled output')
-  console.log('  will reflect the ### heading levels.')
-  console.log('')
+  if (hadH2Headings) {
+    console.log('  NOTE: \'## \' headings inside the original promptTemplate have been')
+    console.log('  converted to \'### \' in SKILL.md/Identity. This is structurally required —')
+    console.log('  the SKILL.md parser uses \'## \' as section boundaries. The compiled output')
+    console.log('  will reflect the ### heading levels.')
+    console.log('')
+  }
   console.log('  NOTE: templateMessage values in manifest.json are superseded by the SKILL.md')
   console.log('  ## Quick Actions overlays. After migration, edit templateMessage only in')
   console.log('  SKILL.md.')
