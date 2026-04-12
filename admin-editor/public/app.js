@@ -42,6 +42,7 @@
     kbEditDoc: null,
     selectedAssistantDetailTab: 'skill-md',
     skillMdEdits: {},   // assistantId -> edited SKILL.md content (unsaved)
+    skillMdMode: {},    // assistantId -> 'form' | 'raw'
     playgroundActive: false,
     playgroundAssistantId: null,
     playgroundActionId: null,
@@ -2234,9 +2235,96 @@
   }
 
   function _aeSkillMdTab (a) {
-    // Task 3 will replace this with the full form wizard.
-    // For now: render the existing raw SKILL.md editor.
-    return _aeSkillMdPanel(a.id)
+    var mode = (state.skillMdMode && state.skillMdMode[a.id]) || 'form'
+    var content = state.skillMdEdits[a.id] || ''
+
+    var html = ''
+    // Toggle header
+    html += '<div class="ae-skillmd-header">'
+    html += '<span class="ae-helper" style="flex:1">Primary behavior editor. Changes are saved with the assistant\'s manifest.</span>'
+    html += '<div class="ae-toggle-pill">'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-skillmd-mode="form" data-aid="' + escapeHtml(a.id) + '">Form</button>'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-skillmd-mode="raw" data-aid="' + escapeHtml(a.id) + '">Raw</button>'
+    html += '</div>'
+    html += '</div>'
+
+    if (mode === 'raw') {
+      if (!content) {
+        html += '<div class="ae-helper" style="margin-bottom:12px">No SKILL.md found for this assistant. Run <code>npx tsx scripts/migrate-assistant-to-skillmd.ts ' + escapeHtml(a.id) + '</code> to scaffold the files.</div>'
+      } else {
+        html += '<textarea class="ace-field ace-textarea ace-skillmd-editor" data-assistant-id="' + escapeHtml(a.id) + '" rows="24" style="font-family:monospace;font-size:13px;white-space:pre;">' + escapeHtml(content) + '</textarea>'
+      }
+      return html
+    }
+
+    // Form wizard
+    if (!content) {
+      html += '<div class="ae-helper" style="margin-bottom:12px">No SKILL.md found. Switch to Raw to create one, or run the migration script.</div>'
+      return html
+    }
+
+    var fields = _parseSkillMd(content)
+
+    // Identity section
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Identity</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-sm-name">Assistant Name</label>'
+    html += '<p class="ae-helper">Appears as "You are Design AI Toolkit\'s <strong>X</strong> Assistant"</p>'
+    html += '<input type="text" id="ae-sm-name" class="ace-field ae-skillmd-field" data-field="assistantName" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(fields.assistantName) + '">'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-sm-cp">Core Principle</label>'
+    html += '<p class="ae-helper">One sentence shown in bold — the non-negotiable guiding value.</p>'
+    html += '<input type="text" id="ae-sm-cp" class="ace-field ae-skillmd-field" data-field="corePrinciple" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(fields.corePrinciple) + '">'
+    html += '</div>'
+    html += '<div class="ae-skillmd-identity-preview">'
+    html += 'You are <strong>Design AI Toolkit\'s ' + escapeHtml(fields.assistantName || '…') + ' Assistant</strong>, an expert embedded inside a Figma plugin.<br>'
+    html += 'Your core principle: <strong>' + escapeHtml(fields.corePrinciple || '…') + '</strong>'
+    html += '</div>'
+
+    // Behavior Rules
+    html += '<h3 class="ae-section-heading">Behavior Rules</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:8px">Each rule is a bullet in the Behavior section. Order matters — highest priority first.</p>'
+    html += '<ul class="ae-skillmd-rules-list" id="ae-sm-rules-' + escapeHtml(a.id) + '" data-aid="' + escapeHtml(a.id) + '">'
+    fields.behaviorRules.forEach(function (rule, idx) {
+      html += '<li class="ae-skillmd-rule-row" data-idx="' + idx + '">'
+      html += '<span class="ae-drag-handle">⠿</span>'
+      html += '<input type="text" class="ace-field ae-sm-rule-input" data-idx="' + idx + '" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(rule) + '">'
+      html += '<button type="button" class="btn-small ae-sm-rule-remove" data-idx="' + idx + '" data-aid="' + escapeHtml(a.id) + '">✕</button>'
+      html += '</li>'
+    })
+    html += '</ul>'
+    html += '<button type="button" class="btn-small add-btn ae-sm-rule-add" data-aid="' + escapeHtml(a.id) + '">+ Add behavior rule</button>'
+
+    // Quick Actions
+    html += '<h3 class="ae-section-heading">Quick Actions</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:8px">Each action is a button in the plugin. Expanding shows what gets sent to the LLM.</p>'
+    if (fields.quickActions.length === 0) {
+      html += '<div class="ae-empty-state">No quick actions defined. Add one below.</div>'
+    } else {
+      fields.quickActions.forEach(function (qa, qidx) {
+        html += '<div class="ae-qa-accordion" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">'
+        html += '<div class="ae-qa-header">'
+        html += '<strong>' + escapeHtml(qa.id) + '</strong>'
+        html += '<button type="button" class="btn-small ae-qa-toggle" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">Expand ▾</button>'
+        html += '</div>'
+        html += '<div class="ae-qa-body" style="display:none">'
+        html += '<div class="ae-field-group"><label>Template Message</label>'
+        html += '<p class="ae-helper">Pre-filled message sent when the user clicks this action.</p>'
+        html += '<textarea class="ace-field ae-sm-qa-tmpl" rows="3" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">' + escapeHtml(qa.templateMessage) + '</textarea>'
+        html += '</div>'
+        html += '<div class="ae-field-group"><label>Guidance</label>'
+        html += '<p class="ae-helper">System-level instruction injected alongside the message.</p>'
+        html += '<textarea class="ace-field ae-sm-qa-guidance" rows="3" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">' + escapeHtml(qa.guidance) + '</textarea>'
+        html += '</div>'
+        html += '<button type="button" class="btn-small ae-sm-qa-remove" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">Remove action</button>'
+        html += '</div>'
+        html += '</div>'
+      })
+    }
+    html += '<button type="button" class="btn-small add-btn ae-sm-qa-add" data-aid="' + escapeHtml(a.id) + '">+ Add quick action</button>'
+
+    return html
   }
 
   function _aeIdentityTab (a) {
@@ -2505,6 +2593,122 @@
     html += '</div>'
     return html
   }
+
+  function _parseSkillMd (content) {
+    // Returns { assistantName, corePrinciple, behaviorRules: string[], quickActions: QA[] }
+    // QA = { id: string, templateMessage: string, guidance: string }
+    var result = { assistantName: '', corePrinciple: '', behaviorRules: [], quickActions: [] }
+    if (!content) return result
+    var lines = content.split('\n')
+    var section = null
+    var currentQa = null
+    var yamlCount = 0
+    var yamlEnd = false
+    var i = 0
+
+    // Skip YAML frontmatter
+    while (i < lines.length) {
+      if (lines[i].trim() === '---') {
+        yamlCount++
+        i++
+        if (yamlCount === 2) { yamlEnd = true; break }
+      } else {
+        i++
+      }
+    }
+    if (!yamlEnd) i = 0
+
+    for (; i < lines.length; i++) {
+      var line = lines[i]
+      if (/^## Identity/i.test(line)) { section = 'identity'; continue }
+      if (/^## Behavior/i.test(line)) { section = 'behavior'; currentQa = null; continue }
+      if (/^## Quick Actions/i.test(line)) { section = 'quick-actions'; currentQa = null; continue }
+      if (/^## /i.test(line)) { section = 'other'; currentQa = null; continue }
+
+      if (section === 'identity') {
+        var nameMatch = line.match(/You are \*\*[^']*'s\s+(.+?)\*\*/)
+        if (nameMatch) result.assistantName = nameMatch[1].replace(/\s*Assistant\s*$/i, '').trim()
+        var cpMatch = line.match(/Your core principle:\s*\*\*(.+?)\*\*/)
+        if (cpMatch) result.corePrinciple = cpMatch[1].trim()
+      }
+
+      if (section === 'behavior') {
+        var ruleMatch = line.match(/^-\s+(.+)/)
+        if (ruleMatch) result.behaviorRules.push(ruleMatch[1].trim())
+      }
+
+      if (section === 'quick-actions') {
+        var qaHeader = line.match(/^###\s+(.+)/)
+        if (qaHeader) {
+          currentQa = { id: qaHeader[1].trim(), templateMessage: '', guidance: '' }
+          result.quickActions.push(currentQa)
+          continue
+        }
+        if (currentQa) {
+          if (/^templateMessage:\s*\|/.test(line)) {
+            var tm = []; i++
+            while (i < lines.length && /^\s{2,}/.test(lines[i])) { tm.push(lines[i].replace(/^\s{2}/, '')); i++ }
+            currentQa.templateMessage = tm.join('\n').trim(); i--
+          } else if (/^guidance:\s*\|/.test(line)) {
+            var gd = []; i++
+            while (i < lines.length && /^\s{2,}/.test(lines[i])) { gd.push(lines[i].replace(/^\s{2}/, '')); i++ }
+            currentQa.guidance = gd.join('\n').trim(); i--
+          }
+        }
+      }
+    }
+    return result
+  }
+
+  function _serializeSkillMd (assistantId, fields) {
+    // fields = { assistantName, corePrinciple, behaviorRules: string[], quickActions: QA[] }
+    var lines = []
+    lines.push('---')
+    lines.push('skillVersion: 1')
+    lines.push('id: ' + assistantId)
+    lines.push('---')
+    lines.push('')
+    lines.push('## Identity')
+    lines.push('')
+    lines.push("You are **Design AI Toolkit's " + fields.assistantName + " Assistant**, an expert embedded inside a Figma plugin.")
+    lines.push('')
+    lines.push('Your core principle: **' + fields.corePrinciple + '**')
+    lines.push('')
+    if (fields.behaviorRules && fields.behaviorRules.length > 0) {
+      lines.push('## Behavior')
+      lines.push('')
+      fields.behaviorRules.forEach(function (rule) {
+        lines.push('- ' + rule)
+      })
+      lines.push('')
+    }
+    if (fields.quickActions && fields.quickActions.length > 0) {
+      lines.push('## Quick Actions')
+      lines.push('')
+      fields.quickActions.forEach(function (qa) {
+        lines.push('### ' + qa.id)
+        lines.push('')
+        if (qa.templateMessage) {
+          lines.push('templateMessage: |')
+          qa.templateMessage.split('\n').forEach(function (l) { lines.push('  ' + l) })
+          lines.push('')
+        }
+        if (qa.guidance) {
+          lines.push('guidance: |')
+          qa.guidance.split('\n').forEach(function (l) { lines.push('  ' + l) })
+          lines.push('')
+        }
+      })
+    }
+    return lines.join('\n')
+  }
+
+  function _updateSkillMdPreview (aid, fields) {
+    var preview = document.querySelector('.ae-skillmd-identity-preview')
+    if (!preview) return
+    preview.innerHTML = 'You are <strong>Design AI Toolkit\'s ' + escapeHtml(fields.assistantName || '…') + ' Assistant</strong>, an expert embedded inside a Figma plugin.<br>Your core principle: <strong>' + escapeHtml(fields.corePrinciple || '…') + '</strong>'
+  }
+
   function _aeKnowledgeTab (a) {
     var html = ''
     // LLM-native KB
@@ -3093,7 +3297,20 @@
       }
     }
 
-    // SKILL.md textarea handler
+    // SKILL.md form wizard handlers
+
+    // Form/Raw toggle
+    document.querySelectorAll('.ae-toggle-btn[data-skillmd-mode]').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-aid')
+        var mode = this.getAttribute('data-skillmd-mode')
+        if (!state.skillMdMode) state.skillMdMode = {}
+        state.skillMdMode[aid] = mode
+        renderAssistantsTab()
+      }
+    })
+
+    // Raw textarea handler
     var skillMdEl = document.querySelector('.ace-skillmd-editor')
     if (skillMdEl) {
       var skillMdHandler = function () {
@@ -3108,6 +3325,161 @@
       skillMdEl.onchange = skillMdHandler
       skillMdEl.oninput = skillMdHandler
     }
+
+    // Identity/CP field input
+    document.querySelectorAll('.ae-skillmd-field').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var field = this.getAttribute('data-field')
+        if (!aid || !field) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields[field] = this.value
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+        _updateSkillMdPreview(aid, fields)
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
+    // Rule input
+    document.querySelectorAll('.ae-sm-rule-input').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var idx = parseInt(this.getAttribute('data-idx'), 10)
+        if (!aid || isNaN(idx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.behaviorRules[idx] = this.value
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+        _updateSkillMdPreview(aid, fields)
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
+    // Rule remove
+    document.querySelectorAll('.ae-sm-rule-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-aid')
+        var idx = parseInt(this.getAttribute('data-idx'), 10)
+        if (!aid || isNaN(idx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.behaviorRules.splice(idx, 1)
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+        renderAssistantsTab()
+      }
+    })
+
+    // Rule add
+    document.querySelectorAll('.ae-sm-rule-add').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-aid')
+        if (!aid) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.behaviorRules.push('')
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+        renderAssistantsTab()
+      }
+    })
+
+    // QA accordion toggle
+    document.querySelectorAll('.ae-qa-toggle').forEach(function (btn) {
+      btn.onclick = function () {
+        var accordion = this.closest('.ae-qa-accordion')
+        if (!accordion) return
+        var body = accordion.querySelector('.ae-qa-body')
+        if (!body) return
+        var isHidden = body.style.display === 'none' || body.style.display === ''
+        body.style.display = isHidden ? 'block' : 'none'
+        this.textContent = isHidden ? 'Collapse ▴' : 'Expand ▾'
+      }
+    })
+
+    // QA template message input
+    document.querySelectorAll('.ae-sm-qa-tmpl').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var qidx = parseInt(this.getAttribute('data-qidx'), 10)
+        if (!aid || isNaN(qidx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        if (!fields.quickActions[qidx]) return
+        fields.quickActions[qidx].templateMessage = this.value
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
+    // QA guidance input
+    document.querySelectorAll('.ae-sm-qa-guidance').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var qidx = parseInt(this.getAttribute('data-qidx'), 10)
+        if (!aid || isNaN(qidx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        if (!fields.quickActions[qidx]) return
+        fields.quickActions[qidx].guidance = this.value
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
+    // QA remove
+    document.querySelectorAll('.ae-sm-qa-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-aid')
+        var qidx = parseInt(this.getAttribute('data-qidx'), 10)
+        if (!aid || isNaN(qidx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.quickActions.splice(qidx, 1)
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+        renderAssistantsTab()
+      }
+    })
+
+    // QA add
+    document.querySelectorAll('.ae-sm-qa-add').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-aid')
+        if (!aid) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.quickActions.push({ id: 'action-' + (fields.quickActions.length + 1), templateMessage: '', guidance: '' })
+        var newContent = _serializeSkillMd(aid, fields)
+        state.skillMdEdits[aid] = newContent
+        if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+        state.editedModel.skillMdContent[aid] = newContent
+        showUnsavedBanner()
+        renderAssistantsTab()
+      }
+    })
   }
 
   // ——— Knowledge tab ———
