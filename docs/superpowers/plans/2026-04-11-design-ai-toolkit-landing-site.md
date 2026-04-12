@@ -1726,7 +1726,7 @@ export function StrikeTeamProfile({ teamName, strikeTeam }: Props) {
                 <div key={s.role} className={styles.slotRow}>
                   <div className={styles.slotInfo}>
                     <div className={styles.slotRole}>{s.role}</div>
-                    <div className={styles.slotDesc}>{s.desc ?? s.description}</div>
+                    <div className={styles.slotDesc}>{s.description}</div>
                   </div>
                   <a href={s.applyHref} className={styles.applyLink}>+ Apply</a>
                 </div>
