@@ -2011,8 +2011,7 @@ textarea.ace-field.large {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
-  color: var(--ace-text-muted);
-  opacity: 0.8;
+  color: rgba(255,255,255,0.65);
 }
 .ace-nav-profile-widget-body {
   display: flex;
@@ -2025,7 +2024,7 @@ textarea.ace-field.large {
 .ace-nav-profile-widget-name {
   font-weight: var(--ace-font-weight-semibold);
   font-size: var(--ace-font-size-14);
-  color: var(--ace-text);
+  color: rgba(255,255,255,0.9);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
