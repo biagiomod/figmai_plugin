@@ -793,7 +793,7 @@ app.post('/api/save', requireAuth(dataDir), requireRoleValidateSave, (req, res) 
 })
 
 // Fixture catalog — metadata only, no image data
-app.get('/api/fixtures', requireAuth(dataDir), (req, res) => {
+app.get('/api/fixtures', requireAuth(dataDir), requireRoleValidateSave, (req, res) => {
   try {
     const catalog = loadFixtureCatalog(fixturesDir)
     res.json({ fixtures: catalog })
@@ -803,7 +803,7 @@ app.get('/api/fixtures', requireAuth(dataDir), (req, res) => {
 })
 
 // Fixture images — base64 data URLs for a specific fixture
-app.get('/api/fixtures/:id/images', requireAuth(dataDir), (req, res) => {
+app.get('/api/fixtures/:id/images', requireAuth(dataDir), requireRoleValidateSave, (req, res) => {
   const id = req.params.id
   const catalog = loadFixtureCatalog(fixturesDir)
   const fixture = catalog.find((f: FixtureMeta) => f.id === id)
