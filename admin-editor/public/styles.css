@@ -751,19 +751,19 @@ body {
 .ace-topbar-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-family: var(--font-label);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 6px 14px;
+  padding: 4px 10px;
   border-radius: var(--ace-radius-sm);
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.ace-topbar-btn svg { width: 13px; height: 13px; stroke-width: 2; }
+.ace-topbar-btn svg { width: 11px; height: 11px; stroke-width: 2; }
 .ace-topbar-btn--ghost {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
@@ -1231,14 +1231,15 @@ textarea.ace-field.large {
   text-transform: uppercase;
   padding: var(--ace-space-8) var(--ace-space-16);
   min-height: 40px;
-  border: 1px solid #333;
+  border: none;
+  border-right: 1px solid var(--ace-border);
   background: var(--ace-surface);
   color: var(--ace-text);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
 .ace-segmented-btn:last-child {
-  border-left: none;
+  border-right: none;
 }
 .ace-segmented-btn:hover:not(.is-active):not(:disabled) {
   background: var(--ace-sidebar-bg);
@@ -1246,7 +1247,6 @@ textarea.ace-field.large {
 .ace-segmented-btn.is-active {
   background: var(--ace-accent);
   color: #fff;
-  border-color: #333;
 }
 .ace-segmented-btn:focus-visible {
   outline: 2px solid var(--ace-accent);
@@ -1629,10 +1629,21 @@ textarea.ace-field.large {
 .ace-resource-links-card .ace-resource-link-row .ace-field-label {
   margin-bottom: var(--ace-space-8);
 }
-.ace-resource-links-card .ace-resource-link-row .ace-text-input {
-  margin-bottom: var(--ace-space-12);
+.ace-resource-link-fields {
+  display: flex;
+  gap: var(--ace-space-8);
+  align-items: flex-start;
 }
-.ace-resource-links-card .ace-resource-link-row .ace-text-input:last-of-type {
+.ace-resource-link-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ace-resource-link-field--label { flex: 3 1 0; }
+.ace-resource-link-field--url { flex: 7 1 0; }
+.ace-resource-link-field .ace-text-input {
+  width: 100%;
+  max-width: none;
   margin-bottom: 0;
 }
 .ace-resource-links-card input:focus-visible {
