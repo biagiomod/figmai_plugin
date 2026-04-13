@@ -2257,15 +2257,39 @@
         }).map(function (seg) {
           return { label: seg.label, content: state.playgroundEditCopy ? (state.playgroundEditCopy[seg.key] || seg.content) : seg.content }
         })
+
+        var testMode = state.playgroundTestMode || 'no-selection'
         state.playgroundFiring = true
         renderPlayground()
+
         try {
           var body = {
             assistantId: a.id,
             message: effectiveMessage,
             skillSegments: activeSegments,
-            kbName: effectiveKb || undefined
+            kbName: effectiveKb || undefined,
+            testMode: testMode
           }
+
+          // Attach selectionSummary for selection and vision modes
+          if (testMode === 'selection' || testMode === 'vision') {
+            body.selectionSummary = state.playgroundSelectionSummary || ''
+          }
+
+          // For vision mode, fetch base64 images from server before sending
+          if (testMode === 'vision' && state.playgroundFixtureId) {
+            try {
+              var imgResp = await _apiFetch(API_BASE + '/api/fixtures/' + encodeURIComponent(state.playgroundFixtureId) + '/images')
+              if (imgResp.ok) {
+                var imgData = await imgResp.json()
+                body.images = imgData.images || []
+              }
+            } catch (imgErr) {
+              console.warn('[ACE] Failed to load fixture images:', imgErr)
+              body.images = []
+            }
+          }
+
           var r = await _apiFetch(API_BASE + '/api/test/assistant', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2275,9 +2299,10 @@
           var data = await r.json()
           state.playgroundResult = data
           var qaLabel = selectedQa ? selectedQa.label : '(direct message)'
+          var modeLabel = testMode !== 'no-selection' ? ' [' + testMode + ']' : ''
           state.playgroundSessionHistory.push({
             timestamp: new Date().toLocaleTimeString(),
-            summary: qaLabel + ' \u2014 ' + (data.success ? 'OK' : 'Error') + ' \u2014 ' + (data.latencyMs || '?') + 'ms \u2014 ' + (data.response || '').slice(0, 60)
+            summary: qaLabel + modeLabel + ' \u2014 ' + (data.success ? 'OK' : 'Error') + ' \u2014 ' + (data.latencyMs || '?') + 'ms \u2014 ' + (data.response || '').slice(0, 60)
           })
         } catch (err) {
           state.playgroundResult = { error: err.message }
