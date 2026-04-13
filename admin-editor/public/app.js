@@ -1160,17 +1160,21 @@
           var arr = Array.isArray(creditsData[groupKey]) ? creditsData[groupKey].slice() : []
           while (arr.length < 3) arr.push({ label: '', url: '' })
           arr = arr.slice(0, 3)
-          o += '<div class="ace-credits-subsection" data-credits-group="' + escapeHtml(groupKey) + '">'
+          o += '<div class="ace-credits-group" data-credits-group="' + escapeHtml(groupKey) + '">'
+          o += '<p class="ace-credits-group-label">' + escapeHtml(groupLabel) + '</p>'
+          o += '<div class="ace-resource-link-header">'
+          o += '<span class="ace-resource-link-num" aria-hidden="true"></span>'
+          o += '<span class="ace-resource-link-col ace-resource-link-col--label">Label</span>'
+          o += '<span class="ace-resource-link-col ace-resource-link-col--url">URL</span>'
+          o += '</div>'
           for (var slot = 0; slot < 3; slot++) {
             var entry = arr[slot] && typeof arr[slot] === 'object' ? arr[slot] : { label: '', url: '' }
             var slotLabel = typeof entry.label === 'string' ? entry.label : ''
             var slotUrl = typeof entry.url === 'string' ? entry.url : ''
-            o += '<div class="ace-credits-slot">'
-            o += '<h5 class="ace-credits-slot-title">' + escapeHtml(groupLabel) + ' Slot ' + (slot + 1) + '</h5>'
-            o += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-field-label">Label</label>'
-            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(slotLabel) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
-            o += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-field-label">URL</label>'
-            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(slotUrl) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '<div class="ace-resource-link-row" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '<span class="ace-resource-link-num" aria-hidden="true">' + (slot + 1) + '</span>'
+            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-text-input ace-resource-link-input--label" aria-label="' + escapeHtml(groupLabel) + ' slot ' + (slot + 1) + ' label" placeholder="Label" value="' + escapeHtml(slotLabel) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-text-input ace-resource-link-input--url" aria-label="' + escapeHtml(groupLabel) + ' slot ' + (slot + 1) + ' URL" placeholder="https://..." value="' + escapeHtml(slotUrl) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
             o += '</div>'
           }
           o += '</div>'

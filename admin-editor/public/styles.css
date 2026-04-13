@@ -1662,39 +1662,25 @@ textarea.ace-field.large {
   outline-offset: 2px;
 }
 
-/* Credits card (p4 style: subsection spacing, slot layout) */
-.ace-credits-card .ace-credits-subsection {
-  margin-top: var(--ace-space-24);
-  padding-top: var(--ace-space-24);
+/* Credits card — flat compact rows, same pattern as resource links */
+.ace-credits-group {
+  margin-top: var(--ace-space-16);
+  padding-top: var(--ace-space-16);
   border-top: 1px solid var(--ace-border);
 }
-.ace-credits-card .ace-credits-subsection:first-of-type {
+.ace-credits-group:first-child {
   margin-top: 0;
   padding-top: 0;
   border-top: none;
 }
-/* Between slots: larger gap so each slot reads as a chunk */
-.ace-credits-card .ace-credits-slot {
-  margin-bottom: var(--ace-space-32);
-}
-.ace-credits-card .ace-credits-slot:last-child {
-  margin-bottom: 0;
-}
-.ace-credits-slot-title {
-  font-size: var(--ace-font-size-14);
-  font-weight: var(--ace-font-weight-semibold);
+.ace-credits-group-label {
+  font-family: var(--font-label);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--ace-text);
-  margin: 0 0 var(--ace-space-8) 0;
-}
-/* Within slot: tight grouping for Label + URL pair */
-.ace-credits-card .ace-credits-slot .ace-field-label {
-  margin-bottom: 6px;
-}
-.ace-credits-card .ace-credits-slot .ace-text-input {
-  margin-bottom: 6px;
-}
-.ace-credits-card .ace-credits-slot .ace-text-input:last-of-type {
-  margin-bottom: 0;
+  margin: 0 0 4px 0;
 }
 .ace-credits-card input:focus-visible {
   outline: 2px solid var(--ace-accent);
