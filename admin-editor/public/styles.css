@@ -1624,6 +1624,7 @@ textarea.ace-field.large {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ace-text-muted);
+  padding-left: var(--ace-space-12);
 }
 .ace-resource-link-col--label { flex: 3 1 0; }
 .ace-resource-link-col--url { flex: 7 1 0; }
