@@ -1582,7 +1582,7 @@
     html += '</div>'
     html += '<div class="ace-card ace-test-panel" style="margin-top:16px">'
     html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px">Connection Test</div>'
-    html += '<p class="ace-card-helper" style="margin-bottom:10px">Test connectivity using the current (unsaved) AI settings above. No changes are saved before testing.</p>'
+    html += '<p class="ace-card-helper" style="margin-bottom:10px;margin-left:0">Test connectivity using the current (unsaved) AI settings above. No changes are saved before testing.</p>'
     html += '<button type="button" class="btn-primary" id="ace-test-connection-btn">Test Connection</button>'
     html += '<div id="ace-test-connection-result" role="status" aria-live="polite" style="margin-top:10px"></div>'
     html += '</div>'
