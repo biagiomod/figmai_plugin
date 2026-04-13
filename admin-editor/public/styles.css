@@ -1609,42 +1609,50 @@ textarea.ace-field.large {
 .ace-llm-endpoint-card .ace-checkbox-row { margin-top: var(--ace-space-8); }
 .ace-llm-endpoint-card .ace-checkbox-row input:disabled + .ace-checkbox-label { color: var(--ace-text-muted); }
 
-/* Resource Links card (ACE_General_p3_style.json) */
-.ace-resource-links-card .ace-resource-link-row {
-  margin-top: var(--ace-space-16);
-  padding-top: var(--ace-space-16);
-  border-top: 1px solid var(--ace-border);
-}
-.ace-resource-links-card .ace-resource-link-row:first-of-type {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
-}
-.ace-resource-link-row-title {
-  font-size: var(--ace-font-size-14);
-  font-weight: var(--ace-font-weight-semibold);
-  color: var(--ace-text);
-  margin: 0 0 var(--ace-space-8) 0;
-}
-.ace-resource-links-card .ace-resource-link-row .ace-field-label {
-  margin-bottom: var(--ace-space-8);
-}
-.ace-resource-link-fields {
+/* Resource Links card — flat compact rows with single column header */
+.ace-resource-link-header {
   display: flex;
+  align-items: center;
   gap: var(--ace-space-8);
-  align-items: flex-start;
+  margin-bottom: 4px;
+  margin-top: var(--ace-space-12);
 }
-.ace-resource-link-field {
+.ace-resource-link-col {
+  font-family: var(--font-label);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ace-text-muted);
+}
+.ace-resource-link-col--label { flex: 3 1 0; }
+.ace-resource-link-col--url { flex: 7 1 0; }
+.ace-resource-links-card .ace-resource-link-row {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
+  align-items: center;
+  gap: var(--ace-space-8);
+  margin-top: 6px;
 }
-.ace-resource-link-field--label { flex: 3 1 0; }
-.ace-resource-link-field--url { flex: 7 1 0; }
-.ace-resource-link-field .ace-text-input {
-  width: 100%;
+.ace-resource-link-num {
+  width: 22px;
+  flex-shrink: 0;
+  text-align: center;
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ace-text-muted);
+  opacity: 0.5;
+  user-select: none;
+}
+.ace-resource-link-input--label {
+  flex: 3 1 0;
+  min-width: 0;
   max-width: none;
-  margin-bottom: 0;
+}
+.ace-resource-link-input--url {
+  flex: 7 1 0;
+  min-width: 0;
+  max-width: none;
 }
 .ace-resource-links-card input:focus-visible {
   outline: 2px solid var(--ace-accent);

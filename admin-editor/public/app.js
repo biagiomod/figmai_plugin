@@ -1120,6 +1120,11 @@
     html += collapsibleSection('resource-links', 'Resource Links',
       '<div class="ace-card ace-resource-links-card">' +
       '<p class="ace-card-subtext">Include helpful links in the Resources &amp; Credits section. Leave fields blank to hide button.</p>' +
+      '<div class="ace-resource-link-header">' +
+      '<span class="ace-resource-link-num" aria-hidden="true"></span>' +
+      '<span class="ace-resource-link-col ace-resource-link-col--label">Label</span>' +
+      '<span class="ace-resource-link-col ace-resource-link-col--url">URL</span>' +
+      '</div>' +
       (function () {
         var o = ''
         for (var r = 0; r < RESOURCE_LINK_KEYS.length; r++) {
@@ -1127,18 +1132,11 @@
           var linkEntry = resourcesLinks[linkKey] || {}
           var linkLabel = (typeof linkEntry.label === 'string' ? linkEntry.label : '') || ''
           var linkUrl = (typeof linkEntry.url === 'string' ? linkEntry.url : '') || ''
+          var btnNum = r + 1
           o += '<div class="ace-resource-link-row" data-link-key="' + escapeHtml(linkKey) + '">'
-          o += '<h4 class="ace-resource-link-row-title">' + escapeHtml(RESOURCE_LINK_BUTTON_LABELS[r]) + '</h4>'
-          o += '<div class="ace-resource-link-fields">'
-          o += '<div class="ace-resource-link-field ace-resource-link-field--label">'
-          o += '<label for="config-resources-links-' + linkKey + '-label" class="ace-field-label">Label</label>'
-          o += '<input type="text" id="config-resources-links-' + linkKey + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(linkLabel) + '" data-link-key="' + escapeHtml(linkKey) + '">'
-          o += '</div>'
-          o += '<div class="ace-resource-link-field ace-resource-link-field--url">'
-          o += '<label for="config-resources-links-' + linkKey + '-url" class="ace-field-label">URL</label>'
-          o += '<input type="text" id="config-resources-links-' + linkKey + '-url" class="ace-text-input ace-field" placeholder="https://..." value="' + escapeHtml(linkUrl) + '" data-link-key="' + escapeHtml(linkKey) + '">'
-          o += '</div>'
-          o += '</div>'
+          o += '<span class="ace-resource-link-num" aria-hidden="true">' + btnNum + '</span>'
+          o += '<input type="text" id="config-resources-links-' + linkKey + '-label" class="ace-text-input ace-resource-link-input--label" aria-label="Button ' + btnNum + ' label" placeholder="Label" value="' + escapeHtml(linkLabel) + '" data-link-key="' + escapeHtml(linkKey) + '">'
+          o += '<input type="text" id="config-resources-links-' + linkKey + '-url" class="ace-text-input ace-resource-link-input--url" aria-label="Button ' + btnNum + ' URL" placeholder="https://..." value="' + escapeHtml(linkUrl) + '" data-link-key="' + escapeHtml(linkKey) + '">'
           o += '</div>'
         }
         return o
