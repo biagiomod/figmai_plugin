@@ -2465,119 +2465,6 @@
 
     return html
   }
-  // Dead code — superseded by _aeSkillMdTab (Task 3). Remove after Task 3 ships.
-  function _aeSkillsTab (a) {
-    var html = ''
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Skills tell the <strong>LLM</strong> what to do and how to behave. Each skill block is a segment of the assembled prompt.</p>'
-    // Universal Skills placeholder
-    html += '<h3 class="ae-section-heading">Universal skills</h3>'
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Shared skills from the Resources tab. Required skills are always included; optional skills can be toggled per assistant.</p>'
-    var instr = _getInstr(a.id)
-    var uSkills = instr.universalSkills || { required: [], optional: [] }
-    var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
-    if (allSkills.length === 0) {
-      html += '<div class="ae-empty-state">No universal skills defined yet. Create skills in the Resources tab first.</div>'
-    } else {
-      var requiredIds = uSkills.required || []
-      var optionalIds = uSkills.optional || []
-      var attachedIds = new Set(requiredIds.concat(optionalIds))
-      // Required skills (locked — always included)
-      if (requiredIds.length > 0) {
-        html += '<div style="margin-bottom:var(--ace-space-8)">'
-        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Required (always included)</p>'
-        requiredIds.forEach(function (id) {
-          var skill = allSkills.find(function (s) { return s.id === id })
-          var title = skill ? skill.title : id
-          var kind = skill ? skill.kind : ''
-          html += '<div class="ae-universal-skill-row">'
-          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
-          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
-          html += '<span style="margin-left:auto;font-size:11px;color:var(--ace-text-muted)">&#128274; required</span>'
-          html += '<button type="button" class="btn-small ae-univ-skill-remove-required" data-id="' + escapeHtml(id) + '">Remove</button>'
-          html += '</div>'
-        })
-        html += '</div>'
-      }
-      // Optional skills (toggleable)
-      if (optionalIds.length > 0) {
-        html += '<div style="margin-bottom:var(--ace-space-8)">'
-        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Optional</p>'
-        optionalIds.forEach(function (id) {
-          var skill = allSkills.find(function (s) { return s.id === id })
-          var title = skill ? skill.title : id
-          var kind = skill ? skill.kind : ''
-          html += '<div class="ae-universal-skill-row">'
-          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
-          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
-          html += '<button type="button" class="btn-small ae-univ-skill-make-required" data-id="' + escapeHtml(id) + '">Make required</button>'
-          html += '<button type="button" class="btn-small ae-univ-skill-remove-optional" data-id="' + escapeHtml(id) + '">Remove</button>'
-          html += '</div>'
-        })
-        html += '</div>'
-      }
-      // Attach from remaining skills
-      var unattached = allSkills.filter(function (s) { return !attachedIds.has(s.id) })
-      if (unattached.length > 0) {
-        html += '<div class="ae-field-group">'
-        html += '<label for="ae-univ-skill-picker">Attach a skill</label>'
-        html += '<div style="display:flex;gap:var(--ace-space-8);align-items:center">'
-        html += '<select id="ae-univ-skill-picker" class="ace-field" style="flex:1">'
-        html += '<option value="">— select a skill —</option>'
-        unattached.forEach(function (s) {
-          html += '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.title) + ' (' + escapeHtml(s.kind) + ')</option>'
-        })
-        html += '</select>'
-        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-optional">Add optional</button>'
-        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-required">Add required</button>'
-        html += '</div>'
-        html += '</div>'
-      }
-    }
-    // Assistant Skills
-    html += '<h3 class="ae-section-heading">Assistant skills</h3>'
-    var blocks = a.instructionBlocks || []
-    var BLOCK_KINDS = ['system', 'behavior', 'rules', 'examples', 'format', 'context']
-    var KIND_HELPERS = {
-      system: 'Sets the assistant\'s core identity and purpose. Usually one block.',
-      behavior: 'Describes how the assistant should act and what it should prioritise.',
-      rules: 'Hard constraints the assistant must follow.',
-      examples: 'Sample inputs and outputs to guide the LLM\'s response style.',
-      format: 'Specifies the output format (prose, JSON, markdown list, etc.).',
-      context: 'Background information the assistant should know.'
-    }
-    if (blocks.length === 0) {
-      html += '<div class="ae-empty-state">No skill blocks yet — add a skill block to define how this assistant thinks.</div>'
-    } else {
-      html += '<ul class="instruction-blocks-list" id="ae-instructionBlocks">'
-      blocks.forEach(function (block, i) {
-        html += '<li class="instruction-block-row" data-i="' + i + '">'
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--ace-space-8)">'
-        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8)">'
-        html += '<select class="ae-ib-kind" data-i="' + i + '" style="min-width:110px">'
-        BLOCK_KINDS.forEach(function (k) { html += '<option value="' + k + '"' + ((block.kind || 'behavior') === k ? ' selected' : '') + '>' + k + '</option>' })
-        html += '</select>'
-        html += '<label style="font-size:12px;margin:0"><input type="checkbox" class="ae-ib-enabled" data-i="' + i + '" ' + (block.enabled !== false ? 'checked' : '') + '> Enabled</label>'
-        html += '</div>'
-        html += '<div class="instruction-block-actions"><button type="button" class="btn-small ae-ib-up" data-i="' + i + '">↑</button><button type="button" class="btn-small ae-ib-down" data-i="' + i + '">↓</button><button type="button" class="btn-small ae-ib-remove" data-i="' + i + '">Remove</button></div>'
-        html += '</div>'
-        html += '<p class="ae-helper" style="margin:0 0 6px 0">' + (KIND_HELPERS[block.kind || 'behavior'] || '') + '</p>'
-        html += '<textarea class="ae-ib-content ace-field" rows="4" data-i="' + i + '">' + escapeHtml(block.content || '') + '</textarea>'
-        html += '</li>'
-      })
-      html += '</ul>'
-    }
-    html += '<button type="button" class="btn-small add-btn" id="ae-ib-add">Add skill block</button>'
-    // Prompt template (legacy)
-    html += '<h3 class="ae-section-heading">Prompt template <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
-    html += '<p class="ae-helper">Used when no skill blocks are defined. Superseded by skill blocks above.</p>'
-    html += '<textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="8">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
-    // Assemble & Preview
-    html += '<h3 class="ae-section-heading">Assemble & Preview</h3>'
-    html += '<p class="ae-helper">Shows what the LLM receives based on current skill blocks (unsaved state).</p>'
-    html += '<button type="button" class="btn-small" id="ae-assemble-btn">Assemble prompt</button>'
-    html += '<div class="ae-assemble-preview" id="ae-assemble-preview"><pre id="ae-assemble-pre"></pre></div>'
-    return html
-  }
   function _aeSkillMdPanel (assistantId) {
     var model = state.editedModel
     var skillMdContent = (model && model.skillMdContent && model.skillMdContent[assistantId]) || null
@@ -2821,72 +2708,6 @@
     }
     return html
   }
-  // Dead code — Quick Actions tab removed. Remove after Task 3 integrates QA into SKILL.md form wizard.
-  function _aeQuickActionsTab (a) {
-    var html = ''
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Quick Actions appear as one-click prompts for this assistant. Each action can override the assistant\'s default kbName.</p>'
-    var qas = a.quickActions || []
-    var EXECUTION_TYPES = ['ui-only', 'tool-only', 'llm', 'hybrid']
-    if (qas.length === 0) {
-      html += '<div class="ae-empty-state">No quick actions yet — add one below.</div>'
-    } else {
-      html += '<ul class="quick-actions-list" id="ae-quickActions">'
-      qas.forEach(function (qa, i) {
-        var execType = (qa.executionType && EXECUTION_TYPES.includes(qa.executionType)) ? qa.executionType : 'llm'
-        html += '<li class="quick-action-row">'
-        // Header row: id, label, remove
-        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8);width:100%;flex-wrap:wrap">'
-        html += '<input type="text" placeholder="id" value="' + escapeHtml(qa.id || '') + '" data-i="' + i + '" data-field="id" class="ae-qa-id">'
-        html += '<input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label" class="ae-qa-label">'
-        html += '<button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button>'
-        html += '</div>'
-        // Detail row
-        html += '<div class="ae-qa-detail">'
-        // templateMessage
-        html += '<div class="ae-qa-detail-row">'
-        html += '<span class="ae-qa-detail-label">Message template</span>'
-        html += '<textarea class="ace-field ae-qa-template" rows="2" data-i="' + i + '" data-field="templateMessage" style="flex:1">' + escapeHtml(qa.templateMessage || '') + '</textarea>'
-        html += '</div>'
-        // executionType
-        html += '<div class="ae-qa-detail-row">'
-        html += '<span class="ae-qa-detail-label">Execution type</span>'
-        html += '<select class="ae-qa-exec-select" data-i="' + i + '" data-field="executionType">'
-        EXECUTION_TYPES.forEach(function (opt) { html += '<option value="' + opt + '"' + (execType === opt ? ' selected' : '') + '>' + opt + '</option>' })
-        html += '</select>'
-        html += '</div>'
-        // kbName override
-        html += '<div class="ae-qa-detail-row">'
-        html += '<span class="ae-qa-detail-label">kbName override</span>'
-        html += '<input type="text" class="ace-field ae-qa-kbname" placeholder="Leave blank to use assistant default" data-i="' + i + '" data-field="kbName" value="' + escapeHtml(qa.kbName || '') + '" style="flex:1">'
-        html += '</div>'
-        html += '<p class="ae-helper" style="margin:0">Override the assistant\'s default kbName for this action only. Leave blank to inherit.</p>'
-        // Test button (SP4 — placeholder)
-        html += '<div class="ae-qa-detail-row">'
-        html += '<button type="button" class="btn-small ae-qa-test-btn" data-qa-id="' + escapeHtml(qa.id) + '">Test this action</button>'
-        html += '</div>'
-        html += '</div>'
-        html += '</li>'
-      })
-      html += '</ul>'
-    }
-    html += '<button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
-    html += '<h3 class="ae-section-heading" style="margin-top:var(--ace-space-24)">Test rubric</h3>'
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Define pass/fail criteria for the Prompt Playground\'s result evaluation.</p>'
-    html += '<div id="ae-rubric-items"></div>'
-    html += '<button type="button" class="btn-small" id="ae-rubric-add-item">Add criterion</button>'
-    html += '<div style="margin-top:var(--ace-space-8)"><button type="button" class="btn-small btn-primary" id="ae-rubric-save-btn">Save rubric to server</button></div>'
-    html += '<div id="ae-rubric-status" style="font-size:12px;margin-top:4px"></div>'
-    return html
-  }
-
-  const EXECUTION_TYPES_ACE = ['ui-only', 'tool-only', 'llm', 'hybrid']
-  function ensureQuickActionExecutionTypes (a) {
-    if (!a.quickActions) return
-    a.quickActions.forEach(qa => {
-      if (!qa.executionType || !EXECUTION_TYPES_ACE.includes(qa.executionType)) qa.executionType = 'llm'
-    })
-  }
-
   function bindAssistantEditor () {
     const a = (state.editedModel?.assistantsManifest?.assistants || []).find(x => x.id === state.selectedAssistantId)
     if (!a) return
@@ -2896,7 +2717,6 @@
         renderAssistantsTab()
       }
     })
-    ensureQuickActionExecutionTypes(a)
     const set = (id, field, value) => {
       a[field] = value
       showUnsavedBanner()
@@ -2911,10 +2731,6 @@
       introEl.onchange = function () { set('ae-intro', 'intro', this.value) }
       introEl.oninput = introEl.onchange
     }
-    const hmEl = document.getElementById('ae-hoverSummary')
-    if (hmEl) hmEl.onchange = function () { set('ae-hoverSummary', 'hoverSummary', this.value) }
-    const wm = document.getElementById('ae-welcomeMessage')
-    if (wm) wm.onchange = function () { set('ae-welcomeMessage', 'welcomeMessage', this.value) }
     const tagVis = document.getElementById('ae-tag-visible')
     if (tagVis) tagVis.onchange = function () { if (!a.tag) a.tag = {}; a.tag.isVisible = this.checked; showUnsavedBanner() }
     var tagLabelEl = document.getElementById('ae-tag-label')
@@ -2928,8 +2744,6 @@
     }
     var kindEl = document.getElementById('ae-kind')
     if (kindEl) kindEl.onchange = function () { set('ae-kind', 'kind', this.value); renderAssistantsTab() }
-    const ptEl = document.getElementById('ae-promptTemplate')
-    if (ptEl) ptEl.onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
     if (a.kind === 'tool') {
       var tsEl1 = document.getElementById('ae-ts-defaultContentModel')
       if (tsEl1) tsEl1.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.defaultContentModel = this.value || undefined; showUnsavedBanner() }
@@ -2939,99 +2753,6 @@
       if (tsEl3) tsEl3.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.quickActionsLocation = this.value; showUnsavedBanner() }
       var tsEl4 = document.getElementById('ae-ts-showInput')
       if (tsEl4) tsEl4.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.showInput = this.checked; showUnsavedBanner() }
-    }
-    document.querySelectorAll('.ae-qa-remove').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        a.quickActions.splice(i, 1)
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    document.querySelectorAll('#ae-quickActions input, #ae-quickActions select, #ae-quickActions textarea').forEach(function (el) {
-      var handler = function () {
-        var i = parseInt(this.getAttribute('data-i'), 10)
-        var field = this.getAttribute('data-field')
-        if (!field || !a.quickActions[i]) return
-        var val = this.value
-        if (field === 'kbName') {
-          a.quickActions[i].kbName = val.trim() || undefined
-        } else {
-          a.quickActions[i][field] = val
-        }
-        showUnsavedBanner()
-      }
-      el.onchange = handler
-      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.oninput = handler
-    })
-    const addBtn = document.getElementById('ae-qa-add')
-    if (addBtn) addBtn.onclick = function () {
-      a.quickActions = a.quickActions || []
-      a.quickActions.push({ id: 'new-action', label: 'New action', templateMessage: '', executionType: 'llm' })
-      showUnsavedBanner()
-      renderAssistantsTab()
-    }
-    // Structured instructions (PR7)
-    if (!a.instructionBlocks) a.instructionBlocks = []
-    document.querySelectorAll('.ae-ib-kind').forEach(el => {
-      el.onchange = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (a.instructionBlocks[i]) a.instructionBlocks[i].kind = this.value
-        showUnsavedBanner()
-      }
-    })
-    document.querySelectorAll('.ae-ib-content').forEach(el => {
-      const handler = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (a.instructionBlocks[i]) a.instructionBlocks[i].content = this.value
-        showUnsavedBanner()
-      }
-      el.onchange = handler
-      el.oninput = handler
-    })
-    document.querySelectorAll('.ae-ib-enabled').forEach(el => {
-      el.onchange = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (a.instructionBlocks[i]) a.instructionBlocks[i].enabled = this.checked
-        showUnsavedBanner()
-      }
-    })
-    document.querySelectorAll('.ae-ib-remove').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        a.instructionBlocks.splice(i, 1)
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    document.querySelectorAll('.ae-ib-up').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (i <= 0) return
-        const t = a.instructionBlocks[i]
-        a.instructionBlocks[i] = a.instructionBlocks[i - 1]
-        a.instructionBlocks[i - 1] = t
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    document.querySelectorAll('.ae-ib-down').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (i >= a.instructionBlocks.length - 1) return
-        const t = a.instructionBlocks[i]
-        a.instructionBlocks[i] = a.instructionBlocks[i + 1]
-        a.instructionBlocks[i + 1] = t
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    const ibAdd = document.getElementById('ae-ib-add')
-    if (ibAdd) ibAdd.onclick = function () {
-      a.instructionBlocks = a.instructionBlocks || []
-      a.instructionBlocks.push({ id: 'block-' + Date.now(), kind: 'behavior', content: '', enabled: true })
-      showUnsavedBanner()
-      renderAssistantsTab()
     }
     const schemaEl = document.getElementById('ae-outputSchemaId')
     if (schemaEl) schemaEl.onchange = function () { a.outputSchemaId = this.value || undefined; showUnsavedBanner() }
@@ -3101,66 +2822,6 @@
       a.safetyOverrides.allowImages = this.checked || undefined
       showUnsavedBanner()
     }
-
-    const testRunBtn = document.getElementById('ae-test-run-btn')
-    if (testRunBtn) {
-      testRunBtn.onclick = async function () {
-        var msgEl = document.getElementById('ae-test-message')
-        var resultEl = document.getElementById('ae-test-result')
-        var msg = msgEl ? msgEl.value.trim() : ''
-        if (!msg) {
-          if (resultEl) { resultEl.className = 'ace-test-result ace-test-result--error'; resultEl.textContent = 'Enter a test message.' }
-          return
-        }
-        testRunBtn.disabled = true
-        testRunBtn.textContent = 'Running...'
-        if (resultEl) { resultEl.className = ''; resultEl.textContent = '' }
-        try {
-          var llm = (state.editedModel && state.editedModel.config && state.editedModel.config.llm) ? state.editedModel.config.llm : {}
-          var provider = llm.provider === 'proxy' ? 'proxy' : 'internal-api'
-          var assistantDraft = { id: a.id, promptTemplate: a.promptTemplate || '', instructionBlocks: a.instructionBlocks || [] }
-          // Normalize proxy: always include authMode with the same default renderAITab uses (shared_token).
-          // authMode may be absent in model state if the user never touched the select.
-          var rawProxy = llm.proxy || {}
-          var normalizedProxy = {
-            baseUrl: rawProxy.baseUrl || '',
-            defaultModel: rawProxy.defaultModel || '',
-            authMode: rawProxy.authMode === 'session_token' ? 'session_token' : 'shared_token',
-            sharedToken: rawProxy.sharedToken || ''
-          }
-          var body = {
-            provider: provider,
-            endpoint: llm.endpoint || '',
-            proxy: normalizedProxy,
-            assistant: assistantDraft,
-            message: msg,
-            kbName: 'figma'
-          }
-          var res = await _apiFetch(API_BASE + '/api/test/assistant', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          })
-          var data = await res.json()
-          if (resultEl) {
-            resultEl.className = 'ace-test-result ' + (data.success ? 'ace-test-result--success' : 'ace-test-result--error')
-            if (data.success) {
-              resultEl.innerHTML = '<div class="ace-test-response-meta">Assistant: ' + escapeHtml(data.assistantId || '?') + ' | kbName: ' + escapeHtml(data.kbName || 'figma') + '</div><pre class="ace-test-response-text">' + escapeHtml(data.response || '(empty response)') + '</pre>'
-            } else {
-              resultEl.textContent = data.message || 'Test failed.'
-            }
-          }
-        } catch (err) {
-          if (resultEl) {
-            resultEl.className = 'ace-test-result ace-test-result--error'
-            resultEl.textContent = 'Test request failed: ' + ((err && err.message) ? err.message : String(err))
-          }
-        } finally {
-          testRunBtn.disabled = false
-          testRunBtn.textContent = 'Run Test'
-        }
-      }
-    }
     var dkbEl = document.getElementById('ae-defaultKbName')
     if (dkbEl) {
       dkbEl.onchange = function () {
@@ -3169,26 +2830,6 @@
         showUnsavedBanner()
       }
       dkbEl.oninput = dkbEl.onchange
-    }
-    // Assemble & Preview
-    var assembleBtn = document.getElementById('ae-assemble-btn')
-    if (assembleBtn) {
-      assembleBtn.onclick = function () {
-        var previewEl = document.getElementById('ae-assemble-preview')
-        var preEl = document.getElementById('ae-assemble-pre')
-        if (!previewEl || !preEl) return
-        var blocks = a.instructionBlocks || []
-        var enabledBlocks = blocks.filter(function (b) { return b.enabled !== false })
-        if (enabledBlocks.length === 0 && !a.promptTemplate) {
-          preEl.textContent = '(No skill blocks enabled and no prompt template set.)'
-        } else {
-          var segments = []
-          enabledBlocks.forEach(function (b) { segments.push('[' + (b.kind || 'behavior') + ']\n' + (b.content || '')) })
-          if (a.promptTemplate && enabledBlocks.length === 0) segments.push('[prompt template]\n' + a.promptTemplate)
-          preEl.textContent = segments.join('\n\n---\n\n')
-        }
-        previewEl.classList.add('visible')
-      }
     }
     // Instructions tab — execution model + figmaContext (SP3)
     var instrExecEl = document.getElementById('ae-instr-execution')
@@ -3227,156 +2868,6 @@
         showUnsavedBanner()
       }
     }
-    // Universal skills (SP3)
-    function _updateUniversalSkills () {
-      var instr = _getInstr(a.id)
-      if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-      showUnsavedBanner()
-      renderAssistantsTab()
-    }
-    document.querySelectorAll('.ae-univ-skill-remove-required').forEach(function (btn) {
-      btn.onclick = function () {
-        var id = this.getAttribute('data-id')
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) return
-        instr.universalSkills.required = (instr.universalSkills.required || []).filter(function (x) { return x !== id })
-        _updateUniversalSkills()
-      }
-    })
-    document.querySelectorAll('.ae-univ-skill-remove-optional').forEach(function (btn) {
-      btn.onclick = function () {
-        var id = this.getAttribute('data-id')
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) return
-        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
-        _updateUniversalSkills()
-      }
-    })
-    document.querySelectorAll('.ae-univ-skill-make-required').forEach(function (btn) {
-      btn.onclick = function () {
-        var id = this.getAttribute('data-id')
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
-        if (!(instr.universalSkills.required || []).includes(id)) {
-          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
-        }
-        _updateUniversalSkills()
-      }
-    })
-    var skillAttachOptBtn = document.getElementById('ae-univ-skill-attach-optional')
-    var skillAttachReqBtn = document.getElementById('ae-univ-skill-attach-required')
-    var skillPicker = document.getElementById('ae-univ-skill-picker')
-    if (skillAttachOptBtn && skillPicker) {
-      skillAttachOptBtn.onclick = function () {
-        var id = skillPicker.value
-        if (!id) return
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-        if (!(instr.universalSkills.optional || []).includes(id)) {
-          instr.universalSkills.optional = (instr.universalSkills.optional || []).concat([id])
-        }
-        _updateUniversalSkills()
-      }
-    }
-    if (skillAttachReqBtn && skillPicker) {
-      skillAttachReqBtn.onclick = function () {
-        var id = skillPicker.value
-        if (!id) return
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-        if (!(instr.universalSkills.required || []).includes(id)) {
-          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
-        }
-        _updateUniversalSkills()
-      }
-    }
-    document.querySelectorAll('.ae-qa-test-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        var qaId = this.getAttribute('data-qa-id')
-        var qa = (a.quickActions || []).find(function (q) { return q.id === qaId })
-        state.playgroundActive = true
-        state.playgroundAssistantId = a.id
-        state.playgroundActionId = qaId
-        state.playgroundUserMessage = (qa && qa.templateMessage) || ''
-        state.playgroundKbName = (qa && qa.kbName) || ''
-        state.playgroundResult = null
-        state.playgroundRubric = null
-        state.playgroundGolden = null
-        state.playgroundRubricChecked = {}
-        state.playgroundSkillToggles = {}
-        state.playgroundSessionHistory = []
-        renderAssistantsTab()
-      }
-    })
-    // Only fetch rubrics if Quick Actions tab is somehow active (legacy — QA tab removed)
-    var qaPanel = document.getElementById('ae-quickActions')
-    if (qaPanel) {
-      // Rubric editor in Quick Actions tab
-      var rubricContainer = document.getElementById('ae-rubric-items')
-      var rubricAddBtn = document.getElementById('ae-rubric-add-item')
-      var rubricSaveBtn = document.getElementById('ae-rubric-save-btn')
-      var rubricStatus = document.getElementById('ae-rubric-status')
-      if (rubricContainer) {
-        window._aeRubricItems = []
-        _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id))
-          .then(function (r) { return r.json() })
-          .then(function (data) {
-            window._aeRubricItems = (data && data.items) ? data.items : []
-            _renderRubricEditor(rubricContainer)
-          })
-          .catch(function () {})
-      }
-      function _renderRubricEditor (container) {
-        if (!container) return
-        var items = window._aeRubricItems || []
-        var html = ''
-        items.forEach(function (item, i) {
-          html += '<div style="display:flex;gap:var(--ace-space-8);margin-bottom:4px;align-items:center">'
-          html += '<input type="text" class="ace-field ae-rubric-item-label" data-i="' + i + '" value="' + escapeHtml(item.label || '') + '" style="flex:1">'
-          html += '<button type="button" class="btn-small ae-rubric-item-remove" data-i="' + i + '">\u2715</button>'
-          html += '</div>'
-        })
-        container.innerHTML = html
-        container.querySelectorAll('.ae-rubric-item-label').forEach(function (el) {
-          el.oninput = function () {
-            var i = parseInt(this.getAttribute('data-i'), 10)
-            if (window._aeRubricItems[i]) window._aeRubricItems[i].label = this.value
-          }
-        })
-        container.querySelectorAll('.ae-rubric-item-remove').forEach(function (btn) {
-          btn.onclick = function () {
-            var i = parseInt(this.getAttribute('data-i'), 10)
-            window._aeRubricItems.splice(i, 1)
-            _renderRubricEditor(container)
-          }
-        })
-      }
-      if (rubricAddBtn) {
-        rubricAddBtn.onclick = function () {
-          window._aeRubricItems = window._aeRubricItems || []
-          window._aeRubricItems.push({ id: 'r' + Date.now(), label: '', autoCheck: false })
-          _renderRubricEditor(rubricContainer)
-        }
-      }
-      if (rubricSaveBtn) {
-        rubricSaveBtn.onclick = async function () {
-          var items = window._aeRubricItems || []
-          try {
-            var r = await _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id), {
-              method: 'PUT', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ items: items })
-            })
-            if (r.ok) {
-              if (rubricStatus) { rubricStatus.textContent = 'Saved.'; setTimeout(function () { rubricStatus.textContent = '' }, 2000) }
-            } else {
-              if (rubricStatus) rubricStatus.textContent = 'Save failed.'
-            }
-          } catch (err) { if (rubricStatus) rubricStatus.textContent = 'Network error.' }
-        }
-      }
-    }
-
     // SKILL.md form wizard handlers
 
     // Form/Raw toggle
