@@ -2248,8 +2248,14 @@
         var selectedQa = state.playgroundActionId ? (a.quickActions || []).find(function (q) { return q.id === state.playgroundActionId }) : null
         var effectiveKb = kbOverride || (selectedQa && selectedQa.kbName) || (state.instructionsMap[a.id] && state.instructionsMap[a.id].defaultKbName) || ''
         var effectiveMessage = message || (selectedQa && selectedQa.templateMessage) || ''
+        var testMode = state.playgroundTestMode || 'no-selection'
         if (!effectiveMessage) {
           state.playgroundResult = { error: 'Enter a message before firing.' }
+          renderPlayground()
+          return
+        }
+        if (testMode === 'vision' && !state.playgroundFixtureId) {
+          state.playgroundResult = { error: 'Select a fixture before firing in Vision mode. Fixtures provide the images needed for vision testing.' }
           renderPlayground()
           return
         }
@@ -2262,7 +2268,6 @@
           return { label: seg.label, content: state.playgroundEditCopy ? (state.playgroundEditCopy[seg.key] || seg.content) : seg.content }
         })
 
-        var testMode = state.playgroundTestMode || 'no-selection'
         state.playgroundFiring = true
         renderPlayground()
 

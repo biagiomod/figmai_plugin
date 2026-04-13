@@ -910,7 +910,7 @@ app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, 
 app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, async (req, res) => {
   const {
     provider, endpoint, proxy, assistant, message, kbName,
-    testMode, selectionSummary, images
+    testMode, selectionSummary, images, skillSegments
   } = req.body || {}
 
   const resolvedTestMode: string = (typeof testMode === 'string' && ['no-selection','selection','vision'].includes(testMode))
@@ -926,24 +926,35 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ success: false, message: 'No test message provided.' })
   }
-  if (!assistant || typeof assistant !== 'object') {
-    return res.status(400).json({ success: false, message: 'No assistant data provided.' })
-  }
-
   const providerType = provider === 'proxy' ? 'proxy' : 'internal-api'
   const resolvedKbName: string = (typeof kbName === 'string' && kbName) ? kbName : 'figma'
 
-  // Build system prompt from draft assistant (promptTemplate + enabled instructionBlocks)
+  // Build system prompt from draft assistant OR pre-assembled skillSegments.
+  // Two supported client formats:
+  //   1. Full assistant object (assistant.promptTemplate + assistant.instructionBlocks)
+  //   2. Pre-assembled array: skillSegments[].{ label, content } — used by the Playground client
   const systemParts: string[] = []
-  if (typeof assistant.promptTemplate === 'string' && assistant.promptTemplate.trim()) {
-    systemParts.push(assistant.promptTemplate.trim())
-  }
-  if (Array.isArray(assistant.instructionBlocks)) {
-    for (const block of assistant.instructionBlocks) {
-      if (block.enabled !== false && typeof block.content === 'string' && block.content.trim()) {
-        systemParts.push(block.content.trim())
+  if (assistant && typeof assistant === 'object') {
+    // Format 1: draft assistant object
+    if (typeof assistant.promptTemplate === 'string' && assistant.promptTemplate.trim()) {
+      systemParts.push(assistant.promptTemplate.trim())
+    }
+    if (Array.isArray(assistant.instructionBlocks)) {
+      for (const block of assistant.instructionBlocks) {
+        if (block.enabled !== false && typeof block.content === 'string' && block.content.trim()) {
+          systemParts.push(block.content.trim())
+        }
       }
     }
+  } else if (Array.isArray(skillSegments)) {
+    // Format 2: pre-assembled segments from Playground
+    for (const seg of skillSegments) {
+      if (seg && typeof seg.content === 'string' && seg.content.trim()) {
+        systemParts.push(seg.content.trim())
+      }
+    }
+  } else {
+    return res.status(400).json({ success: false, message: 'No assistant data provided.' })
   }
   const systemPrompt = systemParts.join('\n\n')
 

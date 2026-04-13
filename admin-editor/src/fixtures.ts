@@ -68,7 +68,7 @@ export function loadFixtureImages(fixturesDir: string, fixture: FixtureMeta): st
   for (const filename of fixture.images) {
     // Reject path traversal attempts
     const safe = path.basename(filename)
-    if (safe !== filename) continue
+    if (safe !== filename || safe === '' || safe === '.' || safe === '..') continue
     const imgPath = path.join(fixturesDir, safeCategory, safe)
     try {
       const buf = fs.readFileSync(imgPath)
