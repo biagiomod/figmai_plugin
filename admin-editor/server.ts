@@ -28,6 +28,7 @@ import {
   handleUpdateUser
 } from './src/users-routes'
 import { createKbRouter } from './src/kb-routes'
+import { loadFixtureCatalog, loadFixtureImages, type FixtureMeta } from './src/fixtures'
 import { appendAuditLine } from './src/audit'
 import type { AuthLocals } from './src/auth-middleware'
 
@@ -37,6 +38,7 @@ const adminEditorDir = __dirname
 const repoRoot = path.resolve(adminEditorDir, '..')
 const backupRootDir = path.join(adminEditorDir, '.backups')
 const dataDir = path.join(adminEditorDir, 'data')
+const fixturesDir = path.join(__dirname, 'fixtures')
 
 const ACE_DEBUG = process.env.ACE_DEBUG === '1' || process.env.ACE_DEBUG === 'true'
 const ACE_AUTH_MODE = process.env.ACE_AUTH_MODE || 'local'
@@ -279,7 +281,7 @@ app.get(['/home', '/home/'], (_req, res) => {
   <section class="ace-home-hero ace-container">
     <div class="ace-card ace-home-hero-card">
       <h1 class="ace-section-title">AI assistance for design teams that need consistency, not chaos.</h1>
-      <p class="ace-home-lead">Ableza brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
+      <p class="ace-home-lead">Design AI Toolkit brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
       <div class="ace-home-cta-row">
         <a class="btn-primary" href="/home/admin">Install the Plugin</a>
         <a class="btn-secondary" href="/demo">Watch 2-min Demo</a>
@@ -305,9 +307,9 @@ app.get(['/home', '/home/'], (_req, res) => {
   </section>
 
   <section class="ace-container ace-home-section">
-    <div class="ace-section-header-row"><h2 class="ace-section-title">What Ableza is</h2></div>
+    <div class="ace-section-header-row"><h2 class="ace-section-title">What Design AI Toolkit is</h2></div>
     <div class="ace-card">
-      <p class="ace-home-lead ace-home-lead-small">Ableza is an AI layer inside the design workflow that helps teams move from questions to usable outputs with more consistency.</p>
+      <p class="ace-home-lead ace-home-lead-small">Design AI Toolkit is an AI layer inside the design workflow that helps teams move from questions to usable outputs with more consistency.</p>
       <ul class="ace-home-bullet-list">
         <li>Chat and quick actions inside the workflow</li>
         <li>Specialized assistants by job to be done</li>
@@ -372,7 +374,7 @@ app.get(['/home', '/home/'], (_req, res) => {
   `
 
   sendMarketingPage(res, '/home', {
-    title: 'Ableza Home',
+    title: 'Design AI Toolkit Home',
     activePath: '/home',
     body
   })
@@ -383,7 +385,7 @@ app.get('/how-it-works', (_req, res) => {
     <div class="ace-section-header-row"><h1 class="ace-section-title">How It Works</h1></div>
     <div class="ace-card">
       <ol class="ace-home-number-list">
-        <li>Install the plugin and open Ableza in Figma.</li>
+        <li>Install the plugin and open Design AI Toolkit in Figma.</li>
         <li>Pick an assistant aligned to your current task.</li>
         <li>Select relevant frames, then run a quick action or ask a focused prompt.</li>
         <li>Review the output, apply changes, and capture decisions for handoff.</li>
@@ -790,6 +792,32 @@ app.post('/api/save', requireAuth(dataDir), requireRoleValidateSave, (req, res) 
   }
 })
 
+// Fixture catalog — metadata only, no image data
+app.get('/api/fixtures', requireAuth(dataDir), (req, res) => {
+  try {
+    const catalog = loadFixtureCatalog(fixturesDir)
+    res.json({ fixtures: catalog })
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to load fixtures: ' + (err?.message ?? String(err)) })
+  }
+})
+
+// Fixture images — base64 data URLs for a specific fixture
+app.get('/api/fixtures/:id/images', requireAuth(dataDir), (req, res) => {
+  const id = req.params.id
+  const catalog = loadFixtureCatalog(fixturesDir)
+  const fixture = catalog.find((f: FixtureMeta) => f.id === id)
+  if (!fixture) {
+    return res.status(404).json({ error: 'Fixture not found: ' + id })
+  }
+  try {
+    const images = loadFixtureImages(fixturesDir, fixture)
+    res.json({ images })
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to load fixture images: ' + (err?.message ?? String(err)) })
+  }
+})
+
 // ——— Test: connection (draft-aware, no save required) ———
 // Accepts draft LLM settings and makes a real test call to verify connectivity.
 app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, async (req, res) => {
@@ -880,7 +908,20 @@ app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, 
 // ——— Test: assistant (draft-aware, no save required) ———
 // Accepts draft assistant + LLM settings and runs a real test request.
 app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, async (req, res) => {
-  const { provider, endpoint, proxy, assistant, message, kbName } = req.body || {}
+  const {
+    provider, endpoint, proxy, assistant, message, kbName,
+    testMode, selectionSummary, images
+  } = req.body || {}
+
+  const resolvedTestMode: string = (typeof testMode === 'string' && ['no-selection','selection','vision'].includes(testMode))
+    ? testMode : 'no-selection'
+
+  // Validate images when provided
+  if (resolvedTestMode === 'vision' && images !== undefined) {
+    if (!Array.isArray(images) || images.some((img: unknown) => typeof img !== 'string')) {
+      return res.status(400).json({ success: false, message: 'images must be an array of strings when testMode is vision.' })
+    }
+  }
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ success: false, message: 'No test message provided.' })
@@ -939,6 +980,14 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
     try {
       const fullMessage = systemPrompt ? `${systemPrompt}\n\n${message.trim()}` : message.trim()
       const payload: Record<string, unknown> = { type: 'generalChat', message: fullMessage, kbName: resolvedKbName }
+      if (resolvedTestMode === 'selection' || resolvedTestMode === 'vision') {
+        if (typeof selectionSummary === 'string' && selectionSummary.trim()) {
+          payload.selectionSummary = selectionSummary.trim()
+        }
+      }
+      if (resolvedTestMode === 'vision' && Array.isArray(images)) {
+        payload.images = images
+      }
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -993,6 +1042,14 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
       messages.push({ role: 'user', content: message.trim() })
       const payload: Record<string, unknown> = { messages }
       if (typeof proxy?.defaultModel === 'string' && proxy.defaultModel) payload.model = proxy.defaultModel
+      if (resolvedTestMode === 'selection' || resolvedTestMode === 'vision') {
+        if (typeof selectionSummary === 'string' && selectionSummary.trim()) {
+          payload.selectionSummary = selectionSummary.trim()
+        }
+      }
+      if (resolvedTestMode === 'vision' && Array.isArray(images)) {
+        payload.images = images
+      }
       // figmai-proxy chat endpoint: /v1/chat (not /chat/completions)
       const testUrl = baseUrl + '/v1/chat'
       const response = await fetch(testUrl, {
