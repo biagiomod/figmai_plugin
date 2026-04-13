@@ -1155,16 +1155,87 @@ textarea.ace-field.large {
 .instruction-block-actions { display: flex; gap: var(--ace-space-8); margin-top: var(--ace-space-8); }
 .instruction-block-actions .btn-small { cursor: pointer; }
 
-/* Knowledge Bases tab (PR11b) */
-#panel-knowledge-bases .list .item { padding: var(--ace-space-8); cursor: pointer; }
-#panel-knowledge-bases .kb-row-actions { display: flex; flex-wrap: wrap; gap: var(--ace-space-4); margin-top: var(--ace-space-4); }
-#panel-knowledge-bases .kb-row-actions .btn-small { cursor: pointer; }
+/* Knowledge Bases tab */
+
+/* Hint text below section header */
+.ace-kb-hint { font-size: var(--ace-font-size-12); margin: 0 0 var(--ace-space-12) 0; }
+.ace-kb-hint code { font-family: ui-monospace, monospace; font-size: 0.95em; }
+
+/* KB list items — clean, no inline buttons */
+#panel-knowledge-bases .list .kb-item {
+  padding: var(--ace-space-10) var(--ace-space-12);
+  cursor: pointer;
+  display: block;
+}
+.kb-item-name {
+  font-size: var(--ace-font-size-14);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+  margin-bottom: var(--ace-space-4);
+}
+.item.selected .kb-item-name { color: var(--ace-accent); }
+.kb-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--ace-space-6);
+  margin-bottom: var(--ace-space-4);
+}
+.kb-item-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--ace-border);
+  color: var(--ace-text-muted);
+  letter-spacing: 0.02em;
+}
+.kb-item-date {
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+}
+.kb-item-refs {
+  font-size: var(--ace-font-size-12);
+  color: var(--ace-text-muted);
+}
+.kb-item-refs--unused { color: var(--ace-border); }
+
+/* KB detail panel header — title + action buttons */
+.kb-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ace-space-12);
+  padding: var(--ace-space-16);
+  border-bottom: 1px solid var(--ace-border);
+  flex-shrink: 0;
+}
+.kb-panel-header-info { min-width: 0; flex: 1; }
+.kb-panel-title {
+  font-size: var(--ace-font-size-14);
+  font-weight: var(--ace-font-weight-semibold);
+  color: var(--ace-text);
+  margin-bottom: var(--ace-space-4);
+}
+.kb-panel-refs { font-size: var(--ace-font-size-12); color: var(--ace-text-muted); }
+.kb-panel-refs--unused { font-style: italic; }
+.kb-panel-actions {
+  display: flex;
+  gap: var(--ace-space-6);
+  flex-shrink: 0;
+}
+
+/* KB edit/import forms */
 #panel-knowledge-bases .kb-preview-block { margin-top: var(--ace-space-12); padding: var(--ace-space-12); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); background: var(--ace-sidebar-bg); overflow: auto; max-height: 320px; }
 #panel-knowledge-bases .kb-preview-block pre { margin: 0; font-size: var(--ace-font-size-12); white-space: pre-wrap; }
+#panel-knowledge-bases .kb-edit-form { padding: var(--ace-space-16); overflow-y: auto; }
+#panel-knowledge-bases .kb-import-form { padding: var(--ace-space-16); }
 #panel-knowledge-bases .kb-import-form label,
-#panel-knowledge-bases .kb-edit-form label { display: block; margin-top: var(--ace-space-8); font-weight: var(--ace-font-weight-semibold); }
+#panel-knowledge-bases .kb-edit-form label { display: block; margin-top: var(--ace-space-8); font-weight: var(--ace-font-weight-semibold); font-size: var(--ace-font-size-12); color: var(--ace-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+#panel-knowledge-bases .kb-import-form label:first-of-type,
+#panel-knowledge-bases .kb-edit-form label:first-of-type { margin-top: 0; }
 #panel-knowledge-bases .kb-import-form .ace-field,
 #panel-knowledge-bases .kb-edit-form .ace-field { margin-top: var(--ace-space-4); }
+#panel-knowledge-bases .kb-edit-form .btn-primary { margin-top: var(--ace-space-16); }
 #panel-knowledge .preview-toggle { margin-bottom: var(--ace-space-8); }
 #panel-knowledge .preview { margin-top: var(--ace-space-8); padding: var(--ace-space-16); border: 1px solid var(--ace-border); border-radius: var(--ace-radius); background: var(--ace-sidebar-bg); white-space: pre-wrap; }
 

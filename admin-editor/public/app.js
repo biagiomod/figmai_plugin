@@ -3483,43 +3483,43 @@
     skillsHtml += '<div id="ace-skill-new-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
     skillsHtml += '</div>'
 
-    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Internal KBs</h2></div>'
-    html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference resources by id.</p>'
-    html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import Resource</button>'
-    html += '<div class="list-panel">'
-    html += '<div class="list" id="kb-list">'
     const assistants = state.editedModel?.assistantsManifest?.assistants || []
     function referencedBy (kbId) {
       return assistants.filter(function (as) { return (as.knowledgeBaseRefs || []).indexOf(kbId) !== -1 })
     }
+    let html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">Internal KBs</h2>'
+    html += '<button type="button" class="ace-section-header-btn" id="kb-create-btn">Import / Create</button>'
+    html += '</div>'
+    html += '<p class="ace-kb-hint fg-secondary">Structured knowledge injected into assistant prompts. Stored in <code>custom/knowledge-bases/&lt;id&gt;.kb.json</code>.</p>'
+    html += '<div class="list-panel">'
+    html += '<div class="list" id="kb-list">'
     registry.forEach(function (entry) {
-      const cls = entry.id === selectedId && !createMode ? 'item selected' : 'item'
-      const meta = [entry.id]
-      if (entry.tags && entry.tags.length) meta.push(entry.tags.join(', '))
-      if (entry.version) meta.push('v' + entry.version)
-      if (entry.updatedAt) meta.push(entry.updatedAt.slice(0, 10))
+      const cls = (entry.id === selectedId && !createMode) ? 'item kb-item selected' : 'item kb-item'
       const refs = referencedBy(entry.id)
-      const refLabel = refs.length ? refs.map(function (as) { return as.label || as.id }).join(', ') : 'Not referenced'
       html += '<div class="' + cls + '" data-id="' + escapeHtml(entry.id) + '">'
-      html += '<strong>' + escapeHtml(entry.title || entry.id) + '</strong>'
-      html += ' <span class="fg-secondary" style="font-size:0.9em">' + escapeHtml(meta.join(' · ')) + '</span>'
-      html += '<div class="kb-referenced-by fg-secondary" style="font-size:0.85em;margin-top:2px">Referenced by: ' + escapeHtml(refLabel) + '</div>'
-      html += '<div class="kb-row-actions">'
-      html += '<button type="button" class="btn-small kb-view-edit" data-id="' + escapeHtml(entry.id) + '">View/Edit</button>'
-      html += '<button type="button" class="btn-small kb-reimport" data-id="' + escapeHtml(entry.id) + '">Re-import</button>'
-      html += '<button type="button" class="btn-small kb-copy-id" data-id="' + escapeHtml(entry.id) + '">Copy ID</button>'
-      html += '<button type="button" class="btn-small kb-delete" data-id="' + escapeHtml(entry.id) + '">Delete</button>'
-      html += '</div></div>'
+      html += '<div class="kb-item-name">' + escapeHtml(entry.title || entry.id) + '</div>'
+      html += '<div class="kb-item-meta">'
+      if (entry.version) html += '<span class="kb-item-badge">v' + escapeHtml(entry.version) + '</span>'
+      if (entry.updatedAt) html += '<span class="kb-item-date">' + entry.updatedAt.slice(0, 10) + '</span>'
+      html += '</div>'
+      if (refs.length) {
+        html += '<div class="kb-item-refs">Used by: ' + escapeHtml(refs.map(function (a) { return a.label || a.id }).join(', ')) + '</div>'
+      } else {
+        html += '<div class="kb-item-refs kb-item-refs--unused">Not referenced</div>'
+      }
+      html += '</div>'
     })
-    html += '</div><div class="editor" id="kb-editor-panel">'
+    html += '</div>'
+    html += '<div class="editor" id="kb-editor-panel">'
     if (createMode) {
       html += kbImportFormHtml(previewDoc)
     } else if (selectedId && editDoc) {
-      html += kbEditFormHtml(editDoc)
+      html += kbEditFormHtml(editDoc, referencedBy(selectedId))
     } else if (selectedId) {
-      html += '<p class="fg-secondary">Loading…</p>'
+      html += '<p class="fg-secondary" style="padding:var(--ace-space-16)">Loading\u2026</p>'
     } else {
-      html += '<div class="empty">Select a resource or click Create / Import Resource</div>'
+      html += '<div class="empty">Select a knowledge base to view and edit it, or click Import / Create</div>'
     }
     html += '</div></div>'
 
@@ -3551,16 +3551,6 @@
         state.kbEditDoc = null
         loadKbDocThenRender(id)
       })
-    })
-    document.querySelectorAll('.kb-view-edit').forEach(function (btn) {
-      btn.onclick = function (e) {
-        e.stopPropagation()
-        const id = this.getAttribute('data-id')
-        state.selectedKbId = id
-        state.kbCreateMode = false
-        state.kbPreviewDoc = null
-        loadKbDocThenRender(id)
-      }
     })
     document.querySelectorAll('.kb-reimport').forEach(function (btn) {
       btn.onclick = function (e) {
@@ -3773,23 +3763,38 @@
     return html
   }
 
-  function kbEditFormHtml (doc) {
+  function kbEditFormHtml (doc, refs) {
     if (!doc) return ''
-    let html = '<div class="kb-edit-form">'
-    html += '<label>ID (read-only)</label><input type="text" class="ace-field" value="' + escapeHtml(doc.id) + '" readonly>'
+    var refLabel = (refs && refs.length) ? refs.map(function (a) { return a.label || a.id }).join(', ') : null
+    let html = '<div class="kb-panel-header">'
+    html += '<div class="kb-panel-header-info">'
+    html += '<div class="kb-panel-title">' + escapeHtml(doc.title || doc.id) + '</div>'
+    if (refLabel) {
+      html += '<div class="kb-panel-refs">Used by: <strong>' + escapeHtml(refLabel) + '</strong></div>'
+    } else {
+      html += '<div class="kb-panel-refs kb-panel-refs--unused">Not referenced by any assistant</div>'
+    }
+    html += '</div>'
+    html += '<div class="kb-panel-actions">'
+    html += '<button type="button" class="ace-section-header-btn kb-reimport" data-id="' + escapeHtml(doc.id) + '">Re-import</button>'
+    html += '<button type="button" class="ace-section-header-btn kb-copy-id" data-id="' + escapeHtml(doc.id) + '">Copy ID</button>'
+    html += '<button type="button" class="ace-section-header-btn kb-delete" data-id="' + escapeHtml(doc.id) + '" style="color:var(--error,#c00)">Delete</button>'
+    html += '</div></div>'
+    html += '<div class="kb-edit-form">'
+    html += '<label>ID <span class="fg-secondary">(read-only)</span></label><input type="text" class="ace-field" value="' + escapeHtml(doc.id) + '" readonly>'
     html += '<label>Title</label><input type="text" id="kb-edit-title" class="ace-field" value="' + escapeHtml(doc.title || '') + '">'
     html += '<label>Purpose</label><textarea id="kb-edit-purpose" class="ace-field" rows="2">' + escapeHtml(doc.purpose || '') + '</textarea>'
     html += '<label>Scope</label><textarea id="kb-edit-scope" class="ace-field" rows="2">' + escapeHtml(doc.scope || '') + '</textarea>'
-    html += '<label>Definitions (one per line or bullet)</label><textarea id="kb-edit-definitions" class="ace-field" rows="4">' + escapeHtml((doc.definitions || []).join('\n')) + '</textarea>'
+    html += '<label>Definitions <span class="fg-secondary">(one per line)</span></label><textarea id="kb-edit-definitions" class="ace-field" rows="4">' + escapeHtml((doc.definitions || []).join('\n')) + '</textarea>'
     html += '<label>Rules / constraints</label><textarea id="kb-edit-rules" class="ace-field" rows="4">' + escapeHtml((doc.rulesConstraints || []).join('\n')) + '</textarea>'
-    html += '<label>Do (one per line)</label><textarea id="kb-edit-do" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.do ? doc.doDont.do : []).join('\n')) + '</textarea>'
-    html += '<label>Don\'t (one per line)</label><textarea id="kb-edit-dont" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.dont ? doc.doDont.dont : []).join('\n')) + '</textarea>'
+    html += '<label>Do <span class="fg-secondary">(one per line)</span></label><textarea id="kb-edit-do" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.do ? doc.doDont.do : []).join('\n')) + '</textarea>'
+    html += '<label>Don\'t <span class="fg-secondary">(one per line)</span></label><textarea id="kb-edit-dont" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.dont ? doc.doDont.dont : []).join('\n')) + '</textarea>'
     html += '<label>Examples</label><textarea id="kb-edit-examples" class="ace-field" rows="4">' + escapeHtml((doc.examples || []).join('\n')) + '</textarea>'
     html += '<label>Edge cases</label><textarea id="kb-edit-edge" class="ace-field" rows="3">' + escapeHtml((doc.edgeCases || []).join('\n')) + '</textarea>'
     html += '<label>Source</label><input type="text" id="kb-edit-source" class="ace-field" value="' + escapeHtml(doc.source || '') + '">'
     html += '<label>Version</label><input type="text" id="kb-edit-version" class="ace-field" value="' + escapeHtml(doc.version || '') + '">'
-    html += '<label>Tags (comma-separated)</label><input type="text" id="kb-edit-tags" class="ace-field" value="' + escapeHtml((doc.tags || []).join(', ')) + '">'
-    html += '<button type="button" class="btn-small" id="kb-save-edit">Save changes</button>'
+    html += '<label>Tags <span class="fg-secondary">(comma-separated)</span></label><input type="text" id="kb-edit-tags" class="ace-field" value="' + escapeHtml((doc.tags || []).join(', ')) + '">'
+    html += '<button type="button" class="btn-primary btn-small" id="kb-save-edit">Save changes</button>'
     html += '</div>'
     return html
   }
