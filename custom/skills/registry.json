@@ -1,0 +1,8 @@
+{
+  "skills": [
+    { "id": "errors", "title": "Errors", "kind": "context", "filePath": "errors.md" },
+    { "id": "design-workshop", "title": "Design Workshop", "kind": "context", "filePath": "design-workshop.md" },
+    { "id": "design-critique", "title": "Design Critique", "kind": "context", "filePath": "design-critique.md" },
+    { "id": "dark-deceptive-practices", "title": "Dark & Deceptive Practices", "kind": "context", "filePath": "dark-deceptive-practices.md" }
+  ]
+}

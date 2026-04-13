@@ -15,6 +15,8 @@ import type { ZodError } from 'zod'
 const ROOT = process.env.KB_GENERATOR_ROOT ? path.resolve(process.env.KB_GENERATOR_ROOT) : path.resolve(__dirname, '..')
 const KB_DIR = path.join(ROOT, 'custom', 'knowledge-bases')
 const REGISTRY_PATH = path.join(KB_DIR, 'registry.json')
+const SKILLS_DIR = path.join(ROOT, 'custom', 'skills')
+const SKILLS_REGISTRY_PATH = path.join(SKILLS_DIR, 'registry.json')
 const OUT_PATH = path.join(ROOT, 'src', 'knowledge-bases', 'knowledgeBases.generated.ts')
 
 interface RegistryEntry {
@@ -98,6 +100,94 @@ function emitDoc(doc: KnowledgeBaseDocument): string {
   return `  ${escapeForTs(doc.id)}: { ${parts.join(', ')} }`
 }
 
+interface SkillRegistryEntry {
+  id: string
+  title: string
+  kind: string
+  filePath: string
+}
+
+function loadSkillsRegistry(): SkillRegistryEntry[] {
+  if (!fs.existsSync(SKILLS_REGISTRY_PATH)) return []
+  const raw = fs.readFileSync(SKILLS_REGISTRY_PATH, 'utf-8')
+  const data = JSON.parse(raw) as { skills?: SkillRegistryEntry[] }
+  return Array.isArray(data.skills) ? data.skills : []
+}
+
+function parseSkillMarkdown(id: string, title: string, content: string): KnowledgeBaseDocument {
+  let frontmatterVersion = ''
+  let frontmatterTags: string[] = []
+  let frontmatterUpdatedAt = ''
+  let body = content
+
+  // Extract frontmatter between first --- and second ---
+  const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/)
+  if (fmMatch) {
+    const fmBlock = fmMatch[1]
+    body = fmMatch[2]
+    // Parse version
+    const versionMatch = fmBlock.match(/^version:\s*["']?(.+?)["']?\s*$/m)
+    if (versionMatch) frontmatterVersion = versionMatch[1].trim()
+    // Parse updatedAt
+    const updatedAtMatch = fmBlock.match(/^updatedAt:\s*["']?(.+?)["']?\s*$/m)
+    if (updatedAtMatch) frontmatterUpdatedAt = updatedAtMatch[1].trim()
+    // Parse tags
+    const tagsMatch = fmBlock.match(/^tags:\s*\[([^\]]*)\]/m)
+    if (tagsMatch) {
+      frontmatterTags = tagsMatch[1]
+        .split(',')
+        .map((t) => t.trim().replace(/^["']|["']$/g, ''))
+        .filter(Boolean)
+    }
+  }
+
+  // Split body into sections by ## Heading
+  const sections: Record<string, string> = {}
+  const sectionRegex = /^## (.+)$/m
+  const parts = body.split(sectionRegex)
+  // parts[0] is before the first section; then alternating: heading, content
+  for (let i = 1; i < parts.length; i += 2) {
+    const heading = parts[i].trim()
+    const sectionBody = parts[i + 1] ?? ''
+    sections[heading] = sectionBody.trim()
+  }
+
+  function extractList(sectionBody: string): string[] {
+    if (!sectionBody) return []
+    return sectionBody
+      .split('\n')
+      .filter((line) => line.startsWith('- '))
+      .map((line) => line.slice(2).trim())
+      .filter(Boolean)
+  }
+
+  const purpose = sections['Purpose'] ?? ''
+  const scope = sections['Scope'] ?? ''
+  const definitions = extractList(sections['Definitions'] ?? '')
+  const rulesConstraints = extractList(sections['Rules'] ?? '')
+  const doDo = extractList(sections['Do'] ?? '')
+  const doDont = extractList(sections["Don't"] ?? "")
+  const examples = extractList(sections['Examples'] ?? '')
+  const edgeCases = extractList(sections['Edge Cases'] ?? '')
+
+  const doc: KnowledgeBaseDocument = {
+    id,
+    title,
+    purpose,
+    scope,
+    definitions,
+    rulesConstraints,
+    doDont: { do: doDo, dont: doDont },
+    examples,
+    edgeCases,
+    ...(frontmatterVersion ? { version: frontmatterVersion } : {}),
+    ...(frontmatterTags.length ? { tags: frontmatterTags } : {}),
+    ...(frontmatterUpdatedAt ? { updatedAt: frontmatterUpdatedAt } : {})
+  }
+
+  return doc
+}
+
 function main(): void {
   const registry = loadRegistry()
   const registryMap: Record<string, RegistryEntry> = {}
@@ -130,8 +220,38 @@ function main(): void {
     process.exit(1)
   }
 
+  // Load and process skills
+  const skillsRegistry = loadSkillsRegistry()
+  const allRegistryEntries: RegistryEntry[] = [...registry]
+  const skillErrors: { id: string; message: string }[] = []
+
+  for (const skill of skillsRegistry) {
+    if (docsMap[skill.id] || registryMap[skill.id]) {
+      throw new Error(`[generate-knowledge-bases] Skill ID '${skill.id}' conflicts with an existing KB ID. Skill IDs must be unique across KBs and skills.`)
+    }
+    const skillPath = path.join(SKILLS_DIR, skill.filePath)
+    if (!fs.existsSync(skillPath)) {
+      skillErrors.push({ id: skill.id, message: `Missing skill file: ${skill.filePath}` })
+      continue
+    }
+    try {
+      const content = fs.readFileSync(skillPath, 'utf-8')
+      const doc = parseSkillMarkdown(skill.id, skill.title, content)
+      docsMap[skill.id] = doc
+      allRegistryEntries.push({ id: skill.id, title: skill.title, filePath: skill.filePath })
+    } catch (e) {
+      skillErrors.push({ id: skill.id, message: (e as Error).message })
+    }
+  }
+
+  if (skillErrors.length > 0) {
+    const list = skillErrors.map((d) => `${d.id}: ${d.message}`).join('\n  ')
+    console.error('[generate-knowledge-bases] Skill error(s):\n  ', list)
+    process.exit(1)
+  }
+
   const header = `/**
- * Generated from custom/knowledge-bases/ (registry + *.kb.json).
+ * Generated from custom/knowledge-bases/ (registry + *.kb.json) and custom/skills/ (registry + *.md).
  * Do not edit by hand. Run: npm run generate-knowledge-bases
  * PR11c1.
  */
@@ -139,7 +259,7 @@ function main(): void {
 import type { KnowledgeBaseDocument } from '../core/knowledgeBases/types'
 `
 
-  const registryCode = emitRegistry(registry)
+  const registryCode = emitRegistry(allRegistryEntries)
   const docsLines = ['export const KB_DOCS: Record<string, KnowledgeBaseDocument> = {']
   for (const id of Object.keys(docsMap).sort()) {
     docsLines.push(emitDoc(docsMap[id]) + ',')

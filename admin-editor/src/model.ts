@@ -200,6 +200,18 @@ function loadDesignSystemSkillMd(repoRoot: string): { byId: Record<string, strin
   return { byId, paths }
 }
 
+export function loadSkillsRegistry(repoRoot: string): { skills: Array<{ id: string; title: string; kind: string; filePath: string }> } {
+  const registryPath = path.join(repoRoot, 'custom', 'skills', 'registry.json')
+  try {
+    if (!fs.existsSync(registryPath)) return { skills: [] }
+    const raw = fs.readFileSync(registryPath, 'utf-8')
+    const data = JSON.parse(raw) as { skills?: Array<{ id: string; title: string; kind: string; filePath: string }> }
+    return { skills: Array.isArray(data.skills) ? data.skills : [] }
+  } catch {
+    return { skills: [] }
+  }
+}
+
 export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: ModelMeta } {
   const configPath = path.join(repoRoot, 'custom', 'config.json')
   const manifestPath = path.join(repoRoot, 'custom', 'assistants.manifest.json')

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import fs from 'fs'
 import { isTlsError } from './src/tls-errors'
 import cookieParser from 'cookie-parser'
-import { loadModel } from './src/model'
+import { loadModel, loadSkillsRegistry } from './src/model'
 import { validateModel, adminEditableModelSchema, saveRequestBodySchema } from './src/schema'
 import { saveModel, saveModelDryRun } from './src/save'
 import { requireAuth, requireAdmin, requireRoleValidateSave, validateWrapperConfig } from './src/auth-middleware'
@@ -28,6 +28,7 @@ import {
   handleUpdateUser
 } from './src/users-routes'
 import { createKbRouter } from './src/kb-routes'
+import { createSkillsRouter } from './src/skills-routes'
 import { loadFixtureCatalog, loadFixtureImages, type FixtureMeta } from './src/fixtures'
 import { appendAuditLine } from './src/audit'
 import type { AuthLocals } from './src/auth-middleware'
@@ -643,6 +644,7 @@ app.patch('/api/users/:id', requireAuth(dataDir), requireAdmin, (req, res, next)
 
 // ——— KB: registry + CRUD (admin/manager/editor) ———
 app.use('/api/kb', requireAuth(dataDir), requireRoleValidateSave, createKbRouter(repoRoot))
+app.use('/api/skills', requireAuth(dataDir), requireRoleValidateSave, createSkillsRouter(repoRoot))
 
 // ——— Model: GET requires auth ———
 app.get('/api/model', requireAuth(dataDir), (_req, res) => {
@@ -650,6 +652,7 @@ app.get('/api/model', requireAuth(dataDir), (_req, res) => {
   try {
     const { model, meta } = loadModel(repoRoot)
     const validation = validateModel(model)
+    const skillsRegistry = loadSkillsRegistry(repoRoot)
     res.json({
       model,
       meta: {
@@ -662,7 +665,8 @@ app.get('/api/model', requireAuth(dataDir), (_req, res) => {
       validation: {
         errors: validation.errors,
         warnings: validation.warnings
-      }
+      },
+      skillsRegistry
     })
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? String(err) })

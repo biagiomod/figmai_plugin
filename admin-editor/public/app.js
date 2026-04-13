@@ -699,7 +699,7 @@
         }
       }
       state.instructionsMap = deepClone(data.model.instructions || {})
-      state.skillsRegistry = data.model.skillsRegistry || { skills: [] }
+      state.skillsRegistry = data.skillsRegistry || { skills: [] }
       state.meta = data.meta || null
       state.validation = data.validation || { errors: [], warnings: [] }
       state.loadedAt = new Date().toLocaleString()
