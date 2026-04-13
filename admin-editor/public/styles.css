@@ -1990,8 +1990,9 @@ textarea.ace-field.large {
 }
 .ace-nav-profile-widget-icon {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
+  color: var(--ace-text-muted);
   opacity: 0.8;
 }
 .ace-nav-profile-widget-body {
@@ -2231,9 +2232,15 @@ textarea.ace-field.large {
 .ace-users-chevron-btn:hover {
   background: var(--ace-surface-hover, rgba(255, 255, 255, 0.06));
 }
-.ace-users-chevron-btn img {
+.ace-users-chevron-icon {
   display: block;
   pointer-events: none;
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s;
+}
+.ace-users-chevron-up .ace-users-chevron-icon {
+  transform: rotate(180deg);
 }
 
 /* ========== Marketing pages (/home, /how-it-works, /assistants, /demo, /faq) ========== */

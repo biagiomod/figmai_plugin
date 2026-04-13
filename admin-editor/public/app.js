@@ -543,7 +543,7 @@
     }
     const name = (user.username || '').trim() || '—'
     container.innerHTML = '<div class="ace-nav-profile-widget-inner">' +
-      '<img src="/assets/icons/ACEUserIcon.svg" alt="" class="ace-nav-profile-widget-icon" width="24" height="24" aria-hidden="true" />' +
+      '<svg class="ace-nav-profile-widget-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
       '<div class="ace-nav-profile-widget-body">' +
       '<span class="ace-nav-profile-widget-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
       '<span class="ace-role-badge ace-role-badge--' + (role || '') + '">' + escapeHtml(roleBadgeLabel(role)) + '</span>' +
@@ -4937,7 +4937,7 @@
             rowHtml += '<select class="ace-users-role-select" data-id="' + escapeHtml(u.id) + '"><option value="reviewer"' + (u.role === 'reviewer' ? ' selected' : '') + '>Reviewer</option><option value="editor"' + (u.role === 'editor' ? ' selected' : '') + '>Editor</option><option value="manager"' + (u.role === 'manager' ? ' selected' : '') + '>Manager</option><option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Admin</option></select>'
             rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-reset-pw" data-id="' + escapeHtml(u.id) + '"><span class="ace-users-btn-label">Reset password</span></button>'
             rowHtml += '<button type="button" class="ace-users-chevron-btn ace-users-chevron-down" data-id="' + escapeHtml(u.id) + '" aria-label="Set access">'
-            rowHtml += '<img src="/assets/icons/ChevronDownIcon.svg" alt="" width="20" height="20" aria-hidden="true" />'
+            rowHtml += '<i data-lucide="chevron-down" class="ace-users-chevron-icon" aria-hidden="true"></i>'
             rowHtml += '</button>'
           }
           rowHtml += '</div>'
@@ -4966,6 +4966,7 @@
           }
           listEl.appendChild(wrapper)
         })
+        if (window.lucide) lucide.createIcons({ el: listEl })
         const createForm = document.getElementById('users-create-form')
         if (createForm) {
           createForm.onsubmit = async function (e) {
@@ -5029,8 +5030,7 @@
             if (!expanded) return
             const isOpen = expanded.style.display !== 'none'
             expanded.style.display = isOpen ? 'none' : 'block'
-            const img = this.querySelector('img')
-            if (img) img.src = isOpen ? '/assets/icons/ChevronDownIcon.svg' : '/assets/icons/ChevronUpIcon.svg'
+            // chevron rotation handled by CSS (.ace-users-chevron-up .ace-users-chevron-icon)
             this.classList.toggle('ace-users-chevron-down', isOpen)
             this.classList.toggle('ace-users-chevron-up', !isOpen)
           }
