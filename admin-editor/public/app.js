@@ -60,6 +60,11 @@
     playgroundGolden: null,
     playgroundRubricChecked: {},
     playgroundFiring: false,
+    playgroundTestMode: 'no-selection',   // 'no-selection' | 'selection' | 'vision'
+    playgroundFixtureCatalog: null,       // FixtureMeta[] loaded from /api/fixtures, or null
+    playgroundFixtureId: null,            // selected fixture id or null
+    playgroundSelectionSummary: '',       // editable selection summary textarea content
+    playgroundInspectorExpanded: true,    // payload inspector collapsed state
     instructionsMap: {},
     skillsRegistry: { skills: [] },
     selectedSkillId: null,
@@ -1786,6 +1791,18 @@
     html += '</div>'
     panel.innerHTML = html
     _bindPlayground(assistant)
+    // Load fixture catalog once per session
+    if (state.playgroundFixtureCatalog === null) {
+      _apiFetch(API_BASE + '/api/fixtures')
+        .then(function (r) { return r.json() })
+        .then(function (data) {
+          state.playgroundFixtureCatalog = data.fixtures || []
+          renderPlayground()
+        })
+        .catch(function () {
+          state.playgroundFixtureCatalog = []
+        })
+    }
     if (state.playgroundAssistantId && state.playgroundRubric === null) {
       var actionId = state.playgroundActionId || '_default'
       Promise.all([
@@ -1851,9 +1868,32 @@
     return html
   }
 
+  function _pgModeSelector () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    var modes = [
+      { id: 'no-selection', label: 'No Selection' },
+      { id: 'selection',    label: 'Selection' },
+      { id: 'vision',       label: 'Vision' }
+    ]
+    var html = '<div class="ae-field-group">'
+    html += '<label>Test Mode</label>'
+    html += '<div class="pg-mode-toggle">'
+    modes.forEach(function (m) {
+      var active = mode === m.id ? ' pg-mode-btn--active' : ''
+      html += '<button type="button" class="pg-mode-btn' + active + '" data-mode="' + m.id + '">'
+      html += escapeHtml(m.label)
+      html += '</button>'
+    })
+    html += '</div>'
+    html += '<p class="ae-helper">Controls which context fields are forwarded to the provider.</p>'
+    html += '</div>'
+    return html
+  }
+
   function _pgSendColumn (a) {
     var html = '<div class="ace-pg-col">'
     html += '<p class="ace-pg-col-heading">Send</p>'
+    html += _pgModeSelector()
     html += '<div class="ae-field-group">'
     html += '<label for="pg-kbname">kbName override</label>'
     html += '<input type="text" id="pg-kbname" class="ace-field" placeholder="Leave blank to use assistant default" value="' + escapeHtml(state.playgroundKbName || '') + '">'
@@ -1989,6 +2029,26 @@
     if (kbnameEl) {
       kbnameEl.oninput = function () { state.playgroundKbName = this.value }
     }
+    document.querySelectorAll('.pg-mode-btn').forEach(function (btn) {
+      btn.onclick = function () {
+        state.playgroundTestMode = this.getAttribute('data-mode')
+        // Reset fixture if incompatible with new mode
+        if (state.playgroundFixtureId && state.playgroundFixtureCatalog) {
+          var fix = state.playgroundFixtureCatalog.find(function (f) { return f.id === state.playgroundFixtureId })
+          if (fix) {
+            var mode = state.playgroundTestMode
+            var keep = (mode === 'no-selection' && !fix.requiresSelection) ||
+                       (mode === 'selection' && fix.requiresSelection) ||
+                       (mode === 'vision' && fix.requiresSelection && fix.supportsVision)
+            if (!keep) {
+              state.playgroundFixtureId = null
+              state.playgroundSelectionSummary = ''
+            }
+          }
+        }
+        renderPlayground()
+      }
+    })
     var msgEl = document.getElementById('pg-message')
     if (msgEl) {
       msgEl.oninput = function () { state.playgroundUserMessage = this.value }

@@ -3049,3 +3049,31 @@ body.ace-home-page {
   padding: 10px 12px;
   border-top: 1px solid var(--ace-border, #e0e0e0);
 }
+
+/* ── Test harness: mode toggle ── */
+.pg-mode-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius-sm);
+  overflow: hidden;
+}
+.pg-mode-btn {
+  flex: 1;
+  padding: 7px 0;
+  font-family: var(--font-carbon);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  border-right: 1px solid var(--ace-border);
+  background: var(--ace-surface);
+  color: var(--ace-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.pg-mode-btn:last-child { border-right: none; }
+.pg-mode-btn:hover { background: rgba(0,0,0,0.04); color: var(--ace-text); }
+.pg-mode-btn--active { background: var(--ace-accent); color: #fff; }
+.pg-mode-btn--active:hover { background: var(--ace-accent-hover); }
