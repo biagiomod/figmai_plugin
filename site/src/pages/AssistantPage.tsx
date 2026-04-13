@@ -32,7 +32,7 @@ export function AssistantPage() {
 
       {/* Video */}
       <section className={styles.section}>
-        <VideoPlayer src={`/videos/${video}`} title={`${name} assistant walkthrough`} />
+        <VideoPlayer src={`/videos/${video}`} poster={`/videos/${video.replace('.mp4', '-poster.jpg')}`} title={`${name} assistant walkthrough`} />
       </section>
 
       {/* How to Use */}

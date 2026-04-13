@@ -1,4 +1,4 @@
-.section { background: var(--bg-card); border-top: 1px solid var(--border-card); padding: 56px 40px; }
+.section { background: var(--bg-card); border-top: 1px solid var(--border-card); padding: 56px max(40px, calc((100% - var(--site-max-width)) / 2)); }
 .teamName { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
 .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
 .headline { font-size: 24px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; font-family: var(--font-display); }

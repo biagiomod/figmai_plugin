@@ -4,7 +4,7 @@ import type { Theme } from '../data/types'
 import styles from './ThemeToggle.module.css'
 
 const THEMES: Theme[] = ['mixed', 'dark', 'light']
-const LABELS: Record<Theme, string> = { mixed: 'Mixed', dark: 'Dark', light: 'Light' }
+const LABELS: Record<Theme, string> = { mixed: 'Mix', dark: 'Dark', light: 'Light' }
 const ICONS: Record<Theme, React.ReactNode> = {
   mixed: <Blend size={13} style={{ opacity: 0.7 }} />,
   dark:  <Moon  size={13} style={{ opacity: 0.7 }} />,

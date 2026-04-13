@@ -1,7 +1,7 @@
 .nav {
   background: var(--bg-nav);
   height: 52px;
-  padding: 0 40px;
+  padding: 0 max(40px, calc((100% - var(--site-max-width)) / 2));
   display: flex;
   align-items: center;
   justify-content: space-between;

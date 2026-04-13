@@ -8,7 +8,8 @@ type Props = { assistant: Assistant }
 export function AssistantCard({ assistant }: Props) {
   const { id, name, tagline, accent, icon: Icon } = assistant
   return (
-    <div
+    <Link
+      to={`/assistants/${id}`}
       className={styles.card}
       style={{ '--ac-color': accent } as React.CSSProperties}
     >
@@ -19,9 +20,9 @@ export function AssistantCard({ assistant }: Props) {
         <h3 className={styles.name}>{name}</h3>
         <p className={styles.tagline}>{tagline}</p>
       </div>
-      <Link to={`/assistants/${id}`} className={styles.cta}>
+      <div className={styles.cta}>
         Open <ArrowRight size={12} />
-      </Link>
-    </div>
+      </div>
+    </Link>
   )
 }

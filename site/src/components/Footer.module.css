@@ -1,6 +1,6 @@
 .footer {
   background: var(--bg-nav);
-  padding: 28px 40px;
+  padding: 28px max(40px, calc((100% - var(--site-max-width)) / 2));
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -10,10 +10,10 @@ beforeEach(() => {
 describe('ThemeToggle', () => {
   it('shows current theme label', () => {
     render(<ThemeToggle />)
-    expect(screen.getByText('Mixed')).toBeInTheDocument()
+    expect(screen.getByText('Mix')).toBeInTheDocument()
   })
 
-  it('cycles Mixed → Dark → Light → Mixed on click', () => {
+  it('cycles Mix → Dark → Light → Mix on click', () => {
     render(<ThemeToggle />)
     const btn = screen.getByRole('button')
 
@@ -27,7 +27,7 @@ describe('ThemeToggle', () => {
 
     fireEvent.click(btn)
     expect(document.documentElement.classList.contains('theme-mixed')).toBe(true)
-    expect(screen.getByText('Mixed')).toBeInTheDocument()
+    expect(screen.getByText('Mix')).toBeInTheDocument()
   })
 
   it('persists theme to localStorage', () => {

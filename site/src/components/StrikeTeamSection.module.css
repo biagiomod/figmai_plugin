@@ -1,4 +1,4 @@
-.section { background: var(--bg-section-alt); padding: 64px 40px; }
+.section { background: var(--bg-section-alt); padding: 64px max(40px, calc((100% - var(--site-max-width)) / 2)); }
 .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; gap: 24px; }
 .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
 .headline { font-size: 32px; font-weight: 800; color: var(--text-on-dark); line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 12px; font-family: var(--font-display); }

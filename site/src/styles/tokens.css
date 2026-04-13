@@ -1,5 +1,6 @@
 :root {
   --accent: #d50c7d;
+  --site-max-width: 1200px;
   --ac-color: var(--accent);
 
   --bg-hero: #0a0a0a;

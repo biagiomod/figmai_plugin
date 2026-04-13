@@ -3,6 +3,7 @@ import { Nav } from '../components/Nav'
 import { Footer } from '../components/Footer'
 import { AssistantCard } from '../components/AssistantCard'
 import { StrikeTeamSection } from '../components/StrikeTeamSection'
+import { VideoPlayer } from '../components/VideoPlayer'
 import { LIVE_ASSISTANTS } from '../data/assistants'
 import styles from './Home.module.css'
 import type { LucideIcon } from 'lucide-react'
@@ -30,6 +31,15 @@ export function Home() {
           <a href="#assistants" className={styles.btnPrimary}>Explore Assistants</a>
           <a href="/roadmap" className={styles.btnGhost}>View Roadmap</a>
         </div>
+      </section>
+
+      {/* Overview video */}
+      <section className={styles.videoSection}>
+        <VideoPlayer
+          src="/videos/overview.mp4"
+          poster="/videos/overview-poster.jpg"
+          title="Design AI Toolkit overview"
+        />
       </section>
 
       {/* Philosophy */}

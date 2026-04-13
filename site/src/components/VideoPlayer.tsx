@@ -1,17 +1,29 @@
 import { useState, useRef } from 'react'
-import { Play, VideoOff } from 'lucide-react'
+import { Play, X, VideoOff } from 'lucide-react'
 import styles from './VideoPlayer.module.css'
 
-type Props = { src: string; poster?: string; title: string }
+type Props = {
+  src: string
+  poster?: string
+  title: string
+}
 
 export function VideoPlayer({ src, poster, title }: Props) {
-  const [playing, setPlaying] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [errored, setErrored] = useState(false)
   const ref = useRef<HTMLVideoElement>(null)
 
-  function handlePlay() {
-    setPlaying(true)
-    ref.current?.play()
+  function handleExpand() {
+    setExpanded(true)
+    setTimeout(() => ref.current?.play(), 50)
+  }
+
+  function handleCollapse() {
+    setExpanded(false)
+    if (ref.current) {
+      ref.current.pause()
+      ref.current.currentTime = 0
+    }
   }
 
   if (errored) {
@@ -23,22 +35,38 @@ export function VideoPlayer({ src, poster, title }: Props) {
     )
   }
 
-  return (
-    <div className={styles.wrap}>
-      <video
-        ref={ref}
-        className={styles.video}
-        src={src}
-        poster={poster}
-        controls={playing}
-        aria-label={title}
-        onError={() => setErrored(true)}
-      />
-      {!playing && (
-        <button className={styles.playBtn} onClick={handlePlay} aria-label={`Play ${title}`}>
-          <Play size={28} style={{ opacity: 0.9 }} />
+  if (expanded) {
+    return (
+      <div className={styles.expanded}>
+        <video
+          ref={ref}
+          className={styles.video}
+          src={src}
+          poster={poster}
+          controls
+          aria-label={title}
+          onError={() => setErrored(true)}
+          onEnded={handleCollapse}
+        />
+        <button className={styles.closeBtn} onClick={handleCollapse} aria-label="Close video">
+          <X size={14} />
         </button>
-      )}
-    </div>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      className={styles.teaser}
+      onClick={handleExpand}
+      aria-label={`Play ${title}`}
+      style={poster ? { backgroundImage: `url(${poster})` } : undefined}
+    >
+      <div className={styles.playOverlay}>
+        <div className={styles.playBtn}>
+          <Play size={22} fill="#fff" color="#fff" style={{ marginLeft: 3 }} />
+        </div>
+      </div>
+    </button>
   )
 }

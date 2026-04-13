@@ -1,6 +1,6 @@
 .page { min-height: 100vh; display: flex; flex-direction: column; }
 
-.hero { background: var(--bg-hero); padding: 56px 40px 48px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.hero { background: var(--bg-hero); padding: 56px max(40px, calc((100% - var(--site-max-width)) / 2)) 48px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ac-color); margin-bottom: 14px; }
 .eyebrowBorder { display: block; width: 3px; height: 14px; background: var(--ac-color); border-radius: 2px; }
 .headline { font-size: 40px; font-weight: 800; color: var(--text-on-dark); font-family: var(--font-display); letter-spacing: -0.02em; margin-bottom: 10px; }
@@ -9,7 +9,7 @@
 .btnPrimary { display: flex; align-items: center; gap: 6px; background: var(--ac-color); color: #fff; border-radius: var(--radius-sm); padding: 10px 18px; font-size: 13px; font-weight: 600; }
 .btnGhost { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.75); border-radius: var(--radius-sm); padding: 9px 18px; font-size: 13px; }
 
-.section { padding: 52px 40px; background: var(--bg-body); border-top: 1px solid var(--border-card); }
+.section { padding: 52px max(40px, calc((100% - var(--site-max-width)) / 2)); background: var(--bg-body); border-top: 1px solid var(--border-card); }
 .sectionEyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ac-color); margin-bottom: 6px; }
 .sectionTitle { font-size: 22px; font-weight: 800; color: var(--text-primary); font-family: var(--font-display); margin-bottom: 24px; }
 
