@@ -145,7 +145,7 @@ body {
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.65);
   margin: 0;
 }
 .ace-topbar-sep {
