@@ -1104,6 +1104,8 @@
       '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="Design AI Toolkit" value="' + escapeHtml(brandingAppName) + '">' +
       '<label for="config-branding-logline" class="ace-field-label">Logline</label>' +
       '<input type="text" id="config-branding-logline" class="ace-text-input ace-field" placeholder="AI Powered" value="' + escapeHtml(brandingLogline) + '">' +
+      '<!-- Logo Path + preview hidden until feature is ready -->' +
+      '<div style="display:none">' +
       '<label for="config-branding-logoPath" class="ace-field-label">Logo Path</label>' +
       '<input type="text" id="config-branding-logoPath" class="ace-text-input ace-field ace-field--lg" placeholder="/assets/logo-figmai.svg" value="' + escapeHtml(brandingLogoPath) + '">' +
       '<div class="ace-card-subtext" style="margin-top:8px">Current Logo Preview</div>' +
@@ -1112,6 +1114,7 @@
       '<span id="config-branding-logoMissing" class="inline-error" style="' + (brandingLogoResolved ? 'display:none;' : 'display:inline;') + '">' + (brandingLogoResolved ? '' : 'Logo path is empty') + '</span>' +
       '</div>' +
       '<div class="ace-card-subtext" style="margin-top:6px">Resolved URL: <code id="config-branding-logoPathRaw">' + escapeHtml(brandingLogoResolved || '') + '</code></div>' +
+      '</div>' +
       '</div>',
       expandedMap['branding'])
     var RESOURCE_LINK_KEYS = ['about', 'feedback', 'meetup']
