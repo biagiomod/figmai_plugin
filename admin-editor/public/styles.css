@@ -2751,7 +2751,7 @@ body.ace-home-page {
 }
 .ace-playground-body {
   display: grid;
-  grid-template-columns: 2fr 1fr 2fr;
+  grid-template-columns: 2fr 1.6fr 2fr;
   gap: 0;
   flex: 1;
   min-height: 0;
