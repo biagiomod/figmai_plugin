@@ -751,19 +751,19 @@ body {
 .ace-topbar-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-family: var(--font-label);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: var(--ace-radius-sm);
+  padding: 2px 7px;
+  border-radius: 4px;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.ace-topbar-btn svg { width: 11px; height: 11px; stroke-width: 2; }
+.ace-topbar-btn svg { width: 10px; height: 10px; stroke-width: 2; }
 .ace-topbar-btn--ghost {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
