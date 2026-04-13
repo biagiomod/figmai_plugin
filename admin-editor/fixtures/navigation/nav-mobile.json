@@ -1,0 +1,12 @@
+{
+  "id": "nav-mobile",
+  "name": "Mobile Navigation — hamburger open",
+  "category": "navigation",
+  "tags": ["navigation", "mobile", "hamburger", "overlay"],
+  "selectionSummary": "Frame: Mobile Nav Overlay (390×844)\n\nLayers:\n- Icon: Hamburger (top-left, 24×24)\n- Overlay: Nav drawer (full-height, 280px wide, bg #111)\n- Nav item: Home (active, accent underline)\n- Nav item: About\n- Nav item: Contact\n- Nav item: Login (CTA button style)\n\nState: drawer open, Home selected.",
+  "images": ["nav-mobile-1.png"],
+  "supportsVision": true,
+  "requiresSelection": true,
+  "useCases": ["review-copy", "accessibility-review", "component-review"],
+  "notes": "Tests navigation clarity and mobile layout feedback."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "empty-canvas",
+  "name": "Empty Canvas — no selection",
+  "category": "general",
+  "tags": ["general", "no-selection", "baseline"],
+  "selectionSummary": "",
+  "images": [],
+  "supportsVision": false,
+  "requiresSelection": false,
+  "useCases": ["general-question", "assistant-intro"],
+  "notes": "Baseline fixture for no-selection mode. Use to test free-form queries with no Figma context."
+}
