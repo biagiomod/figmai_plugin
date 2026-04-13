@@ -56,6 +56,35 @@ function readText(filePath: string): string {
 }
 
 /**
+ * Load assistants from per-directory manifests (custom/assistants/<id>/manifest.json).
+ * Used as fallback when the root assistants.manifest.json exists but has an empty assistants array.
+ */
+function loadPerDirectoryAssistants(repoRoot: string): unknown[] {
+  const assistantsDir = path.join(repoRoot, 'custom', 'assistants')
+  if (!fs.existsSync(assistantsDir)) return []
+  let entries: string[]
+  try {
+    entries = fs.readdirSync(assistantsDir)
+  } catch {
+    return []
+  }
+  const results: unknown[] = []
+  for (const entry of entries) {
+    const manifestPath = path.join(assistantsDir, entry, 'manifest.json')
+    if (!fs.existsSync(manifestPath)) continue
+    try {
+      const parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+      if (parsed && typeof parsed.id === 'string' && typeof parsed.label === 'string') {
+        results.push(parsed)
+      }
+    } catch {
+      // skip malformed manifest
+    }
+  }
+  return results
+}
+
+/**
  * Load custom/knowledge/*.md (skip README, *.example.md).
  * Returns map by assistantId (filename without .md).
  */
@@ -177,7 +206,12 @@ export function loadModel(repoRoot: string): { model: AdminEditableModel; meta: 
   const contentModelsPath = path.join(repoRoot, 'docs', 'content-models.md')
 
   const config = readJson<AdminEditableModel['config']>(configPath) ?? {}
-  const manifest = readJson<AdminEditableModel['assistantsManifest']>(manifestPath) ?? { assistants: [] }
+  const rawManifest = readJson<AdminEditableModel['assistantsManifest']>(manifestPath) ?? { assistants: [] }
+  // Fall back to per-directory manifests when the root file exists but has no assistants
+  const manifest: AdminEditableModel['assistantsManifest'] =
+    Array.isArray(rawManifest.assistants) && rawManifest.assistants.length > 0
+      ? rawManifest
+      : { assistants: loadPerDirectoryAssistants(repoRoot) as AdminEditableModel['assistantsManifest']['assistants'] }
   const { byId: customKnowledge, paths: knowledgePaths } = loadCustomKnowledge(repoRoot)
   const contentModelsRaw = readText(contentModelsPath)
   const { registries: designSystemRegistries, paths: registryPaths } = loadDesignSystemRegistries(repoRoot)
