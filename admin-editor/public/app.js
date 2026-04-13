@@ -271,19 +271,23 @@
     const saveBtn = document.getElementById('save-btn')
     if (reloadBtn) {
       reloadBtn.disabled = !!loading
-      reloadBtn.textContent = loading === 'reload' ? 'Loading…' : 'Reset'
+      var reloadLabel = reloadBtn.querySelector('.ace-topbar-btn-label')
+      if (reloadLabel) reloadLabel.textContent = loading === 'reload' ? 'Loading…' : 'Reset'
     }
     if (validateBtn) {
       validateBtn.disabled = !!loading
-      validateBtn.textContent = loading === 'validate' ? 'Validating…' : 'Validate'
+      var validateLabel = validateBtn.querySelector('.ace-topbar-btn-label')
+      if (validateLabel) validateLabel.textContent = loading === 'validate' ? 'Validating…' : 'Validate'
     }
     if (previewBtn) {
       previewBtn.disabled = !!loading || !dirty
-      previewBtn.textContent = loading === 'preview' ? 'Previewing…' : 'Preview changes'
+      var previewLabel = previewBtn.querySelector('.ace-topbar-btn-label')
+      if (previewLabel) previewLabel.textContent = loading === 'preview' ? 'Previewing…' : 'Preview changes'
     }
     if (saveBtn) {
       saveBtn.disabled = !!loading || !dirty || validationStale || !!hasErrors || !!hasParseError
-      saveBtn.textContent = loading === 'save' ? 'Saving…' : 'Save'
+      var saveLabel = saveBtn.querySelector('.ace-topbar-btn-label')
+      if (saveLabel) saveLabel.textContent = loading === 'save' ? 'Saving…' : 'Save'
     }
     const footerStatus = document.getElementById('footer-status')
     if (footerStatus) {
