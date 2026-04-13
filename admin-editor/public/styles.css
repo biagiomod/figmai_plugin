@@ -1624,7 +1624,8 @@ textarea.ace-field.large {
 }
 .ace-resource-link-col--label { flex: 3 1 0; }
 .ace-resource-link-col--url { flex: 7 1 0; }
-.ace-resource-links-card .ace-resource-link-row {
+.ace-resource-links-card .ace-resource-link-row,
+.ace-credits-card .ace-resource-link-row {
   display: flex;
   align-items: center;
   gap: var(--ace-space-8);
