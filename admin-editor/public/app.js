@@ -64,7 +64,7 @@
     playgroundFixtureCatalog: null,       // FixtureMeta[] loaded from /api/fixtures, or null
     playgroundFixtureId: null,            // selected fixture id or null
     playgroundSelectionSummary: '',       // editable selection summary textarea content
-    playgroundInspectorExpanded: true,    // payload inspector collapsed state
+    playgroundInspectorExpanded: true,    // payload inspector expanded state (true = open)
     instructionsMap: {},
     skillsRegistry: { skills: [] },
     selectedSkillId: null,
@@ -2175,6 +2175,10 @@
               state.playgroundFixtureId = null
               state.playgroundSelectionSummary = ''
             }
+          } else {
+            // Fixture no longer in catalog (e.g. catalog fetch failed); clear stale state
+            state.playgroundFixtureId = null
+            state.playgroundSelectionSummary = ''
           }
         }
         renderPlayground()
@@ -2283,10 +2287,18 @@
               if (imgResp.ok) {
                 var imgData = await imgResp.json()
                 body.images = imgData.images || []
+              } else {
+                state.playgroundResult = { error: 'Failed to load fixture images (server returned ' + imgResp.status + '). Aborting send.' }
+                state.playgroundFiring = false
+                renderPlayground()
+                return
               }
             } catch (imgErr) {
               console.warn('[ACE] Failed to load fixture images:', imgErr)
-              body.images = []
+              state.playgroundResult = { error: 'Failed to load fixture images: ' + (imgErr.message || String(imgErr)) + '. Aborting send.' }
+              state.playgroundFiring = false
+              renderPlayground()
+              return
             }
           }
 
