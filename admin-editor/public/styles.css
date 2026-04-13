@@ -3077,3 +3077,33 @@ body.ace-home-page {
 .pg-mode-btn:hover { background: rgba(0,0,0,0.04); color: var(--ace-text); }
 .pg-mode-btn--active { background: var(--ace-accent); color: #fff; }
 .pg-mode-btn--active:hover { background: var(--ace-accent-hover); }
+
+/* ── Test harness: fixture picker ── */
+.pg-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.pg-summary-header label { margin-bottom: 0; }
+.pg-selection-summary-ta {
+  font-family: var(--font-protipo, var(--font));
+  font-size: 11px;
+  line-height: 1.55;
+  resize: vertical;
+}
+.pg-images-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.pg-image-chip {
+  font-family: var(--font-carbon);
+  font-size: 10px;
+  background: var(--ace-bg);
+  border: 1px solid var(--ace-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  color: var(--ace-text-muted);
+}

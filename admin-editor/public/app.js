@@ -1868,6 +1868,97 @@
     return html
   }
 
+  function _pgImagesRow () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    if (mode !== 'vision') return ''
+    var currentId = state.playgroundFixtureId
+    var catalog = state.playgroundFixtureCatalog || []
+    var fix = currentId ? catalog.find(function (f) { return f.id === currentId }) : null
+    if (!fix || !fix.images || fix.images.length === 0) {
+      return '<div class="ae-field-group"><p class="ae-helper">No images in selected fixture.</p></div>'
+    }
+    var html = '<div class="ae-field-group">'
+    html += '<label>Images</label>'
+    html += '<div class="pg-images-row">'
+    fix.images.forEach(function (img) {
+      html += '<span class="pg-image-chip">' + escapeHtml(img) + '</span>'
+    })
+    html += '</div>'
+    html += '<p class="ae-helper">' + fix.images.length + ' image' + (fix.images.length !== 1 ? 's' : '') + ' \u00b7 base64-encoded at send time</p>'
+    html += '</div>'
+    return html
+  }
+
+  function _pgSelectionSummary () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    if (mode === 'no-selection') return ''
+    var summary = state.playgroundSelectionSummary || ''
+    var currentId = state.playgroundFixtureId
+    var catalog = state.playgroundFixtureCatalog || []
+    var fix = currentId ? catalog.find(function (f) { return f.id === currentId }) : null
+    var originalSummary = fix ? (fix.selectionSummary || '') : ''
+    var html = '<div class="ae-field-group">'
+    html += '<div class="pg-summary-header">'
+    html += '<label for="pg-selection-summary">Selection Summary</label>'
+    if (originalSummary && summary !== originalSummary) {
+      html += '<button type="button" class="btn-small" id="pg-summary-reset">Reset</button>'
+    }
+    html += '</div>'
+    html += '<textarea id="pg-selection-summary" class="ace-field pg-selection-summary-ta" rows="6">'
+    html += escapeHtml(summary)
+    html += '</textarea>'
+    html += '<p class="ae-helper">Pre-filled from fixture. Edits are sent as-is.</p>'
+    html += '</div>'
+    return html
+  }
+
+  function _pgFixturePicker () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    var catalog = state.playgroundFixtureCatalog
+    if (!catalog) {
+      return '<div class="ae-field-group"><p class="ae-helper">Loading fixtures\u2026</p></div>'
+    }
+    // Filter fixtures compatible with current mode
+    var visible = catalog.filter(function (f) {
+      if (mode === 'no-selection') return !f.requiresSelection
+      if (mode === 'selection') return f.requiresSelection
+      if (mode === 'vision') return f.requiresSelection && f.supportsVision
+      return true
+    })
+    if (visible.length === 0) {
+      return '<div class="ae-field-group"><p class="ae-helper">No fixtures available for this mode.</p></div>'
+    }
+    var currentId = state.playgroundFixtureId
+    var html = '<div class="ae-field-group">'
+    html += '<label for="pg-fixture-picker">Fixture</label>'
+    html += '<select id="pg-fixture-picker">'
+    html += '<option value="">\u2014 none \u2014</option>'
+    // Group by category
+    var byCategory = {}
+    visible.forEach(function (f) {
+      if (!byCategory[f.category]) byCategory[f.category] = []
+      byCategory[f.category].push(f)
+    })
+    Object.keys(byCategory).sort().forEach(function (cat) {
+      html += '<optgroup label="' + escapeHtml(cat) + '">'
+      byCategory[cat].forEach(function (f) {
+        var sel = currentId === f.id ? ' selected' : ''
+        html += '<option value="' + escapeHtml(f.id) + '"' + sel + '>' + escapeHtml(f.name) + '</option>'
+      })
+      html += '</optgroup>'
+    })
+    html += '</select>'
+    // Tags for selected fixture
+    if (currentId) {
+      var fix = catalog.find(function (f) { return f.id === currentId })
+      if (fix && fix.tags && fix.tags.length > 0) {
+        html += '<p class="ae-helper">tags: ' + fix.tags.map(function (t) { return escapeHtml(t) }).join(' \u00b7 ') + '</p>'
+      }
+    }
+    html += '</div>'
+    return html
+  }
+
   function _pgModeSelector () {
     var mode = state.playgroundTestMode || 'no-selection'
     var modes = [
@@ -1894,6 +1985,9 @@
     var html = '<div class="ace-pg-col">'
     html += '<p class="ace-pg-col-heading">Send</p>'
     html += _pgModeSelector()
+    html += _pgFixturePicker()
+    html += _pgSelectionSummary()
+    html += _pgImagesRow()
     html += '<div class="ae-field-group">'
     html += '<label for="pg-kbname">kbName override</label>'
     html += '<input type="text" id="pg-kbname" class="ace-field" placeholder="Leave blank to use assistant default" value="' + escapeHtml(state.playgroundKbName || '') + '">'
@@ -2049,6 +2143,38 @@
         renderPlayground()
       }
     })
+    var fixturePicker = document.getElementById('pg-fixture-picker')
+    if (fixturePicker) {
+      fixturePicker.onchange = function () {
+        var id = this.value || null
+        state.playgroundFixtureId = id
+        if (id && state.playgroundFixtureCatalog) {
+          var fix = state.playgroundFixtureCatalog.find(function (f) { return f.id === id })
+          state.playgroundSelectionSummary = fix ? (fix.selectionSummary || '') : ''
+        } else {
+          state.playgroundSelectionSummary = ''
+        }
+        renderPlayground()
+      }
+    }
+
+    var summaryTa = document.getElementById('pg-selection-summary')
+    if (summaryTa) {
+      summaryTa.oninput = function () {
+        state.playgroundSelectionSummary = this.value
+      }
+    }
+
+    var summaryResetBtn = document.getElementById('pg-summary-reset')
+    if (summaryResetBtn) {
+      summaryResetBtn.onclick = function () {
+        if (state.playgroundFixtureId && state.playgroundFixtureCatalog) {
+          var fix = state.playgroundFixtureCatalog.find(function (f) { return f.id === state.playgroundFixtureId })
+          state.playgroundSelectionSummary = fix ? (fix.selectionSummary || '') : ''
+          renderPlayground()
+        }
+      }
+    }
     var msgEl = document.getElementById('pg-message')
     if (msgEl) {
       msgEl.oninput = function () { state.playgroundUserMessage = this.value }
