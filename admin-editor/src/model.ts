@@ -158,6 +158,7 @@ function loadDesignSystemSkillMd(repoRoot: string): { byId: Record<string, strin
     const entries = fs.readdirSync(dsDir, { withFileTypes: true })
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
+      if (entry.name === '__top_level__') continue  // reserved sentinel key
       const skillPath = path.join(dsDir, entry.name, 'SKILL.md')
       if (fs.existsSync(skillPath)) {
         byId[entry.name] = readText(skillPath)
