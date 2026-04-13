@@ -3107,3 +3107,39 @@ body.ace-home-page {
   padding: 3px 8px;
   color: var(--ace-text-muted);
 }
+
+/* ── Test harness: payload inspector ── */
+.pg-inspector {
+  margin-bottom: var(--ace-space-12);
+  border: 1px solid var(--ace-border);
+  border-radius: var(--ace-radius-sm);
+  overflow: hidden;
+}
+.pg-inspector-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  font-family: var(--font-carbon);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--ace-bg);
+  border: none;
+  color: var(--ace-text-muted);
+  cursor: pointer;
+}
+.pg-inspector-toggle:hover { color: var(--ace-text); }
+.pg-inspector-pre {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  margin: 0;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-top: 1px solid var(--ace-border);
+}

@@ -1868,6 +1868,42 @@
     return html
   }
 
+  function _pgPayloadInspector (a) {
+    var mode = state.playgroundTestMode || 'no-selection'
+    var message = state.playgroundUserMessage || ''
+    var kbOverride = state.playgroundKbName || ''
+    var selectedQa = state.playgroundActionId ? (a.quickActions || []).find(function (q) { return q.id === state.playgroundActionId }) : null
+    var effectiveKb = kbOverride || (selectedQa && selectedQa.kbName) || (state.instructionsMap && state.instructionsMap[a.id] && state.instructionsMap[a.id].defaultKbName) || 'figma'
+    var effectiveMsg = message || (selectedQa && selectedQa.templateMessage) || ''
+    // Build preview payload
+    var preview = {
+      type: 'generalChat',
+      kbName: effectiveKb,
+      message: effectiveMsg.length > 120 ? effectiveMsg.slice(0, 120) + '\u2026 [truncated]' : effectiveMsg
+    }
+    if (mode === 'selection' || mode === 'vision') {
+      var summary = state.playgroundSelectionSummary || ''
+      preview.selectionSummary = summary.length > 80 ? summary.slice(0, 80) + '\u2026 [truncated]' : summary
+    }
+    if (mode === 'vision') {
+      var catalog = state.playgroundFixtureCatalog || []
+      var fix = state.playgroundFixtureId ? catalog.find(function (f) { return f.id === state.playgroundFixtureId }) : null
+      var imgCount = fix ? (fix.images || []).length : 0
+      preview.images = imgCount > 0 ? ['[' + imgCount + ' image' + (imgCount !== 1 ? 's' : '') + ' \u2014 encoded at send time]'] : []
+    }
+    var expanded = state.playgroundInspectorExpanded !== false
+    var html = '<div class="pg-inspector">'
+    html += '<button type="button" class="pg-inspector-toggle" id="pg-inspector-toggle">'
+    html += (expanded ? '\u25be' : '\u25b8') + ' Payload Inspector'
+    html += '</button>'
+    if (expanded) {
+      html += '<pre class="pg-inspector-pre">' + escapeHtml(JSON.stringify(preview, null, 2)) + '</pre>'
+      html += '<p class="ae-helper" style="margin-top:4px">Live preview of what will be sent. Images encoded at send time.</p>'
+    }
+    html += '</div>'
+    return html
+  }
+
   function _pgImagesRow () {
     var mode = state.playgroundTestMode || 'no-selection'
     if (mode !== 'vision') return ''
@@ -2010,6 +2046,7 @@
     html += '<label for="pg-message">User message</label>'
     html += '<textarea id="pg-message" class="ace-field" rows="5" placeholder="Enter a test message...">' + escapeHtml(state.playgroundUserMessage || '') + '</textarea>'
     html += '</div>'
+    html += _pgPayloadInspector(a)
     var isFiring = state.playgroundFiring
     html += '<button type="button" class="ace-pg-fire-btn" id="pg-fire-btn"' + (isFiring ? ' disabled' : '') + '>'
     html += isFiring ? 'Firing\u2026' : 'FIRE'
@@ -2173,6 +2210,13 @@
           state.playgroundSelectionSummary = fix ? (fix.selectionSummary || '') : ''
           renderPlayground()
         }
+      }
+    }
+    var inspectorToggle = document.getElementById('pg-inspector-toggle')
+    if (inspectorToggle) {
+      inspectorToggle.onclick = function () {
+        state.playgroundInspectorExpanded = !state.playgroundInspectorExpanded
+        renderPlayground()
       }
     }
     var msgEl = document.getElementById('pg-message')
