@@ -774,25 +774,38 @@
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SECTION_STATE_KEY, JSON.stringify(map))
     } catch (_) {}
   }
+  var SECTION_ICONS = {
+    'default-mode': 'layout-panel-left',
+    'mode-settings': 'list',
+    'branding': 'award',
+    'resource-links': 'link',
+    'credits': 'heart',
+    'advanced-raw-json': 'code-2',
+    'ai-api-endpoint': 'cpu',
+    'content-table-exclusion': 'filter'
+  }
+
   function collapsibleSection (sectionId, title, bodyHtml, expanded, descriptionText) {
     var isExpanded = expanded === true
-    var chevron = isExpanded ? 'ChevronUpIcon.svg' : 'ChevronDownIcon.svg'
-    var headerContent
+    var icon = SECTION_ICONS[sectionId] || 'settings'
+    var iconChip = '<div class="ace-section-icon-chip"><i data-lucide="' + escapeHtml(icon) + '"></i></div>'
+    var chevronIcon = '<i data-lucide="chevron-down" class="ace-section-chevron-icon"></i>'
+    var titleContent
     if (descriptionText) {
-      headerContent = '<div class="ace-section-header-inner">' +
+      titleContent = '<div class="ace-section-header-inner">' +
         '<div class="ace-section-header-top">' +
-        '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
-        '<img class="ace-section-chevron" src="/assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />' +
+        '<div class="ace-section-header-content">' + iconChip + '<div class="ace-section-title">' + escapeHtml(title) + '</div></div>' +
+        chevronIcon +
         '</div>' +
         '<div class="ace-section-description">' + escapeHtml(descriptionText) + '</div>' +
         '</div>'
     } else {
-      headerContent = '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
-        '<img class="ace-section-chevron" src="/assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />'
+      titleContent = '<div class="ace-section-header-content">' + iconChip + '<div class="ace-section-title">' + escapeHtml(title) + '</div></div>' +
+        chevronIcon
     }
     return '<section class="ace-section ace-collapsible' + (isExpanded ? '' : ' is-collapsed') + '" data-section="' + escapeHtml(sectionId) + '">' +
       '<button type="button" class="ace-section-header" aria-expanded="' + (isExpanded ? 'true' : 'false') + '" aria-controls="section-' + escapeHtml(sectionId) + '-body">' +
-      headerContent +
+      titleContent +
       '</button>' +
       '<div id="section-' + escapeHtml(sectionId) + '-body" class="ace-section-body">' + bodyHtml + '</div>' +
       '</section>'
@@ -1168,6 +1181,7 @@
       expandedMap['advanced-raw-json'])
     html += '</div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     wireGeneralSubTabBtns(panel)
 
@@ -1183,8 +1197,7 @@
         var expanded = map[sectionId]
         section.classList.toggle('is-collapsed', !expanded)
         this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
-        var img = this.querySelector('.ace-section-chevron')
-        if (img) img.src = expanded ? '/assets/icons/ChevronUpIcon.svg' : '/assets/icons/ChevronDownIcon.svg'
+        // chevron rotation handled by CSS (.ace-collapsible.is-collapsed .ace-section-chevron-icon)
       }
     })
 
@@ -1539,6 +1552,7 @@
     html += '<div id="ace-test-connection-result" role="status" aria-live="polite" style="margin-top:10px"></div>'
     html += '</div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     _apiFetch(API_BASE + '/api/build-info', {})
       .then(function (r) { return r.ok ? r.json() : null })
@@ -1572,8 +1586,7 @@
         var expanded = map[sectionId]
         section.classList.toggle('is-collapsed', !expanded)
         this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
-        var img = this.querySelector('.ace-section-chevron')
-        if (img) img.src = expanded ? '/assets/icons/ChevronUpIcon.svg' : '/assets/icons/ChevronDownIcon.svg'
+        // chevron rotation handled by CSS (.ace-collapsible.is-collapsed .ace-section-chevron-icon)
       }
     })
 
@@ -2433,6 +2446,7 @@
     }
     html += '</div></div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     document.getElementById('assistants-list').addEventListener('click', function (e) {
       const item = e.target.closest('.item[data-id]')
@@ -3308,6 +3322,7 @@
     }
     html += '</div></div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     document.getElementById('knowledge-list').addEventListener('click', function (e) {
       const item = e.target.closest('.item[data-id]')
@@ -4332,6 +4347,7 @@
     html += '</details>'
 
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     // Exclusion rules bindings (moved from General to Content Tables)
     var exclEnabledEl = document.getElementById('ct-excl-enabled')
@@ -4634,6 +4650,7 @@
     html += '</div>'
 
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     // Sidebar click
     panel.querySelectorAll('.ace-ds-sidebar-item[data-ds-id]').forEach(function (item) {
@@ -4883,6 +4900,7 @@
         html += '<div class="ace-users-list" id="ace-users-list"></div></div>'
         html += '</div>'
         panel.innerHTML = html
+        if (window.lucide) lucide.createIcons({ el: panel })
         const resetUsersBtn = document.getElementById('reset-users-btn')
         if (resetUsersBtn) resetUsersBtn.onclick = function () { renderUsersTab() }
         const listEl = document.getElementById('ace-users-list')
@@ -5228,8 +5246,11 @@
       btn.classList.toggle('active', sel)
     })
     var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Usage Report', users: 'Users', knowledge: 'Knowledge' }
+    var PAGE_EYEBROWS = { config: 'Plugin Settings', ai: 'LLM Configuration', assistants: 'Assistant Library', 'knowledge-bases': 'Knowledge & Skills', 'content-models': 'Content Models', registries: 'Design Systems', analytics: 'Usage Data', users: 'User Management', knowledge: 'Knowledge' }
     var pageTitleEl = document.getElementById('ace-page-title-text')
     if (pageTitleEl) pageTitleEl.textContent = PAGE_TITLES[tabId] || tabId
+    var pageEyebrowEl = document.getElementById('ace-page-eyebrow')
+    if (pageEyebrowEl) pageEyebrowEl.textContent = PAGE_EYEBROWS[tabId] || ''
     const subheaderEl = document.getElementById('tab-subheader')
     if (subheaderEl) {
       if (HIDE_TAB_SUBHEADER_TABS.has(tabId)) {
@@ -5457,6 +5478,7 @@
 
     html += '</div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     var selectEl = document.getElementById('analytics-sample-select')
     var preEl = document.getElementById('analytics-sample-pre')
