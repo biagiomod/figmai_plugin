@@ -59,13 +59,13 @@
       </div>
       <div class="ace-topbar-actions" id="ace-topbar-actions">
         <button type="button" id="reload-btn" class="ace-topbar-btn ace-topbar-btn--ghost">
-          <i data-lucide="rotate-ccw"></i>Reset
+          <i data-lucide="rotate-ccw" aria-hidden="true"></i>Reset
         </button>
         <button type="button" id="validate-btn" class="ace-topbar-btn ace-topbar-btn--outline">
-          <i data-lucide="check-circle"></i>Validate
+          <i data-lucide="check-circle" aria-hidden="true"></i>Validate
         </button>
         <button type="button" id="save-btn" class="ace-topbar-btn ace-topbar-btn--primary" disabled>
-          <i data-lucide="save"></i>Save
+          <i data-lucide="save" aria-hidden="true"></i>Save
         </button>
       </div>
     </div>
@@ -195,9 +195,7 @@
   <script src="app.js"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      if (window.lucide) lucide.createIcons();
-    });
+    if (window.lucide) lucide.createIcons();
   </script>
 </body>
 </html>
