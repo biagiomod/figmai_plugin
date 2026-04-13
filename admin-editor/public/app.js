@@ -2301,7 +2301,7 @@
     html += '<ul class="ae-skillmd-rules-list" id="ae-sm-rules-' + escapeHtml(a.id) + '" data-aid="' + escapeHtml(a.id) + '">'
     fields.behaviorRules.forEach(function (rule, idx) {
       html += '<li class="ae-skillmd-rule-row" data-idx="' + idx + '">'
-      html += '<span class="ae-drag-handle">⠿</span>'
+      html += '<span class="ae-drag-handle" title="Drag to reorder (coming soon)" style="opacity:0.4;cursor:default">⠿</span>'
       html += '<input type="text" class="ace-field ae-sm-rule-input" data-idx="' + idx + '" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(rule) + '">'
       html += '<button type="button" class="btn-small ae-sm-rule-remove" data-idx="' + idx + '" data-aid="' + escapeHtml(a.id) + '">✕</button>'
       html += '</li>'
@@ -2312,9 +2312,9 @@
     // Quick Actions
     html += '<h3 class="ae-section-heading">Quick Actions</h3>'
     html += '<p class="ae-helper" style="margin-bottom:8px">Each action is a button in the plugin. Expanding shows what gets sent to the LLM.</p>'
-    html += '<p class="ae-helper" style="color:var(--ace-text-muted);margin-bottom:8px">Quick action IDs in SKILL.md must match IDs defined in <code>manifest.json</code>. Use the generated ID as-is or align it with manifest.json before saving.</p>'
+    html += '<p class="ae-helper" style="color:var(--ace-text-muted);margin-bottom:8px">Edit <code>templateMessage</code> and <code>guidance</code> for existing quick actions. To add or remove actions, use Raw mode or edit <code>manifest.json</code> directly.</p>'
     if (fields.quickActions.length === 0) {
-      html += '<div class="ae-empty-state">No quick actions defined. Add one below.</div>'
+      html += '<div class="ae-empty-state">No quick actions defined in SKILL.md. Use Raw mode or add entries to <code>manifest.json</code> first.</div>'
     } else {
       fields.quickActions.forEach(function (qa, qidx) {
         html += '<div class="ae-qa-accordion" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">'
@@ -2331,12 +2331,10 @@
         html += '<p class="ae-helper">System-level instruction injected alongside the message.</p>'
         html += '<textarea class="ace-field ae-sm-qa-guidance" rows="3" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">' + escapeHtml(qa.guidance) + '</textarea>'
         html += '</div>'
-        html += '<button type="button" class="btn-small ae-sm-qa-remove" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">Remove action</button>'
         html += '</div>'
         html += '</div>'
       })
     }
-    html += '<button type="button" class="btn-small add-btn ae-sm-qa-add" data-aid="' + escapeHtml(a.id) + '">+ Add quick action</button>'
 
     return html
   }
@@ -3512,32 +3510,6 @@
       el.oninput = handler
     })
 
-    // QA remove
-    document.querySelectorAll('.ae-sm-qa-remove').forEach(function (btn) {
-      btn.onclick = function () {
-        var aid = this.getAttribute('data-aid')
-        var qidx = parseInt(this.getAttribute('data-qidx'), 10)
-        if (!aid || isNaN(qidx)) return
-        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
-        fields.quickActions.splice(qidx, 1)
-        var newContent = _serializeSkillMd(aid, fields)
-        _commitSkillMd(aid, newContent)
-        renderAssistantsTab()
-      }
-    })
-
-    // QA add
-    document.querySelectorAll('.ae-sm-qa-add').forEach(function (btn) {
-      btn.onclick = function () {
-        var aid = this.getAttribute('data-aid')
-        if (!aid) return
-        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
-        fields.quickActions.push({ id: 'action-' + (fields.quickActions.length + 1), templateMessage: '', guidance: '' })
-        var newContent = _serializeSkillMd(aid, fields)
-        _commitSkillMd(aid, newContent)
-        renderAssistantsTab()
-      }
-    })
   }
 
   // ——— Knowledge tab ———
