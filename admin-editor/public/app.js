@@ -2609,15 +2609,16 @@
   }
 
   function _parseSkillMd (content) {
-    // Returns { assistantName, corePrinciple, behaviorRules: string[], quickActions: QA[], passthroughSections: [] }
+    // Returns { assistantName, corePrinciple, identityRaw, behaviorRules: string[], quickActions: QA[], passthroughSections: [] }
     // QA = { id: string, templateMessage: string, guidance: string }
-    var result = { assistantName: '', corePrinciple: '', behaviorRules: [], quickActions: [], passthroughSections: [] }
+    var result = { assistantName: '', corePrinciple: '', identityRaw: '', behaviorRules: [], quickActions: [], passthroughSections: [] }
     if (!content) return result
     var lines = content.split('\n')
     var section = null
     var currentQa = null
     var yamlCount = 0
     var yamlEnd = false
+    var identityLines = []
     var i = 0
 
     // Skip YAML frontmatter
@@ -2654,7 +2655,10 @@
       }
 
       if (section === 'identity') {
-        var nameMatch = line.match(/You are \*\*[^']*'s\s+(.+?)\*\*/)
+        identityLines.push(line)
+        // Extract assistantName — handles both "X's Y Assistant" and non-possessive forms
+        var nameMatch = line.match(/You are \*\*[^']*'s\s+(.+?)\*\*/) ||
+                        line.match(/You are (?:the\s+)?\*\*(.+?)\*\*/)
         if (nameMatch) result.assistantName = nameMatch[1].replace(/\s*Assistant\s*$/i, '').trim()
         var cpMatch = line.match(/Your core principle:\s*\*\*(.+?)\*\*/)
         if (cpMatch) result.corePrinciple = cpMatch[1].trim()
@@ -2675,16 +2679,27 @@
         if (currentQa) {
           if (/^templateMessage:\s*\|/.test(line)) {
             var tm = []; i++
-            while (i < lines.length && /^\s{2,}/.test(lines[i])) { tm.push(lines[i].replace(/^\s{2}/, '')); i++ }
+            while (i < lines.length) {
+              var bl = lines[i]
+              if (bl.trim() === '') { tm.push(''); i++; continue }
+              if (!/^\s{2,}/.test(bl)) break
+              tm.push(bl.replace(/^\s{2}/, '')); i++
+            }
             currentQa.templateMessage = tm.join('\n').trim(); i--
           } else if (/^guidance:\s*\|/.test(line)) {
             var gd = []; i++
-            while (i < lines.length && /^\s{2,}/.test(lines[i])) { gd.push(lines[i].replace(/^\s{2}/, '')); i++ }
+            while (i < lines.length) {
+              var gl = lines[i]
+              if (gl.trim() === '') { gd.push(''); i++; continue }
+              if (!/^\s{2,}/.test(gl)) break
+              gd.push(gl.replace(/^\s{2}/, '')); i++
+            }
             currentQa.guidance = gd.join('\n').trim(); i--
           }
         }
       }
     }
+    result.identityRaw = identityLines.join('\n').trimEnd()
     return result
   }
 
@@ -2698,9 +2713,31 @@
     lines.push('')
     lines.push('## Identity')
     lines.push('')
-    lines.push("You are **Design AI Toolkit's " + fields.assistantName + " Assistant**, an expert embedded inside a Figma plugin.")
-    lines.push('')
-    lines.push('Your core principle: **' + fields.corePrinciple + '**')
+    if (fields.identityRaw) {
+      // Emit verbatim, with surgical updates to the two editable fields
+      var identityLines = fields.identityRaw.split('\n')
+      identityLines = identityLines.map(function (l) {
+        // Replace the assistant name in possessive form: "You are **Design AI Toolkit's X Assistant**"
+        var updated = l.replace(
+          /(You are \*\*[^']*'s\s+)(.+?)(\*\*)/,
+          function (m, pre, _name, post) { return pre + fields.assistantName + ' Assistant' + post }
+        )
+        // Non-possessive form (e.g. general assistant "You are the **Design AI Toolkit** assistant")
+        // is left untouched — assistantName is not meaningful there
+        // Replace core principle
+        updated = updated.replace(
+          /(Your core principle:\s*\*\*)(.+?)(\*\*)/,
+          function (m, pre, _cp, post) { return pre + fields.corePrinciple + post }
+        )
+        return updated
+      })
+      identityLines.forEach(function (l) { lines.push(l) })
+    } else {
+      // Fallback for new files with no identityRaw
+      lines.push("You are **Design AI Toolkit's " + fields.assistantName + " Assistant**, an expert embedded inside a Figma plugin.")
+      lines.push('')
+      lines.push('Your core principle: **' + fields.corePrinciple + '**')
+    }
     lines.push('')
     if (fields.behaviorRules && fields.behaviorRules.length > 0) {
       lines.push('## Behavior')
