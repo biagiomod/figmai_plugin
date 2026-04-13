@@ -41,10 +41,16 @@ export function loadFixtureCatalog(fixturesDir: string): FixtureMeta[] {
       const filePath = path.join(catDir, file)
       try {
         const raw = fs.readFileSync(filePath, 'utf-8')
-        const parsed = JSON.parse(raw) as FixtureMeta
-        results.push(parsed)
+        const parsed = JSON.parse(raw)
+        if (
+          typeof parsed.id === 'string' &&
+          typeof parsed.category === 'string' &&
+          Array.isArray(parsed.images)
+        ) {
+          results.push(parsed as FixtureMeta)
+        }
       } catch {
-        // skip malformed JSON
+        // skip malformed or structurally invalid JSON
       }
     }
   }
@@ -57,11 +63,13 @@ export function loadFixtureCatalog(fixturesDir: string): FixtureMeta[] {
  */
 export function loadFixtureImages(fixturesDir: string, fixture: FixtureMeta): string[] {
   const dataUrls: string[] = []
+  const safeCategory = path.basename(fixture.category)
+  if (safeCategory !== fixture.category || safeCategory === '') return dataUrls
   for (const filename of fixture.images) {
     // Reject path traversal attempts
     const safe = path.basename(filename)
     if (safe !== filename) continue
-    const imgPath = path.join(fixturesDir, fixture.category, safe)
+    const imgPath = path.join(fixturesDir, safeCategory, safe)
     try {
       const buf = fs.readFileSync(imgPath)
       dataUrls.push('data:image/png;base64,' + buf.toString('base64'))
