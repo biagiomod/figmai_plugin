@@ -143,8 +143,12 @@ function computeFilesWouldWrite(
   if (model.dsSkillMdContent && meta.filePaths.dsSkillMd) {
     for (const [id, content] of Object.entries(model.dsSkillMdContent)) {
       if (!content) continue
-      const filePath = meta.filePaths.dsSkillMd[id]
-      if (filePath && typeof content === 'string') {
+      const filePath = meta.filePaths.dsSkillMd[id] ?? (
+        id === '__top_level__'
+          ? path.join(repoRoot, 'custom', 'design-systems', 'SKILL.md')
+          : path.join(repoRoot, 'custom', 'design-systems', id, 'SKILL.md')
+      )
+      if (typeof content === 'string') {
         const normalized = normalizeSkillMd(content)
         if (getExistingContent(filePath) !== normalized) wouldWrite.push(filePath)
       }
@@ -245,6 +249,7 @@ export function saveModelDryRun(
  * Writes only: custom/config.json, custom/assistants.manifest.json,
  * custom/knowledge/<id>.md, docs/content-models.md, custom/design-systems/<id>/registry.json,
  * custom/assistants/<id>/SKILL.md (migrated assistants only).
+ * - custom/design-systems/SKILL.md and custom/design-systems/<id>/SKILL.md (DS SKILL.md, if they exist or have path fallbacks)
  */
 export function saveModel(
   model: AdminEditableModel,
@@ -366,11 +371,16 @@ export function saveModel(
   }
 
   // 7) Backup and write custom/design-systems/SKILL.md and custom/design-systems/<id>/SKILL.md
+  // Note: '__top_level__' is a reserved key for custom/design-systems/SKILL.md
   if (model.dsSkillMdContent && meta.filePaths.dsSkillMd) {
     for (const [id, content] of Object.entries(model.dsSkillMdContent)) {
       if (!content) continue
-      const filePath = meta.filePaths.dsSkillMd[id]
-      if (filePath && typeof content === 'string') {
+      const filePath = meta.filePaths.dsSkillMd[id] ?? (
+        id === '__top_level__'
+          ? path.join(repoRoot, 'custom', 'design-systems', 'SKILL.md')
+          : path.join(repoRoot, 'custom', 'design-systems', id, 'SKILL.md')
+      )
+      if (typeof content === 'string') {
         if (fs.existsSync(filePath)) {
           backupFile(filePath, backupRoot, repoRoot)
         }

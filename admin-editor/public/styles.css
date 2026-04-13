@@ -2469,6 +2469,13 @@ body.ace-home-page {
   font-weight: var(--ace-font-weight-semibold);
   margin-bottom: var(--ace-space-4);
 }
+/* Global helper text (used in all panels) */
+.ae-helper {
+  font-size: 12px;
+  color: var(--ace-text-secondary, #666);
+  line-height: 1.4;
+  margin: 0 0 6px;
+}
 .ae-detail-tab-content .ae-helper {
   font-size: var(--ace-font-size-12);
   color: var(--ace-text-muted);
@@ -2961,4 +2968,84 @@ body.ace-home-page {
 }
 .ace-ds-sub-tab:hover:not(.active) {
   background: var(--ace-hover-bg, #f5f5f5);
+}
+
+/* SKILL.md form wizard toggle header */
+.ae-skillmd-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ace-border, #e0e0e0);
+}
+.ae-toggle-pill {
+  display: flex;
+  border: 1px solid var(--ace-border, #e0e0e0);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ae-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  color: var(--ace-text-secondary, #666);
+}
+.ae-toggle-btn.active {
+  background: var(--ace-active-bg, #f0f0f0);
+  color: var(--ace-text, #222);
+  font-weight: 600;
+}
+
+/* Identity preview */
+.ae-skillmd-identity-preview {
+  background: var(--ace-card-bg, #f8f8f8);
+  border: 1px solid var(--ace-border, #e0e0e0);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* Behavior rules list */
+.ae-skillmd-rules-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+.ae-skillmd-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.ae-drag-handle {
+  font-size: 14px;
+  color: var(--ace-text-muted, #999);
+  cursor: grab;
+  user-select: none;
+}
+
+/* Quick Action accordion */
+.ae-qa-accordion {
+  border: 1px solid var(--ace-border, #e0e0e0);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.ae-qa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--ace-card-bg, #f8f8f8);
+  cursor: pointer;
+}
+.ae-qa-body {
+  padding: 10px 12px;
+  border-top: 1px solid var(--ace-border, #e0e0e0);
 }
