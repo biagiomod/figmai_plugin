@@ -1573,9 +1573,45 @@ textarea.ace-field.large {
 @media (max-width: 640px) { .ace-mode-columns { gap: var(--ace-space-24); } }
 .ace-mode-col { display: flex; flex-direction: column; gap: var(--ace-space-16); }
 .ace-mode-col-title { font-size: var(--ace-font-size-14); font-weight: var(--ace-font-weight-semibold); color: #333; margin: 0 0 var(--ace-space-8) 0; }
-.ace-checkbox-list { display: flex; flex-direction: column; gap: var(--ace-space-16); }
-.ace-checkbox-row { display: flex; align-items: center; gap: 12px; margin: 0; font-weight: var(--ace-font-weight-regular); font-size: var(--ace-font-size-14); color: #333; cursor: pointer; }
-.ace-checkbox-row input[type="checkbox"] { width: 24px; height: 24px; margin: 0; accent-color: var(--ace-accent); cursor: pointer; flex-shrink: 0; }
+.ace-checkbox-list { display: flex; flex-direction: column; gap: 10px; }
+.ace-checkbox-row { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: var(--ace-font-weight-regular); font-size: var(--ace-font-size-14); color: #333; cursor: pointer; }
+/* Custom checkbox — replaces browser default */
+.ace-checkbox-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  border: 1.5px solid #c9c9c9;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s, border-color 0.12s;
+}
+.ace-checkbox-row input[type="checkbox"]:checked {
+  background: var(--ace-accent);
+  border-color: var(--ace-accent);
+}
+.ace-checkbox-row input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg);
+}
+.ace-checkbox-row input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--ace-accent);
+  outline-offset: 2px;
+}
+.ace-checkbox-row input[type="checkbox"]:hover:not(:checked) {
+  border-color: var(--ace-accent);
+}
 .ace-checkbox-row input { max-width: none; }
 .ace-mode-readonly-list { margin: 0; padding-left: 1.2rem; color: var(--ace-text-muted); font-size: var(--ace-font-size-14); list-style: disc; }
 
