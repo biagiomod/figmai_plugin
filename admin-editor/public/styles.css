@@ -290,8 +290,8 @@ body {
   margin-top: var(--ace-space-8);
 }
 .ace-nav-item-user:hover {
-  background: rgba(0, 0, 0, 0.06);
-  border-color: var(--ace-text-muted);
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.3);
 }
 .ace-nav-item-user:focus-visible,
 .ace-nav-item-user:focus {
