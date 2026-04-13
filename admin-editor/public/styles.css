@@ -170,7 +170,7 @@ body {
 
 .ace-topbar-actions {
   display: flex;
-  gap: var(--ace-space-16);
+  gap: 8px;
   align-items: center;
   flex-wrap: nowrap;
   flex-shrink: 0;
@@ -261,7 +261,11 @@ body {
 
 .ace-nav-item[aria-selected="true"],
 .ace-nav-item.active {
-  background: rgba(213,12,125,0.14);
+  background: rgba(213,12,125,0.12);
+  color: #d50c7d;
+}
+.ace-nav-item[aria-selected="true"] .ace-nav-icon-svg,
+.ace-nav-item.active .ace-nav-icon-svg {
   color: #d50c7d;
 }
 
@@ -349,15 +353,6 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
-.ace-topbar-actions button {
-  font-family: var(--font-protipo);
-  font-weight: 600;
-  font-size: 14px;
-  padding: 8px 16px;
-  min-height: 40px;
-  border-radius: var(--ace-radius);
-}
-
 .ace-section-header {
   display: flex;
   align-items: center;
@@ -751,38 +746,37 @@ body {
 .ace-topbar-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 22px;
+  gap: 6px;
+  height: 32px;
   font-family: var(--font-label);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  padding: 0 8px;
-  border-radius: 4px;
+  padding: 0 12px;
+  border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.ace-topbar-btn svg { width: 10px; height: 10px; stroke-width: 2; flex-shrink: 0; }
+.ace-topbar-btn svg { width: 14px; height: 14px; stroke-width: 2; flex-shrink: 0; }
 .ace-topbar-btn--ghost {
   background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.65);
+  border: 1px solid rgba(255,255,255,0.16);
+  color: rgba(255,255,255,0.7);
 }
 .ace-topbar-btn--ghost:hover:not(:disabled) {
   background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,0.95);
 }
 .ace-topbar-btn--outline {
   background: transparent;
-  border: 1px solid rgba(213,12,125,0.4);
+  border: 1px solid #d50c7d;
   color: #d50c7d;
 }
 .ace-topbar-btn--outline:hover:not(:disabled) {
-  background: rgba(213,12,125,0.06);
-  border-color: #d50c7d;
+  background: rgba(213,12,125,0.1);
 }
 .ace-topbar-btn--primary {
   background: #d50c7d;
