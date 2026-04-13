@@ -1585,13 +1585,13 @@ textarea.ace-field.large {
 .ace-checkbox-row input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 3px;
-  top: 1px;
+  left: 50%;
+  top: 50%;
   width: 8px;
   height: 5px;
   border-left: 2px solid #fff;
   border-bottom: 2px solid #fff;
-  transform: rotate(-45deg);
+  transform: translate(-50%, -65%) rotate(-45deg);
 }
 .ace-checkbox-row input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--ace-accent);
@@ -1693,13 +1693,13 @@ textarea.ace-field.large {
   border-top: none;
 }
 .ace-credits-group-label {
-  font-family: var(--font-label);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ace-text);
-  margin: 0 0 4px 0;
+  font-family: var(--font-body);
+  font-size: var(--ace-font-size-14);
+  font-weight: var(--ace-font-weight-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+  color: #333;
+  margin: 0 0 8px 0;
 }
 .ace-credits-card input:focus-visible {
   outline: 2px solid var(--ace-accent);
