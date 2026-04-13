@@ -3526,6 +3526,7 @@
     } else {
       panel.innerHTML = subTabHtml + html
     }
+    if (window.lucide) lucide.createIcons({ el: panel })
     wireResourcesSubTabBtns(panel)
 
     var kbCreateBtn = document.getElementById('kb-create-btn')
