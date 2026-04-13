@@ -429,19 +429,15 @@ body {
   margin: 0 0 var(--ace-space-16) 0;
 }
 
-/* AI page: tighter title → build line and section header → description */
-#panel-ai {
-  gap: var(--ace-space-12);
-}
-#panel-ai .ace-section-header-row {
-  padding-bottom: var(--ace-space-12);
-}
-#panel-ai .ace-build-info {
-  margin-top: 0;
-  margin-bottom: var(--ace-space-12);
-}
+/* AI page */
 #panel-ai .ace-collapsible .ace-section-body {
   padding-top: var(--ace-space-8);
+}
+
+/* General page: build info shown at bottom of cards */
+#panel-config .ace-build-info {
+  margin-top: var(--ace-space-12);
+  margin-bottom: 0;
 }
 
 .ace-ai-save-note {
@@ -1628,6 +1624,21 @@ textarea.ace-field.large {
 }
 .ace-llm-endpoint-card .ace-checkbox-row { margin-top: var(--ace-space-8); }
 .ace-llm-endpoint-card .ace-checkbox-row input:disabled + .ace-checkbox-label { color: var(--ace-text-muted); }
+
+/* "Plugin visibility" sub-heading inside provider blocks */
+.ace-llm-visibility-label {
+  margin-top: var(--ace-space-20);
+  padding-top: var(--ace-space-16);
+  border-top: 1px solid var(--ace-border);
+  margin-bottom: var(--ace-space-4);
+}
+
+/* Shared options row below both provider blocks */
+.ace-llm-shared-opts {
+  margin-top: var(--ace-space-16);
+  padding-top: var(--ace-space-16);
+  border-top: 1px solid var(--ace-border);
+}
 
 /* Resource Links card — flat compact rows with single column header */
 .ace-resource-link-header {

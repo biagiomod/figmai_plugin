@@ -1195,8 +1195,29 @@
       '</div>',
       expandedMap['advanced-raw-json'])
     html += '</div>'
+    html += '<p id="general-build-info" class="ace-build-info ace-text-muted" aria-live="polite">Plugin build: loading\u2026</p>'
     panel.innerHTML = html
     if (window.lucide) lucide.createIcons({ el: panel })
+
+    _apiFetch(API_BASE + '/api/build-info', {})
+      .then(function (r) { return r.ok ? r.json() : null })
+      .then(function (data) {
+        var version = (data && typeof data.version === 'string') ? data.version : ''
+        var buildId = (data && typeof data.buildId === 'string') ? data.buildId : undefined
+        var el = document.getElementById('general-build-info')
+        if (!el) return
+        if (version && buildId) {
+          el.textContent = 'Plugin build: ' + version + ' (bundle ID: ' + buildId + ') \u2014 updates each time the plugin is compiled'
+        } else if (version) {
+          el.textContent = 'Plugin build: ' + version + ' \u2014 updates each time the plugin is compiled'
+        } else {
+          el.textContent = 'Plugin build: unavailable'
+        }
+      })
+      .catch(function () {
+        var el = document.getElementById('general-build-info')
+        if (el) el.textContent = 'Plugin build: unavailable'
+      })
 
     wireGeneralSubTabBtns(panel)
 
@@ -1524,26 +1545,20 @@
     const proxyAuthMode = proxy.authMode === 'session_token' ? 'session_token' : 'shared_token'
     const proxySharedToken = (typeof proxy.sharedToken === 'string' ? proxy.sharedToken : '') || ''
     var expandedMap = loadSectionExpandedState()
-    var html = '<div class="ace-section-header-row">'
-    html += '<h2 class="ace-section-title">AI Settings</h2>'
-    html += '<button type="button" class="ace-section-header-btn" id="reset-ai-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
-    html += '</div>'
-    html += '<p id="ai-build-info" class="ace-build-info ace-text-muted" aria-live="polite">Build —</p>'
-    html += '<div class="ace-config-cards ace-cards">'
+    var html = '<div class="ace-config-cards ace-cards">'
     var cardInner = '<div class="ace-segmented-btns" role="group" aria-label="Provider">'
     cardInner += '<button type="button" class="ace-segmented-btn' + (llmProvider === 'internal-api' ? ' is-active' : '') + '" data-llm-provider="internal-api">Internal API</button>'
     cardInner += '<button type="button" class="ace-segmented-btn' + (llmProvider === 'proxy' ? ' is-active' : '') + '" data-llm-provider="proxy">Proxy</button>'
     cardInner += '</div>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideInternalApiSettings"' + (llmHideInternalApi ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Internal API settings in plugin Settings</span></label>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideProxySettings"' + (llmHideProxy ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Proxy settings in plugin Settings</span></label>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideTestConnectionButton"' + (llmHideTestBtn ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Test Connection button in plugin Settings</span></label>'
     cardInner += '<div id="ai-internal-api-block" class="ace-llm-provider-block"' + (llmProvider === 'proxy' ? ' style="display:none"' : '') + '>'
     cardInner += '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>'
     cardInner += '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">'
     cardInner += '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-uiMode"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>'
-    cardInner += '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>'
+    cardInner += '<p class="ace-field-label ace-llm-visibility-label">Plugin visibility</p>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideInternalApiSettings"' + (llmHideInternalApi ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Internal API settings from users</span></label>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint URL from users</span></label>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-uiMode"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Connection-only mode</span></label>'
+    cardInner += '<p class="ace-card-helper" id="config-llm-uiMode-helper">Hides model settings — plugin shows only the connection test UI.</p>'
     cardInner += '</div>'
     cardInner += '<div id="ai-proxy-block" class="ace-llm-provider-block"' + (llmProvider === 'internal-api' ? ' style="display:none"' : '') + '>'
     cardInner += '<label for="config-llm-proxy-baseUrl" class="ace-field-label">Proxy Base URL</label>'
@@ -1557,6 +1572,11 @@
     cardInner += '</select>'
     cardInner += '<label for="config-llm-proxy-sharedToken" class="ace-field-label">Shared Token</label>'
     cardInner += '<input type="password" id="config-llm-proxy-sharedToken" class="ace-text-input ace-field ace-field--lg" placeholder="(optional)" value="' + escapeHtml(proxySharedToken) + '" autocomplete="off">'
+    cardInner += '<p class="ace-field-label ace-llm-visibility-label">Plugin visibility</p>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideProxySettings"' + (llmHideProxy ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Proxy settings from users</span></label>'
+    cardInner += '</div>'
+    cardInner += '<div class="ace-llm-shared-opts">'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideTestConnectionButton"' + (llmHideTestBtn ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Test Connection button in plugin</span></label>'
     cardInner += '</div>'
     html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint', '<div class="ace-card ace-llm-endpoint-card">' + cardInner + '</div>', expandedMap['ai-api-endpoint'], 'Configure how the plugin connects to AI services')
     html += '</div>'
@@ -1568,26 +1588,6 @@
     html += '</div>'
     panel.innerHTML = html
     if (window.lucide) lucide.createIcons({ el: panel })
-
-    _apiFetch(API_BASE + '/api/build-info', {})
-      .then(function (r) { return r.ok ? r.json() : null })
-      .then(function (data) {
-        var version = (data && typeof data.version === 'string') ? data.version : ''
-        var buildId = (data && typeof data.buildId === 'string') ? data.buildId : undefined
-        var el = document.getElementById('ai-build-info')
-        if (!el) return
-        if (version && buildId) {
-          el.textContent = 'Build ' + version + ' (' + buildId + ')'
-        } else if (version) {
-          el.textContent = 'Build ' + version
-        } else {
-          el.textContent = 'Build unavailable'
-        }
-      })
-      .catch(function () {
-        var el = document.getElementById('ai-build-info')
-        if (el) el.textContent = 'Build unavailable'
-      })
 
     panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
       btn.onclick = function () {
@@ -1618,19 +1618,6 @@
         updateFooterButtons()
       }
     })
-
-    document.getElementById('reset-ai-btn').onclick = function () {
-      if (!state.originalModel) return
-      var origLlm = state.originalModel.config && state.originalModel.config.llm ? state.originalModel.config.llm : {}
-      var editLlm = state.editedModel.config && state.editedModel.config.llm ? state.editedModel.config.llm : {}
-      if (deepEqual(origLlm, editLlm)) return
-      if (!confirm('Reset changes for AI?')) return
-      if (!state.editedModel.config) state.editedModel.config = {}
-      state.editedModel.config.llm = state.originalModel.config && state.originalModel.config.llm ? deepClone(state.originalModel.config.llm) : {}
-      showUnsavedBanner()
-      renderAITab()
-      updateFooterButtons()
-    }
 
     function updateLlmGuardrail () {
       const endpointEl = document.getElementById('config-llm-endpoint')
