@@ -752,18 +752,20 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  height: 22px;
   font-family: var(--font-label);
   font-size: 8px;
   font-weight: 700;
+  line-height: 1;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 2px 7px;
+  padding: 0 8px;
   border-radius: 4px;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.ace-topbar-btn svg { width: 10px; height: 10px; stroke-width: 2; }
+.ace-topbar-btn svg { width: 10px; height: 10px; stroke-width: 2; flex-shrink: 0; }
 .ace-topbar-btn--ghost {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
