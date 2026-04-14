@@ -71,5 +71,9 @@ manifest.json
 # Place your cert at admin-editor/certs/corp-ca.pem (copy from corp-ca.pem.example).
 admin-editor/certs/*.pem
 
-# Remotion rendered output — tracked via Git LFS (see .gitattributes)
+# Remotion rendered videos — not tracked in git, delivered out-of-band.
+# Poster .jpg images ARE committed (small, needed for site fallbacks).
+# See site/public/videos/README.md for drop-in instructions.
+site/public/videos/*.mp4
+
 refs_for_cursor/forBipin.txt
