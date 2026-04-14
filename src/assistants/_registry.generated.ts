@@ -1,6 +1,6 @@
 // _registry.generated.ts — DO NOT EDIT
 // Assembled by scripts/build-assistants.ts
-// Last assembled: 2026-04-14T00:35:29.694Z
+// Last assembled: 2026-04-14T00:59:10.968Z
 //
 // Add new assistants here when they first pass validation.
 

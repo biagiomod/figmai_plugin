@@ -39,7 +39,7 @@ with HTTP `401`.
 The API now uses an explicit allowlist (comma-separated env var):
 
 ```bash
-CORS_ALLOW_ORIGINS=http://localhost:3333,http://127.0.0.1:3334,https://figmai.otherdesign.com
+CORS_ALLOW_ORIGINS=http://localhost:3333,http://127.0.0.1:3334,https://ace.example.com
 ```
 
 Behavior:

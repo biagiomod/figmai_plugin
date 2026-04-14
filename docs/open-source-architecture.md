@@ -96,7 +96,7 @@ In `custom/config.json`, the public repository includes temporary development de
   ],
   "extraAllowedDomains": [
     "http://localhost:8787",
-    "https://overobedient-buddy-leathern.ngrok-free.dev"
+    "https://YOUR_NGROK_URL.ngrok-free.dev"
   ]
 }
 ```

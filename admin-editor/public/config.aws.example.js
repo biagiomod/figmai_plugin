@@ -13,6 +13,6 @@
  * Do NOT put secrets (tokens, passwords) in this file — they are entered at runtime.
  */
 window.__ACE_CONFIG__ = {
-  apiBase: 'https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin',
+  apiBase: 'https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin',
   authMode: 'bearer' // bearer token: user is prompted on first load, stored in sessionStorage
 };

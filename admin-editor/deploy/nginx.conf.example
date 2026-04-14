@@ -11,7 +11,7 @@
 
 server {
     listen 443 ssl;
-    server_name figmai.otherdesign.com;
+    server_name ace.example.com;
 
     # ... SSL config ...
 
@@ -51,7 +51,7 @@ server {
 
 # server {
 #     listen 443 ssl;
-#     server_name figmai.otherdesign.com;
+#     server_name ace.example.com;
 #
 #     location /ace/ {
 #         alias /var/www/ace/;

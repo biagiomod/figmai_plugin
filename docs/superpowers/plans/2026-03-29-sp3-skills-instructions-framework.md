@@ -568,14 +568,14 @@ After deploy, test against the live API. Replace `<TOKEN>` with a valid ACE JWT:
 
 ```bash
 curl -s -H "Authorization: Bearer <TOKEN>" \
-  "https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin/api/skills" | jq .
+  "https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin/api/skills" | jq .
 ```
 
 Expected: `{"skills":[]}` (empty registry on first call).
 
 ```bash
 curl -s -X POST -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" \
-  "https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin/api/skills" \
+  "https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin/api/skills" \
   -d '{"id":"use-brand-voice","title":"Use Brand Voice","kind":"behavior","content":"Apply brand voice guidelines.\n"}' | jq .
 ```
 
@@ -583,7 +583,7 @@ Expected: `{"id":"use-brand-voice","title":"Use Brand Voice","kind":"behavior","
 
 ```bash
 curl -s -H "Authorization: Bearer <TOKEN>" \
-  "https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin/api/skills/use-brand-voice" | jq .
+  "https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin/api/skills/use-brand-voice" | jq .
 ```
 
 Expected: skill object with `content` field.
@@ -594,7 +594,7 @@ Expected: skill object with `content` field.
 
 ```bash
 curl -s -H "Authorization: Bearer <TOKEN>" \
-  "https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin/api/model" | jq '.model.skillsRegistry'
+  "https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin/api/model" | jq '.model.skillsRegistry'
 ```
 
 Expected: `{"skills":[{"id":"use-brand-voice",...}]}`
@@ -1347,7 +1347,7 @@ Expected: `ACE static build complete -> admin-editor/dist`
 cat admin-editor/dist/config.js
 ```
 
-Expected: URL points to `https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin`.
+Expected: URL points to `https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin`.
 
 - [ ] Confirm the production URL is correct.
 

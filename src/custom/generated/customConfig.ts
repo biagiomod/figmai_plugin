@@ -160,9 +160,9 @@ export const customConfig: CustomConfig | null = {
     },
     "provider": "proxy",
     "proxy": {
-      "baseUrl": "https://overobedient-buddy-leathern.ngrok-free.dev ",
-      "defaultModel": "gpt-4.1-mini",
-      "sharedToken": "some-long-random-token"
+      "baseUrl": "",
+      "defaultModel": "",
+      "sharedToken": ""
     },
     "safety": {
       "forceNoImages": false,
@@ -191,7 +191,7 @@ export const customConfig: CustomConfig | null = {
     "links": {
       "about": {
         "label": "About",
-        "url": "https://www.figma.com/community/plugin/1592005586211314002/Ableza"
+        "url": ""
       },
       "feedback": {
         "label": "Feedback",

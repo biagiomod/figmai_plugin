@@ -334,7 +334,7 @@ Expected: `Stack update succeeded`
 
 ```bash
 curl -s -X PUT -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" \
-  "https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin/api/test/rubrics/design_critique" \
+  "https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin/api/test/rubrics/design_critique" \
   -d '{"items":[{"id":"r1","label":"Contains at least one actionable recommendation","autoCheck":false}]}' | jq .
 ```
 
@@ -342,7 +342,7 @@ Expected: `{"assistantId":"design_critique","items":[{"id":"r1",...}]}`
 
 ```bash
 curl -s -H "Authorization: Bearer <TOKEN>" \
-  "https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin/api/test/rubrics/design_critique" | jq .
+  "https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin/api/test/rubrics/design_critique" | jq .
 ```
 
 Expected: same object.
@@ -1402,7 +1402,7 @@ Expected: `ACE static build complete -> admin-editor/dist`
 cat admin-editor/dist/config.js
 ```
 
-Expected: points to `https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin`.
+Expected: points to `https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin`.
 
 - [ ] Confirm the production URL is correct.
 

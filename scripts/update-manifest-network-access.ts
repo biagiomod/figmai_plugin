@@ -54,7 +54,6 @@ interface CustomConfigFile {
 const PUBLIC_DEFAULT_ALLOWED_DOMAINS: string[] = [
   'https://api.openai.com',
   'http://localhost:8787',
-  'https://overobedient-buddy-leathern.ngrok-free.dev'
 ]
 
 function loadJsonFile<T>(filePath: string): T | null {

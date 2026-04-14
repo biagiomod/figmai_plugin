@@ -1,13 +1,16 @@
 version = 0.1
 
+# IMPORTANT: Copy this file to samconfig.local.toml and fill in your values.
+# Do not commit environment-specific values to this file.
+
 [default.deploy.parameters]
 stack_name = "figmai-ace-lambda"
 resolve_s3 = true
 s3_prefix = "figmai-ace-lambda"
-profile = "modstar-admin"
+profile = ""
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "S3BucketName=\"modstar-figmai-config\" S3Prefix=\"figmai/\" S3Region=\"us-east-2\" CorsAllowOrigins=\"https://figmai.otherdesign.com,http://localhost:3333,http://127.0.0.1:3333,http://127.0.0.1:3334\" ServiceName=\"ace-lambda\" ServiceVersion=\"0.1.0\" BuildTimestamp=\"\" GitCommitSha=\"7a4c04e\" JwtExpiryHours=\"8\" LlmApiEndpoint=\"\""
+parameter_overrides = "S3BucketName=\"\" S3Prefix=\"figmai/\" S3Region=\"\" CorsAllowOrigins=\"\" ServiceName=\"ace-lambda\" ServiceVersion=\"0.1.0\" BuildTimestamp=\"\" GitCommitSha=\"\" JwtExpiryHours=\"8\" LlmApiEndpoint=\"\""
 image_repositories = []
 
 [default.global.parameters]

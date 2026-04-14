@@ -1232,7 +1232,7 @@ ACE static build complete -> admin-editor/dist
 
 ### Step 2: Restore dist/config.js to hosted URL
 
-The build script overwrites `dist/config.js` with the content of `public/config.js`. If `public/config.js` already points to the production Lambda URL (`https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin`), no action needed. Verify:
+The build script overwrites `dist/config.js` with the content of `public/config.js`. If `public/config.js` already points to the production Lambda URL (`https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin`), no action needed. Verify:
 
 ```bash
 cat admin-editor/dist/config.js
@@ -1241,7 +1241,7 @@ cat admin-editor/dist/config.js
 Expected:
 ```javascript
 window.__ACE_CONFIG__ = {
-  apiBase: 'https://85caqhbzff.execute-api.us-east-2.amazonaws.com/figma-admin',
+  apiBase: 'https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/figma-admin',
   authMode: 'bearer'
 };
 ```
