@@ -1,2 +1,2 @@
-site/public/videos/*.mp4 filter=lfs diff=lfs merge=lfs -text
-site/public/videos/*-poster.jpg filter=lfs diff=lfs merge=lfs -text
+# Video files are not tracked in git — they are delivered out-of-band.
+# See site/public/videos/README.md for drop-in instructions.
