@@ -51,6 +51,37 @@ const app = express()
 app.use(express.json({ limit: '10mb' }))
 app.use(cookieParser())
 
+// CSRF protection for local auth mode: reject mutating API requests that originate
+// from a different site. Skipped in wrapper mode (Spring proxy sets its own origin).
+if (ACE_AUTH_MODE !== 'wrapper') {
+  const isLocalOrigin = (h: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(h.trim())
+  app.use('/api', (req, res, next) => {
+    if (req.method === 'GET' || req.method === 'OPTIONS' || req.method === 'HEAD') {
+      return next()
+    }
+    const origin = req.headers['origin'] || ''
+    const referer = req.headers['referer'] || ''
+    // If both absent, it's a same-origin request (browser omits Origin for same-origin fetches in some cases).
+    if (!origin && !referer) return next()
+    // If Origin is present, it must be localhost.
+    if (origin && !isLocalOrigin(origin)) {
+      return res.status(403).json({ error: 'Forbidden: cross-site request rejected' })
+    }
+    // If Origin absent but Referer present, Referer must be localhost.
+    if (!origin && referer) {
+      try {
+        if (!isLocalOrigin(new URL(referer).origin)) {
+          return res.status(403).json({ error: 'Forbidden: cross-site request rejected' })
+        }
+      } catch {
+        // Malformed Referer treated as cross-site
+        return res.status(403).json({ error: 'Forbidden: cross-site request rejected' })
+      }
+    }
+    next()
+  })
+}
+
 // In dev, prevent caching of main static assets so refresh always serves current files (avoids stale UI/blank page).
 const NO_CACHE_PATHS = new Set([
   '/', '/index.html', '/app.js', '/styles.css', '/fonts.css',

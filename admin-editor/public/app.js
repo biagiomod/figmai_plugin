@@ -36,6 +36,7 @@
     usersList: [],
     kbRegistry: [],
     kbRegistryFetched: false,
+    kbRegistryError: null,
     selectedKbId: null,
     kbCreateMode: false,
     kbPreviewDoc: null,
@@ -67,14 +68,52 @@
     playgroundInspectorExpanded: true,    // payload inspector expanded state (true = open)
     instructionsMap: {},
     skillsRegistry: { skills: [] },
+    skillsRegistryFetched: false,
+    skillsRegistryError: null,
     selectedSkillId: null,
     selectedSkillContent: '',
+    selectedSkillEditorMode: 'form',
     selectedGeneralSubTab: 'plugin',   // 'plugin' | 'site'
     selectedResourcesSubTab: 'shared-skills'   // 'shared-skills' | 'internal-kbs'
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
   const KB_ID_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+  // ── Theme toggle ──────────────────────────────────────────────────────────
+  const ACE_THEMES = ['mixed', 'dark', 'light']
+  const ACE_THEME_LABELS = { mixed: 'Mix', dark: 'Dark', light: 'Light' }
+  const ACE_THEME_LS_KEY = 'ace-theme'
+  const ACE_THEME_ICONS = {
+    mixed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>',
+    dark:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+  }
+
+  function _getStoredTheme () {
+    try {
+      var stored = localStorage.getItem(ACE_THEME_LS_KEY)
+      return ACE_THEMES.indexOf(stored) !== -1 ? stored : 'mixed'
+    } catch { return 'mixed' }
+  }
+
+  function applyTheme (theme) {
+    ACE_THEMES.forEach(function (t) { document.documentElement.classList.remove('ace-theme-' + t) })
+    document.documentElement.classList.add('ace-theme-' + theme)
+    try { localStorage.setItem(ACE_THEME_LS_KEY, theme) } catch {}
+    var btn = document.getElementById('ace-theme-btn')
+    if (btn) {
+      var icon = btn.querySelector('.ace-theme-icon')
+      if (icon) icon.innerHTML = ACE_THEME_ICONS[theme]
+      var label = btn.querySelector('.ace-topbar-btn-label')
+      if (label) label.textContent = ACE_THEME_LABELS[theme]
+      btn.setAttribute('aria-label', 'Theme: ' + ACE_THEME_LABELS[theme])
+    }
+  }
+
+  // Apply theme immediately (before auth/render) so there's no flash
+  applyTheme(_getStoredTheme())
+  // ─────────────────────────────────────────────────────────────────────────
 
   var FETCH_OPTS = ACE_AUTH_MODE === 'bearer' ? {} : { credentials: 'include' }
 
@@ -700,10 +739,15 @@
       }
       state.instructionsMap = deepClone(data.model.instructions || {})
       state.skillsRegistry = data.skillsRegistry || { skills: [] }
+      // Mark skills as pre-fetched if the server already returned them in /api/model;
+      // otherwise the Resources tab will fetch lazily via GET /api/skills.
+      state.skillsRegistryFetched = (data.skillsRegistry != null)
+      state.skillsRegistryError = null
       state.meta = data.meta || null
       state.validation = data.validation || { errors: [], warnings: [] }
       state.loadedAt = new Date().toLocaleString()
       state.kbRegistryFetched = false
+      state.kbRegistryError = null
       state.connected = true
       state.saveSummary = null
       state.previewSummary = null
@@ -2951,6 +2995,120 @@
     return lines.join('\n')
   }
 
+  function _parseSharedSkill (content) {
+    var result = {
+      frontmatter: '',
+      purpose: '',
+      scope: '',
+      rules: [],
+      dos: [],
+      donts: [],
+      passthroughSections: []
+    }
+    if (!content) return result
+    var lines = content.split('\n')
+    var i = 0
+    // Extract frontmatter
+    if (lines[0] && lines[0].trim() === '---') {
+      var fmLines = ['---']
+      i = 1
+      while (i < lines.length && lines[i].trim() !== '---') {
+        fmLines.push(lines[i]); i++
+      }
+      fmLines.push('---')
+      result.frontmatter = fmLines.join('\n')
+      i++ // skip closing ---
+    }
+    // Parse sections
+    var sections = []
+    var currentSection = null
+    while (i < lines.length) {
+      var line = lines[i]
+      var headingMatch = line.match(/^##\s+(.+)/)
+      if (headingMatch) {
+        if (currentSection) sections.push(currentSection)
+        currentSection = { name: headingMatch[1].trim(), lines: [] }
+      } else if (currentSection) {
+        currentSection.lines.push(line)
+      }
+      i++
+    }
+    if (currentSection) sections.push(currentSection)
+    // Assign parsed sections
+    sections.forEach(function (sec) {
+      var bodyLines = sec.lines
+      // Trim leading/trailing blank lines
+      while (bodyLines.length > 0 && bodyLines[0].trim() === '') bodyLines.shift()
+      while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop()
+      var name = sec.name
+      if (name === 'Purpose') {
+        result.purpose = bodyLines.join('\n').trim()
+      } else if (name === 'Scope') {
+        result.scope = bodyLines.join('\n').trim()
+      } else if (name === 'Rules') {
+        result.rules = bodyLines.map(function (l) {
+          var m = l.match(/^-\s+(.+)/)
+          return m ? m[1] : null
+        }).filter(function (v) { return v !== null })
+      } else if (name === 'Do') {
+        result.dos = bodyLines.map(function (l) {
+          var m = l.match(/^-\s+(.+)/)
+          return m ? m[1] : null
+        }).filter(function (v) { return v !== null })
+      } else if (name === "Don't") {
+        result.donts = bodyLines.map(function (l) {
+          var m = l.match(/^-\s+(.+)/)
+          return m ? m[1] : null
+        }).filter(function (v) { return v !== null })
+      } else {
+        result.passthroughSections.push({ name: name, content: bodyLines.join('\n') })
+      }
+    })
+    return result
+  }
+
+  function _serializeSharedSkill (fields) {
+    var lines = []
+    if (fields.frontmatter) {
+      lines.push(fields.frontmatter)
+      lines.push('')
+    }
+    lines.push('## Purpose')
+    lines.push(fields.purpose || '')
+    lines.push('')
+    if (fields.scope) {
+      lines.push('## Scope')
+      lines.push(fields.scope)
+      lines.push('')
+    }
+    lines.push('## Rules')
+    ;(fields.rules || []).filter(function (r) { return r !== '' }).forEach(function (r) {
+      lines.push('- ' + r)
+    })
+    lines.push('')
+    lines.push('## Do')
+    ;(fields.dos || []).filter(function (r) { return r !== '' }).forEach(function (r) {
+      lines.push('- ' + r)
+    })
+    lines.push('')
+    lines.push("## Don't")
+    ;(fields.donts || []).filter(function (r) { return r !== '' }).forEach(function (r) {
+      lines.push('- ' + r)
+    })
+    lines.push('')
+    ;(fields.passthroughSections || []).forEach(function (sec) {
+      lines.push('## ' + sec.name)
+      if (sec.content) {
+        sec.content.split('\n').forEach(function (l) { lines.push(l) })
+      }
+      lines.push('')
+    })
+    // Ensure single trailing newline
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+    lines.push('')
+    return lines.join('\n')
+  }
+
   function _updateSkillMdPreview (aid, fields) {
     var preview = document.querySelector('.ae-skillmd-identity-preview')
     if (!preview) return
@@ -3362,34 +3520,186 @@
   // ——— Resources tab (PR11b) ———
   async function fetchKbRegistry () {
     const res = await _apiFetch(API_BASE + '/api/kb/registry', {})
-    if (!res.ok) throw new Error(res.status === 403 ? 'Not authorized' : 'Failed to load registry')
+    if (!res.ok) {
+      var msg = res.status === 403 ? 'Not authorized to view Internal KBs' : res.status === 401 ? 'Session expired — please reload' : 'Failed to load Internal KBs (' + res.status + ')'
+      throw new Error(msg)
+    }
     const data = await res.json()
     state.kbRegistry = data.knowledgeBases || []
   }
 
+  async function fetchSkillsRegistry () {
+    const res = await _apiFetch(API_BASE + '/api/skills', {})
+    if (!res.ok) {
+      var msg = res.status === 403 ? 'Not authorized to view Shared Skills' : res.status === 401 ? 'Session expired — please reload' : 'Failed to load Shared Skills (' + res.status + ')'
+      throw new Error(msg)
+    }
+    const data = await res.json()
+    state.skillsRegistry = { skills: Array.isArray(data.skills) ? data.skills : [] }
+  }
+
+  /**
+   * Renders the Resources tab. Shared Skills and Internal KBs are both fetched lazily
+   * on first visit to their respective sub-tab.
+   */
   function renderKnowledgeBasesTab () {
-    const panel = document.getElementById('panel-knowledge-bases')
-    if (!panel) return
-    panel.setAttribute('aria-busy', 'true')
-    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">Loading…</p>'
-    fetchKbRegistry()
-      .then(function () {
-        state.panelKnowledgeBasesReady = true
-        renderKnowledgeBasesTabContent()
-      })
-      .catch(function (err) {
-        panel.removeAttribute('aria-busy')
-        panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
-      })
+    state.panelKnowledgeBasesReady = true
+    var subTab = state.selectedResourcesSubTab || 'shared-skills'
+    if (subTab === 'shared-skills' && !state.skillsRegistryFetched) {
+      renderKnowledgeBasesTabContent()
+      fetchSkillsRegistry()
+        .then(function () {
+          state.skillsRegistryFetched = true
+          renderKnowledgeBasesTabContent()
+        })
+        .catch(function (err) {
+          state.skillsRegistryFetched = true
+          state.skillsRegistryError = err.message || 'Failed to load Shared Skills'
+          renderKnowledgeBasesTabContent()
+        })
+    } else {
+      renderKnowledgeBasesTabContent()
+    }
   }
 
   function wireResourcesSubTabBtns (panel) {
     panel.querySelectorAll('.ace-sub-tab-btn[data-resources-subtab]').forEach(function (btn) {
       btn.onclick = function () {
-        state.selectedResourcesSubTab = this.getAttribute('data-resources-subtab')
-        renderKnowledgeBasesTabContent()
+        var subTab = this.getAttribute('data-resources-subtab')
+        if (subTab === 'shared-skills') {
+          state.selectedKbId = null
+        } else if (subTab === 'internal-kbs') {
+          state.selectedSkillId = null
+          state.selectedSkillContent = ''
+          state.selectedSkillEditorMode = 'form'
+        }
+        state.selectedResourcesSubTab = subTab
+        if (subTab === 'shared-skills' && !state.skillsRegistryFetched) {
+          renderKnowledgeBasesTabContent()
+          fetchSkillsRegistry()
+            .then(function () {
+              state.skillsRegistryFetched = true
+              renderKnowledgeBasesTabContent()
+            })
+            .catch(function (err) {
+              state.skillsRegistryFetched = true
+              state.skillsRegistryError = err.message || 'Failed to load Shared Skills'
+              renderKnowledgeBasesTabContent()
+            })
+        } else if (subTab === 'internal-kbs' && !state.kbRegistryFetched) {
+          renderKnowledgeBasesTabContent() // show loading state first
+          fetchKbRegistry()
+            .then(function () {
+              state.kbRegistryFetched = true
+              renderKnowledgeBasesTabContent()
+            })
+            .catch(function (err) {
+              state.kbRegistryFetched = true
+              state.kbRegistryError = err.message || 'Failed to load Internal KBs'
+              renderKnowledgeBasesTabContent()
+            })
+        } else {
+          renderKnowledgeBasesTabContent()
+        }
       }
     })
+  }
+
+  function _captureSharedSkillFormToState () {
+    var parsed = _parseSharedSkill(state.selectedSkillContent || '')
+    var purposeEl = document.getElementById('ace-skill-purpose')
+    var scopeEl = document.getElementById('ace-skill-scope')
+    if (purposeEl) parsed.purpose = purposeEl.value
+    if (scopeEl) parsed.scope = scopeEl.value
+    parsed.rules = Array.from(document.querySelectorAll('.ae-shared-skill-rule')).map(function (el) { return el.value })
+    parsed.dos   = Array.from(document.querySelectorAll('.ae-shared-skill-do')).map(function (el) { return el.value })
+    parsed.donts = Array.from(document.querySelectorAll('.ae-shared-skill-dont')).map(function (el) { return el.value })
+    state.selectedSkillContent = _serializeSharedSkill(parsed)
+  }
+
+  function _renderSharedSkillEditor (selectedSkill) {
+    var mode = state.selectedSkillEditorMode || 'form'
+    var content = state.selectedSkillContent || ''
+    var html = ''
+
+    html += '<div class="ae-skillmd-header">'
+    html += '<span class="ae-helper" style="flex:1">Shared skill editor. Saved to <code>custom/skills/' + escapeHtml(selectedSkill.id) + '.md</code>.</span>'
+    html += '<div class="ae-toggle-pill">'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-skill-editor-mode="form">Form</button>'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-skill-editor-mode="raw">Raw</button>'
+    html += '</div>'
+    html += '</div>'
+
+    if (mode === 'form') {
+      var fields = _parseSharedSkill(content)
+
+      html += '<h3 class="ae-section-heading" style="margin-top:0">Metadata</h3>'
+      html += '<div class="ae-field-group">'
+      html += '<label for="ace-skill-title">Title</label>'
+      html += '<input type="text" id="ace-skill-title" class="ace-field" value="' + escapeHtml(selectedSkill.title) + '">'
+      html += '</div>'
+      html += '<div class="ae-field-group">'
+      html += '<label for="ace-skill-kind">Kind</label>'
+      html += '<select id="ace-skill-kind">'
+      ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
+        html += '<option value="' + k + '"' + (selectedSkill.kind === k ? ' selected' : '') + '>' + k + '</option>'
+      })
+      html += '</select>'
+      html += '</div>'
+
+      html += '<h3 class="ae-section-heading">Purpose</h3>'
+      html += '<p class="ae-helper">Describe what knowledge or behavior this skill provides.</p>'
+      html += '<textarea id="ace-skill-purpose" class="ace-field" rows="3">' + escapeHtml(fields.purpose) + '</textarea>'
+
+      html += '<h3 class="ae-section-heading">Scope</h3>'
+      html += '<p class="ae-helper">Where this applies and what it excludes. Optional.</p>'
+      html += '<textarea id="ace-skill-scope" class="ace-field" rows="2">' + escapeHtml(fields.scope) + '</textarea>'
+
+      html += '<h3 class="ae-section-heading">Rules</h3>'
+      html += '<p class="ae-helper">Ordered rules — highest priority first.</p>'
+      html += '<ul class="ae-skillmd-rules-list" id="ae-skill-rules-list">'
+      fields.rules.forEach(function (rule, idx) {
+        html += '<li class="ae-skillmd-rule-row">'
+        html += '<span class="ae-drag-handle" style="opacity:0.4;cursor:default">&#10783;</span>'
+        html += '<input type="text" class="ace-field ae-shared-skill-rule" data-idx="' + idx + '" value="' + escapeHtml(rule) + '">'
+        html += '<button type="button" class="btn-small ae-shared-skill-remove" data-list="rules" data-idx="' + idx + '">\u2715</button>'
+        html += '</li>'
+      })
+      html += '</ul>'
+      html += '<button type="button" class="btn-small add-btn ae-shared-skill-add" data-list="rules">+ Add rule</button>'
+
+      html += '<h3 class="ae-section-heading">Do</h3>'
+      html += '<ul class="ae-skillmd-rules-list" id="ae-skill-dos-list">'
+      fields.dos.forEach(function (item, idx) {
+        html += '<li class="ae-skillmd-rule-row">'
+        html += '<input type="text" class="ace-field ae-shared-skill-do" data-idx="' + idx + '" value="' + escapeHtml(item) + '">'
+        html += '<button type="button" class="btn-small ae-shared-skill-remove" data-list="dos" data-idx="' + idx + '">\u2715</button>'
+        html += '</li>'
+      })
+      html += '</ul>'
+      html += '<button type="button" class="btn-small add-btn ae-shared-skill-add" data-list="dos">+ Add do</button>'
+
+      html += '<h3 class="ae-section-heading">Don\'t</h3>'
+      html += '<ul class="ae-skillmd-rules-list" id="ae-skill-donts-list">'
+      fields.donts.forEach(function (item, idx) {
+        html += '<li class="ae-skillmd-rule-row">'
+        html += '<input type="text" class="ace-field ae-shared-skill-dont" data-idx="' + idx + '" value="' + escapeHtml(item) + '">'
+        html += '<button type="button" class="btn-small ae-shared-skill-remove" data-list="donts" data-idx="' + idx + '">\u2715</button>'
+        html += '</li>'
+      })
+      html += '</ul>'
+      html += '<button type="button" class="btn-small add-btn ae-shared-skill-add" data-list="donts">+ Add don\'t</button>'
+    } else {
+      html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)"><strong>' + escapeHtml(selectedSkill.title) + '</strong> &middot; <span class="fg-secondary">' + escapeHtml(selectedSkill.kind) + ' &middot; ' + escapeHtml(selectedSkill.id) + '.md</span></p>'
+      html += '<textarea id="ace-skill-content" class="ace-field ace-textarea" rows="20" style="font-family:monospace;font-size:13px;white-space:pre;" data-skill-id="' + escapeHtml(selectedSkill.id) + '">' + escapeHtml(content) + '</textarea>'
+    }
+
+    html += '<div style="display:flex;gap:var(--ace-space-8);margin-top:var(--ace-space-8)">'
+    html += '<button type="button" class="btn-primary" id="ace-skill-save-btn">Save skill</button>'
+    html += '<button type="button" class="btn-secondary" id="ace-skill-delete-btn" style="margin-left:auto">Delete</button>'
+    html += '</div>'
+    html += '<div id="ace-skill-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+    return html
   }
 
   function renderKnowledgeBasesTabContent () {
@@ -3416,6 +3726,11 @@
     skillsHtml += '<button type="button" class="ace-section-header-btn" id="ace-skill-new-btn">New skill</button>'
     skillsHtml += '</div>'
     skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the SKILL.md Quick Actions package box.</p>'
+    if (!state.skillsRegistryFetched) {
+      skillsHtml += '<p class="fg-secondary">Loading\u2026</p>'
+    } else if (state.skillsRegistryError) {
+      skillsHtml += '<p style="color:var(--error)">' + escapeHtml(state.skillsRegistryError) + '</p>'
+    } else {
     var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
     if (allSkills.length === 0) {
       skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No shared skills yet. Click "New skill" to create the first one.</div>'
@@ -3438,36 +3753,12 @@
         if (!selectedSkill) {
           skillsHtml += '<div class="empty">Not found</div>'
         } else {
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label>ID <span class="fg-secondary">(read-only)</span></label>'
-          skillsHtml += '<input type="text" class="ace-field" value="' + escapeHtml(selectedSkill.id) + '" readonly>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label for="ace-skill-title">Title</label>'
-          skillsHtml += '<input type="text" id="ace-skill-title" class="ace-field" value="' + escapeHtml(selectedSkill.title) + '">'
-          skillsHtml += '</div>'
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label for="ace-skill-kind">Kind</label>'
-          skillsHtml += '<select id="ace-skill-kind">'
-          ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
-            skillsHtml += '<option value="' + k + '"' + (selectedSkill.kind === k ? ' selected' : '') + '>' + k + '</option>'
-          })
-          skillsHtml += '</select>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label for="ace-skill-content">Content</label>'
-          skillsHtml += '<p class="ae-helper">The prompt text that will be included when this skill is active.</p>'
-          skillsHtml += '<textarea id="ace-skill-content" class="ace-field" rows="8" data-skill-id="' + escapeHtml(selectedSkill.id) + '">' + escapeHtml(state.selectedSkillContent || '') + '</textarea>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div style="display:flex;gap:var(--ace-space-8);margin-top:var(--ace-space-8)">'
-          skillsHtml += '<button type="button" class="btn-primary" id="ace-skill-save-btn">Save skill</button>'
-          skillsHtml += '<button type="button" class="btn-secondary" id="ace-skill-delete-btn" style="margin-left:auto">Delete</button>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div id="ace-skill-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+          skillsHtml += _renderSharedSkillEditor(selectedSkill)
         }
       }
       skillsHtml += '</div></div>'
     }
+    } // end else (skillsRegistryFetched && no error)
     // New skill form (hidden by default)
     skillsHtml += '<div id="ace-skill-new-form" style="display:none;margin-bottom:var(--ace-space-24);padding:var(--ace-space-16);border:1px solid var(--ace-border);border-radius:var(--ace-radius)">'
     skillsHtml += '<h3 style="margin:0 0 var(--ace-space-12) 0;font-size:14px">New skill</h3>'
@@ -3492,6 +3783,14 @@
     html += '<button type="button" class="ace-section-header-btn" id="kb-create-btn">Import / Create</button>'
     html += '</div>'
     html += '<p class="ace-kb-hint fg-secondary">Structured knowledge injected into assistant prompts. Stored in <code>custom/knowledge-bases/&lt;id&gt;.kb.json</code>.</p>'
+    // Loading / error states for lazy-loaded KB registry
+    if (!state.kbRegistryFetched) {
+      html += '<p class="fg-secondary">Loading…</p>'
+      html = '<div>' + html + '</div>'
+    } else if (state.kbRegistryError) {
+      html += '<p class="fg-secondary" style="color:var(--error)">' + escapeHtml(state.kbRegistryError) + '</p>'
+      html = '<div>' + html + '</div>'
+    } else {
     html += '<div class="list-panel">'
     html += '<div class="list" id="kb-list">'
     registry.forEach(function (entry) {
@@ -3522,6 +3821,7 @@
       html += '<div class="empty">Select a knowledge base to view and edit it, or click Import / Create</div>'
     }
     html += '</div></div>'
+    } // end else (kbRegistryFetched && no error)
 
     if (resSubTab === 'shared-skills') {
       panel.innerHTML = subTabHtml + skillsHtml
@@ -3610,6 +3910,59 @@
     }
 
     // Skills panel event handlers
+
+    // Form/Raw toggle for shared skill editor
+    document.querySelectorAll('.ae-toggle-btn[data-skill-editor-mode]').forEach(function (btn) {
+      btn.onclick = function () {
+        var currentMode = state.selectedSkillEditorMode || 'form'
+        var newMode = this.getAttribute('data-skill-editor-mode')
+        if (currentMode === newMode) return
+        if (currentMode === 'form') {
+          _captureSharedSkillFormToState()
+        } else {
+          var rawEl = document.getElementById('ace-skill-content')
+          if (rawEl) state.selectedSkillContent = rawEl.value
+        }
+        state.selectedSkillEditorMode = newMode
+        renderKnowledgeBasesTabContent()
+      }
+    })
+
+    // Sync content edits back to state so mode-switch doesn't lose work
+    var skillContentEl = document.getElementById('ace-skill-content')
+    if (skillContentEl) {
+      skillContentEl.oninput = function () { state.selectedSkillContent = this.value }
+    }
+
+    // Add item to a skill list
+    document.querySelectorAll('.ae-shared-skill-add').forEach(function (btn) {
+      btn.onclick = function () {
+        if (state.selectedSkillEditorMode === 'form') _captureSharedSkillFormToState()
+        var parsed = _parseSharedSkill(state.selectedSkillContent || '')
+        var list = this.getAttribute('data-list')
+        if (list === 'rules') parsed.rules.push('')
+        else if (list === 'dos') parsed.dos.push('')
+        else if (list === 'donts') parsed.donts.push('')
+        state.selectedSkillContent = _serializeSharedSkill(parsed)
+        renderKnowledgeBasesTabContent()
+      }
+    })
+
+    // Remove item from a skill list
+    document.querySelectorAll('.ae-shared-skill-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        if (state.selectedSkillEditorMode === 'form') _captureSharedSkillFormToState()
+        var parsed = _parseSharedSkill(state.selectedSkillContent || '')
+        var list = this.getAttribute('data-list')
+        var idx = parseInt(this.getAttribute('data-idx'), 10)
+        if (list === 'rules') parsed.rules.splice(idx, 1)
+        else if (list === 'dos') parsed.dos.splice(idx, 1)
+        else if (list === 'donts') parsed.donts.splice(idx, 1)
+        state.selectedSkillContent = _serializeSharedSkill(parsed)
+        renderKnowledgeBasesTabContent()
+      }
+    })
+
     var skillsList = document.getElementById('ace-skills-list')
     if (skillsList) {
       skillsList.addEventListener('click', function (e) {
@@ -3619,14 +3972,19 @@
         if (state.selectedSkillId === skillId) return
         state.selectedSkillId = skillId
         state.selectedSkillContent = ''
-        // Fetch skill content from API
+        // Fetch skill content — capture skillId to discard stale responses if user clicks again
+        var fetchedForId = skillId
         _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(skillId))
           .then(function (r) { return r.json() })
           .then(function (data) {
+            if (state.selectedSkillId !== fetchedForId) return
             state.selectedSkillContent = data.content || ''
             renderKnowledgeBasesTabContent()
           })
-          .catch(function () { renderKnowledgeBasesTabContent() })
+          .catch(function () {
+            if (state.selectedSkillId !== fetchedForId) return
+            renderKnowledgeBasesTabContent()
+          })
         renderKnowledgeBasesTabContent()
       })
     }
@@ -3668,7 +4026,7 @@
           if (existing >= 0) state.skillsRegistry.skills[existing] = data
           else state.skillsRegistry.skills.push(data)
           state.selectedSkillId = data.id
-          state.selectedSkillContent = payload.content
+          state.selectedSkillContent = data.content != null ? data.content : payload.content
           renderKnowledgeBasesTabContent()
         } catch (err) {
           if (statusEl) statusEl.textContent = 'Network error.'
@@ -3680,19 +4038,24 @@
     if (skillSaveBtn) {
       skillSaveBtn.onclick = async function () {
         if (!state.selectedSkillId) return
-        var titleEl = document.getElementById('ace-skill-title')
-        var kindEl = document.getElementById('ace-skill-kind')
-        var contentEl = document.getElementById('ace-skill-content')
         var statusEl = document.getElementById('ace-skill-status')
         var payload = {}
-        if (titleEl) payload.title = titleEl.value
-        if (kindEl) payload.kind = kindEl.value
-        if (contentEl) payload.content = contentEl.value
+        if (state.selectedSkillEditorMode === 'form') {
+          _captureSharedSkillFormToState()
+          var titleEl = document.getElementById('ace-skill-title')
+          var kindEl  = document.getElementById('ace-skill-kind')
+          if (titleEl) payload.title = titleEl.value
+          if (kindEl)  payload.kind  = kindEl.value
+          payload.content = state.selectedSkillContent
+        } else {
+          var rawEl = document.getElementById('ace-skill-content')
+          if (rawEl) state.selectedSkillContent = rawEl.value
+          payload.content = state.selectedSkillContent
+        }
         try {
           var r = await _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(state.selectedSkillId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
           var data = await r.json()
           if (!r.ok) { if (statusEl) statusEl.textContent = data.error || 'Save error.'; return }
-          // Update local registry entry
           if (state.skillsRegistry) {
             var idx = state.skillsRegistry.skills.findIndex(function (s) { return s.id === data.id })
             if (idx >= 0) state.skillsRegistry.skills[idx] = { id: data.id, title: data.title, kind: data.kind, filePath: data.filePath || data.id + '.md' }
@@ -3700,6 +4063,7 @@
           state.selectedSkillContent = data.content || ''
           if (statusEl) statusEl.textContent = 'Saved.'
           setTimeout(function () { if (statusEl) statusEl.textContent = '' }, 2000)
+          renderKnowledgeBasesTabContent()
         } catch (err) {
           if (statusEl) statusEl.textContent = 'Network error.'
         }
@@ -3943,7 +4307,7 @@
         body: JSON.stringify(payload)
       })
         .then(function (res) {
-          if (!res.ok) return res.json().then(function (body) { throw new Error(body.error || (body.errors || []).join('; ')) })
+          if (!res.ok) return res.json().then(function (body) { throw new Error(body.error || (Array.isArray(body.errors) && body.errors.length ? body.errors.join('; ') : null) || 'Save error.') })
           return res.json()
         })
         .then(function (data) {
@@ -5703,6 +6067,14 @@
     if (validateBtnEl) validateBtnEl.onclick = function () { runValidate() }
     const saveBtnEl = document.getElementById('save-btn')
     if (saveBtnEl) saveBtnEl.onclick = function () { runSave() }
+    const themeBtnEl = document.getElementById('ace-theme-btn')
+    if (themeBtnEl) {
+      themeBtnEl.onclick = function () {
+        var current = _getStoredTheme()
+        var next = ACE_THEMES[(ACE_THEMES.indexOf(current) + 1) % ACE_THEMES.length]
+        applyTheme(next)
+      }
+    }
     const previewBtnEl = document.getElementById('preview-btn')
     if (previewBtnEl) previewBtnEl.onclick = function () { runPreview() }
     const discardBtn = document.getElementById('discard-all-btn')

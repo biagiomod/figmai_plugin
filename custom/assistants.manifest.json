@@ -1,3 +1,497 @@
 {
-  "assistants": []
+  "assistants": [
+    {
+      "hoverSummary": "Accessibility specialist",
+      "iconId": "ADAIcon",
+      "id": "accessibility",
+      "intro": "I help ensure your designs are accessible and inclusive. Select elements to check for accessibility issues.",
+      "kind": "ai",
+      "label": "Accessibility",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "check-a11y",
+          "imageScale": 2,
+          "label": "Check accessibility",
+          "maxImages": 1,
+          "requiresSelection": true,
+          "requiresVision": true,
+          "templateMessage": "Review this design for accessibility issues. Check color contrast, text sizing, interactive elements, and WCAG compliance."
+        },
+        {
+          "executionType": "llm",
+          "id": "wcag-compliance",
+          "imageScale": 2,
+          "label": "WCAG compliance",
+          "maxImages": 1,
+          "requiresSelection": true,
+          "requiresVision": true,
+          "templateMessage": "Check WCAG AA/AAA compliance. Identify all violations and provide specific fixes with contrast ratios and measurements."
+        },
+        {
+          "executionType": "llm",
+          "id": "contrast-analysis",
+          "imageScale": 2,
+          "label": "Color contrast analysis",
+          "maxImages": 1,
+          "requiresSelection": true,
+          "requiresVision": true,
+          "templateMessage": "Analyze color contrast for all text/background combinations. Calculate contrast ratios and identify issues."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Alpha",
+        "variant": "alpha"
+      }
+    },
+    {
+      "hoverSummary": "Analytics tagging from ScreenID and ActionID annotations",
+      "iconId": "AnalyticsIcon",
+      "id": "analytics_tagging",
+      "intro": "**Welcome to Analytics Tagging**\n\nSelect one or more frames or components with a **ScreenID** annotation, then run **Get Analytics Tags** to scan for ActionID annotations. Use **Copy Table** when ready.",
+      "kind": "tool",
+      "label": "Analytics Tagging",
+      "quickActions": [
+        {
+          "executionType": "tool-only",
+          "id": "get-analytics-tags",
+          "label": "Get Analytics Tags",
+          "requiresSelection": true,
+          "templateMessage": "Scan selected screen(s) for ActionID annotations and fill the table."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "append-analytics-tags",
+          "label": "Append Selection",
+          "requiresSelection": true,
+          "templateMessage": "Append additional screen(s) to the existing analytics tagging table."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "copy-table",
+          "label": "Copy Table",
+          "templateMessage": "Copy analytics table to clipboard."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "new-session",
+          "label": "New session",
+          "templateMessage": "Start a new analytics tagging session"
+        },
+        {
+          "executionType": "tool-only",
+          "id": "fix-annotation-near-misses",
+          "label": "Fix Near-Miss Annotations",
+          "templateMessage": "Fix annotation category near-misses and re-scan."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "add-annotations",
+          "label": "Add Annotations",
+          "requiresSelection": true,
+          "templateMessage": "Detect interactive elements and add ScreenID/ActionID placeholder annotations."
+        },
+        {
+          "executionType": "ui-only",
+          "id": "export-screenshots",
+          "label": "Export Screenshots",
+          "requiresSelection": false,
+          "templateMessage": "Export screenshots for analytics tagging rows"
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Beta",
+        "variant": "beta"
+      }
+    },
+    {
+      "hoverSummary": "Use JSON to create designs and get JSON from your designs",
+      "iconId": "CodeIcon",
+      "id": "code2design",
+      "intro": "Import/export JSON templates to create and manage Figma designs.",
+      "kind": "hybrid",
+      "label": "Code2Design",
+      "quickActions": [
+        {
+          "executionType": "hybrid",
+          "id": "send-json",
+          "label": "SEND JSON",
+          "templateMessage": "Paste a Design AI Toolkit Template JSON to generate Figma elements"
+        },
+        {
+          "executionType": "hybrid",
+          "id": "get-json",
+          "label": "GET JSON",
+          "requiresSelection": true,
+          "templateMessage": "Export selected frames to JSON template format"
+        },
+        {
+          "executionType": "llm",
+          "id": "json-format-help",
+          "label": "How to format JSON",
+          "templateMessage": "Explain the Design AI Toolkit Template JSON format and schema requirements"
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Beta",
+        "variant": "beta"
+      }
+    },
+    {
+      "hoverSummary": "Evergreens specialist",
+      "iconId": "ContentTableIcon",
+      "id": "content_table",
+      "intro": "**Welcome to your Evergreens Assistant**\n\nI generate structured content inventories and tables from your designs. Select a single container to scan all text content.",
+      "kind": "tool",
+      "label": "Evergreens",
+      "quickActions": [
+        {
+          "executionType": "tool-only",
+          "id": "generate-table",
+          "label": "GENERATE TABLE",
+          "requiresSelection": true,
+          "templateMessage": "Scan selected container and generate evergreen table"
+        },
+        {
+          "executionType": "tool-only",
+          "id": "add-to-table",
+          "label": "ADD",
+          "requiresSelection": true,
+          "templateMessage": "Add selected container(s) to existing table"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "copy-table",
+          "label": "Copy Table",
+          "requiresSelection": false,
+          "templateMessage": "Copy table to clipboard"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "view-table",
+          "label": "View Table",
+          "requiresSelection": false,
+          "templateMessage": "View table in plugin"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "copy-ref-image",
+          "label": "Get Ref Image",
+          "requiresSelection": false,
+          "templateMessage": "Get reference image"
+        },
+        {
+          "executionType": "ui-only",
+          "id": "generate-new-table",
+          "label": "Generate New Table",
+          "requiresSelection": true,
+          "templateMessage": "Generate a new evergreen table"
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "MVP",
+        "variant": "beta"
+      }
+    },
+    {
+      "hoverSummary": "Design review specialist plus dark pattern detection",
+      "iconId": "ArtIcon",
+      "id": "design_critique",
+      "instructionBlocks": [],
+      "intro": "I provide detailed design critiques with scores, wins, fixes, and actionable feedback. Select a design element to get started.",
+      "kind": "ai",
+      "knowledgeBaseRefs": [
+        "design-critique",
+        "dark-deceptive-practices"
+      ],
+      "label": "Design Critique",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "give-critique",
+          "imageScale": 2,
+          "label": "Give Design Crit",
+          "maxImages": 1,
+          "requiresSelection": true,
+          "requiresVision": true,
+          "templateMessage": "Provide a comprehensive design critique of the selected elements."
+        },
+        {
+          "executionType": "llm",
+          "id": "deceptive-review",
+          "imageScale": 2,
+          "label": "Deceptive Review",
+          "maxImages": 1,
+          "requiresSelection": true,
+          "requiresVision": true,
+          "templateMessage": "Evaluate this design for Dark & Deceptive UX practices. Identify any patterns that manipulate, mislead, or harm users."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "temp-place-forced-action-card",
+          "label": "Add Deceptive Demos",
+          "templateMessage": "Place deceptive demo cards on the stage for testing dark pattern examples."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Beta",
+        "variant": "beta"
+      }
+    },
+    {
+      "hoverSummary": "Screen generator specialist",
+      "iconId": "LightBulbRaysIcon",
+      "id": "design_workshop",
+      "instructionBlocks": [
+        {
+          "content": "Output must be valid JSON only (no prose, no markdown fences). Generate 1-5 screens. Required: type \"designScreens\", version 1, meta.title, canvas.device (kind, width, height), render.intent.fidelity, screens array with name, layout, blocks. Must satisfy DesignSpecV1 shape.",
+          "enabled": true,
+          "id": "design_workshop-output",
+          "kind": "format"
+        }
+      ],
+      "intro": "**Welcome to your Design Workshop Assistant!**\n\nI can generate 1-5 Figma screens. Describe the screens you want, and I'll create them on the canvas.",
+      "kind": "ai",
+      "knowledgeBaseRefs": [
+        "design-workshop"
+      ],
+      "label": "Design Workshop",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "generate-screens",
+          "label": "Demo: Generate Screens",
+          "templateMessage": "Generate screens using Jazz Design System styling at hi fidelity."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-screens",
+          "label": "Run Demo",
+          "templateMessage": "Running FiFi FinTech demo preset."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-dashboard",
+          "label": "Demo: Dashboard",
+          "templateMessage": "Running FiFi dashboard screen."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-positions",
+          "label": "Demo: Positions",
+          "templateMessage": "Running FiFi positions screen."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-flow",
+          "label": "Demo: Full Flow",
+          "templateMessage": "Running FiFi full 5-screen flow."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "demo-exact",
+          "label": "Demo: Exact",
+          "templateMessage": "Running FiFi exact reference portfolio screen."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Alpha",
+        "variant": "alpha"
+      }
+    },
+    {
+      "hoverSummary": "Generate developer specifications",
+      "iconId": "CodeIcon",
+      "id": "dev_handoff",
+      "intro": "I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.",
+      "kind": "ai",
+      "label": "Dev Handoff",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "generate-specs",
+          "imageScale": 2,
+          "label": "Generate specs",
+          "maxImages": 1,
+          "requiresSelection": true,
+          "requiresVision": true,
+          "templateMessage": "Generate comprehensive developer specifications including layout, typography, colors, components, interactions, and accessibility requirements."
+        },
+        {
+          "executionType": "llm",
+          "id": "export-measurements",
+          "label": "Export measurements",
+          "requiresSelection": true,
+          "templateMessage": "Export all measurements, spacing, and sizing information for the selected elements."
+        },
+        {
+          "executionType": "llm",
+          "id": "component-details",
+          "label": "Component details",
+          "requiresSelection": true,
+          "templateMessage": "Provide detailed component specifications including variants, states, and implementation notes."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Alpha",
+        "variant": "alpha"
+      }
+    },
+    {
+      "hoverSummary": "Discovery process specialist",
+      "iconId": "PathIcon",
+      "id": "discovery_copilot",
+      "intro": "**Welcome to Discovery Copilot!**\n\nI'll guide you through a structured discovery process in 3 steps:\n\n**Step 1: Problem Frame** - Define what you're solving, who it affects, why it matters, and what success looks like\n**Step 2: Risks & Assumptions** - Identify potential risks and key assumptions\n**Step 3: Hypotheses & Experiments** - Form hypotheses and propose experiments to test them\n\nLet's begin! What are you discovering today? (e.g., \"redesigning checkout flow\", \"building a new feature\")",
+      "kind": "ai",
+      "label": "Discovery Copilot",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "start-discovery",
+          "label": "Start Discovery",
+          "templateMessage": "Start a discovery session. Help me frame the problem, identify risks, and plan experiments."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Alpha",
+        "variant": "alpha"
+      }
+    },
+    {
+      "hoverSummary": "Error screen specialist",
+      "iconId": "CautionIcon",
+      "id": "errors",
+      "instructionBlocks": [
+        {
+          "content": "Generate Error Screens: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"generateErrorScreens\", \"version\": 1, \"meta\": { \"title\"?, \"sourceName\"? }, \"variants\": [ { \"id\": \"string\", \"label\": \"string\", \"rationale\": \"string\", \"required\": boolean, \"trigger\": \"string\", \"placementTarget\"?, \"userImpact\": \"string\", \"recommendedUI\": \"string\", \"message\"?, \"copy\"? } ] }. required=true for core UX (validation, auth, submit failures); false for optional/edge. Cap 4–6 variants.",
+          "enabled": true,
+          "id": "errors-output-generate",
+          "kind": "format"
+        },
+        {
+          "content": "Check Errors: Return ONLY valid JSON. No prose, no markdown fences. Shape: { \"type\": \"checkErrors\", \"version\": 1, \"result\": \"PASS\" | \"FAIL\", \"summary\": \"string\", \"items\": [ { \"severity\": \"critical\"|\"high\"|\"medium\"|\"low\", \"title\": \"string\", \"fix\": \"string\" } ] }. Cap 10 items.",
+          "enabled": true,
+          "id": "errors-output-check",
+          "kind": "format"
+        }
+      ],
+      "intro": "I identify design errors, inconsistencies, and quality issues. Select elements to find problems before handoff.",
+      "kind": "ai",
+      "knowledgeBaseRefs": [
+        "errors"
+      ],
+      "label": "Errors",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "generate-error-screens",
+          "imageScale": 2,
+          "label": "Generate Error Screens",
+          "maxImages": 1,
+          "requiresSelection": true,
+          "requiresVision": true,
+          "templateMessage": "Generate multiple error-state variants (e.g. inline validation, banner, toast, disabled state, error icon, helper text) with short rationale for each. Return valid JSON only."
+        },
+        {
+          "executionType": "llm",
+          "id": "check-errors",
+          "label": "Check Errors",
+          "requiresSelection": true,
+          "requiresVision": false,
+          "templateMessage": "Evaluate the selection and return PASS or FAIL with a concise summary and top fixes. Return valid JSON only."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Alpha",
+        "variant": "alpha"
+      }
+    },
+    {
+      "hoverSummary": "General design specialist",
+      "iconId": "AskIcon",
+      "id": "general",
+      "instructionBlocks": [],
+      "intro": "I'm your general Design Assistant. Ask me anything about design or your current work.",
+      "kind": "ai",
+      "label": "General",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "explain",
+          "label": "Explain this design",
+          "requiresSelection": true,
+          "templateMessage": "Can you explain this design to me? What are the key elements and their purpose?"
+        },
+        {
+          "executionType": "llm",
+          "id": "suggestions",
+          "label": "Design suggestions",
+          "requiresSelection": true,
+          "templateMessage": "What suggestions do you have to improve this design?"
+        },
+        {
+          "executionType": "tool-only",
+          "id": "run-smart-detector",
+          "label": "Run Smart Detector",
+          "requiresSelection": true,
+          "templateMessage": "Run Smart Detector on selection"
+        }
+      ],
+      "safetyOverrides": {
+        "allowImages": true
+      }
+    },
+    {
+      "hoverSummary": "Content guidelines specialist",
+      "iconId": "SpellCheckIcon",
+      "id": "ux_copy_review",
+      "instructionBlocks": [],
+      "intro": "I review and improve text content for clarity, tone, and UX effectiveness. Select screens and elements to analyze copy.",
+      "kind": "ai",
+      "label": "Content Review",
+      "quickActions": [
+        {
+          "executionType": "llm",
+          "id": "review-copy",
+          "label": "Review copy",
+          "requiresSelection": true,
+          "templateMessage": "Review the selected text content for clarity, tone, conciseness, and actionability. Provide structured feedback with scores and specific suggestions."
+        },
+        {
+          "executionType": "llm",
+          "id": "tone-check",
+          "label": "Tone check",
+          "requiresSelection": true,
+          "templateMessage": "Analyze the tone of the selected copy. Is it appropriate for the context and target audience?"
+        },
+        {
+          "executionType": "llm",
+          "id": "content-suggestions",
+          "label": "Content suggestions",
+          "templateMessage": "What improvements can be made to the copy? Focus on clarity, user-centered language, and actionability."
+        },
+        {
+          "executionType": "tool-only",
+          "id": "add-hat",
+          "label": "Add HAT",
+          "requiresSelection": true,
+          "templateMessage": "Scan selection for elements that require HAT (accessible label) and add annotations."
+        }
+      ],
+      "tag": {
+        "isVisible": true,
+        "label": "Alpha",
+        "variant": "alpha"
+      }
+    }
+  ]
 }

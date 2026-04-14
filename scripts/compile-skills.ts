@@ -94,7 +94,7 @@ function loadFlatManifest(rootDir: string): { manifest: ManifestRoot; ids: Set<s
   }
 }
 
-function validateManifest(manifest: ManifestRoot): void {
+function validateManifest(manifest: ManifestRoot, coveredIds: Set<string> = new Set()): void {
   if (!Array.isArray(manifest.assistants)) {
     console.error('[SKILL_COMPILER] Manifest must have an "assistants" array')
     process.exit(1)
@@ -133,7 +133,7 @@ function validateManifest(manifest: ManifestRoot): void {
       console.error(`[SKILL_COMPILER] Assistant "${a.id}": "quickActions" must be an array`)
       process.exit(1)
     }
-    if (typeof a.promptTemplate !== 'string') {
+    if (!coveredIds.has(a.id) && typeof a.promptTemplate !== 'string') {
       console.error(`[SKILL_COMPILER] Assistant "${a.id}": "promptTemplate" must be a string`)
       process.exit(1)
     }
@@ -585,7 +585,7 @@ export function compile(rootDir: string): string {
   const { entries: perDirEntries, coveredIds } = scanPerDirectoryEntries(rootDir)
 
   const { manifest } = loadFlatManifest(rootDir)
-  validateManifest(manifest)
+  validateManifest(manifest, coveredIds)
 
   // Warn for each assistant resolved via flat manifest fallback
   const flatEntries: AssistantManifestEntry[] = []

@@ -262,7 +262,7 @@ export async function placeCritiqueOnCanvas(text: string, selectedNode?: SceneNo
   
   // Create frame as auto-layout so text can fill width and hug height (no fixed text width)
   const frame = figma.createFrame()
-  frame.name = 'Ableza — Critique (fallback)'
+  frame.name = 'Design AI Toolkit — Critique (fallback)'
   frame.setPluginData('figmai.artifactType', 'critique')
   frame.setPluginData('figmai.assistant', 'design_critique')
   frame.layoutMode = 'VERTICAL'

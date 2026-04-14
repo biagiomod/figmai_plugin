@@ -40,7 +40,7 @@ export function getBranding(): {
     : (typeof uiBranding?.showName === 'boolean' ? uiBranding.showName : true)
   const appName = typeof uiBranding?.appName === 'string' && uiBranding.appName.trim()
     ? uiBranding.appName
-    : (typeof legacyBranding?.appName === 'string' && legacyBranding.appName.trim() ? legacyBranding.appName : 'Ableza')
+    : (typeof legacyBranding?.appName === 'string' && legacyBranding.appName.trim() ? legacyBranding.appName : 'Design AI Toolkit')
   const logline = (typeof uiBranding?.logline === 'string' && uiBranding.logline.trim())
     ? uiBranding.logline
     : ((typeof legacyBranding?.appTagline === 'string' && legacyBranding.appTagline.trim())

@@ -841,7 +841,7 @@ function navBar(t: UIThemeTokens): DarkDemoNodeSpec {
       strokeAlign: 'INSIDE'
     },
     children: [
-      text('Ableza', 14, t.fg, 'Bold'),
+      text('Design AI Toolkit', 14, t.fg, 'Bold'),
       text('AI Powered', 10, t.fgSecondary)
     ]
   }

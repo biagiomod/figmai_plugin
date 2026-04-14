@@ -19,7 +19,7 @@ function resolveUIMode(entry: { kind: string; toolSettings?: { showInput?: boole
 export const ASSISTANTS: Assistant[] = ASSISTANTS_MANIFEST.map((entry) => {
   const { promptTemplate, ...rest } = entry
   const promptMarkdown = appendDesignSystemKnowledge(
-    mergeKnowledgeBase(entry.id, promptTemplate)
+    mergeKnowledgeBase(entry.id, promptTemplate ?? '')
   )
   return { ...rest, promptMarkdown, uiMode: resolveUIMode(entry) }
 })

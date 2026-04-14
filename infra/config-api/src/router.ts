@@ -10,6 +10,13 @@ import {
   normalizeKbResponse,
   patchKbResponse
 } from './routes/kb'
+import {
+  createSkillResponse,
+  deleteSkillResponse,
+  getSkillByIdResponse,
+  getSkillsResponse,
+  patchSkillResponse
+} from './routes/skills'
 import { getModelResponse, saveModelResponse } from './routes/model'
 import { publishResponse } from './routes/publish'
 import { validateResponse } from './routes/validate'
@@ -68,6 +75,33 @@ export async function route(event: APIGatewayProxyEventV2, context: RequestConte
     }
     if (method === 'DELETE') {
       const result = await deleteKbResponse(id, context.requestId)
+      return result.statusCode === 204
+        ? noContent(origin)
+        : json(result.statusCode, result.payload, origin)
+    }
+  }
+
+  if (method === 'GET' && path === '/api/skills') {
+    const result = await getSkillsResponse()
+    return json(result.statusCode, result.payload, origin)
+  }
+  if (method === 'POST' && path === '/api/skills') {
+    const result = await createSkillResponse(event.body, context.requestId)
+    return json(result.statusCode, result.payload, origin)
+  }
+
+  if (path.startsWith('/api/skills/')) {
+    const id = decodeURIComponent(path.replace('/api/skills/', ''))
+    if (method === 'GET') {
+      const result = await getSkillByIdResponse(id)
+      return json(result.statusCode, result.payload, origin)
+    }
+    if (method === 'PATCH') {
+      const result = await patchSkillResponse(id, event.body, context.requestId)
+      return json(result.statusCode, result.payload, origin)
+    }
+    if (method === 'DELETE') {
+      const result = await deleteSkillResponse(id, context.requestId)
       return result.statusCode === 204
         ? noContent(origin)
         : json(result.statusCode, result.payload, origin)

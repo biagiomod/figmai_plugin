@@ -23,6 +23,12 @@ export async function handler(event: APIGatewayProxyEventV2) {
   }
 
   try {
+    const MAX_BODY_BYTES = 1_048_576 // 1 MB
+    if (event.body && Buffer.byteLength(event.body, 'utf8') > MAX_BODY_BYTES) {
+      errorCode = 'REQUEST_TOO_LARGE'
+      return withRequestIdHeader(json(413, { error: 'Request body too large' }, context.origin))
+    }
+
     const method = context.method
     const isHealth = context.path === '/api/health'
     if (method !== 'OPTIONS' && !isHealth) {

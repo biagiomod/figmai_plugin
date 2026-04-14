@@ -10,7 +10,7 @@ For ACE static-hosting and S3 migration topics, use:
 
 Use the local ACE server guide in [`../../admin-editor/README.md`](../../admin-editor/README.md) for the `npm run admin` local dev workflow.
 
-The Spring Boot wrapper (`ace-custom-spring-wrapper.md`, `spring-wrapper-installation-guide.md`) is **deprecated** and is not the active private/work deployment path. See those files for migration guidance.
+The Spring Boot wrapper docs (`ace-custom-spring-wrapper.md`, `spring-wrapper-installation-guide.md`) are **archived** — see `docs/archive/deprecated-ace-deployment/`. They are not the active private/work deployment path.
 
 ## Setup index
 
@@ -22,8 +22,8 @@ The Spring Boot wrapper (`ace-custom-spring-wrapper.md`, `spring-wrapper-install
 | [proxy-setup.md](./proxy-setup.md) | Figma plugin LLM proxy (`figmai-proxy` + ngrok). | Local development of the Figma plugin with OpenAI. |
 | [internal-api-setup.md](./internal-api-setup.md) | Figma plugin "Internal API" connection mode. | Org-hosted LLM endpoint for plugin traffic. |
 | [s3-config-phase1-checklist.md](./s3-config-phase1-checklist.md) | Manual validation checklist for S3 config sync. | Verifying `seed-s3`, `sync-config`, and `push-config`. |
-| [ace-custom-spring-wrapper.md](./ace-custom-spring-wrapper.md) ⚠️ **DEPRECATED** | ACE deployment behind the Spring wrapper with auth, RBAC, allowlist, rate-limit, and Docker. | Historical reference only. Do not use for new deployments. Active path is AWS + Lambda + S3. |
-| [spring-wrapper-installation-guide.md](./spring-wrapper-installation-guide.md) ⚠️ **DEPRECATED** | Step-by-step Docker Compose installation for the Spring wrapper. | Historical reference only. Do not use for new deployments. |
+| `docs/archive/deprecated-ace-deployment/ace-custom-spring-wrapper.md` ⚠️ **ARCHIVED** | ACE deployment behind the Spring wrapper with auth, RBAC, allowlist, rate-limit, and Docker. | Historical reference only. Do not use for new deployments. Active path is AWS + Lambda + S3. |
+| `docs/archive/deprecated-ace-deployment/spring-wrapper-installation-guide.md` ⚠️ **ARCHIVED** | Step-by-step Docker Compose installation for the Spring wrapper. | Historical reference only. Do not use for new deployments. |
 | [phase1-s3-migration-summary.md](./phase1-s3-migration-summary.md) | Summary of Phase 1 S3 sync implementation. | Historical implementation record for the Phase 1 S3 migration. |
 
-> `proxy-setup.md` and `ace-custom-spring-wrapper.md` describe different systems. The former is the plugin LLM transport path; the latter is a deprecated ACE deployment wrapper.
+> `proxy-setup.md` describes the plugin LLM transport path. The archived Spring wrapper docs describe a separate, now-deprecated ACE deployment approach.

@@ -148,7 +148,7 @@ type EffectiveBranding = {
 }
 
 const DEFAULT_BRANDING: EffectiveBranding = {
-  appName: 'Ableza',
+  appName: 'Design AI Toolkit',
   logline: 'AI Powered',
   showLogo: true,
   showAppName: true,

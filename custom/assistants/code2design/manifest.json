@@ -10,7 +10,7 @@
       "executionType": "hybrid",
       "id": "send-json",
       "label": "SEND JSON",
-      "templateMessage": "Paste an Ableza Template JSON to generate Figma elements"
+      "templateMessage": "Paste a Design AI Toolkit Template JSON to generate Figma elements"
     },
     {
       "executionType": "hybrid",
@@ -23,7 +23,7 @@
       "executionType": "llm",
       "id": "json-format-help",
       "label": "How to format JSON",
-      "templateMessage": "Explain the Ableza Template JSON format and schema requirements"
+      "templateMessage": "Explain the Design AI Toolkit Template JSON format and schema requirements"
     }
   ],
   "tag": {

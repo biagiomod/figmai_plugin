@@ -47,15 +47,11 @@ For detailed architecture, see `README.md`.
 
 The codebase has some large files that might be intimidating:
 
-### `main.ts` (~900 lines)
+### `main.ts` (~1800 lines)
 
 **Purpose:** Main thread orchestrator
 
-**Key sections:**
-- Lines 1-150: Imports, error handling, state management
-- Lines 150-350: Event handlers (RESET, SET_ASSISTANT, etc.)
-- Lines 350-550: Quick action handler (core logic)
-- Lines 550-863: Tool handlers, settings handlers, etc.
+**Structure:** Imports and state management at the top; event handlers (RESET, SET_ASSISTANT, etc.) in the middle; quick action routing, tool handlers, and settings handlers toward the bottom. Read the file header comment for a current section map.
 
 **What to know:**
 - This file orchestrates, doesn't implement
@@ -63,15 +59,11 @@ The codebase has some large files that might be intimidating:
 - Message history is maintained here (single source of truth)
 - Don't add assistant-specific logic here (use handlers)
 
-### `ui.tsx` (~4000 lines)
+### `ui.tsx` (~4500 lines)
 
-**Purpose:** React UI component
+**Purpose:** Preact UI component
 
-**Key sections:**
-- Lines 1-100: Imports and setup
-- Lines 100-500: State management and hooks
-- Lines 500-1500: UI rendering logic
-- Lines 1500-4000: Event handlers and callbacks
+**Structure:** Imports and state management at the top; message routing in the middle; per-assistant view components toward the bottom. Read the file header comment for a current section map.
 
 **What to know:**
 - This file is stateless (main thread is source of truth)

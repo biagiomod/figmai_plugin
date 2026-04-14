@@ -1,17 +1,6 @@
 {
   "knowledgeBases": [
     {"id": "test-kb", "title": "Test Knowledge Base", "filePath": "test-kb.kb.json", "updatedAt": "2026-02-07T00:25:31.744Z"},
-    {"id": "design-heuristics", "title": "Design Heuristics", "filePath": "design-heuristics.kb.json", "version": "1.0"},
-    {"id": "content-design", "title": "Content Design", "filePath": "content-design.kb.json", "version": "1.0"},
-    {"id": "accessibility", "title": "Accessibility", "filePath": "accessibility.kb.json", "version": "1.0"},
-    {"id": "forms-input-patterns", "title": "Forms & Input Patterns", "filePath": "forms-input-patterns.kb.json", "version": "1.0"},
-    {"id": "interaction-patterns-states", "title": "Interaction Patterns & States", "filePath": "interaction-patterns-states.kb.json", "version": "1.0"},
-    {"id": "platform-guidelines", "title": "Platform Guidelines", "filePath": "platform-guidelines.kb.json", "version": "1.0"},
-    {"id": "customer-feedback", "title": "Customer Feedback", "filePath": "customer-feedback.kb.json", "version": "1.0"},
-    {"id": "competitive-analysis", "title": "Competitive Analysis", "filePath": "competitive-analysis.kb.json", "version": "1.0"},
-    {"id": "business-review", "title": "Business Review", "filePath": "business-review.kb.json", "version": "1.0"},
-    {"id": "service-design", "title": "Service Design", "filePath": "service-design.kb.json", "version": "1.0"},
-    {"id": "ux-research", "title": "UX Research", "filePath": "ux-research.kb.json", "version": "1.0"},
     {"id": "design-system-nuxt-ui", "title": "Design System: Nuxt UI (v4)", "filePath": "design-system-nuxt-ui.kb.json", "version": "1.0"}
   ]
 }

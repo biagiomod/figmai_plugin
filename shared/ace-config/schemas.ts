@@ -233,7 +233,7 @@ const assistantEntrySchema = z.object({
   iconId: z.string(),
   kind: z.enum(['ai', 'tool', 'hybrid']),
   quickActions: z.array(quickActionSchema),
-  promptTemplate: z.string(),
+  promptTemplate: z.string().optional(),
   instructionBlocks: z.array(instructionBlockSchema).optional(),
   toneStylePreset: z.string().optional(),
   outputSchemaId: z.string().optional(),

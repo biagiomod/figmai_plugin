@@ -90,7 +90,6 @@ import { normalizeMessages } from './core/provider/normalize'
 import { sendChatWithRecovery } from './core/contentSafety'
 import { routeToolCall } from './core/tools/toolRouter'
 import { summarizeSelection } from './core/context/selection'
-import { buildSelectionContext } from './core/context/selectionContext'
 import { saveSettings, getSettings, getEffectiveSettings, getDefaultSettingsForResponse } from './core/settings'
 import { ProxyError, proxyClient } from './core/proxy/client'
 import { ProviderError, ProviderErrorType, errorToString } from './core/provider/provider'
@@ -156,6 +155,11 @@ import { pluginUIPreviewComponent } from './core/figma/artifacts/components/plug
 import { setScanContext, setDwDesignMode } from './core/designWorkshop/designWorkshopScanStore'
 import type { ScannedDesignContext } from './core/designWorkshop/designWorkshopScanStore'
 import { setEditorType, isDevMode } from './core/editorMode'
+import { createConversationManager } from './core/sdk/conversationManager'
+import { createStatusChannel } from './core/sdk/statusChannel'
+import { createSelectionResolver, type SelectionContext } from './core/sdk/selectionResolver'
+import { createQuickActionExecutor } from './core/sdk/quickActionExecutor'
+import { generateMessageId, cleanChatContent } from './core/sdk/messageHelpers'
 
 /**
  * Convert an error to a human-readable string with actionable feedback
@@ -166,7 +170,11 @@ let currentAssistant: Assistant = getDefaultAssistant()
 let currentMode: 'simple' | 'advanced' | 'content-mvp' = CONFIG.defaultMode
 let currentProviderId: LlmProviderId = CONFIG.provider
 let currentProvider: Provider | null = null
-let messageHistory: Message[] = []
+const conversationManager = createConversationManager()
+const statusChannel = createStatusChannel((type, payload) => {
+  figma.ui.postMessage({ pluginMessage: { type, ...(payload as object) } })
+})
+const selectionResolver = createSelectionResolver()
 let selectionOrder: string[] = []
 let lastAssistantId: string | null = null
 let preambleSentForSegment: string | null = null // Track if preamble sent for current segment (segmentId = assistantId)
@@ -174,6 +182,21 @@ let preambleSentForSegment: string | null = null // Track if preamble sent for c
 /** Safe session header: neutral framing for providers (e.g. Internal API). No instruction-override or jailbreak-style language. */
 const SESSION_HEADER_SAFE =
   'Start a new conversation.'
+
+const executor = createQuickActionExecutor({
+  conversationManager,
+  statusChannel,
+  selectionResolver,
+  getProvider: () => currentProvider,
+  getProviderId: () => currentProviderId,
+  setProvider: (p) => { currentProvider = p },
+  selectionOrder: () => selectionOrder,
+  getPreambleSentForSegment: () => preambleSentForSegment,
+  setPreambleSentForSegment: (id) => { preambleSentForSegment = id },
+  postMessage: (type, payload) => figma.ui.postMessage({ pluginMessage: { type, ...(payload as object) } }),
+  getAssistant,
+  getShortInstructions,
+})
 
 // Initialize provider
 async function initializeProvider() {
@@ -239,21 +262,17 @@ if (CONFIG.dev.enableSyncApiErrorDetection) {
   }
 }
 
-// Generate unique message ID
-function generateMessageId(): string {
-  return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-}
-
-// Generate unique request ID
+// generateRequestId — now delegated to conversationManager
 function generateRequestId(): string {
-  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  return conversationManager.generateRequestId()
 }
 
 /**
  * Get current assistant segment from message history
  * Returns only messages from the current assistant segment, excluding UI-only messages
  */
-function getCurrentAssistantSegment(messages: Message[], currentAssistantId: string): Message[] {
+function getCurrentAssistantSegment(currentAssistantId: string): Message[] {
+  const messages = conversationManager.getHistory()
   // Find the last boundary message for the current assistant
   let segmentStartIndex = 0
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -262,7 +281,7 @@ function getCurrentAssistantSegment(messages: Message[], currentAssistantId: str
       break
     }
   }
-  
+
   // Get messages from segment start to end, excluding UI-only messages
   const segment = messages.slice(segmentStartIndex).filter(m => {
     // Exclude UI-only messages (boundary, greeting, instructions, status)
@@ -272,7 +291,7 @@ function getCurrentAssistantSegment(messages: Message[], currentAssistantId: str
     // Only include user and assistant messages (exclude tool messages for now)
     return m.role === 'user' || m.role === 'assistant'
   })
-  
+
   return segment
 }
 
@@ -280,52 +299,6 @@ function getCurrentAssistantSegment(messages: Message[], currentAssistantId: str
 function sendSelectionState() {
   const state = summarizeSelection(selectionOrder)
   figma.ui.postMessage({ pluginMessage: { type: 'SELECTION_STATE', state } })
-}
-
-// Clean chat content by removing internal generation metadata tags
-// Removes patterns like "generate: 1/100 (1%)" that should not appear in user-facing chat
-// Also removes duplicate lines/paragraphs within the same message
-function cleanChatContent(raw: string): string {
-  if (!raw) return ''
-
-  // Strip internal generation metadata like: "generate: 1/100 (1%)"
-  let text = raw
-    .replace(/generate:\s*\d+\/\d+\s*\(\d+%\)/gi, '') // generate: X/Y (Z%)
-    .replace(/generate:\s*\d+\/\d+/gi, '')            // generate: X/Y
-    .replace(/\(\d+%\)/g, '')                         // standalone "(Z%)"
-    .trim()
-
-  // Remove duplicate lines (split by newlines, keep unique).
-  // Preserve single blank lines for paragraph separation; collapse multiple consecutive blanks.
-  // Never dedupe report key/value lines (e.g. "**Scanned:** 16 nodes") so Smart Detector body is preserved.
-  const lines = text.split('\n')
-  const uniqueLines: string[] = []
-  const seen = new Set<string>()
-  const keyValueLike = /^\s*\*\*[^*]+\*\*:?\s*.+/
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed === '') {
-      if (uniqueLines[uniqueLines.length - 1] !== '') uniqueLines.push('')
-      continue
-    }
-    const normalized = trimmed.toLowerCase().replace(/\s+/g, ' ')
-    if (keyValueLike.test(trimmed)) {
-      uniqueLines.push(trimmed)
-      continue
-    }
-    if (!seen.has(normalized)) {
-      seen.add(normalized)
-      uniqueLines.push(trimmed)
-    }
-  }
-
-  text = uniqueLines.join('\n')
-  
-  // Collapse multiple spaces to single space (but preserve newlines)
-  text = text.replace(/[ \t]+/g, ' ').trim()
-
-  return text
 }
 
 // Send assistant message to UI
@@ -347,8 +320,8 @@ function sendAssistantMessage(content: string, toolCallId?: string, requestId?: 
     requestId,
     contentNormalized: true
   }
-  messageHistory.push(message)
-  
+  conversationManager.push(message)
+
   figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message } })
 }
 
@@ -363,7 +336,7 @@ function sendStatusMessage(requestId: string, content: string = 'Processing...')
     statusStyle: 'loading',
     requestId
   }
-  messageHistory.push(statusMessage)
+  conversationManager.push(statusMessage)
   figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: statusMessage } })
   return statusMessage
 }
@@ -390,41 +363,6 @@ function replaceStatusMessage(requestId: string, finalContent: string, isError: 
   if (replacedStatusRequestIds.has(requestId)) return
   replacedStatusRequestIds.add(requestId)
 
-  const indices = messageHistory
-    .map((m, i) => (m.requestId === requestId && m.isStatus === true ? i : -1))
-    .filter(i => i >= 0)
-
-  if (indices.length === 0) {
-    // Replace any existing message with this requestId so we don't append a duplicate line
-    const anyWithRequestId = messageHistory.findIndex(m => m.requestId === requestId)
-    if (anyWithRequestId !== -1) {
-      const cleanedContent = cleanChatContent(sanitizeForChat(finalContent))
-      if (debug.isEnabled('trace:chat')) {
-        const lineCount = cleanedContent.split('\n').length
-        const previewTop = cleanedContent.slice(0, 200)
-        const jsonSample = JSON.stringify(cleanedContent.slice(0, 400))
-        debug.scope('trace:chat').log('CHAT_SEND_TO_UI', { requestId, len: cleanedContent.length, lineCount, previewTop, jsonSample })
-      }
-      const summaryHash = cleanedContent.slice(0, 40) + '_' + cleanedContent.length
-      qaTrace('MAIN_POST_FINAL', { requestId, summaryHash, messageLength: cleanedContent.length, messagePreviewEnd: cleanedContent.slice(-40) })
-      const finalMessage: Message = {
-        ...messageHistory[anyWithRequestId],
-        content: cleanedContent,
-        timestamp: Date.now(),
-        isStatus: false,
-        statusStyle: isError ? 'error' : undefined,
-        contentNormalized: true
-      }
-      messageHistory[anyWithRequestId] = finalMessage
-      figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: finalMessage } })
-    } else {
-      replacedStatusRequestIds.delete(requestId)
-      console.warn('[Main] Status message not found for requestId:', requestId)
-      sendAssistantMessage(finalContent, undefined, requestId)
-    }
-    return
-  }
-
   const cleanedContent = cleanChatContent(sanitizeForChat(finalContent))
   if (debug.isEnabled('trace:chat')) {
     const lineCount = cleanedContent.split('\n').length
@@ -434,21 +372,15 @@ function replaceStatusMessage(requestId: string, finalContent: string, isError: 
   }
   const summaryHash = cleanedContent.slice(0, 40) + '_' + cleanedContent.length
   qaTrace('MAIN_POST_FINAL', { requestId, summaryHash, messageLength: cleanedContent.length, messagePreviewEnd: cleanedContent.slice(-40) })
-  const finalMessage: Message = {
-    id: messageHistory[indices[0]].id,
-    role: 'assistant',
-    content: cleanedContent,
-    timestamp: Date.now(),
-    requestId,
-    isStatus: false,
-    statusStyle: isError ? 'error' : undefined,
-    contentNormalized: true
+
+  const finalMessage = conversationManager.replaceStatusForRequest(requestId, cleanedContent, isError)
+  if (finalMessage === null) {
+    replacedStatusRequestIds.delete(requestId)
+    console.warn('[Main] Status message not found for requestId:', requestId)
+    sendAssistantMessage(finalContent, undefined, requestId)
+    return
   }
-  messageHistory[indices[0]] = finalMessage
-  const toRemove = indices.slice(1).sort((a, b) => b - a)
-  for (const idx of toRemove) {
-    messageHistory.splice(idx, 1)
-  }
+
   figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: finalMessage } })
 }
 
@@ -461,20 +393,20 @@ function sendToolResult(content: string, toolId: string, data?: Record<string, u
     timestamp: Date.now(),
     toolCallId: toolId
   }
-  messageHistory.push(message)
-  
+  conversationManager.push(message)
+
   figma.ui.postMessage({ pluginMessage: { type: 'TOOL_RESULT', message, data } })
 }
 
 // Handle reset
 once<ResetHandler>('RESET', async function () {
-  messageHistory = []
+  conversationManager.clearHistory()
   currentAssistant = getDefaultAssistant()
   currentMode = CONFIG.defaultMode
   currentProviderId = CONFIG.provider
   currentProvider = await createProvider(currentProviderId)
   selectionOrder = []
-  
+
   // Send assistant intro on reset
   const introMessage: Message = {
     id: generateMessageId(),
@@ -482,7 +414,7 @@ once<ResetHandler>('RESET', async function () {
     content: getWelcomeMessage(currentAssistant),
     timestamp: Date.now()
   }
-  messageHistory.push(introMessage)
+  conversationManager.push(introMessage)
   figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: introMessage } })
   
   sendSelectionState()
@@ -538,9 +470,9 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
         assistantId: assistantId,
         isBoundary: true
       }
-      messageHistory.push(boundaryMessage)
+      conversationManager.push(boundaryMessage)
       figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: boundaryMessage } })
-      
+
       // Insert greeting message (assistant name/label)
       const greetingMessage: Message = {
         id: generateMessageId(),
@@ -550,9 +482,9 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
         assistantId: assistantId,
         isGreeting: true
       }
-      messageHistory.push(greetingMessage)
+      conversationManager.push(greetingMessage)
       figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: greetingMessage } })
-      
+
       // Insert instructions message (assistant intro/usage instructions)
       const instructionsMessage: Message = {
         id: generateMessageId(),
@@ -562,7 +494,7 @@ on<SetAssistantHandler>('SET_ASSISTANT', function (assistantId: string) {
         assistantId: assistantId,
         isInstructions: true
       }
-      messageHistory.push(instructionsMessage)
+      conversationManager.push(instructionsMessage)
       figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: instructionsMessage } })
       
       console.log('[Main] Inserted boundary + greeting + instructions for assistant:', assistantId)
@@ -599,8 +531,8 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
     content: message,
     timestamp: Date.now()
   }
-  messageHistory.push(userMessage)
-  
+  conversationManager.push(userMessage)
+
   // Send user message to UI (main thread is source of truth)
   console.log('[Main] Sending user message to UI (single source of truth):', userMessage.id)
   figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
@@ -610,9 +542,9 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   postStatusStep(requestId, 'Reading your message...')
 
   // Build selection context if needed
-  let selectionContext: Awaited<ReturnType<typeof buildSelectionContext>> | undefined
+  let selectionContext: SelectionContext | undefined
   if (includeSelection && currentProvider) {
-    selectionContext = await buildSelectionContext({
+    selectionContext = await selectionResolver.buildContext({
       selectionOrder,
       quickAction: undefined, // No quick action for manual messages
       provider: currentProvider
@@ -627,7 +559,7 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
   
   // Build chat messages from current assistant segment only
   // This ensures old assistant instructions don't bleed into new assistant context
-  const segmentMessages = getCurrentAssistantSegment(messageHistory, currentAssistant.id)
+  const segmentMessages = getCurrentAssistantSegment(currentAssistant.id)
   const chatMessages = normalizeMessages(
     segmentMessages.map(m => ({
       role: m.role,
@@ -684,7 +616,7 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       currentProvider = await createProvider(currentProviderId)
       // Rebuild context if provider was just created
       if (includeSelection) {
-        selectionContext = await buildSelectionContext({
+        selectionContext = await selectionResolver.buildContext({
           selectionOrder,
           quickAction: undefined,
           provider: currentProvider
@@ -729,9 +661,9 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
           })
           return r.response
         },
-        sendAssistantMessage,
+        sendAssistantMessage: (message: string) => sendAssistantMessage(message, undefined, requestId),
         replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-        updateStatusStep: (step: string) => postStatusStep(requestId, step),
+        updateStatusStep: (step: string) => statusChannel.updateStatusStep(requestId, step),
         requestId
       }
 
@@ -742,14 +674,14 @@ on<SendMessageHandler>('SEND_MESSAGE', async function (message: string, includeS
       if (result.handled) {
         // Handler should have called replaceStatusMessage itself
         // If not, replace with default completion message
-        const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
+        const statusIndex = conversationManager.getHistory().findIndex(m => m.requestId === requestId && m.isStatus === true)
         if (statusIndex !== -1) {
           replaceStatusMessage(requestId, result.message || 'Completed')
         }
         return
       }
     }
-    
+
     // Only send to chat if handler didn't handle it
     replaceStatusMessage(requestId, contentSimplified ? `${response}\n\nSome content was simplified to obtain this response.` : response)
 
@@ -790,388 +722,7 @@ function resolveExecutionType (action: { executionType?: string }): ExecutionTyp
 
 // Handle quick action
 on<RunQuickActionHandler>('RUN_QUICK_ACTION', async function (actionId: string, assistantId: string) {
-  console.log('[Main] onmessage RUN_QUICK_ACTION', { actionId, assistantId })
-
-  // Generate request ID for this request
-  const requestId = generateRequestId()
-  qaTrace('MAIN_RECV_RUN_QUICK_ACTION', { requestId, assistantId, actionId })
-
-  try {
-    const assistant = getAssistant(assistantId)
-    if (!assistant) {
-      console.error('[Main] Assistant not found:', assistantId)
-      sendAssistantMessage(`Error: Assistant "${assistantId}" not found`)
-      return
-    }
-
-    const action = assistant.quickActions.find((a: import('./assistants').QuickAction) => a.id === actionId)
-    if (!action) {
-      console.error('[Main] Action not found:', actionId, 'for assistant:', assistantId)
-      sendAssistantMessage(`Error: Action "${actionId}" not found`)
-      return
-    }
-
-    // Track assistant run (after validation)
-    getAnalytics().track('assistant_run', {
-      assistantId: assistant.id,
-      actionId: action.id
-    })
-
-    // Route by executionType (from manifest / PR2–PR3). Legacy fallback: 'unknown' uses same tool-only branches.
-    let executionType = resolveExecutionType(action)
-    let handler = getHandler(assistantId, actionId)
-    // ActionId-first routing for run-smart-detector so we never rely on assistantId
-    if (actionId === 'run-smart-detector') {
-      const sdFallback = getHandler('general', 'run-smart-detector')
-      handler = getHandlerByActionId('run-smart-detector') ?? sdFallback
-      executionType = 'tool-only'
-    }
-
-    const selection = summarizeSelection(selectionOrder)
-    const resolvedHandlerName = handler ? ((handler as { constructor?: { name?: string } }).constructor?.name ?? 'none') : 'none'
-    const qaTraceOn = debug.isEnabled('trace:qa')
-    if (qaTraceOn) {
-      console.log('[QA_ROUTE]', {
-        actionId,
-        assistantId,
-        resolvedHandler: resolvedHandlerName,
-        executionType,
-        hasSelection: selection.hasSelection,
-        selectionCount: selectionOrder.length
-      })
-    }
-
-    // ——— ui-only: defensive no-op (UI should not send these to main) ———
-    if (executionType === 'ui-only') {
-      return
-    }
-
-    // ——— tool-only (and legacy unknown): single generic path ———
-    // Status lifecycle: only main calls replaceStatusMessage once per requestId (guard prevents duplicate final message).
-    if ((executionType === 'tool-only' || executionType === 'unknown') && handler) {
-      sendStatusMessage(requestId, 'Processing…')
-      const providerForContext = currentProvider || await createProvider(currentProviderId)
-      const handlerContext = {
-        assistantId,
-        actionId,
-        response: '',
-        selectionOrder,
-        selection: summarizeSelection(selectionOrder),
-        provider: providerForContext,
-        sendChatWithRecovery: async (req: ChatRequest) => {
-          const r = await sendChatWithRecovery(providerForContext, req, {
-            selectionSummary: req.selectionSummary,
-            assistantId,
-            quickActionId: actionId
-          })
-          return r.response
-        },
-        sendAssistantMessage,
-        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-        updateStatusStep: (step: string) => postStatusStep(requestId, step),
-        requestId
-      }
-      if (typeof handler.handleResponse !== 'function') {
-        throw new Error(`[Handlers] Handler for ${assistantId}/${actionId} has no handleResponse function`)
-      }
-      qaTrace('MAIN_CALL_HANDLER', { requestId })
-      const result = await handler.handleResponse(handlerContext)
-      qaTrace('MAIN_HANDLER_RETURN', { requestId, handled: result.handled, hasMessage: !!(result as { message?: string }).message })
-      if (result.handled) {
-        if (completedToolOnlyRequestIds.has(requestId)) {
-          console.log('[Main] tool-only already completed for requestId, skipping duplicate status:', requestId)
-          return
-        }
-        completedToolOnlyRequestIds.add(requestId)
-        replaceStatusMessage(requestId, result.message ?? 'Done')
-        return
-      }
-    }
-
-    // Fallthrough to LLM path (General or other assistant) — log so we can confirm run-smart-detector did NOT take this path.
-    if (qaTraceOn) {
-      console.log('[QA_LLM_PATH]', { actionId, assistantId, note: 'LLM/chat path (not tool-only handler)' })
-    }
-
-    // ——— code2design (hybrid / legacy): main no-op or canned message ———
-    if (assistantId === 'code2design') {
-      if (actionId === 'send-json') {
-        return
-      }
-      if (actionId === 'get-json') {
-        return
-      }
-      if (actionId === 'json-format-help') {
-        const helpMessage = `**Ableza Template JSON Format**
-
-**Schema Version:** 1.0
-
-**Required Top-Level Keys:**
-- \`schemaVersion\`: Must be "1.0"
-- \`root\`: The root template node
-
-**Supported Node Types (v1):**
-- \`FRAME\`: Container with optional auto-layout
-- \`TEXT\`: Text node with content
-- \`RECTANGLE\`: Rectangle shape
-
-**Safety Limits:**
-- Maximum depth: 12 levels
-- Maximum nodes: 300
-- Invalid JSON will not modify the canvas
-
-**Example Structure:**
-\`\`\`json
-{
-  "schemaVersion": "1.0",
-  "meta": { "name": "My Design" },
-  "root": {
-    "type": "FRAME",
-    "name": "Card",
-    "layout": { "mode": "AUTO_LAYOUT", "direction": "VERTICAL" },
-    "children": [...]
-  }
-}
-\`\`\`
-
-Use SEND JSON to import or GET JSON to export your designs.`
-        replaceStatusMessage(requestId, helpMessage)
-        return
-      }
-    }
-
-    // ——— llm (and any fallthrough): sendChatWithRecovery + handler hooks ———
-    // Check selection requirement (need to check before building context)
-  const selectionForReq = summarizeSelection(selectionOrder)
-  if (action.requiresSelection && !selectionForReq.hasSelection) {
-    replaceStatusMessage(requestId, `Error: This action requires a selection. Please select one or more nodes first.`, true)
-    return
-  }
-  
-  // Check vision requirement
-  if (action.requiresVision && !selectionForReq.hasSelection) {
-    replaceStatusMessage(requestId, `Error: This action requires a selection to analyze. Please select a frame or design element first.`, true)
-    return
-  }
-  
-  // Note: "Analyzing..." message is now handled in UI before sending the action
-  
-  // Add user message (the template message from quick action)
-  // This is the SINGLE source of truth for user messages - UI should NOT add it optimistically
-  // to prevent duplicates (UI was adding it, then main sent it back, causing duplicate)
-  const userMessage: Message = {
-    id: generateMessageId(),
-    role: 'user',
-    content: action.templateMessage,
-    timestamp: Date.now()
-  }
-  messageHistory.push(userMessage)
-  
-  // Send user message to UI (main thread is source of truth)
-  console.log('[Main] Sending user message to UI (single source of truth):', userMessage.id)
-  figma.ui.postMessage({ pluginMessage: { type: 'ASSISTANT_MESSAGE', message: userMessage } })
-  
-  // Create status message immediately
-  sendStatusMessage(requestId, 'Processing...')
-  
-  // Handle tool-only assistants
-  if (assistant.kind === 'tool') {
-    replaceStatusMessage(requestId, `Tool-only assistant "${assistant.label}" is active. Tool execution would happen here.`)
-    return
-  }
-  
-  // Build chat messages from current assistant segment only
-  // This ensures old assistant instructions don't bleed into new assistant context
-  const segmentMessages = getCurrentAssistantSegment(messageHistory, assistant.id)
-  let chatMessages = normalizeMessages(
-    segmentMessages.map(m => ({
-      role: m.role,
-      content: m.content
-    }))
-  )
-  
-  let assistantPreambleForQuickAction: string | undefined
-  let allowImagesForQuickAction: boolean | undefined
-  if (currentProvider && currentProvider.capabilities.supportsPreambleInjection) {
-    const isFirstUserMessage = segmentMessages.length > 0 &&
-      segmentMessages[0].role === 'user' &&
-      preambleSentForSegment !== assistant.id
-
-    if (isFirstUserMessage && chatMessages.length > 0 && chatMessages[0].role === 'user') {
-      const kbDocs = resolveKnowledgeBaseDocs(assistant.knowledgeBaseRefs ?? [])
-      const built = buildAssistantInstructionSegments({
-        assistantEntry: assistant,
-        actionId: action.id,
-        legacyInstructionsSource: getShortInstructions(assistant),
-        kbDocs
-      })
-      const preamble =
-        SESSION_HEADER_SAFE +
-        '\n\n' +
-        `${assistant.label} context: ${built.instructionPreambleText}\n\n`
-      assistantPreambleForQuickAction = preamble
-      if (built.allowImagesOverride === true) allowImagesForQuickAction = true
-      chatMessages[0] = {
-        ...chatMessages[0],
-        content: preamble + chatMessages[0].content
-      }
-      preambleSentForSegment = assistant.id
-      console.log('[Main] Injected preamble for Internal API (first message in segment, quick action)')
-    }
-  }
-
-  // Allow handler to modify messages (e.g., Design Critique JSON enforcement)
-  if (handler && handler.prepareMessages) {
-    const modifiedMessages = handler.prepareMessages(chatMessages)
-    if (modifiedMessages) {
-      chatMessages = modifiedMessages
-      // Log final assembled messages for debugging (if Design Critique)
-      if (assistant.id === 'design_critique' && action.id === 'give-critique') {
-        console.log('[DC] FINAL_MESSAGES', chatMessages.map(m => ({
-          role: m.role,
-          contentPreview: m.content.substring(0, 120)
-        })))
-      }
-    }
-  }
-  
-  // Build selection context (includes state, summary, and images if needed)
-  let selectionContext: Awaited<ReturnType<typeof buildSelectionContext>> | undefined
-  if (!currentProvider) {
-    currentProvider = await createProvider(currentProviderId)
-  }
-  selectionContext = await buildSelectionContext({
-    selectionOrder,
-    quickAction: action,
-    provider: currentProvider
-  })
-  
-  // Debug logging
-  if (selectionContext.selectionSummary) {
-    console.log('[Main] Selection summary for quick action:', selectionContext.selectionSummary.substring(0, 200) + '...')
-  } else {
-    console.log('[Main] No selection summary - hasSelection:', selectionContext.selection.hasSelection)
-  }
-  
-  // Call provider with quick action context
-  try {
-    // Debug logging for Design Critique
-    if (assistant.id === 'design_critique' && action.id === 'give-critique') {
-      console.log('[DC] Calling provider.sendChat with:')
-      console.log('[DC] assistantId=', assistant.id)
-      console.log('[DC] quickActionId=', action.id)
-      console.log('[DC] hasSelection=', selectionContext.selection.hasSelection)
-      if (selectionContext.selection.hasSelection && selectionOrder.length > 0) {
-        const node = await figma.getNodeByIdAsync(selectionOrder[0])
-        if (node && node.type !== 'DOCUMENT' && node.type !== 'PAGE') {
-          const anchor = getTopLevelContainerNode(node as SceneNode)
-          console.log('[DC] selectedNode=', node.name, 'id=', node.id)
-          console.log('[DC] anchor=', anchor.name, 'id=', anchor.id)
-        }
-      }
-    }
-    
-    const recoveryResult = await sendChatWithRecovery(currentProvider, {
-      messages: chatMessages,
-      assistantId: assistant.id,
-      assistantName: assistant.label,
-      selection: action.requiresSelection ? selectionContext.selection : undefined,
-      selectionSummary: selectionContext.selectionSummary,
-      images: selectionContext.images,
-      quickActionId: action.id
-    }, {
-      selectionSummary: selectionContext.selectionSummary,
-      assistantId: assistant.id,
-      quickActionId: action.id,
-      assistantPreamble: assistantPreambleForQuickAction,
-      allowImages: allowImagesForQuickAction
-    })
-    if (recoveryResult.diagnostics) {
-      figma.ui.postMessage({ pluginMessage: { type: 'PROMPT_DIAG', diagnostics: recoveryResult.diagnostics } })
-    }
-    const response = recoveryResult.response
-    const contentSimplified = recoveryResult.recoveredWithSummary === true
-
-    // Check if handler exists and can handle the response
-    let responseHandled = false
-    if (handler) {
-      const handlerContext = {
-        assistantId: assistant.id,
-        actionId: action.id,
-        response,
-        selectionOrder,
-        selection: selectionContext.selection,
-        provider: currentProvider!,
-        sendChatWithRecovery: async (req: ChatRequest) => {
-          const r = await sendChatWithRecovery(currentProvider!, req, {
-            selectionSummary: req.selectionSummary,
-            assistantId: assistant.id,
-            quickActionId: action.id
-          })
-          return r.response
-        },
-        sendAssistantMessage,
-        replaceStatusMessage: (finalContent: string, isError?: boolean) => replaceStatusMessage(requestId, finalContent, isError),
-        updateStatusStep: (step: string) => postStatusStep(requestId, step),
-        requestId
-      }
-
-      if (typeof handler.handleResponse !== 'function') {
-        throw new Error(`[Handlers] Handler for ${assistant.id}/${action.id} has no handleResponse function`)
-      }
-      const result = await handler.handleResponse(handlerContext)
-      if (result.handled) {
-        responseHandled = true
-        // Handler should have called replaceStatusMessage itself
-        // If not, replace with default completion message
-        const statusIndex = messageHistory.findIndex(m => m.requestId === requestId && m.isStatus === true)
-        if (statusIndex !== -1) {
-          replaceStatusMessage(requestId, result.message || 'Completed')
-        }
-      }
-    }
-    
-    // Only send response to chat if handler didn't handle it
-    if (!responseHandled) {
-      replaceStatusMessage(requestId, contentSimplified ? `${response}\n\nSome content was simplified to obtain this response.` : response)
-    }
-
-    // Track assistant complete (success)
-    getAnalytics().track('assistant_complete', {
-      assistantId: assistant.id,
-      actionId: action.id,
-      success: true
-    })
-  } catch (error) {
-    const isContentPolicy = error instanceof ProviderError && error.type === ProviderErrorType.CONTENT_FILTER
-    const displayMessage = isContentPolicy ? (error as ProviderError).message : `Error: ${errorToString(error)}`
-    replaceStatusMessage(requestId, displayMessage, true)
-
-    // Track error
-    getAnalytics().track('error', {
-      category: categorizeError(error),
-      assistantId: assistant.id,
-      actionId: action.id
-    })
-
-    // Track assistant complete (failure)
-    getAnalytics().track('assistant_complete', {
-      assistantId: assistant.id,
-      actionId: action.id,
-      success: false
-    })
-  }
-  } catch (error) {
-    // Catch any unhandled errors in the quick action handler
-    console.error('[Main] Unhandled error in RUN_QUICK_ACTION:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    replaceStatusMessage(requestId, `Error: ${errorMessage}`, true)
-    
-    // Track error
-    getAnalytics().track('error', {
-      category: categorizeError(error)
-    })
-  }
+  await executor.run(actionId, assistantId)
 })
 
 // Handle run tool
@@ -2079,7 +1630,7 @@ on<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', async function (payload: 
 on<RenderPluginUIPreviewHandler>('RENDER_PLUGIN_UI_PREVIEW', async function (payload: RenderPluginUIPreviewPayload) {
   const { theme } = payload
   const themeLabel = theme.charAt(0).toUpperCase() + theme.slice(1)
-  const frameName = `Ableza Plugin UI \u2014 ${themeLabel}`
+  const frameName = `Design AI Toolkit Plugin UI \u2014 ${themeLabel}`
 
   for (const child of [...figma.currentPage.children]) {
     if (child.name === frameName) child.remove()

@@ -44,8 +44,13 @@ async function readRegistry(): Promise<Registry> {
   if (!raw) return emptyRegistry()
   try {
     const parsed = registrySchema.safeParse(JSON.parse(raw))
-    return parsed.success ? parsed.data : emptyRegistry()
-  } catch {
+    if (!parsed.success) {
+      console.error('[kb] Registry validation failed:', parsed.error.errors)
+      return emptyRegistry()
+    }
+    return parsed.data
+  } catch (err) {
+    console.error('[kb] Registry parse error:', err)
     return emptyRegistry()
   }
 }

@@ -57,7 +57,7 @@ export async function renderPlaceholderScorecard(selectedNode?: SceneNode): Prom
   const SECTION_GAP = 20
 
   // Create main container frame (NO auto-layout)
-  const container = createContainerFrame('Ableza — Scorecard', 0, 0, CONTAINER_WIDTH, 100)
+  const container = createContainerFrame('Design AI Toolkit — Scorecard', 0, 0, CONTAINER_WIDTH, 100)
   container.fills = [{ type: 'SOLID', color: { r: 0.98, g: 0.98, b: 0.98 } }]
   container.strokes = [{ type: 'SOLID', color: { r: 0.85, g: 0.85, b: 0.85 } }]
   container.strokeWeight = 1

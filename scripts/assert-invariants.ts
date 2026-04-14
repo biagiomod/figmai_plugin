@@ -7,6 +7,8 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { ASSISTANTS_MANIFEST } from '../src/assistants/assistants.generated'
+import { getHandler } from '../src/core/assistants/handlers/index'
 
 const ROOT = path.resolve(__dirname, '..')
 const SRC = path.join(ROOT, 'src')
@@ -45,6 +47,7 @@ const IS_PRIVATE_MODE = ['private', 'work'].includes(
 const SELECTION_CONTEXT_TS = path.join(SRC, 'core', 'context', 'selectionContext.ts')
 const ASSISTANTS_INDEX_TS = path.join(SRC, 'assistants', 'index.ts')
 const HANDLERS_INDEX_TS = path.join(SRC, 'core', 'assistants', 'handlers', 'index.ts')
+const QUICK_ACTION_EXECUTOR_TS = path.join(SRC, 'core', 'sdk', 'quickActionExecutor.ts')
 
 function fail(msg: string): never {
   console.error('[assert-invariants] FAIL:', msg)
@@ -56,6 +59,8 @@ function assert(condition: boolean, msg: string): void {
 }
 
 function main(): void {
+  const warnings: string[] = []
+
   // 1) Dispatch key: getHandler(assistantId, actionId) — spot-check handler registry uses (assistantId, actionId)
   const handlersIndex = fs.readFileSync(HANDLERS_INDEX_TS, 'utf8')
   assert(
@@ -71,27 +76,40 @@ function main(): void {
   )
   console.log('[assert-invariants] Dispatch key getHandler(assistantId, actionId): pass')
 
-  // 2) main.ts RUN_QUICK_ACTION: ui-only returns before any provider call (no sendChatWithRecovery after ui-only return)
+  // 2) RUN_QUICK_ACTION dispatch logic: ui-only returns before any provider call (no sendChatWithRecovery after ui-only return)
+  // The dispatch logic may live in main.ts directly or in quickActionExecutor.ts (Task 8 refactor).
   const mainContent = fs.readFileSync(MAIN_TS, 'utf8')
   const runQuickActionMatch = mainContent.match(/on<RunQuickActionHandler>\s*\(\s*'RUN_QUICK_ACTION'[\s\S]*?\)\s*\)/m)
   assert(!!runQuickActionMatch, 'main.ts must contain RUN_QUICK_ACTION handler')
-  const runQuickActionBlock = runQuickActionMatch![0]
-  const uiOnlyReturnIdx = runQuickActionBlock.indexOf("executionType === 'ui-only'")
-  const firstSendChatIdx = runQuickActionBlock.indexOf('sendChatWithRecovery')
-  assert(uiOnlyReturnIdx !== -1, "main.ts RUN_QUICK_ACTION must check executionType === 'ui-only'")
-  assert(firstSendChatIdx !== -1, 'main.ts RUN_QUICK_ACTION must call sendChatWithRecovery for LLM path')
-  const uiOnlyBlock = runQuickActionBlock.substring(0, firstSendChatIdx)
+
+  // Determine which file to inspect for dispatch logic: executor file (Task 8+) or inline in main.ts (pre-Task 8).
+  const executorExists = fs.existsSync(QUICK_ACTION_EXECUTOR_TS)
+  let dispatchBlock: string
+  if (executorExists) {
+    const executorSource = fs.readFileSync(QUICK_ACTION_EXECUTOR_TS, 'utf8')
+    // Extract the run() method body from the executor file (skip imports and helper functions)
+    const runMethodMatch = executorSource.match(/async run\s*\([^)]*\)\s*:\s*Promise<void>\s*\{([\s\S]*)\}\s*\}\s*\}/)
+    dispatchBlock = runMethodMatch ? runMethodMatch[0] : executorSource
+  } else {
+    dispatchBlock = runQuickActionMatch![0]
+  }
+
+  const uiOnlyReturnIdx = dispatchBlock.indexOf("executionType === 'ui-only'")
+  const firstSendChatIdx = dispatchBlock.indexOf('sendChatWithRecovery')
+  assert(uiOnlyReturnIdx !== -1, "RUN_QUICK_ACTION dispatch must check executionType === 'ui-only'")
+  assert(firstSendChatIdx !== -1, 'RUN_QUICK_ACTION dispatch must call sendChatWithRecovery for LLM path')
+  const uiOnlyBlock = dispatchBlock.substring(0, firstSendChatIdx)
   assert(
     /executionType === 'ui-only'[\s\S]*?return\s*[;\s]/.test(uiOnlyBlock),
-    "main.ts: ui-only branch must return before any sendChatWithRecovery (early return)"
+    "RUN_QUICK_ACTION dispatch: ui-only branch must return before any sendChatWithRecovery (early return)"
   )
   console.log('[assert-invariants] ui-only early return before provider: pass')
 
   // 3) tool-only branches return before provider: tool-only block must not contain sendChatWithRecovery in the same branch
-  const toolOnlySection = runQuickActionBlock.substring(uiOnlyReturnIdx, firstSendChatIdx)
+  const toolOnlySection = dispatchBlock.substring(uiOnlyReturnIdx, firstSendChatIdx)
   assert(
     !toolOnlySection.includes('sendChatWithRecovery'),
-    'main.ts: tool-only branches must not call sendChatWithRecovery (they return before LLM path)'
+    'RUN_QUICK_ACTION dispatch: tool-only branches must not call sendChatWithRecovery (they return before LLM path)'
   )
   console.log('[assert-invariants] tool-only returns before provider: pass')
 
@@ -299,6 +317,127 @@ function main(): void {
     }
 
     console.log('[assert-invariants] Private-mode domain audit: pass')
+  }
+
+  // 8) SmartDetector port compliance: no consumer outside DefaultSmartDetectionEngine may
+  //    import scanSelectionSmart or import directly from the smartDetector barrel.
+  const SD_ALLOWED = new Set([
+    path.join(SRC, 'core', 'detection', 'smartDetector', 'DefaultSmartDetectionEngine.ts'),
+    path.join(SRC, 'core', 'detection', 'smartDetector', 'index.ts'),
+  ])
+  const sdViolators: string[] = []
+  function walkForSdViolations(dir: string): void {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      for (const e of entries) {
+        const full = path.join(dir, e.name)
+        if (e.isDirectory() && e.name !== 'node_modules' && !e.name.startsWith('.')) {
+          // Skip the entire smartDetector directory — internal files are allowed to cross-import
+          if (full === path.join(SRC, 'core', 'detection', 'smartDetector')) continue
+          walkForSdViolations(full)
+        } else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+          if (SD_ALLOWED.has(full)) continue
+          const content = fs.readFileSync(full, 'utf8')
+          // Strip single-line comments and block comments before checking for violations
+          const codeOnly = content
+            .replace(/\/\*[\s\S]*?\*\//g, '')   // block comments
+            .replace(/\/\/[^\n]*/g, '')           // line comments
+          if (
+            /\bscanSelectionSmart\s*\(/.test(codeOnly) ||
+            /from\s+['"].*\/detection\/smartDetector['"]/.test(codeOnly) ||
+            /from\s+['"].*\/detection\/smartDetector\/index['"]/.test(codeOnly)
+          ) {
+            sdViolators.push(full.replace(ROOT + '/', ''))
+          }
+        }
+      }
+    } catch { /* skip unreadable dirs */ }
+  }
+  walkForSdViolations(SRC)
+  assert(
+    sdViolators.length === 0,
+    `SmartDetector port violation — direct imports outside Default engine: ${sdViolators.join(', ')}`
+  )
+  console.log('[assert-invariants] SmartDetector port compliance: pass')
+
+  // 9) DS port compliance: consumers outside Default*Engine files must not import DS internal modules directly.
+  //    Exemptions: the three Default*Engine implementations, the DS internals themselves, and knowledge.ts
+  //    (which is the implementation layer for DSPromptEnrichmentPort, not a consumer).
+  const DS_INTERNAL_PATTERNS = [
+    /from\s+['"].*\/designSystem\/registryLoader['"]/,
+    /from\s+['"].*\/designSystem\/assistantApi['"]/,
+    /from\s+['"].*\/designSystem\/componentService['"]/,
+    /from\s+['"].*\/designSystem\/searchIndex['"]/,
+  ]
+  const DS_ENGINE_EXEMPT = new Set([
+    // Default engine implementations — allowed to import internals (they ARE the adapters)
+    path.join(SRC, 'core', 'designSystem', 'DefaultDSPromptEnrichmentEngine.ts'),
+    path.join(SRC, 'core', 'designSystem', 'DefaultDSQueryEngine.ts'),
+    path.join(SRC, 'core', 'designSystem', 'DefaultDSPlacementEngine.ts'),
+    // Implementation layer for DSPromptEnrichmentPort — not a consumer, do not route through engine (circular)
+    path.join(SRC, 'custom', 'knowledge.ts'),
+    // designSystemTools.ts: search action is routed through DSQueryPort; remaining imports
+    // (listComponents, getComponentByName, getComponentByKey, getComponentDocumentation, placeComponent)
+    // cover operations not yet on the port — exempt until port is extended.
+    path.join(SRC, 'core', 'tools', 'designSystemTools.ts'),
+    // renderer.ts: uses createInstanceOnly for demo-only nuxtDsRegistry flow — exempt per Task 14 scope.
+    path.join(SRC, 'core', 'designWorkshop', 'renderer.ts'),
+  ])
+  const dsViolators: string[] = []
+  function walkForDsViolations(dir: string): void {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      for (const e of entries) {
+        const full = path.join(dir, e.name)
+        if (e.isDirectory() && e.name !== 'node_modules' && !e.name.startsWith('.')) {
+          // Skip the designSystem directory itself — internals may cross-import
+          if (full === path.join(SRC, 'core', 'designSystem')) continue
+          walkForDsViolations(full)
+        } else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+          if (DS_ENGINE_EXEMPT.has(full)) continue
+          const content = fs.readFileSync(full, 'utf8')
+          const codeOnly = content
+            .replace(/\/\*[\s\S]*?\*\//g, '')  // block comments
+            .replace(/\/\/[^\n]*/g, '')          // line comments
+          for (const pattern of DS_INTERNAL_PATTERNS) {
+            if (pattern.test(codeOnly)) {
+              dsViolators.push(full.replace(ROOT + '/', ''))
+              break
+            }
+          }
+        }
+      }
+    } catch { /* skip unreadable dirs */ }
+  }
+  walkForDsViolations(SRC)
+  assert(
+    dsViolators.length === 0,
+    `DS port violation — direct DS internal imports outside Default engines: ${dsViolators.join(', ')}`
+  )
+  console.log('[assert-invariants] DS port compliance: pass')
+
+  // 10) Manifest ↔ handler drift check: every tool-only quick action must have a registered handler.
+  //     UI-only and LLM actions are intentionally skipped — they don't need a main-thread handler.
+  //     Hybrid actions for code2design are handled inline in quickActionExecutor.ts (not via the registry).
+  //     Reports as a warning (not a hard failure) so new actions can be added incrementally.
+  for (const assistant of ASSISTANTS_MANIFEST) {
+    for (const action of (assistant.quickActions ?? [])) {
+      if (action.executionType !== 'tool-only') continue
+      const handler = getHandler(assistant.id, action.id)
+      if (handler === undefined) {
+        warnings.push(
+          `No handler for ${assistant.id}/${action.id} — add to handlers/index.ts or change executionType`
+        )
+      }
+    }
+  }
+  if (warnings.length > 0) {
+    for (const w of warnings) {
+      console.warn('[assert-invariants] WARN:', w)
+    }
+    console.log('[assert-invariants] Manifest↔handler drift check: WARNINGS (see above)')
+  } else {
+    console.log('[assert-invariants] Manifest↔handler drift check: pass')
   }
 
   console.log('[assert-invariants] All invariants passed.')

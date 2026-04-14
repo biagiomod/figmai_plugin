@@ -7,7 +7,7 @@ import { getBranding } from '../custom/config'
  */
 export const BRAND = {
   codeName: 'figmai_plugin',
-  brandName: 'Ableza'
+  brandName: 'Design AI Toolkit'
 } as const
 
 export function getDisplayBrand(): {

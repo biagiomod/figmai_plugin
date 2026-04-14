@@ -135,7 +135,7 @@ export const customConfig: CustomConfig | null = {
       "showName": true,
       "showAppName": true,
       "showLogline": true,
-      "appName": "Ableza",
+      "appName": "Design AI Toolkit",
       "logline": "Insight to Impact",
       "logoPath": ""
     },
@@ -146,9 +146,7 @@ export const customConfig: CustomConfig | null = {
       "general",
       "analytics_tagging",
       "content_table",
-      "design_workshop",
-      "design_critique",
-      "errors"
+      "design_workshop"
     ]
   },
   "llm": {
@@ -160,10 +158,11 @@ export const customConfig: CustomConfig | null = {
       "enabled": false,
       "level": "compact"
     },
+    "provider": "proxy",
     "proxy": {
-      "baseUrl": "",
+      "baseUrl": "https://overobedient-buddy-leathern.ngrok-free.dev ",
       "defaultModel": "gpt-4.1-mini",
-      "sharedToken": ""
+      "sharedToken": "some-long-random-token"
     },
     "safety": {
       "forceNoImages": false,
@@ -254,7 +253,7 @@ export const customConfig: CustomConfig | null = {
     "exclusionRulesDebug": true
   },
   "branding": {
-    "appName": "Ableza",
+    "appName": "Design AI Toolkit",
     "appTagline": "Insight to Impact",
     "logoKey": "none"
   },

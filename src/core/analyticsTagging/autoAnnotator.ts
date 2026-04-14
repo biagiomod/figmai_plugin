@@ -15,7 +15,11 @@ import {
   safeSetNativeAnnotations,
   type AnnotationEntry,
 } from '../figma/annotations'
-import { scanSelectionSmart, type ElementKind } from '../detection/smartDetector'
+import type { ElementKind } from '../detection/smartDetector/types'
+import { DefaultSmartDetectionEngine } from '../detection/smartDetector/DefaultSmartDetectionEngine'
+import type { SmartDetectionPort } from '../sdk/ports/SmartDetectionPort'
+
+const sdPort: SmartDetectionPort = new DefaultSmartDetectionEngine()
 import { isNearMissScreenId, isNearMissActionId } from './nearMissDetector'
 import type { AutoAnnotateResult } from '../types'
 
@@ -201,9 +205,18 @@ export async function autoAnnotateScreens(
     }
 
     // ── ActionID pass (descendants only — root excluded) ───────────────────
-    let sdResult: Awaited<ReturnType<typeof scanSelectionSmart>>
+    let sdElements: Array<{ nodeId: string; kind: ElementKind; confidence: 'high' | 'med' | 'low' }>
     try {
-      sdResult = await scanSelectionSmart([root], { maxNodes: 500 })
+      const [sdResult] = await sdPort.detect([root])
+      // Map port DetectedElement back to the minimal shape needed for annotation filtering.
+      // root.children holds the flat list of detected elements (mapped from internal scanner).
+      sdElements = sdResult.root.children
+        .filter(el => el.candidateType !== null)
+        .map(el => ({
+          nodeId: el.id,
+          kind: el.candidateType as ElementKind,
+          confidence: el.certainty === 'exact' ? 'high' : el.certainty === 'inferred' ? 'med' : 'low',
+        }))
     } catch (e) {
       // Re-wrap to add context; original error preserved in message since { cause } requires ES2022 lib.
       throw new Error(`Smart Detector failed: ${e instanceof Error ? e.message : String(e)}`)
@@ -211,7 +224,7 @@ export async function autoAnnotateScreens(
 
     // Dedupe by nodeId (first qualifying entry wins)
     const seenNodeIds = new Set<string>()
-    const uniqueElements = sdResult.elements.filter(e => {
+    const uniqueElements = sdElements.filter(e => {
       if (seenNodeIds.has(e.nodeId)) return false
       seenNodeIds.add(e.nodeId)
       return true

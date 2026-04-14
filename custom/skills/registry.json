@@ -3,6 +3,17 @@
     { "id": "errors", "title": "Errors", "kind": "context", "filePath": "errors.md" },
     { "id": "design-workshop", "title": "Design Workshop", "kind": "context", "filePath": "design-workshop.md" },
     { "id": "design-critique", "title": "Design Critique", "kind": "context", "filePath": "design-critique.md" },
-    { "id": "dark-deceptive-practices", "title": "Dark & Deceptive Practices", "kind": "context", "filePath": "dark-deceptive-practices.md" }
+    { "id": "dark-deceptive-practices", "title": "Dark & Deceptive Practices", "kind": "context", "filePath": "dark-deceptive-practices.md" },
+    { "id": "accessibility", "title": "Accessibility", "kind": "context", "filePath": "accessibility.md" },
+    { "id": "business-review", "title": "Business Review", "kind": "context", "filePath": "business-review.md" },
+    { "id": "competitive-analysis", "title": "Competitive Analysis", "kind": "context", "filePath": "competitive-analysis.md" },
+    { "id": "content-design", "title": "Content Design", "kind": "context", "filePath": "content-design.md" },
+    { "id": "customer-feedback", "title": "Customer Feedback", "kind": "context", "filePath": "customer-feedback.md" },
+    { "id": "design-heuristics", "title": "Design Heuristics", "kind": "context", "filePath": "design-heuristics.md" },
+    { "id": "forms-input-patterns", "title": "Forms & Input Patterns", "kind": "context", "filePath": "forms-input-patterns.md" },
+    { "id": "interaction-patterns-states", "title": "Interaction Patterns & States", "kind": "context", "filePath": "interaction-patterns-states.md" },
+    { "id": "platform-guidelines", "title": "Platform Guidelines", "kind": "context", "filePath": "platform-guidelines.md" },
+    { "id": "service-design", "title": "Service Design", "kind": "context", "filePath": "service-design.md" },
+    { "id": "ux-research", "title": "UX Research", "kind": "context", "filePath": "ux-research.md" }
   ]
 }

@@ -8,13 +8,15 @@ import type { ToolDefinition } from '../types'
 import {
   listDesignSystemRegistries,
   listComponents,
-  searchComponents,
   getComponentByName,
   getComponentByKey,
   getComponentDocumentation,
   placeComponent
 } from '../designSystem/assistantApi'
+import { DSTQueryEngine } from '../designSystem/DSTQueryEngine'
 import { getDesignSystemConfig } from '../../custom/config'
+
+const _dsQuery = new DSTQueryEngine()
 
 /**
  * DESIGN_SYSTEM_QUERY Tool
@@ -98,30 +100,28 @@ export const designSystemTool: ToolDefinition = {
           }
           
           const registryId = args.registryId as string | undefined
-          const results = searchComponents(query, registryId)
-          
+          const results = await _dsQuery.searchComponents(query, registryId)
+
           if (results.length === 0) {
             return `No components found matching "${query}"`
           }
-          
+
           const result: string[] = []
           result.push(`Found ${results.length} component(s) matching "${query}":`)
           result.push('')
-          
-          results.slice(0, 10).forEach((searchResult, index) => {
-            const { registryId: rid, component } = searchResult
-            result.push(`${index + 1}. **${component.name}** (Registry: ${rid}, Key: ${component.key})`)
-            result.push(`   Purpose: ${component.purpose}`)
-            if (searchResult.matchScore) {
-              result.push(`   Match score: ${(searchResult.matchScore * 100).toFixed(0)}%`)
+
+          results.slice(0, 10).forEach((match, index) => {
+            result.push(`${index + 1}. **${match.componentName}** (Registry: ${match.registryId ?? 'unknown'}, Kind: ${match.canonicalKind})`)
+            if (match.description) {
+              result.push(`   Purpose: ${match.description}`)
             }
             result.push('')
           })
-          
+
           if (results.length > 10) {
             result.push(`... and ${results.length - 10} more results`)
           }
-          
+
           return result.join('\n')
         }
         

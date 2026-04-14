@@ -9,6 +9,7 @@ import fs from 'fs'
 import { z } from 'zod'
 
 const SKILL_ID_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/
+const SKILL_FILE_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/
 
 const idParamSchema = z.object({
   id: z.string().min(1).regex(SKILL_ID_REGEX, 'id must be kebab-case: [a-z0-9]+(?:-[a-z0-9]+)*')
@@ -36,15 +37,27 @@ export function createSkillsRouter(repoRoot: string): Router {
   const skillsDir = path.join(repoRoot, 'custom', 'skills')
   const registryPath = path.join(skillsDir, 'registry.json')
 
+  /** Resolve entry.filePath safely, rejecting paths that escape skillsDir. */
+  function safeEntryPath(filePath: string): string | null {
+    if (!SKILL_FILE_REGEX.test(filePath)) return null
+    const resolved = path.resolve(skillsDir, filePath)
+    if (!resolved.startsWith(skillsDir + path.sep) && resolved !== skillsDir) return null
+    return resolved
+  }
+
   function readRegistry(): { skills: SkillRegistryEntry[] } {
     if (!fs.existsSync(registryPath)) return { skills: [] }
     try {
       const raw = fs.readFileSync(registryPath, 'utf-8')
       const data = JSON.parse(raw) as unknown
       const parsed = skillsRegistrySchema.safeParse(data)
-      if (parsed.success) return parsed.data
-      return { skills: [] }
-    } catch {
+      if (!parsed.success) {
+        console.error('[skills] Registry validation failed:', parsed.error.errors)
+        return { skills: [] }
+      }
+      return parsed.data
+    } catch (err) {
+      console.error('[skills] Registry parse error:', err)
       return { skills: [] }
     }
   }
@@ -58,6 +71,12 @@ export function createSkillsRouter(repoRoot: string): Router {
     return path.join(skillsDir, `${id}.md`)
   }
 
+  // GET /api/skills — list all skills from registry
+  router.get('/', (_req: Request, res: Response) => {
+    const registry = readRegistry()
+    res.json({ skills: registry.skills })
+  })
+
   // GET /api/skills/:id
   router.get('/:id', (req: Request, res: Response) => {
     const parsed = idParamSchema.safeParse({ id: req.params.id })
@@ -68,7 +87,8 @@ export function createSkillsRouter(repoRoot: string): Router {
     const registry = readRegistry()
     const entry = registry.skills.find((s) => s.id === id)
     if (!entry) return res.status(404).json({ error: 'Not found' })
-    const filePath = path.join(skillsDir, entry.filePath)
+    const filePath = safeEntryPath(entry.filePath)
+    if (!filePath) return res.status(500).json({ error: 'Invalid registry entry' })
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' })
     try {
       const content = fs.readFileSync(filePath, 'utf-8')
@@ -129,7 +149,8 @@ export function createSkillsRouter(repoRoot: string): Router {
     const entryIndex = registry.skills.findIndex((s) => s.id === id)
     if (entryIndex === -1) return res.status(404).json({ error: 'Not found' })
     const entry = registry.skills[entryIndex]
-    const fullPath = path.join(skillsDir, entry.filePath)
+    const fullPath = safeEntryPath(entry.filePath)
+    if (!fullPath) return res.status(500).json({ error: 'Invalid registry entry' })
     try {
       if (parsed.data.content !== undefined) {
         fs.writeFileSync(fullPath, parsed.data.content, 'utf-8')
@@ -156,7 +177,8 @@ export function createSkillsRouter(repoRoot: string): Router {
     const entryIndex = registry.skills.findIndex((s) => s.id === id)
     if (entryIndex === -1) return res.status(404).json({ error: 'Not found' })
     const entry = registry.skills[entryIndex]
-    const fullPath = path.join(skillsDir, entry.filePath)
+    const fullPath = safeEntryPath(entry.filePath)
+    if (!fullPath) return res.status(500).json({ error: 'Invalid registry entry' })
     try {
       if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
       registry.skills.splice(entryIndex, 1)
