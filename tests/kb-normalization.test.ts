@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process'
 import {
   getDefaultKbDocument,
   knowledgeBaseDocumentSchema
-} from '../admin-editor/src/kbSchema'
+} from '../shared/ace-config/schemas'
 import { parseMarkdown, normalizeLooseJson, stringifyDoc } from '../scripts/convert-kb'
 
 // --- Schema: valid document ---

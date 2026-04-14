@@ -60,6 +60,7 @@
     "seed-s3": "tsx scripts/seed-s3.ts",
     "push-config": "tsx scripts/push-config.ts",
     "pull-config": "npx tsx scripts/pull-ace-config.ts",
+    "pack-strike-team": "tsx scripts/pack-strike-team.ts",
     "prebuild": "npm run generate-ignore-rules && npm run generate-font-face-css && npm run build-assistants && npm run generate-assistants && npm run generate-presets && npm run generate-custom-overlay && npm run generate-dark-demo-cards && npm run generate-knowledge-bases && npm run generate-nuxt-ds-catalog && tsx scripts/generate-build-info.ts",
     "build": "build-figma-plugin --typecheck --minify",
     "build:with-s3": "npm run sync-config && npm run build",

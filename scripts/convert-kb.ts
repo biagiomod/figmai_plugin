@@ -12,8 +12,8 @@ import {
   getDefaultKbDocument,
   knowledgeBaseDocumentSchema,
   type KnowledgeBaseDocument
-} from '../admin-editor/src/kbSchema'
-import { parseMarkdown, normalizeLooseJson } from '../admin-editor/src/kbNormalize'
+} from '../shared/ace-config/schemas'
+import { parseMarkdown, normalizeLooseJson } from '../shared/ace-config/kbNormalize'
 
 const KB_DIR = path.join(process.cwd(), 'custom', 'knowledge-bases')
 const REGISTRY_PATH = path.join(KB_DIR, 'registry.json')

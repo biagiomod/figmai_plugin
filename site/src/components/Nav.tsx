@@ -31,9 +31,7 @@ export function Nav() {
           Resources
         </NavLink>
         <a
-          href={import.meta.env.VITE_ACE_URL ?? '#'}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={import.meta.env.VITE_ACE_URL ?? 'http://localhost:3333/'}
           className={styles.link}
         >
           ACE ↗

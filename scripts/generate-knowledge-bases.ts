@@ -7,8 +7,8 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import { knowledgeBaseDocumentSchema } from '../admin-editor/src/kbSchema'
-import type { KnowledgeBaseDocument } from '../admin-editor/src/kbSchema'
+import { knowledgeBaseDocumentSchema } from '../shared/ace-config/schemas'
+import type { KnowledgeBaseDocument } from '../shared/ace-config/schemas'
 import type { ZodError } from 'zod'
 
 /** Allow override for tests (e.g. KB_GENERATOR_ROOT=/tmp/kb-test). */

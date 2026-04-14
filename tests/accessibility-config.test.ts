@@ -4,7 +4,7 @@
  */
 
 import assert from 'node:assert'
-import { configSchema } from '../admin-editor/src/schema'
+import { configSchema } from '../shared/ace-config/schemas'
 
 function test_configSchema_accepts_accessibility_hatRequiredComponents() {
   const parsed = configSchema.parse({

@@ -7,6 +7,10 @@
 node_modules/
 **/node_modules/
 
+# Strike team distribution artifacts (scripts/pack-strike-team.ts)
+dist/strike-teams/
+.pack-staging/
+
 # Backup files
 *.bak
 *.bak2
@@ -15,10 +19,12 @@ node_modules/
 *.final
 *.fix
 
-# Admin Config Editor backups (local only)
+# Admin Config Editor backups and local data (local only)
 admin-editor/.backups/
 admin-editor/.env.deploy
 admin-editor/dist/
+admin-editor/data/users.json
+admin-editor/data/audit.jsonl
 
 # ACE frontend runtime config — environment-specific, never committed.
 # Copy admin-editor/public/config.local.example.js  → config.js  for local dev (npm run admin)
@@ -37,6 +43,7 @@ enterprise/ace-spring-wrapper/logs/
 enterprise/ace-spring-wrapper/.env
 infra/config-api/.aws-sam/
 infra/config-api/samconfig.toml
+infra/ace-lambda/samconfig.toml
 infra/config-api/dist/
 
 # Work-only override files (not committed to Public repo)
