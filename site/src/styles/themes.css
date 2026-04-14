@@ -1,0 +1,29 @@
+/* Mixed (default): dark hero/nav surfaces, light body */
+html.theme-mixed {
+  --bg-body: #f7f7f7;
+  --bg-card: #ffffff;
+  --bg-section-alt: #0a0a0a;
+  --text-primary: #111111;
+  --text-muted: #666666;
+  --border-card: #e8e8e8;
+}
+
+/* Dark: all surfaces dark */
+html.theme-dark {
+  --bg-body: #0f0f0f;
+  --bg-card: #1c1c1c;
+  --bg-section-alt: #0a0a0a;
+  --text-primary: #f0f0f0;
+  --text-muted: rgba(255, 255, 255, 0.55);
+  --border-card: rgba(255, 255, 255, 0.08);
+}
+
+/* Light: all surfaces light */
+html.theme-light {
+  --bg-body: #ffffff;
+  --bg-card: #f8f8f8;
+  --bg-section-alt: #111111;
+  --text-primary: #111111;
+  --text-muted: #666666;
+  --border-card: #e4e4e4;
+}

@@ -1,0 +1,28 @@
+:root {
+  --accent: #d50c7d;
+  --site-max-width: 1200px;
+  --ac-color: var(--accent);
+
+  --bg-hero: #0a0a0a;
+  --bg-nav: #0a0a0a;
+  --bg-body: #f7f7f7;
+  --bg-card: #ffffff;
+  --bg-dark-card: #1c1c1c;
+
+  --text-primary: #111111;
+  --text-muted: #666666;
+  --text-subtle: #999999;
+  --text-on-dark: #ffffff;
+  --text-on-dark-muted: rgba(255, 255, 255, 0.55);
+
+  --border-card: #e8e8e8;
+  --border-dark: rgba(255, 255, 255, 0.08);
+
+  --radius-card: 10px;
+  --radius-sm: 6px;
+  --radius-xs: 4px;
+
+  --font-display: 'Industry Inc', system-ui, sans-serif;
+  --font-body: 'Protipo', system-ui, sans-serif;
+  --font-label: 'Carbon', system-ui, sans-serif;
+}
