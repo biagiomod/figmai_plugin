@@ -68,13 +68,39 @@ export async function getModelResponse() {
     }
   }
 
+  // Load SKILL.md content for assistants (draft/assistants/<id>/SKILL.md)
+  const assistantKeys = await listRelativeKeys('draft/assistants/')
+  const skillMdContent: Record<string, string> = {}
+  for (const key of assistantKeys) {
+    if (!key.endsWith('/SKILL.md')) continue
+    const assistantId = key.replace(/^draft\/assistants\//, '').replace(/\/SKILL\.md$/, '')
+    const markdown = await getObjectText(key)
+    if (markdown !== null) skillMdContent[assistantId] = markdown
+  }
+
+  // Load SKILL.md content for design systems (draft/design-systems/SKILL.md and draft/design-systems/<id>/SKILL.md)
+  const dsSkillMdContent: Record<string, string> = {}
+  // Top-level DS SKILL.md
+  const topLevelDsSkill = await getObjectText('draft/design-systems/SKILL.md')
+  if (topLevelDsSkill !== null) dsSkillMdContent['__top_level__'] = topLevelDsSkill
+  // Per-DS SKILL.md (already have dsKeys from earlier)
+  for (const dsSkillKey of dsKeys) {
+    if (!dsSkillKey.endsWith('/SKILL.md')) continue
+    const dsId = dsSkillKey.replace(/^draft\/design-systems\//, '').replace(/\/SKILL\.md$/, '')
+    if (dsId === '__top_level__') continue
+    const markdown = await getObjectText(dsSkillKey)
+    if (markdown !== null) dsSkillMdContent[dsId] = markdown
+  }
+
   const model = {
     config: parseJsonOrDefault<Record<string, unknown>>(configRaw, {}),
     assistantsManifest: parseJsonOrDefault<Record<string, unknown>>(manifestRaw, { assistants: [] }),
     customKnowledge,
     contentModelsRaw: contentModelsRaw || undefined,
     designSystemRegistries:
-      Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined
+      Object.keys(designSystemRegistries).length > 0 ? designSystemRegistries : undefined,
+    skillMdContent: Object.keys(skillMdContent).length > 0 ? skillMdContent : undefined,
+    dsSkillMdContent: Object.keys(dsSkillMdContent).length > 0 ? dsSkillMdContent : undefined
   }
 
   const validation = validateModel(model)

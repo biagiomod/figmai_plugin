@@ -16,6 +16,7 @@
 ## 2. Structure
 
 - **Root-level (this directory):** Archived plans, audits, and reports moved from `docs/` with original filenames preserved (including ALL_CAPS). Examples: ADMIN_CONFIG_EDITOR_PLAN_V2.md, ADMIN_CONFIG_EDITOR_IMPLEMENTATION_PLAN.md, DESIGN_CRITIQUE_ASSISTANT_AUDIT_AND_MIGRATION_PLAN.md, DESIGN_WORKSHOP_ASSISTANT_AUDIT_AND_MIGRATION_PLAN.md, ERRORS_* audits, LLM_PROMPT_* audits, ARCHITECTURE_AUDIT_ASSISTANTS.md, ANALYTICS_TAGGING_ACTIONID_AUDIT.md, PROJECT_CONTEXT_FROM_CHATGPT.md, PR11c1-hardening-and-PR11c2-plan.md, PR11c1-QA-evidence.md. Each has an "Status: Archived" banner at the top.
+- **deprecated-ace-deployment/:** Deployment guides for the Spring Boot ACE wrapper, which is no longer the active private/work deployment path. Includes `ace-custom-spring-wrapper.md` and `spring-wrapper-installation-guide.md`. Active path is AWS + Lambda + S3 (see `docs/setup/ace-private-env-setup.md`).
 - **phases/:** Summaries and reports for completed development phases.
 - **verification/:** Detailed verification reports for completed features.
 - **qa/:** Historical QA plans and test commands.
@@ -33,4 +34,4 @@ For current ACE migration and hosting topics, use:
 
 1. [architecture/ace-static-s3-migration.md](../architecture/ace-static-s3-migration.md)
 2. current code in `infra/config-api/`, `admin-editor/`, and `scripts/`
-3. [setup/ace-public-replica.md](../setup/ace-public-replica.md)
+3. [setup/ace-private-env-setup.md](../setup/ace-private-env-setup.md)

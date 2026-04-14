@@ -16,9 +16,7 @@
       "general",
       "analytics_tagging",
       "content_table",
-      "design_workshop",
-      "design_critique",
-      "errors"
+      "design_workshop"
     ]
   },
   "llm": {
@@ -30,10 +28,11 @@
       "enabled": false,
       "level": "compact"
     },
+    "provider": "proxy",
     "proxy": {
-      "baseUrl": "",
+      "baseUrl": "https://overobedient-buddy-leathern.ngrok-free.dev ",
       "defaultModel": "gpt-4.1-mini",
-      "sharedToken": ""
+      "sharedToken": "some-long-random-token"
     },
     "safety": {
       "forceNoImages": false,

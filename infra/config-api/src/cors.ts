@@ -20,9 +20,5 @@ export function corsHeaders(origin?: string): Record<string, string> {
     headers['Access-Control-Allow-Origin'] = origin
   }
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H5',location:'infra/config-api/src/cors.ts:24',message:'corsHeaders computed',data:{origin:origin||null,allowedMatch:!!(origin&&allowed.has(origin))},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-
   return headers
 }

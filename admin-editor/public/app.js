@@ -36,11 +36,18 @@
     usersList: [],
     kbRegistry: [],
     kbRegistryFetched: false,
+    kbRegistryError: null,
     selectedKbId: null,
     kbCreateMode: false,
     kbPreviewDoc: null,
     kbEditDoc: null,
-    selectedAssistantDetailTab: 'overview',
+    selectedAssistantDetailTab: 'skill-md',
+    skillMdEdits: {},   // assistantId -> edited SKILL.md content (unsaved)
+    skillMdMode: {},    // assistantId -> 'form' | 'raw'
+    selectedDsId: null,           // null = top-level SKILL.md; string = DS id
+    selectedDsSubTab: 'skill-md', // 'skill-md' | 'registry' | 'internal-kb' | 'metadata'
+    dsSkillMdEdits: {},           // dsId -> edited content ('__top_level__' for top-level)
+    dsSkillMdMode: {},            // dsId -> 'form' | 'raw'
     playgroundActive: false,
     playgroundAssistantId: null,
     playgroundActionId: null,
@@ -54,14 +61,59 @@
     playgroundGolden: null,
     playgroundRubricChecked: {},
     playgroundFiring: false,
+    playgroundTestMode: 'no-selection',   // 'no-selection' | 'selection' | 'vision'
+    playgroundFixtureCatalog: null,       // FixtureMeta[] loaded from /api/fixtures, or null
+    playgroundFixtureId: null,            // selected fixture id or null
+    playgroundSelectionSummary: '',       // editable selection summary textarea content
+    playgroundInspectorExpanded: true,    // payload inspector expanded state (true = open)
     instructionsMap: {},
     skillsRegistry: { skills: [] },
+    skillsRegistryFetched: false,
+    skillsRegistryError: null,
     selectedSkillId: null,
-    selectedSkillContent: ''
+    selectedSkillContent: '',
+    selectedSkillEditorMode: 'form',
+    selectedGeneralSubTab: 'plugin',   // 'plugin' | 'site'
+    selectedResourcesSubTab: 'shared-skills'   // 'shared-skills' | 'internal-kbs'
   }
 
   /** Must match admin-editor/src/kbSchema.ts KB_ID_REGEX (kebab-case). */
   const KB_ID_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+  // ── Theme toggle ──────────────────────────────────────────────────────────
+  const ACE_THEMES = ['mixed', 'dark', 'light']
+  const ACE_THEME_LABELS = { mixed: 'Mix', dark: 'Dark', light: 'Light' }
+  const ACE_THEME_LS_KEY = 'ace-theme'
+  const ACE_THEME_ICONS = {
+    mixed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>',
+    dark:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+  }
+
+  function _getStoredTheme () {
+    try {
+      var stored = localStorage.getItem(ACE_THEME_LS_KEY)
+      return ACE_THEMES.indexOf(stored) !== -1 ? stored : 'mixed'
+    } catch { return 'mixed' }
+  }
+
+  function applyTheme (theme) {
+    ACE_THEMES.forEach(function (t) { document.documentElement.classList.remove('ace-theme-' + t) })
+    document.documentElement.classList.add('ace-theme-' + theme)
+    try { localStorage.setItem(ACE_THEME_LS_KEY, theme) } catch {}
+    var btn = document.getElementById('ace-theme-btn')
+    if (btn) {
+      var icon = btn.querySelector('.ace-theme-icon')
+      if (icon) icon.innerHTML = ACE_THEME_ICONS[theme]
+      var label = btn.querySelector('.ace-topbar-btn-label')
+      if (label) label.textContent = ACE_THEME_LABELS[theme]
+      btn.setAttribute('aria-label', 'Theme: ' + ACE_THEME_LABELS[theme])
+    }
+  }
+
+  // Apply theme immediately (before auth/render) so there's no flash
+  applyTheme(_getStoredTheme())
+  // ─────────────────────────────────────────────────────────────────────────
 
   var FETCH_OPTS = ACE_AUTH_MODE === 'bearer' ? {} : { credentials: 'include' }
 
@@ -258,19 +310,23 @@
     const saveBtn = document.getElementById('save-btn')
     if (reloadBtn) {
       reloadBtn.disabled = !!loading
-      reloadBtn.textContent = loading === 'reload' ? 'Loading…' : 'Reset'
+      var reloadLabel = reloadBtn.querySelector('.ace-topbar-btn-label')
+      if (reloadLabel) reloadLabel.textContent = loading === 'reload' ? 'Loading…' : 'Reset'
     }
     if (validateBtn) {
       validateBtn.disabled = !!loading
-      validateBtn.textContent = loading === 'validate' ? 'Validating…' : 'Validate'
+      var validateLabel = validateBtn.querySelector('.ace-topbar-btn-label')
+      if (validateLabel) validateLabel.textContent = loading === 'validate' ? 'Validating…' : 'Validate'
     }
     if (previewBtn) {
       previewBtn.disabled = !!loading || !dirty
-      previewBtn.textContent = loading === 'preview' ? 'Previewing…' : 'Preview changes'
+      var previewLabel = previewBtn.querySelector('.ace-topbar-btn-label')
+      if (previewLabel) previewLabel.textContent = loading === 'preview' ? 'Previewing…' : 'Preview changes'
     }
     if (saveBtn) {
       saveBtn.disabled = !!loading || !dirty || validationStale || !!hasErrors || !!hasParseError
-      saveBtn.textContent = loading === 'save' ? 'Saving…' : 'Save'
+      var saveLabel = saveBtn.querySelector('.ace-topbar-btn-label')
+      if (saveLabel) saveLabel.textContent = loading === 'save' ? 'Saving…' : 'Save'
     }
     const footerStatus = document.getElementById('footer-status')
     if (footerStatus) {
@@ -530,7 +586,7 @@
     }
     const name = (user.username || '').trim() || '—'
     container.innerHTML = '<div class="ace-nav-profile-widget-inner">' +
-      '<img src="/assets/icons/ACEUserIcon.svg" alt="" class="ace-nav-profile-widget-icon" width="24" height="24" aria-hidden="true" />' +
+      '<svg class="ace-nav-profile-widget-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg>' +
       '<div class="ace-nav-profile-widget-body">' +
       '<span class="ace-nav-profile-widget-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
       '<span class="ace-role-badge ace-role-badge--' + (role || '') + '">' + escapeHtml(roleBadgeLabel(role)) + '</span>' +
@@ -667,12 +723,31 @@
       const canonical = canonicalizeModel(data.model)
       state.originalModel = canonical
       state.editedModel = deepClone(canonical)
+      // Initialize skillMdEdits from loaded model
+      state.skillMdEdits = {}
+      if (data.model.skillMdContent) {
+        for (var _smId in data.model.skillMdContent) {
+          state.skillMdEdits[_smId] = data.model.skillMdContent[_smId] || ''
+        }
+      }
+      // Initialize dsSkillMdEdits from loaded model
+      state.dsSkillMdEdits = {}
+      if (data.model.dsSkillMdContent) {
+        for (var _dsId in data.model.dsSkillMdContent) {
+          state.dsSkillMdEdits[_dsId] = data.model.dsSkillMdContent[_dsId] || ''
+        }
+      }
       state.instructionsMap = deepClone(data.model.instructions || {})
-      state.skillsRegistry = data.model.skillsRegistry || { skills: [] }
+      state.skillsRegistry = data.skillsRegistry || { skills: [] }
+      // Mark skills as pre-fetched if the server already returned them in /api/model;
+      // otherwise the Resources tab will fetch lazily via GET /api/skills.
+      state.skillsRegistryFetched = (data.skillsRegistry != null)
+      state.skillsRegistryError = null
       state.meta = data.meta || null
       state.validation = data.validation || { errors: [], warnings: [] }
       state.loadedAt = new Date().toLocaleString()
       state.kbRegistryFetched = false
+      state.kbRegistryError = null
       state.connected = true
       state.saveSummary = null
       state.previewSummary = null
@@ -720,7 +795,7 @@
   }
 
   var SECTION_STATE_KEY = 'ace.ui.configSectionExpanded.v1'
-  var CONFIG_SECTION_KEYS = ['default-mode', 'mode-settings', 'ai-api-endpoint', 'resource-links', 'credits', 'accessibility-hat', 'advanced-raw-json']
+  var CONFIG_SECTION_KEYS = ['default-mode', 'mode-settings', 'branding', 'resource-links', 'credits', 'advanced-raw-json']
   function getDefaultExpandedState () {
     var out = {}
     for (var i = 0; i < CONFIG_SECTION_KEYS.length; i++) {
@@ -747,25 +822,38 @@
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SECTION_STATE_KEY, JSON.stringify(map))
     } catch (_) {}
   }
+  var SECTION_ICONS = {
+    'default-mode': 'layout-panel-left',
+    'mode-settings': 'list',
+    'branding': 'award',
+    'resource-links': 'link',
+    'credits': 'heart',
+    'advanced-raw-json': 'code-2',
+    'ai-api-endpoint': 'cpu',
+    'content-table-exclusion': 'filter'
+  }
+
   function collapsibleSection (sectionId, title, bodyHtml, expanded, descriptionText) {
     var isExpanded = expanded === true
-    var chevron = isExpanded ? 'ChevronUpIcon.svg' : 'ChevronDownIcon.svg'
-    var headerContent
+    var icon = SECTION_ICONS[sectionId] || 'settings'
+    var iconChip = '<div class="ace-section-icon-chip"><i data-lucide="' + escapeHtml(icon) + '"></i></div>'
+    var chevronIcon = '<i data-lucide="chevron-down" class="ace-section-chevron-icon"></i>'
+    var titleContent
     if (descriptionText) {
-      headerContent = '<div class="ace-section-header-inner">' +
+      titleContent = '<div class="ace-section-header-inner">' +
         '<div class="ace-section-header-top">' +
-        '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
-        '<img class="ace-section-chevron" src="/assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />' +
+        '<div class="ace-section-header-content">' + iconChip + '<div class="ace-section-title">' + escapeHtml(title) + '</div></div>' +
+        chevronIcon +
         '</div>' +
         '<div class="ace-section-description">' + escapeHtml(descriptionText) + '</div>' +
         '</div>'
     } else {
-      headerContent = '<div class="ace-section-title">' + escapeHtml(title) + '</div>' +
-        '<img class="ace-section-chevron" src="/assets/icons/' + chevron + '" alt="" aria-hidden="true" width="20" height="20" />'
+      titleContent = '<div class="ace-section-header-content">' + iconChip + '<div class="ace-section-title">' + escapeHtml(title) + '</div></div>' +
+        chevronIcon
     }
     return '<section class="ace-section ace-collapsible' + (isExpanded ? '' : ' is-collapsed') + '" data-section="' + escapeHtml(sectionId) + '">' +
       '<button type="button" class="ace-section-header" aria-expanded="' + (isExpanded ? 'true' : 'false') + '" aria-controls="section-' + escapeHtml(sectionId) + '-body">' +
-      headerContent +
+      titleContent +
       '</button>' +
       '<div id="section-' + escapeHtml(sectionId) + '-body" class="ace-section-body">' + bodyHtml + '</div>' +
       '</section>'
@@ -939,6 +1027,16 @@
     return getAdvancedOrderedAssistants(assistants).map(function (a) { return a.id })
   }
 
+  // ——— Config tab helpers ———
+  function wireGeneralSubTabBtns (panel) {
+    panel.querySelectorAll('.ace-sub-tab-btn[data-general-subtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedGeneralSubTab = this.getAttribute('data-general-subtab')
+        renderConfigTab()
+      }
+    })
+  }
+
   // ——— Config tab (General Plugin Settings — card layout) ———
   function renderConfigTab () {
     const panel = document.getElementById('panel-config')
@@ -948,6 +1046,20 @@
       panel.innerHTML = '<p>No config loaded.</p>'
       return
     }
+
+    // Sub-tab header
+    var subTab = state.selectedGeneralSubTab || 'plugin'
+    var subTabHtml = '<div class="ace-sub-tab-row">'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (subTab === 'plugin' ? ' active' : '') + '" data-general-subtab="plugin">Plugin</button>'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (subTab === 'site' ? ' active' : '') + '" data-general-subtab="site">Site <span class="ace-badge ace-badge--upcoming">Upcoming</span></button>'
+    subTabHtml += '</div>'
+
+    if (subTab === 'site') {
+      panel.innerHTML = subTabHtml + renderGeneralSitePlaceholder()
+      wireGeneralSubTabBtns(panel)
+      return
+    }
+
     const ui = m.config.ui || {}
     const assistants = state.editedModel?.assistantsManifest?.assistants || []
     const simpleSet = new Set(Array.isArray(ui.simpleModeIds) ? ui.simpleModeIds : [])
@@ -955,7 +1067,8 @@
     const canonicalOrder = getAdvancedOrderedAssistants(assistants)
     const effectiveAdvancedIds = new Set(getEffectiveAdvancedModeIds(ui, assistants))
 
-    let html = '<div class="ace-config-desc-bar">'
+    let html = subTabHtml
+    html += '<div class="ace-config-desc-bar">'
     html += '<p class="ace-config-page-desc">Plugin settings, display mode, and branding.</p>'
     html += '<button type="button" class="ace-config-reset-btn" id="reset-config-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
@@ -1036,9 +1149,11 @@
       '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showAppName" ' + (brandingShowAppName ? 'checked' : '') + '> Show App Name</label></div>' +
       '<div class="field-row"><label><input type="checkbox" id="config-ui-branding-showLogline" ' + (brandingShowLogline ? 'checked' : '') + '> Show Logline</label></div>' +
       '<label for="config-branding-appName" class="ace-field-label">App Name</label>' +
-      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="Ableza" value="' + escapeHtml(brandingAppName) + '">' +
+      '<input type="text" id="config-branding-appName" class="ace-text-input ace-field" placeholder="Design AI Toolkit" value="' + escapeHtml(brandingAppName) + '">' +
       '<label for="config-branding-logline" class="ace-field-label">Logline</label>' +
       '<input type="text" id="config-branding-logline" class="ace-text-input ace-field" placeholder="AI Powered" value="' + escapeHtml(brandingLogline) + '">' +
+      '<!-- Logo Path + preview hidden until feature is ready -->' +
+      '<div style="display:none">' +
       '<label for="config-branding-logoPath" class="ace-field-label">Logo Path</label>' +
       '<input type="text" id="config-branding-logoPath" class="ace-text-input ace-field ace-field--lg" placeholder="/assets/logo-figmai.svg" value="' + escapeHtml(brandingLogoPath) + '">' +
       '<div class="ace-card-subtext" style="margin-top:8px">Current Logo Preview</div>' +
@@ -1047,6 +1162,7 @@
       '<span id="config-branding-logoMissing" class="inline-error" style="' + (brandingLogoResolved ? 'display:none;' : 'display:inline;') + '">' + (brandingLogoResolved ? '' : 'Logo path is empty') + '</span>' +
       '</div>' +
       '<div class="ace-card-subtext" style="margin-top:6px">Resolved URL: <code id="config-branding-logoPathRaw">' + escapeHtml(brandingLogoResolved || '') + '</code></div>' +
+      '</div>' +
       '</div>',
       expandedMap['branding'])
     var RESOURCE_LINK_KEYS = ['about', 'feedback', 'meetup']
@@ -1055,6 +1171,11 @@
     html += collapsibleSection('resource-links', 'Resource Links',
       '<div class="ace-card ace-resource-links-card">' +
       '<p class="ace-card-subtext">Include helpful links in the Resources &amp; Credits section. Leave fields blank to hide button.</p>' +
+      '<div class="ace-resource-link-header">' +
+      '<span class="ace-resource-link-num" aria-hidden="true"></span>' +
+      '<span class="ace-resource-link-col ace-resource-link-col--label">Label</span>' +
+      '<span class="ace-resource-link-col ace-resource-link-col--url">URL</span>' +
+      '</div>' +
       (function () {
         var o = ''
         for (var r = 0; r < RESOURCE_LINK_KEYS.length; r++) {
@@ -1062,12 +1183,11 @@
           var linkEntry = resourcesLinks[linkKey] || {}
           var linkLabel = (typeof linkEntry.label === 'string' ? linkEntry.label : '') || ''
           var linkUrl = (typeof linkEntry.url === 'string' ? linkEntry.url : '') || ''
+          var btnNum = r + 1
           o += '<div class="ace-resource-link-row" data-link-key="' + escapeHtml(linkKey) + '">'
-          o += '<h4 class="ace-resource-link-row-title">' + escapeHtml(RESOURCE_LINK_BUTTON_LABELS[r]) + '</h4>'
-          o += '<label for="config-resources-links-' + linkKey + '-label" class="ace-field-label">Label</label>'
-          o += '<input type="text" id="config-resources-links-' + linkKey + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(linkLabel) + '" data-link-key="' + escapeHtml(linkKey) + '">'
-          o += '<label for="config-resources-links-' + linkKey + '-url" class="ace-field-label">URL</label>'
-          o += '<input type="text" id="config-resources-links-' + linkKey + '-url" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(linkUrl) + '" data-link-key="' + escapeHtml(linkKey) + '">'
+          o += '<span class="ace-resource-link-num" aria-hidden="true">' + btnNum + '</span>'
+          o += '<input type="text" id="config-resources-links-' + linkKey + '-label" class="ace-text-input ace-resource-link-input--label" aria-label="Button ' + btnNum + ' label" placeholder="Label" value="' + escapeHtml(linkLabel) + '" data-link-key="' + escapeHtml(linkKey) + '">'
+          o += '<input type="text" id="config-resources-links-' + linkKey + '-url" class="ace-text-input ace-resource-link-input--url" aria-label="Button ' + btnNum + ' URL" placeholder="https://..." value="' + escapeHtml(linkUrl) + '" data-link-key="' + escapeHtml(linkKey) + '">'
           o += '</div>'
         }
         return o
@@ -1088,17 +1208,21 @@
           var arr = Array.isArray(creditsData[groupKey]) ? creditsData[groupKey].slice() : []
           while (arr.length < 3) arr.push({ label: '', url: '' })
           arr = arr.slice(0, 3)
-          o += '<div class="ace-credits-subsection" data-credits-group="' + escapeHtml(groupKey) + '">'
+          o += '<div class="ace-credits-group" data-credits-group="' + escapeHtml(groupKey) + '">'
+          o += '<p class="ace-credits-group-label">' + escapeHtml(groupLabel) + '</p>'
+          o += '<div class="ace-resource-link-header">'
+          o += '<span class="ace-resource-link-num" aria-hidden="true"></span>'
+          o += '<span class="ace-resource-link-col ace-resource-link-col--label">Label</span>'
+          o += '<span class="ace-resource-link-col ace-resource-link-col--url">URL</span>'
+          o += '</div>'
           for (var slot = 0; slot < 3; slot++) {
             var entry = arr[slot] && typeof arr[slot] === 'object' ? arr[slot] : { label: '', url: '' }
             var slotLabel = typeof entry.label === 'string' ? entry.label : ''
             var slotUrl = typeof entry.url === 'string' ? entry.url : ''
-            o += '<div class="ace-credits-slot">'
-            o += '<h5 class="ace-credits-slot-title">' + escapeHtml(groupLabel) + ' Slot ' + (slot + 1) + '</h5>'
-            o += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-field-label">Label</label>'
-            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-text-input ace-field" placeholder="Label" value="' + escapeHtml(slotLabel) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
-            o += '<label for="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-field-label">URL</label>'
-            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-text-input ace-field ace-field--lg" placeholder="https://..." value="' + escapeHtml(slotUrl) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '<div class="ace-resource-link-row" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '<span class="ace-resource-link-num" aria-hidden="true">' + (slot + 1) + '</span>'
+            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-label" class="ace-text-input ace-resource-link-input--label" aria-label="' + escapeHtml(groupLabel) + ' slot ' + (slot + 1) + ' label" placeholder="Label" value="' + escapeHtml(slotLabel) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
+            o += '<input type="text" id="credits-' + escapeHtml(groupKey) + '-' + slot + '-url" class="ace-text-input ace-resource-link-input--url" aria-label="' + escapeHtml(groupLabel) + ' slot ' + (slot + 1) + ' URL" placeholder="https://..." value="' + escapeHtml(slotUrl) + '" data-credits-group="' + escapeHtml(groupKey) + '" data-slot="' + slot + '">'
             o += '</div>'
           }
           o += '</div>'
@@ -1107,20 +1231,6 @@
       })() +
       '</div>',
       expandedMap['credits'])
-    var hatList = Array.isArray(m.config.accessibility && m.config.accessibility.hatRequiredComponents) ? m.config.accessibility.hatRequiredComponents.slice() : []
-    html += collapsibleSection('accessibility-hat', 'Accessibility — HAT-required components',
-      '<div class="ace-card ace-hat-components-card">' +
-      '<p class="ace-card-subtext">Component/instance names that should always be treated as requiring HAT (accessible label). Used by Content Review Assistant &quot;Add HAT&quot; quick action.</p>' +
-      '<div class="ace-hat-list" id="hat-required-components-list">' +
-      hatList.map(function (name, idx) {
-        return '<div class="ace-hat-row" data-index="' + idx + '"><span class="ace-hat-name">' + escapeHtml(name) + '</span><button type="button" class="ace-hat-remove" data-index="' + idx + '" aria-label="Remove">Remove</button></div>'
-      }).join('') +
-      '</div>' +
-      '<div class="ace-hat-add-row">' +
-      '<input type="text" id="hat-new-component-name" class="ace-text-input ace-field" placeholder="e.g. IconButton, ToolbarIconOnly">' +
-      '<button type="button" id="hat-add-btn" class="ace-btn">Add</button>' +
-      '</div></div>',
-      expandedMap['accessibility-hat'])
     html += collapsibleSection('advanced-raw-json', 'Advanced: Raw JSON Config',
       '<div class="ace-card danger-zone ace-raw-json-card">' +
       '<p class="ace-raw-json-warning">Warning: Invalid JSON will fail validation</p>' +
@@ -1129,7 +1239,31 @@
       '</div>',
       expandedMap['advanced-raw-json'])
     html += '</div>'
+    html += '<p id="general-build-info" class="ace-build-info ace-text-muted" aria-live="polite">Plugin build: loading\u2026</p>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
+
+    _apiFetch(API_BASE + '/api/build-info', {})
+      .then(function (r) { return r.ok ? r.json() : null })
+      .then(function (data) {
+        var version = (data && typeof data.version === 'string') ? data.version : ''
+        var buildId = (data && typeof data.buildId === 'string') ? data.buildId : undefined
+        var el = document.getElementById('general-build-info')
+        if (!el) return
+        if (version && buildId) {
+          el.textContent = 'Plugin build: ' + version + ' (bundle ID: ' + buildId + ') \u2014 updates each time the plugin is compiled'
+        } else if (version) {
+          el.textContent = 'Plugin build: ' + version + ' \u2014 updates each time the plugin is compiled'
+        } else {
+          el.textContent = 'Plugin build: unavailable'
+        }
+      })
+      .catch(function () {
+        var el = document.getElementById('general-build-info')
+        if (el) el.textContent = 'Plugin build: unavailable'
+      })
+
+    wireGeneralSubTabBtns(panel)
 
     panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
       btn.onclick = function () {
@@ -1143,8 +1277,7 @@
         var expanded = map[sectionId]
         section.classList.toggle('is-collapsed', !expanded)
         this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
-        var img = this.querySelector('.ace-section-chevron')
-        if (img) img.src = expanded ? '/assets/icons/ChevronUpIcon.svg' : '/assets/icons/ChevronDownIcon.svg'
+        // chevron rotation handled by CSS (.ace-collapsible.is-collapsed .ace-section-chevron-icon)
       }
     })
 
@@ -1291,50 +1424,6 @@
       })
     }
 
-    // HAT-required components: ensure config.accessibility.hatRequiredComponents exists and wire Add/Remove
-    if (!state.editedModel.config.accessibility) state.editedModel.config.accessibility = {}
-    if (!Array.isArray(state.editedModel.config.accessibility.hatRequiredComponents)) state.editedModel.config.accessibility.hatRequiredComponents = []
-    var hatListEl = document.getElementById('hat-required-components-list')
-    var hatAddBtn = document.getElementById('hat-add-btn')
-    var hatNewInput = document.getElementById('hat-new-component-name')
-    if (hatAddBtn && hatNewInput && hatListEl) {
-      hatAddBtn.onclick = function () {
-        var name = (hatNewInput.value || '').trim()
-        if (!name) return
-        state.editedModel.config.accessibility.hatRequiredComponents.push(name)
-        var row = document.createElement('div')
-        row.className = 'ace-hat-row'
-        row.innerHTML = '<span class="ace-hat-name">' + escapeHtml(name) + '</span><button type="button" class="ace-hat-remove" aria-label="Remove">Remove</button>'
-        hatListEl.appendChild(row)
-        row.querySelector('.ace-hat-remove').onclick = function () {
-          var arr = state.editedModel.config.accessibility.hatRequiredComponents
-          var i = arr.indexOf(name)
-          if (i !== -1) arr.splice(i, 1)
-          row.remove()
-          showUnsavedBanner()
-          updateFooterButtons()
-        }
-        hatNewInput.value = ''
-        showUnsavedBanner()
-        updateFooterButtons()
-      }
-    }
-    if (hatListEl) {
-      hatListEl.querySelectorAll('.ace-hat-remove').forEach(function (btn) {
-        btn.onclick = function () {
-          var row = btn.closest('.ace-hat-row')
-          var nameEl = row && row.querySelector('.ace-hat-name')
-          var name = nameEl ? nameEl.textContent : ''
-          var arr = state.editedModel.config.accessibility.hatRequiredComponents
-          var i = arr.indexOf(name)
-          if (i !== -1) arr.splice(i, 1)
-          if (row) row.remove()
-          showUnsavedBanner()
-          updateFooterButtons()
-        }
-      })
-    }
-
     // Branding bindings
     function ensureUiBrandingConfig () {
       if (!state.editedModel.config) state.editedModel.config = {}
@@ -1464,6 +1553,19 @@
     }
   }
 
+  function renderGeneralSitePlaceholder () {
+    var html = '<div class="ace-site-placeholder">'
+    html += '<p class="ae-helper" style="margin-bottom:12px">The Site tab will manage marketing site content alongside each assistant.</p>'
+    html += '<div class="ace-placeholder-card">'
+    html += '<h3 class="ace-placeholder-card-title">Site Data Management — Deferred</h3>'
+    html += '<p class="ace-placeholder-card-body">Fields coming here: tagline, accent color, video filename, howToUse steps, quickAction chips, per-assistant resource links, bestPractices, strike team slots.</p>'
+    html += '<p class="ace-placeholder-card-body" style="margin-top:8px">Architecture question under review: JSON layer vs. TypeScript authoring.</p>'
+    html += '</div>'
+    html += '<p class="ae-helper" style="margin-top:14px">Until this tab ships, edit site data directly in <code>site/src/data/assistants.ts</code>.</p>'
+    html += '</div>'
+    return html
+  }
+
   // ——— AI tab (AI API Endpoint section moved from General) ———
   function renderAITab () {
     const panel = document.getElementById('panel-ai')
@@ -1487,26 +1589,20 @@
     const proxyAuthMode = proxy.authMode === 'session_token' ? 'session_token' : 'shared_token'
     const proxySharedToken = (typeof proxy.sharedToken === 'string' ? proxy.sharedToken : '') || ''
     var expandedMap = loadSectionExpandedState()
-    var html = '<div class="ace-section-header-row">'
-    html += '<h2 class="ace-section-title">AI Settings</h2>'
-    html += '<button type="button" class="ace-section-header-btn" id="reset-ai-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
-    html += '</div>'
-    html += '<p id="ai-build-info" class="ace-build-info ace-text-muted" aria-live="polite">Build —</p>'
-    html += '<div class="ace-config-cards ace-cards">'
+    var html = '<div class="ace-config-cards ace-cards">'
     var cardInner = '<div class="ace-segmented-btns" role="group" aria-label="Provider">'
     cardInner += '<button type="button" class="ace-segmented-btn' + (llmProvider === 'internal-api' ? ' is-active' : '') + '" data-llm-provider="internal-api">Internal API</button>'
     cardInner += '<button type="button" class="ace-segmented-btn' + (llmProvider === 'proxy' ? ' is-active' : '') + '" data-llm-provider="proxy">Proxy</button>'
     cardInner += '</div>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideInternalApiSettings"' + (llmHideInternalApi ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Internal API settings in plugin Settings</span></label>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideProxySettings"' + (llmHideProxy ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Proxy settings in plugin Settings</span></label>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideTestConnectionButton"' + (llmHideTestBtn ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Test Connection button in plugin Settings</span></label>'
     cardInner += '<div id="ai-internal-api-block" class="ace-llm-provider-block"' + (llmProvider === 'proxy' ? ' style="display:none"' : '') + '>'
     cardInner += '<label for="config-llm-endpoint" class="ace-field-label">Endpoint URL</label>'
     cardInner += '<input type="text" id="config-llm-endpoint" class="ace-text-input ace-field ace-field--lg" placeholder="Enter API Endpoint URL" value="' + escapeHtml(llmEndpoint) + '" aria-describedby="config-llm-endpoint-guardrail">'
     cardInner += '<p id="config-llm-endpoint-guardrail" class="ace-llm-guardrail" role="status"' + (endpointEmpty ? '' : ' hidden') + '>Set an endpoint to enable these options.</p>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint settings in plugin</span></label>'
-    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-uiMode"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Show Test Connection button</span></label>'
-    cardInner += '<p class="ace-card-helper" id="config-llm-uiMode-helper">Controls whether Settings show connection-only vs full model settings.</p>'
+    cardInner += '<p class="ace-field-label ace-llm-visibility-label">Plugin visibility</p>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideInternalApiSettings"' + (llmHideInternalApi ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Internal API settings from users</span></label>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideModelSettings"' + (llmHideModelSettings ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + ' aria-describedby="config-llm-endpoint-guardrail"> <span class="ace-checkbox-label">Hide endpoint URL from users</span></label>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-uiMode"' + (llmUiModeConnectionOnly ? ' checked' : '') + (endpointEmpty ? ' disabled' : '') + '> <span class="ace-checkbox-label">Connection-only mode</span></label>'
+    cardInner += '<p class="ace-card-helper" id="config-llm-uiMode-helper">Hides model settings — plugin shows only the connection test UI.</p>'
     cardInner += '</div>'
     cardInner += '<div id="ai-proxy-block" class="ace-llm-provider-block"' + (llmProvider === 'internal-api' ? ' style="display:none"' : '') + '>'
     cardInner += '<label for="config-llm-proxy-baseUrl" class="ace-field-label">Proxy Base URL</label>'
@@ -1520,36 +1616,22 @@
     cardInner += '</select>'
     cardInner += '<label for="config-llm-proxy-sharedToken" class="ace-field-label">Shared Token</label>'
     cardInner += '<input type="password" id="config-llm-proxy-sharedToken" class="ace-text-input ace-field ace-field--lg" placeholder="(optional)" value="' + escapeHtml(proxySharedToken) + '" autocomplete="off">'
+    cardInner += '<p class="ace-field-label ace-llm-visibility-label">Plugin visibility</p>'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideProxySettings"' + (llmHideProxy ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Proxy settings from users</span></label>'
+    cardInner += '</div>'
+    cardInner += '<div class="ace-llm-shared-opts">'
+    cardInner += '<label class="ace-checkbox-row"><input type="checkbox" id="config-llm-hideTestConnectionButton"' + (llmHideTestBtn ? ' checked' : '') + '> <span class="ace-checkbox-label">Hide Test Connection button in plugin</span></label>'
     cardInner += '</div>'
     html += collapsibleSection('ai-api-endpoint', 'AI API Endpoint', '<div class="ace-card ace-llm-endpoint-card">' + cardInner + '</div>', expandedMap['ai-api-endpoint'], 'Configure how the plugin connects to AI services')
     html += '</div>'
     html += '<div class="ace-card ace-test-panel" style="margin-top:16px">'
     html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px">Connection Test</div>'
-    html += '<p class="ace-card-helper" style="margin-bottom:10px">Test connectivity using the current (unsaved) AI settings above. No changes are saved before testing.</p>'
+    html += '<p class="ace-card-helper" style="margin-bottom:10px;margin-left:0">Test connectivity using the current (unsaved) AI settings above. No changes are saved before testing.</p>'
     html += '<button type="button" class="btn-primary" id="ace-test-connection-btn">Test Connection</button>'
     html += '<div id="ace-test-connection-result" role="status" aria-live="polite" style="margin-top:10px"></div>'
     html += '</div>'
     panel.innerHTML = html
-
-    _apiFetch(API_BASE + '/api/build-info', {})
-      .then(function (r) { return r.ok ? r.json() : null })
-      .then(function (data) {
-        var version = (data && typeof data.version === 'string') ? data.version : ''
-        var buildId = (data && typeof data.buildId === 'string') ? data.buildId : undefined
-        var el = document.getElementById('ai-build-info')
-        if (!el) return
-        if (version && buildId) {
-          el.textContent = 'Build ' + version + ' (' + buildId + ')'
-        } else if (version) {
-          el.textContent = 'Build ' + version
-        } else {
-          el.textContent = 'Build unavailable'
-        }
-      })
-      .catch(function () {
-        var el = document.getElementById('ai-build-info')
-        if (el) el.textContent = 'Build unavailable'
-      })
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     panel.querySelectorAll('.ace-collapsible .ace-section-header').forEach(function (btn) {
       btn.onclick = function () {
@@ -1563,8 +1645,7 @@
         var expanded = map[sectionId]
         section.classList.toggle('is-collapsed', !expanded)
         this.setAttribute('aria-expanded', expanded ? 'true' : 'false')
-        var img = this.querySelector('.ace-section-chevron')
-        if (img) img.src = expanded ? '/assets/icons/ChevronUpIcon.svg' : '/assets/icons/ChevronDownIcon.svg'
+        // chevron rotation handled by CSS (.ace-collapsible.is-collapsed .ace-section-chevron-icon)
       }
     })
 
@@ -1581,19 +1662,6 @@
         updateFooterButtons()
       }
     })
-
-    document.getElementById('reset-ai-btn').onclick = function () {
-      if (!state.originalModel) return
-      var origLlm = state.originalModel.config && state.originalModel.config.llm ? state.originalModel.config.llm : {}
-      var editLlm = state.editedModel.config && state.editedModel.config.llm ? state.editedModel.config.llm : {}
-      if (deepEqual(origLlm, editLlm)) return
-      if (!confirm('Reset changes for AI?')) return
-      if (!state.editedModel.config) state.editedModel.config = {}
-      state.editedModel.config.llm = state.originalModel.config && state.originalModel.config.llm ? deepClone(state.originalModel.config.llm) : {}
-      showUnsavedBanner()
-      renderAITab()
-      updateFooterButtons()
-    }
 
     function updateLlmGuardrail () {
       const endpointEl = document.getElementById('config-llm-endpoint')
@@ -1782,6 +1850,18 @@
     html += '</div>'
     panel.innerHTML = html
     _bindPlayground(assistant)
+    // Load fixture catalog once per session
+    if (state.playgroundFixtureCatalog === null) {
+      _apiFetch(API_BASE + '/api/fixtures')
+        .then(function (r) { return r.json() })
+        .then(function (data) {
+          state.playgroundFixtureCatalog = data.fixtures || []
+          renderPlayground()
+        })
+        .catch(function () {
+          state.playgroundFixtureCatalog = []
+        })
+    }
     if (state.playgroundAssistantId && state.playgroundRubric === null) {
       var actionId = state.playgroundActionId || '_default'
       Promise.all([
@@ -1847,9 +1927,162 @@
     return html
   }
 
+  function _pgPayloadInspector (a) {
+    var mode = state.playgroundTestMode || 'no-selection'
+    var message = state.playgroundUserMessage || ''
+    var kbOverride = state.playgroundKbName || ''
+    var selectedQa = state.playgroundActionId ? (a.quickActions || []).find(function (q) { return q.id === state.playgroundActionId }) : null
+    var effectiveKb = kbOverride || (selectedQa && selectedQa.kbName) || (state.instructionsMap && state.instructionsMap[a.id] && state.instructionsMap[a.id].defaultKbName) || 'figma'
+    var effectiveMsg = message || (selectedQa && selectedQa.templateMessage) || ''
+    // Build preview payload
+    var preview = {
+      type: 'generalChat',
+      kbName: effectiveKb,
+      message: effectiveMsg.length > 120 ? effectiveMsg.slice(0, 120) + '\u2026 [truncated]' : effectiveMsg
+    }
+    if (mode === 'selection' || mode === 'vision') {
+      var summary = state.playgroundSelectionSummary || ''
+      preview.selectionSummary = summary.length > 80 ? summary.slice(0, 80) + '\u2026 [truncated]' : summary
+    }
+    if (mode === 'vision') {
+      var catalog = state.playgroundFixtureCatalog || []
+      var fix = state.playgroundFixtureId ? catalog.find(function (f) { return f.id === state.playgroundFixtureId }) : null
+      var imgCount = fix ? (fix.images || []).length : 0
+      preview.images = imgCount > 0 ? ['[' + imgCount + ' image' + (imgCount !== 1 ? 's' : '') + ' \u2014 encoded at send time]'] : []
+    }
+    var expanded = state.playgroundInspectorExpanded !== false
+    var html = '<div class="pg-inspector">'
+    html += '<button type="button" class="pg-inspector-toggle" id="pg-inspector-toggle">'
+    html += (expanded ? '\u25be' : '\u25b8') + ' Payload Inspector'
+    html += '</button>'
+    if (expanded) {
+      html += '<pre class="pg-inspector-pre">' + escapeHtml(JSON.stringify(preview, null, 2)) + '</pre>'
+      html += '<p class="ae-helper" style="margin-top:4px">Live preview of what will be sent. Images encoded at send time.</p>'
+    }
+    html += '</div>'
+    return html
+  }
+
+  function _pgImagesRow () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    if (mode !== 'vision') return ''
+    var currentId = state.playgroundFixtureId
+    var catalog = state.playgroundFixtureCatalog || []
+    var fix = currentId ? catalog.find(function (f) { return f.id === currentId }) : null
+    if (!fix || !fix.images || fix.images.length === 0) {
+      return '<div class="ae-field-group"><p class="ae-helper">No images in selected fixture.</p></div>'
+    }
+    var html = '<div class="ae-field-group">'
+    html += '<label>Images</label>'
+    html += '<div class="pg-images-row">'
+    fix.images.forEach(function (img) {
+      html += '<span class="pg-image-chip">' + escapeHtml(img) + '</span>'
+    })
+    html += '</div>'
+    html += '<p class="ae-helper">' + fix.images.length + ' image' + (fix.images.length !== 1 ? 's' : '') + ' \u00b7 base64-encoded at send time</p>'
+    html += '</div>'
+    return html
+  }
+
+  function _pgSelectionSummary () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    if (mode === 'no-selection') return ''
+    var summary = state.playgroundSelectionSummary || ''
+    var currentId = state.playgroundFixtureId
+    var catalog = state.playgroundFixtureCatalog || []
+    var fix = currentId ? catalog.find(function (f) { return f.id === currentId }) : null
+    var originalSummary = fix ? (fix.selectionSummary || '') : ''
+    var html = '<div class="ae-field-group">'
+    html += '<div class="pg-summary-header">'
+    html += '<label for="pg-selection-summary">Selection Summary</label>'
+    if (originalSummary && summary !== originalSummary) {
+      html += '<button type="button" class="btn-small" id="pg-summary-reset">Reset</button>'
+    }
+    html += '</div>'
+    html += '<textarea id="pg-selection-summary" class="ace-field pg-selection-summary-ta" rows="6">'
+    html += escapeHtml(summary)
+    html += '</textarea>'
+    html += '<p class="ae-helper">Pre-filled from fixture. Edits are sent as-is.</p>'
+    html += '</div>'
+    return html
+  }
+
+  function _pgFixturePicker () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    var catalog = state.playgroundFixtureCatalog
+    if (!catalog) {
+      return '<div class="ae-field-group"><p class="ae-helper">Loading fixtures\u2026</p></div>'
+    }
+    // Filter fixtures compatible with current mode
+    var visible = catalog.filter(function (f) {
+      if (mode === 'no-selection') return !f.requiresSelection
+      if (mode === 'selection') return f.requiresSelection
+      if (mode === 'vision') return f.requiresSelection && f.supportsVision
+      return true
+    })
+    if (visible.length === 0) {
+      return '<div class="ae-field-group"><p class="ae-helper">No fixtures available for this mode.</p></div>'
+    }
+    var currentId = state.playgroundFixtureId
+    var html = '<div class="ae-field-group">'
+    html += '<label for="pg-fixture-picker">Fixture</label>'
+    html += '<select id="pg-fixture-picker">'
+    html += '<option value="">\u2014 none \u2014</option>'
+    // Group by category
+    var byCategory = {}
+    visible.forEach(function (f) {
+      if (!byCategory[f.category]) byCategory[f.category] = []
+      byCategory[f.category].push(f)
+    })
+    Object.keys(byCategory).sort().forEach(function (cat) {
+      html += '<optgroup label="' + escapeHtml(cat) + '">'
+      byCategory[cat].forEach(function (f) {
+        var sel = currentId === f.id ? ' selected' : ''
+        html += '<option value="' + escapeHtml(f.id) + '"' + sel + '>' + escapeHtml(f.name) + '</option>'
+      })
+      html += '</optgroup>'
+    })
+    html += '</select>'
+    // Tags for selected fixture
+    if (currentId) {
+      var fix = catalog.find(function (f) { return f.id === currentId })
+      if (fix && fix.tags && fix.tags.length > 0) {
+        html += '<p class="ae-helper">tags: ' + fix.tags.map(function (t) { return escapeHtml(t) }).join(' \u00b7 ') + '</p>'
+      }
+    }
+    html += '</div>'
+    return html
+  }
+
+  function _pgModeSelector () {
+    var mode = state.playgroundTestMode || 'no-selection'
+    var modes = [
+      { id: 'no-selection', label: 'No Selection' },
+      { id: 'selection',    label: 'Selection' },
+      { id: 'vision',       label: 'Vision' }
+    ]
+    var html = '<div class="ae-field-group">'
+    html += '<label>Test Mode</label>'
+    html += '<div class="pg-mode-toggle">'
+    modes.forEach(function (m) {
+      var active = mode === m.id ? ' pg-mode-btn--active' : ''
+      html += '<button type="button" class="pg-mode-btn' + active + '" data-mode="' + m.id + '">'
+      html += escapeHtml(m.label)
+      html += '</button>'
+    })
+    html += '</div>'
+    html += '<p class="ae-helper">Controls which context fields are forwarded to the provider.</p>'
+    html += '</div>'
+    return html
+  }
+
   function _pgSendColumn (a) {
     var html = '<div class="ace-pg-col">'
     html += '<p class="ace-pg-col-heading">Send</p>'
+    html += _pgModeSelector()
+    html += _pgFixturePicker()
+    html += _pgSelectionSummary()
+    html += _pgImagesRow()
     html += '<div class="ae-field-group">'
     html += '<label for="pg-kbname">kbName override</label>'
     html += '<input type="text" id="pg-kbname" class="ace-field" placeholder="Leave blank to use assistant default" value="' + escapeHtml(state.playgroundKbName || '') + '">'
@@ -1872,6 +2105,7 @@
     html += '<label for="pg-message">User message</label>'
     html += '<textarea id="pg-message" class="ace-field" rows="5" placeholder="Enter a test message...">' + escapeHtml(state.playgroundUserMessage || '') + '</textarea>'
     html += '</div>'
+    html += _pgPayloadInspector(a)
     var isFiring = state.playgroundFiring
     html += '<button type="button" class="ace-pg-fire-btn" id="pg-fire-btn"' + (isFiring ? ' disabled' : '') + '>'
     html += isFiring ? 'Firing\u2026' : 'FIRE'
@@ -1985,6 +2219,69 @@
     if (kbnameEl) {
       kbnameEl.oninput = function () { state.playgroundKbName = this.value }
     }
+    document.querySelectorAll('.pg-mode-btn').forEach(function (btn) {
+      btn.onclick = function () {
+        state.playgroundTestMode = this.getAttribute('data-mode')
+        // Reset fixture if incompatible with new mode
+        if (state.playgroundFixtureId && state.playgroundFixtureCatalog) {
+          var fix = state.playgroundFixtureCatalog.find(function (f) { return f.id === state.playgroundFixtureId })
+          if (fix) {
+            var mode = state.playgroundTestMode
+            var keep = (mode === 'no-selection' && !fix.requiresSelection) ||
+                       (mode === 'selection' && fix.requiresSelection) ||
+                       (mode === 'vision' && fix.requiresSelection && fix.supportsVision)
+            if (!keep) {
+              state.playgroundFixtureId = null
+              state.playgroundSelectionSummary = ''
+            }
+          } else {
+            // Fixture no longer in catalog (e.g. catalog fetch failed); clear stale state
+            state.playgroundFixtureId = null
+            state.playgroundSelectionSummary = ''
+          }
+        }
+        renderPlayground()
+      }
+    })
+    var fixturePicker = document.getElementById('pg-fixture-picker')
+    if (fixturePicker) {
+      fixturePicker.onchange = function () {
+        var id = this.value || null
+        state.playgroundFixtureId = id
+        if (id && state.playgroundFixtureCatalog) {
+          var fix = state.playgroundFixtureCatalog.find(function (f) { return f.id === id })
+          state.playgroundSelectionSummary = fix ? (fix.selectionSummary || '') : ''
+        } else {
+          state.playgroundSelectionSummary = ''
+        }
+        renderPlayground()
+      }
+    }
+
+    var summaryTa = document.getElementById('pg-selection-summary')
+    if (summaryTa) {
+      summaryTa.oninput = function () {
+        state.playgroundSelectionSummary = this.value
+      }
+    }
+
+    var summaryResetBtn = document.getElementById('pg-summary-reset')
+    if (summaryResetBtn) {
+      summaryResetBtn.onclick = function () {
+        if (state.playgroundFixtureId && state.playgroundFixtureCatalog) {
+          var fix = state.playgroundFixtureCatalog.find(function (f) { return f.id === state.playgroundFixtureId })
+          state.playgroundSelectionSummary = fix ? (fix.selectionSummary || '') : ''
+          renderPlayground()
+        }
+      }
+    }
+    var inspectorToggle = document.getElementById('pg-inspector-toggle')
+    if (inspectorToggle) {
+      inspectorToggle.onclick = function () {
+        state.playgroundInspectorExpanded = !state.playgroundInspectorExpanded
+        renderPlayground()
+      }
+    }
     var msgEl = document.getElementById('pg-message')
     if (msgEl) {
       msgEl.oninput = function () { state.playgroundUserMessage = this.value }
@@ -2010,8 +2307,14 @@
         var selectedQa = state.playgroundActionId ? (a.quickActions || []).find(function (q) { return q.id === state.playgroundActionId }) : null
         var effectiveKb = kbOverride || (selectedQa && selectedQa.kbName) || (state.instructionsMap[a.id] && state.instructionsMap[a.id].defaultKbName) || ''
         var effectiveMessage = message || (selectedQa && selectedQa.templateMessage) || ''
+        var testMode = state.playgroundTestMode || 'no-selection'
         if (!effectiveMessage) {
           state.playgroundResult = { error: 'Enter a message before firing.' }
+          renderPlayground()
+          return
+        }
+        if (testMode === 'vision' && !state.playgroundFixtureId) {
+          state.playgroundResult = { error: 'Select a fixture before firing in Vision mode. Fixtures provide the images needed for vision testing.' }
           renderPlayground()
           return
         }
@@ -2023,15 +2326,46 @@
         }).map(function (seg) {
           return { label: seg.label, content: state.playgroundEditCopy ? (state.playgroundEditCopy[seg.key] || seg.content) : seg.content }
         })
+
         state.playgroundFiring = true
         renderPlayground()
+
         try {
           var body = {
             assistantId: a.id,
             message: effectiveMessage,
             skillSegments: activeSegments,
-            kbName: effectiveKb || undefined
+            kbName: effectiveKb || undefined,
+            testMode: testMode
           }
+
+          // Attach selectionSummary for selection and vision modes
+          if (testMode === 'selection' || testMode === 'vision') {
+            body.selectionSummary = state.playgroundSelectionSummary || ''
+          }
+
+          // For vision mode, fetch base64 images from server before sending
+          if (testMode === 'vision' && state.playgroundFixtureId) {
+            try {
+              var imgResp = await _apiFetch(API_BASE + '/api/fixtures/' + encodeURIComponent(state.playgroundFixtureId) + '/images')
+              if (imgResp.ok) {
+                var imgData = await imgResp.json()
+                body.images = imgData.images || []
+              } else {
+                state.playgroundResult = { error: 'Failed to load fixture images (server returned ' + imgResp.status + '). Aborting send.' }
+                state.playgroundFiring = false
+                renderPlayground()
+                return
+              }
+            } catch (imgErr) {
+              console.warn('[ACE] Failed to load fixture images:', imgErr)
+              state.playgroundResult = { error: 'Failed to load fixture images: ' + (imgErr.message || String(imgErr)) + '. Aborting send.' }
+              state.playgroundFiring = false
+              renderPlayground()
+              return
+            }
+          }
+
           var r = await _apiFetch(API_BASE + '/api/test/assistant', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2041,9 +2375,10 @@
           var data = await r.json()
           state.playgroundResult = data
           var qaLabel = selectedQa ? selectedQa.label : '(direct message)'
+          var modeLabel = testMode !== 'no-selection' ? ' [' + testMode + ']' : ''
           state.playgroundSessionHistory.push({
             timestamp: new Date().toLocaleTimeString(),
-            summary: qaLabel + ' \u2014 ' + (data.success ? 'OK' : 'Error') + ' \u2014 ' + (data.latencyMs || '?') + 'ms \u2014 ' + (data.response || '').slice(0, 60)
+            summary: qaLabel + modeLabel + ' \u2014 ' + (data.success ? 'OK' : 'Error') + ' \u2014 ' + (data.latencyMs || '?') + 'ms \u2014 ' + (data.response || '').slice(0, 60)
           })
         } catch (err) {
           state.playgroundResult = { error: err.message }
@@ -2157,13 +2492,14 @@
     }
     html += '</div></div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     document.getElementById('assistants-list').addEventListener('click', function (e) {
       const item = e.target.closest('.item[data-id]')
       if (item) {
         const newId = item.getAttribute('data-id')
         if (newId !== state.selectedAssistantId) {
-          state.selectedAssistantDetailTab = 'overview'
+          state.selectedAssistantDetailTab = 'skill-md'
         }
         state.selectedAssistantId = newId
         renderAssistantsTab()
@@ -2216,31 +2552,126 @@
   }
 
   function assistantEditorHtml (a) {
-    var activeTab = state.selectedAssistantDetailTab || 'overview'
+    var activeTab = state.selectedAssistantDetailTab || 'skill-md'
     var DETAIL_TABS = [
-      { id: 'overview', label: 'Overview' },
-      { id: 'instructions', label: 'Instructions' },
-      { id: 'skills', label: 'Skills' },
+      { id: 'skill-md', label: 'SKILL.md' },
+      { id: 'identity', label: 'Identity' },
+      { id: 'site', label: 'Site', badge: 'upcoming' },
       { id: 'knowledge', label: 'Knowledge' },
-      { id: 'quick-actions', label: 'Quick Actions' }
+      { id: 'settings', label: 'Settings' }
     ]
     var html = '<div class="ae-detail-tabs">'
     DETAIL_TABS.forEach(function (t) {
       var sel = activeTab === t.id
-      html += '<button type="button" class="ae-detail-tab-btn' + (sel ? ' active' : '') + '" data-detail-tab="' + t.id + '">' + t.label + '</button>'
+      var label = t.label
+      if (t.badge === 'upcoming') label += ' <span class="ace-badge ace-badge--upcoming">Upcoming</span>'
+      html += '<button type="button" class="ae-detail-tab-btn' + (sel ? ' active' : '') + '" data-detail-tab="' + t.id + '">' + label + '</button>'
     })
     html += '</div>'
     html += '<div class="ae-detail-tab-content">'
-    if (activeTab === 'overview') html += _aeOverviewTab(a)
-    else if (activeTab === 'instructions') html += _aeInstructionsTab(a)
-    else if (activeTab === 'skills') html += _aeSkillsTab(a)
+    if (activeTab === 'skill-md') html += _aeSkillMdTab(a)
+    else if (activeTab === 'identity') html += _aeIdentityTab(a)
+    else if (activeTab === 'site') html += renderGeneralSitePlaceholder()
     else if (activeTab === 'knowledge') html += _aeKnowledgeTab(a)
-    else if (activeTab === 'quick-actions') html += _aeQuickActionsTab(a)
+    else if (activeTab === 'settings') html += _aeSettingsTab(a)
     html += '</div>'
     return html
   }
 
-  function _aeOverviewTab (a) {
+  function _aeSkillMdTab (a) {
+    var mode = (state.skillMdMode && state.skillMdMode[a.id]) || 'form'
+    var content = state.skillMdEdits[a.id] || ''
+
+    var html = ''
+    // Toggle header
+    html += '<div class="ae-skillmd-header">'
+    html += '<span class="ae-helper" style="flex:1">Primary behavior editor. Changes are saved with the assistant\'s manifest.</span>'
+    html += '<div class="ae-toggle-pill">'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-skillmd-mode="form" data-aid="' + escapeHtml(a.id) + '">Form</button>'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-skillmd-mode="raw" data-aid="' + escapeHtml(a.id) + '">Raw</button>'
+    html += '</div>'
+    html += '</div>'
+
+    if (mode === 'raw') {
+      if (!content) {
+        html += '<div class="ae-helper" style="margin-bottom:12px">No SKILL.md found for this assistant. Run <code>npx tsx scripts/migrate-assistant-to-skillmd.ts ' + escapeHtml(a.id) + '</code> to scaffold the files.</div>'
+      } else {
+        html += '<textarea class="ace-field ace-textarea ace-skillmd-editor" data-assistant-id="' + escapeHtml(a.id) + '" rows="24" style="font-family:monospace;font-size:13px;white-space:pre;">' + escapeHtml(content) + '</textarea>'
+      }
+      return html
+    }
+
+    // Form wizard
+    if (!content) {
+      html += '<div class="ae-helper" style="margin-bottom:12px">No SKILL.md found. Switch to Raw to create one, or run the migration script.</div>'
+      return html
+    }
+
+    var fields = _parseSkillMd(content)
+
+    // Identity section
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Identity</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-sm-name">Assistant Name</label>'
+    html += '<p class="ae-helper">Appears as "You are Design AI Toolkit\'s <strong>X</strong> Assistant"</p>'
+    html += '<input type="text" id="ae-sm-name" class="ace-field ae-skillmd-field" data-field="assistantName" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(fields.assistantName) + '">'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-sm-cp">Core Principle</label>'
+    html += '<p class="ae-helper">One sentence shown in bold — the non-negotiable guiding value.</p>'
+    html += '<p class="ae-helper" style="color:var(--ace-text-muted)">Note: bold markers (**) are added automatically — do not include them in this field.</p>'
+    html += '<input type="text" id="ae-sm-cp" class="ace-field ae-skillmd-field" data-field="corePrinciple" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(fields.corePrinciple) + '">'
+    html += '</div>'
+    html += '<div class="ae-skillmd-identity-preview">'
+    html += 'You are <strong>Design AI Toolkit\'s ' + escapeHtml(fields.assistantName || '…') + ' Assistant</strong>, an expert embedded inside a Figma plugin.<br>'
+    html += 'Your core principle: <strong>' + escapeHtml(fields.corePrinciple || '…') + '</strong>'
+    html += '</div>'
+
+    // Behavior Rules
+    html += '<h3 class="ae-section-heading">Behavior Rules</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:8px">Each rule is a bullet in the Behavior section. Order matters — highest priority first.</p>'
+    html += '<ul class="ae-skillmd-rules-list" id="ae-sm-rules-' + escapeHtml(a.id) + '" data-aid="' + escapeHtml(a.id) + '">'
+    fields.behaviorRules.forEach(function (rule, idx) {
+      html += '<li class="ae-skillmd-rule-row" data-idx="' + idx + '">'
+      html += '<span class="ae-drag-handle" title="Drag to reorder (coming soon)" style="opacity:0.4;cursor:default">⠿</span>'
+      html += '<input type="text" class="ace-field ae-sm-rule-input" data-idx="' + idx + '" data-aid="' + escapeHtml(a.id) + '" value="' + escapeHtml(rule) + '">'
+      html += '<button type="button" class="btn-small ae-sm-rule-remove" data-idx="' + idx + '" data-aid="' + escapeHtml(a.id) + '">✕</button>'
+      html += '</li>'
+    })
+    html += '</ul>'
+    html += '<button type="button" class="btn-small add-btn ae-sm-rule-add" data-aid="' + escapeHtml(a.id) + '">+ Add behavior rule</button>'
+
+    // Quick Actions
+    html += '<h3 class="ae-section-heading">Quick Actions</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:8px">Each action is a button in the plugin. Expanding shows what gets sent to the LLM.</p>'
+    html += '<p class="ae-helper" style="color:var(--ace-text-muted);margin-bottom:8px">Edit <code>templateMessage</code> and <code>guidance</code> for existing quick actions. To add or remove actions, use Raw mode or edit <code>manifest.json</code> directly.</p>'
+    if (fields.quickActions.length === 0) {
+      html += '<div class="ae-empty-state">No quick actions defined in SKILL.md. Use Raw mode or add entries to <code>manifest.json</code> first.</div>'
+    } else {
+      fields.quickActions.forEach(function (qa, qidx) {
+        html += '<div class="ae-qa-accordion" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">'
+        html += '<div class="ae-qa-header">'
+        html += '<strong>' + escapeHtml(qa.id) + '</strong>'
+        html += '<button type="button" class="btn-small ae-qa-toggle" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">Expand ▾</button>'
+        html += '</div>'
+        html += '<div class="ae-qa-body" style="display:none">'
+        html += '<div class="ae-field-group"><label>Template Message</label>'
+        html += '<p class="ae-helper">Pre-filled message sent when the user clicks this action.</p>'
+        html += '<textarea class="ace-field ae-sm-qa-tmpl" rows="3" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">' + escapeHtml(qa.templateMessage) + '</textarea>'
+        html += '</div>'
+        html += '<div class="ae-field-group"><label>Guidance</label>'
+        html += '<p class="ae-helper">System-level instruction injected alongside the message.</p>'
+        html += '<textarea class="ace-field ae-sm-qa-guidance" rows="3" data-qidx="' + qidx + '" data-aid="' + escapeHtml(a.id) + '">' + escapeHtml(qa.guidance) + '</textarea>'
+        html += '</div>'
+        html += '</div>'
+        html += '</div>'
+      })
+    }
+
+    return html
+  }
+
+  function _aeIdentityTab (a) {
     var type = _kindToType(a.kind)
     var html = ''
     // Label
@@ -2310,7 +2741,7 @@
     return state.instructionsMap[assistantId]
   }
 
-  function _aeInstructionsTab (a) {
+  function _aeSettingsTab (a) {
     var instr = _getInstr(a.id)
     var html = ''
     html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Instructions tell the <strong>plugin</strong> how to manage this assistant\'s interactions — deterministic settings read before any LLM call.</p>'
@@ -2364,127 +2795,333 @@
     html += '<p class="ae-helper">Enables image input for this assistant. Only enable if the assistant needs to process images.</p>'
     html += '</div>'
 
-    // Tone/style preset (legacy)
-    html += '<h3 class="ae-section-heading">Style preset <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
-    html += '<div class="ae-field-group">'
-    html += '<label for="ae-toneStylePreset">Tone/style preset</label>'
-    html += '<input type="text" id="ae-toneStylePreset" class="ace-field" value="' + escapeHtml(a.toneStylePreset || '') + '" placeholder="e.g. professional">'
-    html += '<p class="ae-helper">Optional legacy preset. Superseded by skill blocks in the Skills tab.</p>'
+    return html
+  }
+  function _aeSkillMdPanel (assistantId) {
+    var model = state.editedModel
+    var skillMdContent = (model && model.skillMdContent && model.skillMdContent[assistantId]) || null
+    var editedContent = state.skillMdEdits[assistantId] || ''
+    var html = ''
+
+    html += '<div class="ae-section-block">'
+    html += '<h3 class="ae-section-heading">SKILL.md</h3>'
+
+    if (!skillMdContent && !editedContent) {
+      html += '<div class="ae-helper">'
+      html += 'This assistant has not been migrated to per-assistant SKILL.md yet. '
+      html += 'Run <code>npx tsx scripts/migrate-assistant-to-skillmd.ts ' + escapeHtml(assistantId) + '</code> to scaffold the files.'
+      html += '</div>'
+    } else {
+      html += '<p class="ae-helper">Edit the SKILL.md authored behavior. Changes are saved atomically with the manifest.</p>'
+      html += '<textarea'
+      html += ' class="ace-field ace-textarea ace-skillmd-editor"'
+      html += ' data-assistant-id="' + escapeHtml(assistantId) + '"'
+      html += ' rows="20"'
+      html += ' style="font-family: monospace; font-size: 13px; white-space: pre;"'
+      html += '>' + escapeHtml(editedContent || skillMdContent || '') + '</textarea>'
+    }
+
     html += '</div>'
     return html
   }
-  function _aeSkillsTab (a) {
-    var html = ''
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Skills tell the <strong>LLM</strong> what to do and how to behave. Each skill block is a segment of the assembled prompt.</p>'
-    // Universal Skills placeholder
-    html += '<h3 class="ae-section-heading">Universal skills</h3>'
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Shared skills from the Resources tab. Required skills are always included; optional skills can be toggled per assistant.</p>'
-    var instr = _getInstr(a.id)
-    var uSkills = instr.universalSkills || { required: [], optional: [] }
-    var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
-    if (allSkills.length === 0) {
-      html += '<div class="ae-empty-state">No universal skills defined yet. Create skills in the Resources tab first.</div>'
-    } else {
-      var requiredIds = uSkills.required || []
-      var optionalIds = uSkills.optional || []
-      var attachedIds = new Set(requiredIds.concat(optionalIds))
-      // Required skills (locked — always included)
-      if (requiredIds.length > 0) {
-        html += '<div style="margin-bottom:var(--ace-space-8)">'
-        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Required (always included)</p>'
-        requiredIds.forEach(function (id) {
-          var skill = allSkills.find(function (s) { return s.id === id })
-          var title = skill ? skill.title : id
-          var kind = skill ? skill.kind : ''
-          html += '<div class="ae-universal-skill-row">'
-          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
-          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
-          html += '<span style="margin-left:auto;font-size:11px;color:var(--ace-text-muted)">&#128274; required</span>'
-          html += '<button type="button" class="btn-small ae-univ-skill-remove-required" data-id="' + escapeHtml(id) + '">Remove</button>'
-          html += '</div>'
-        })
-        html += '</div>'
-      }
-      // Optional skills (toggleable)
-      if (optionalIds.length > 0) {
-        html += '<div style="margin-bottom:var(--ace-space-8)">'
-        html += '<p class="ae-helper" style="font-weight:600;margin-bottom:4px">Optional</p>'
-        optionalIds.forEach(function (id) {
-          var skill = allSkills.find(function (s) { return s.id === id })
-          var title = skill ? skill.title : id
-          var kind = skill ? skill.kind : ''
-          html += '<div class="ae-universal-skill-row">'
-          html += '<span class="ae-list-item-label">' + escapeHtml(title) + '</span>'
-          if (kind) html += '<span class="ace-type-badge ace-type-badge--llm">' + escapeHtml(kind) + '</span>'
-          html += '<button type="button" class="btn-small ae-univ-skill-make-required" data-id="' + escapeHtml(id) + '">Make required</button>'
-          html += '<button type="button" class="btn-small ae-univ-skill-remove-optional" data-id="' + escapeHtml(id) + '">Remove</button>'
-          html += '</div>'
-        })
-        html += '</div>'
-      }
-      // Attach from remaining skills
-      var unattached = allSkills.filter(function (s) { return !attachedIds.has(s.id) })
-      if (unattached.length > 0) {
-        html += '<div class="ae-field-group">'
-        html += '<label for="ae-univ-skill-picker">Attach a skill</label>'
-        html += '<div style="display:flex;gap:var(--ace-space-8);align-items:center">'
-        html += '<select id="ae-univ-skill-picker" class="ace-field" style="flex:1">'
-        html += '<option value="">— select a skill —</option>'
-        unattached.forEach(function (s) {
-          html += '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.title) + ' (' + escapeHtml(s.kind) + ')</option>'
-        })
-        html += '</select>'
-        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-optional">Add optional</button>'
-        html += '<button type="button" class="btn-small" id="ae-univ-skill-attach-required">Add required</button>'
-        html += '</div>'
-        html += '</div>'
+
+  function _parseSkillMd (content) {
+    // Returns { assistantName, corePrinciple, identityRaw, behaviorRules: string[], quickActions: QA[], passthroughSections: [] }
+    // QA = { id: string, templateMessage: string, guidance: string }
+    var result = { assistantName: '', corePrinciple: '', identityRaw: '', behaviorRules: [], quickActions: [], passthroughSections: [] }
+    if (!content) return result
+    var lines = content.split('\n')
+    var section = null
+    var currentQa = null
+    var yamlCount = 0
+    var yamlEnd = false
+    var identityLines = []
+    var i = 0
+
+    // Skip YAML frontmatter
+    while (i < lines.length) {
+      if (lines[i].trim() === '---') {
+        yamlCount++
+        i++
+        if (yamlCount === 2) { yamlEnd = true; break }
+      } else {
+        i++
       }
     }
-    // Assistant Skills
-    html += '<h3 class="ae-section-heading">Assistant skills</h3>'
-    var blocks = a.instructionBlocks || []
-    var BLOCK_KINDS = ['system', 'behavior', 'rules', 'examples', 'format', 'context']
-    var KIND_HELPERS = {
-      system: 'Sets the assistant\'s core identity and purpose. Usually one block.',
-      behavior: 'Describes how the assistant should act and what it should prioritise.',
-      rules: 'Hard constraints the assistant must follow.',
-      examples: 'Sample inputs and outputs to guide the LLM\'s response style.',
-      format: 'Specifies the output format (prose, JSON, markdown list, etc.).',
-      context: 'Background information the assistant should know.'
+    if (!yamlEnd) i = 0
+
+    for (; i < lines.length; i++) {
+      var line = lines[i]
+      if (/^## Identity/i.test(line)) { section = 'identity'; continue }
+      if (/^## Behavior/i.test(line)) { section = 'behavior'; currentQa = null; continue }
+      if (/^## Quick Actions/i.test(line)) { section = 'quick-actions'; currentQa = null; continue }
+      if (/^## /i.test(line)) {
+        // Unknown section — collect all lines until the next ## or end of file
+        var ptName = line.replace(/^##\s+/, '').trim()
+        var ptLines = []
+        i++
+        while (i < lines.length && !/^## /i.test(lines[i])) {
+          ptLines.push(lines[i])
+          i++
+        }
+        i-- // Back up one — outer loop will increment past the last collected line
+        result.passthroughSections.push({ name: ptName, content: ptLines.join('\n').trimEnd() })
+        section = 'other'
+        currentQa = null
+        continue
+      }
+
+      if (section === 'identity') {
+        identityLines.push(line)
+        // Extract assistantName — handles both "X's Y Assistant" and non-possessive forms
+        var nameMatch = line.match(/You are \*\*[^']*'s\s+(.+?)\*\*/) ||
+                        line.match(/You are (?:the\s+)?\*\*(.+?)\*\*/)
+        if (nameMatch) result.assistantName = nameMatch[1].replace(/\s*Assistant\s*$/i, '').trim()
+        var cpMatch = line.match(/Your core principle:\s*\*\*(.+?)\*\*/)
+        if (cpMatch) result.corePrinciple = cpMatch[1].trim()
+      }
+
+      if (section === 'behavior') {
+        var ruleMatch = line.match(/^-\s+(.+)/)
+        if (ruleMatch) result.behaviorRules.push(ruleMatch[1].trim())
+      }
+
+      if (section === 'quick-actions') {
+        var qaHeader = line.match(/^###\s+(.+)/)
+        if (qaHeader) {
+          currentQa = { id: qaHeader[1].trim(), templateMessage: '', guidance: '' }
+          result.quickActions.push(currentQa)
+          continue
+        }
+        if (currentQa) {
+          if (/^templateMessage:\s*\|/.test(line)) {
+            var tm = []; i++
+            while (i < lines.length) {
+              var bl = lines[i]
+              if (bl.trim() === '') { tm.push(''); i++; continue }
+              if (!/^\s{2,}/.test(bl)) break
+              tm.push(bl.replace(/^\s{2}/, '')); i++
+            }
+            currentQa.templateMessage = tm.join('\n').trim(); i--
+          } else if (/^guidance:\s*\|/.test(line)) {
+            var gd = []; i++
+            while (i < lines.length) {
+              var gl = lines[i]
+              if (gl.trim() === '') { gd.push(''); i++; continue }
+              if (!/^\s{2,}/.test(gl)) break
+              gd.push(gl.replace(/^\s{2}/, '')); i++
+            }
+            currentQa.guidance = gd.join('\n').trim(); i--
+          }
+        }
+      }
     }
-    if (blocks.length === 0) {
-      html += '<div class="ae-empty-state">No skill blocks yet — add a skill block to define how this assistant thinks.</div>'
-    } else {
-      html += '<ul class="instruction-blocks-list" id="ae-instructionBlocks">'
-      blocks.forEach(function (block, i) {
-        html += '<li class="instruction-block-row" data-i="' + i + '">'
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--ace-space-8)">'
-        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8)">'
-        html += '<select class="ae-ib-kind" data-i="' + i + '" style="min-width:110px">'
-        BLOCK_KINDS.forEach(function (k) { html += '<option value="' + k + '"' + ((block.kind || 'behavior') === k ? ' selected' : '') + '>' + k + '</option>' })
-        html += '</select>'
-        html += '<label style="font-size:12px;margin:0"><input type="checkbox" class="ae-ib-enabled" data-i="' + i + '" ' + (block.enabled !== false ? 'checked' : '') + '> Enabled</label>'
-        html += '</div>'
-        html += '<div class="instruction-block-actions"><button type="button" class="btn-small ae-ib-up" data-i="' + i + '">↑</button><button type="button" class="btn-small ae-ib-down" data-i="' + i + '">↓</button><button type="button" class="btn-small ae-ib-remove" data-i="' + i + '">Remove</button></div>'
-        html += '</div>'
-        html += '<p class="ae-helper" style="margin:0 0 6px 0">' + (KIND_HELPERS[block.kind || 'behavior'] || '') + '</p>'
-        html += '<textarea class="ae-ib-content ace-field" rows="4" data-i="' + i + '">' + escapeHtml(block.content || '') + '</textarea>'
-        html += '</li>'
-      })
-      html += '</ul>'
-    }
-    html += '<button type="button" class="btn-small add-btn" id="ae-ib-add">Add skill block</button>'
-    // Prompt template (legacy)
-    html += '<h3 class="ae-section-heading">Prompt template <span class="fg-secondary" style="font-weight:400;font-size:12px">(legacy)</span></h3>'
-    html += '<p class="ae-helper">Used when no skill blocks are defined. Superseded by skill blocks above.</p>'
-    html += '<textarea id="ae-promptTemplate" class="large ace-field ace-field--lg" rows="8">' + escapeHtml(a.promptTemplate || '') + '</textarea>'
-    // Assemble & Preview
-    html += '<h3 class="ae-section-heading">Assemble & Preview</h3>'
-    html += '<p class="ae-helper">Shows what the LLM receives based on current skill blocks (unsaved state).</p>'
-    html += '<button type="button" class="btn-small" id="ae-assemble-btn">Assemble prompt</button>'
-    html += '<div class="ae-assemble-preview" id="ae-assemble-preview"><pre id="ae-assemble-pre"></pre></div>'
-    return html
+    result.identityRaw = identityLines.join('\n').trimEnd()
+    return result
   }
+
+  function _serializeSkillMd (assistantId, fields) {
+    // fields = { assistantName, corePrinciple, behaviorRules: string[], quickActions: QA[] }
+    var lines = []
+    lines.push('---')
+    lines.push('skillVersion: 1')
+    lines.push('id: ' + assistantId)
+    lines.push('---')
+    lines.push('')
+    lines.push('## Identity')
+    lines.push('')
+    if (fields.identityRaw) {
+      // Emit verbatim, with surgical updates to the two editable fields
+      var identityLines = fields.identityRaw.split('\n')
+      identityLines = identityLines.map(function (l) {
+        // Replace the assistant name in possessive form: "You are **Design AI Toolkit's X Assistant**"
+        var updated = l.replace(
+          /(You are \*\*[^']*'s\s+)(.+?)(\*\*)/,
+          function (m, pre, _name, post) { return pre + fields.assistantName + ' Assistant' + post }
+        )
+        // Non-possessive form (e.g. general assistant "You are the **Design AI Toolkit** assistant")
+        // is left untouched — assistantName is not meaningful there
+        // Replace core principle
+        updated = updated.replace(
+          /(Your core principle:\s*\*\*)(.+?)(\*\*)/,
+          function (m, pre, _cp, post) { return pre + fields.corePrinciple + post }
+        )
+        return updated
+      })
+      identityLines.forEach(function (l) { lines.push(l) })
+    } else {
+      // Fallback for new files with no identityRaw
+      lines.push("You are **Design AI Toolkit's " + fields.assistantName + " Assistant**, an expert embedded inside a Figma plugin.")
+      lines.push('')
+      lines.push('Your core principle: **' + fields.corePrinciple + '**')
+    }
+    lines.push('')
+    if (fields.behaviorRules && fields.behaviorRules.length > 0) {
+      lines.push('## Behavior')
+      lines.push('')
+      fields.behaviorRules.forEach(function (rule) {
+        lines.push('- ' + rule)
+      })
+      lines.push('')
+    }
+    if (fields.passthroughSections && fields.passthroughSections.length > 0) {
+      fields.passthroughSections.forEach(function (sec) {
+        lines.push('## ' + sec.name)
+        lines.push('')
+        if (sec.content) {
+          sec.content.split('\n').forEach(function (l) { lines.push(l) })
+          lines.push('')
+        }
+      })
+    }
+    if (fields.quickActions && fields.quickActions.length > 0) {
+      lines.push('## Quick Actions')
+      lines.push('')
+      fields.quickActions.forEach(function (qa) {
+        lines.push('### ' + qa.id)
+        lines.push('')
+        if (qa.templateMessage) {
+          lines.push('templateMessage: |')
+          qa.templateMessage.split('\n').forEach(function (l) { lines.push('  ' + l) })
+          lines.push('')
+        }
+        if (qa.guidance) {
+          lines.push('guidance: |')
+          qa.guidance.split('\n').forEach(function (l) { lines.push('  ' + l) })
+          lines.push('')
+        }
+      })
+    }
+    return lines.join('\n')
+  }
+
+  function _parseSharedSkill (content) {
+    var result = {
+      frontmatter: '',
+      purpose: '',
+      scope: '',
+      rules: [],
+      dos: [],
+      donts: [],
+      passthroughSections: []
+    }
+    if (!content) return result
+    var lines = content.split('\n')
+    var i = 0
+    // Extract frontmatter
+    if (lines[0] && lines[0].trim() === '---') {
+      var fmLines = ['---']
+      i = 1
+      while (i < lines.length && lines[i].trim() !== '---') {
+        fmLines.push(lines[i]); i++
+      }
+      fmLines.push('---')
+      result.frontmatter = fmLines.join('\n')
+      i++ // skip closing ---
+    }
+    // Parse sections
+    var sections = []
+    var currentSection = null
+    while (i < lines.length) {
+      var line = lines[i]
+      var headingMatch = line.match(/^##\s+(.+)/)
+      if (headingMatch) {
+        if (currentSection) sections.push(currentSection)
+        currentSection = { name: headingMatch[1].trim(), lines: [] }
+      } else if (currentSection) {
+        currentSection.lines.push(line)
+      }
+      i++
+    }
+    if (currentSection) sections.push(currentSection)
+    // Assign parsed sections
+    sections.forEach(function (sec) {
+      var bodyLines = sec.lines
+      // Trim leading/trailing blank lines
+      while (bodyLines.length > 0 && bodyLines[0].trim() === '') bodyLines.shift()
+      while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop()
+      var name = sec.name
+      if (name === 'Purpose') {
+        result.purpose = bodyLines.join('\n').trim()
+      } else if (name === 'Scope') {
+        result.scope = bodyLines.join('\n').trim()
+      } else if (name === 'Rules') {
+        result.rules = bodyLines.map(function (l) {
+          var m = l.match(/^-\s+(.+)/)
+          return m ? m[1] : null
+        }).filter(function (v) { return v !== null })
+      } else if (name === 'Do') {
+        result.dos = bodyLines.map(function (l) {
+          var m = l.match(/^-\s+(.+)/)
+          return m ? m[1] : null
+        }).filter(function (v) { return v !== null })
+      } else if (name === "Don't") {
+        result.donts = bodyLines.map(function (l) {
+          var m = l.match(/^-\s+(.+)/)
+          return m ? m[1] : null
+        }).filter(function (v) { return v !== null })
+      } else {
+        result.passthroughSections.push({ name: name, content: bodyLines.join('\n') })
+      }
+    })
+    return result
+  }
+
+  function _serializeSharedSkill (fields) {
+    var lines = []
+    if (fields.frontmatter) {
+      lines.push(fields.frontmatter)
+      lines.push('')
+    }
+    lines.push('## Purpose')
+    lines.push(fields.purpose || '')
+    lines.push('')
+    if (fields.scope) {
+      lines.push('## Scope')
+      lines.push(fields.scope)
+      lines.push('')
+    }
+    lines.push('## Rules')
+    ;(fields.rules || []).filter(function (r) { return r !== '' }).forEach(function (r) {
+      lines.push('- ' + r)
+    })
+    lines.push('')
+    lines.push('## Do')
+    ;(fields.dos || []).filter(function (r) { return r !== '' }).forEach(function (r) {
+      lines.push('- ' + r)
+    })
+    lines.push('')
+    lines.push("## Don't")
+    ;(fields.donts || []).filter(function (r) { return r !== '' }).forEach(function (r) {
+      lines.push('- ' + r)
+    })
+    lines.push('')
+    ;(fields.passthroughSections || []).forEach(function (sec) {
+      lines.push('## ' + sec.name)
+      if (sec.content) {
+        sec.content.split('\n').forEach(function (l) { lines.push(l) })
+      }
+      lines.push('')
+    })
+    // Ensure single trailing newline
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+    lines.push('')
+    return lines.join('\n')
+  }
+
+  function _updateSkillMdPreview (aid, fields) {
+    var preview = document.querySelector('.ae-skillmd-identity-preview')
+    if (!preview) return
+    preview.innerHTML = 'You are <strong>Design AI Toolkit\'s ' + escapeHtml(fields.assistantName || '…') + ' Assistant</strong>, an expert embedded inside a Figma plugin.<br>Your core principle: <strong>' + escapeHtml(fields.corePrinciple || '…') + '</strong>'
+  }
+
+  function _commitSkillMd (aid, content) {
+    state.skillMdEdits[aid] = content
+    if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+    state.editedModel.skillMdContent[aid] = content
+    showUnsavedBanner()
+  }
+
   function _aeKnowledgeTab (a) {
     var html = ''
     // LLM-native KB
@@ -2494,7 +3131,7 @@
     html += '<label for="ae-defaultKbName">Default kbName</label>'
     var instrKb = (state.instructionsMap && state.instructionsMap[a.id] && state.instructionsMap[a.id].defaultKbName) || a.defaultKbName || ''
     html += '<input type="text" id="ae-defaultKbName" class="ace-field" value="' + escapeHtml(instrKb) + '" placeholder="e.g. design-critique">'
-    html += '<p class="ae-helper">Passed as the <code>kbName</code> parameter on every LLM request for this assistant. Override per Quick Action in the Quick Actions tab.</p>'
+    html += '<p class="ae-helper">Passed as the <code>kbName</code> parameter on every LLM request for this assistant.</p>'
     html += '</div>'
     // Injected KB refs
     html += '<h3 class="ae-section-heading">Injected knowledge bases</h3>'
@@ -2517,71 +3154,6 @@
     }
     return html
   }
-  function _aeQuickActionsTab (a) {
-    var html = ''
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Quick Actions appear as one-click prompts for this assistant. Each action can override the assistant\'s default kbName.</p>'
-    var qas = a.quickActions || []
-    var EXECUTION_TYPES = ['ui-only', 'tool-only', 'llm', 'hybrid']
-    if (qas.length === 0) {
-      html += '<div class="ae-empty-state">No quick actions yet — add one below.</div>'
-    } else {
-      html += '<ul class="quick-actions-list" id="ae-quickActions">'
-      qas.forEach(function (qa, i) {
-        var execType = (qa.executionType && EXECUTION_TYPES.includes(qa.executionType)) ? qa.executionType : 'llm'
-        html += '<li class="quick-action-row">'
-        // Header row: id, label, remove
-        html += '<div style="display:flex;align-items:center;gap:var(--ace-space-8);width:100%;flex-wrap:wrap">'
-        html += '<input type="text" placeholder="id" value="' + escapeHtml(qa.id || '') + '" data-i="' + i + '" data-field="id" class="ae-qa-id">'
-        html += '<input type="text" placeholder="label" value="' + escapeHtml(qa.label || '') + '" data-i="' + i + '" data-field="label" class="ae-qa-label">'
-        html += '<button type="button" class="btn-small ae-qa-remove" data-i="' + i + '">Remove</button>'
-        html += '</div>'
-        // Detail row
-        html += '<div class="ae-qa-detail">'
-        // templateMessage
-        html += '<div class="ae-qa-detail-row">'
-        html += '<span class="ae-qa-detail-label">Message template</span>'
-        html += '<textarea class="ace-field ae-qa-template" rows="2" data-i="' + i + '" data-field="templateMessage" style="flex:1">' + escapeHtml(qa.templateMessage || '') + '</textarea>'
-        html += '</div>'
-        // executionType
-        html += '<div class="ae-qa-detail-row">'
-        html += '<span class="ae-qa-detail-label">Execution type</span>'
-        html += '<select class="ae-qa-exec-select" data-i="' + i + '" data-field="executionType">'
-        EXECUTION_TYPES.forEach(function (opt) { html += '<option value="' + opt + '"' + (execType === opt ? ' selected' : '') + '>' + opt + '</option>' })
-        html += '</select>'
-        html += '</div>'
-        // kbName override
-        html += '<div class="ae-qa-detail-row">'
-        html += '<span class="ae-qa-detail-label">kbName override</span>'
-        html += '<input type="text" class="ace-field ae-qa-kbname" placeholder="Leave blank to use assistant default" data-i="' + i + '" data-field="kbName" value="' + escapeHtml(qa.kbName || '') + '" style="flex:1">'
-        html += '</div>'
-        html += '<p class="ae-helper" style="margin:0">Override the assistant\'s default kbName for this action only. Leave blank to inherit.</p>'
-        // Test button (SP4 — placeholder)
-        html += '<div class="ae-qa-detail-row">'
-        html += '<button type="button" class="btn-small ae-qa-test-btn" data-qa-id="' + escapeHtml(qa.id) + '">Test this action</button>'
-        html += '</div>'
-        html += '</div>'
-        html += '</li>'
-      })
-      html += '</ul>'
-    }
-    html += '<button type="button" class="btn-small add-btn" id="ae-qa-add">Add quick action</button>'
-    html += '<h3 class="ae-section-heading" style="margin-top:var(--ace-space-24)">Test rubric</h3>'
-    html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)">Define pass/fail criteria for the Prompt Playground\'s result evaluation.</p>'
-    html += '<div id="ae-rubric-items"></div>'
-    html += '<button type="button" class="btn-small" id="ae-rubric-add-item">Add criterion</button>'
-    html += '<div style="margin-top:var(--ace-space-8)"><button type="button" class="btn-small btn-primary" id="ae-rubric-save-btn">Save rubric to server</button></div>'
-    html += '<div id="ae-rubric-status" style="font-size:12px;margin-top:4px"></div>'
-    return html
-  }
-
-  const EXECUTION_TYPES_ACE = ['ui-only', 'tool-only', 'llm', 'hybrid']
-  function ensureQuickActionExecutionTypes (a) {
-    if (!a.quickActions) return
-    a.quickActions.forEach(qa => {
-      if (!qa.executionType || !EXECUTION_TYPES_ACE.includes(qa.executionType)) qa.executionType = 'llm'
-    })
-  }
-
   function bindAssistantEditor () {
     const a = (state.editedModel?.assistantsManifest?.assistants || []).find(x => x.id === state.selectedAssistantId)
     if (!a) return
@@ -2591,7 +3163,6 @@
         renderAssistantsTab()
       }
     })
-    ensureQuickActionExecutionTypes(a)
     const set = (id, field, value) => {
       a[field] = value
       showUnsavedBanner()
@@ -2606,10 +3177,6 @@
       introEl.onchange = function () { set('ae-intro', 'intro', this.value) }
       introEl.oninput = introEl.onchange
     }
-    const hmEl = document.getElementById('ae-hoverSummary')
-    if (hmEl) hmEl.onchange = function () { set('ae-hoverSummary', 'hoverSummary', this.value) }
-    const wm = document.getElementById('ae-welcomeMessage')
-    if (wm) wm.onchange = function () { set('ae-welcomeMessage', 'welcomeMessage', this.value) }
     const tagVis = document.getElementById('ae-tag-visible')
     if (tagVis) tagVis.onchange = function () { if (!a.tag) a.tag = {}; a.tag.isVisible = this.checked; showUnsavedBanner() }
     var tagLabelEl = document.getElementById('ae-tag-label')
@@ -2623,8 +3190,6 @@
     }
     var kindEl = document.getElementById('ae-kind')
     if (kindEl) kindEl.onchange = function () { set('ae-kind', 'kind', this.value); renderAssistantsTab() }
-    const ptEl = document.getElementById('ae-promptTemplate')
-    if (ptEl) ptEl.onchange = function () { set('ae-promptTemplate', 'promptTemplate', this.value) }
     if (a.kind === 'tool') {
       var tsEl1 = document.getElementById('ae-ts-defaultContentModel')
       if (tsEl1) tsEl1.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.defaultContentModel = this.value || undefined; showUnsavedBanner() }
@@ -2635,102 +3200,6 @@
       var tsEl4 = document.getElementById('ae-ts-showInput')
       if (tsEl4) tsEl4.onchange = function () { if (!a.toolSettings) a.toolSettings = {}; a.toolSettings.showInput = this.checked; showUnsavedBanner() }
     }
-    document.querySelectorAll('.ae-qa-remove').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        a.quickActions.splice(i, 1)
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    document.querySelectorAll('#ae-quickActions input, #ae-quickActions select, #ae-quickActions textarea').forEach(function (el) {
-      var handler = function () {
-        var i = parseInt(this.getAttribute('data-i'), 10)
-        var field = this.getAttribute('data-field')
-        if (!field || !a.quickActions[i]) return
-        var val = this.value
-        if (field === 'kbName') {
-          a.quickActions[i].kbName = val.trim() || undefined
-        } else {
-          a.quickActions[i][field] = val
-        }
-        showUnsavedBanner()
-      }
-      el.onchange = handler
-      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.oninput = handler
-    })
-    const addBtn = document.getElementById('ae-qa-add')
-    if (addBtn) addBtn.onclick = function () {
-      a.quickActions = a.quickActions || []
-      a.quickActions.push({ id: 'new-action', label: 'New action', templateMessage: '', executionType: 'llm' })
-      showUnsavedBanner()
-      renderAssistantsTab()
-    }
-    // Structured instructions (PR7)
-    if (!a.instructionBlocks) a.instructionBlocks = []
-    document.querySelectorAll('.ae-ib-kind').forEach(el => {
-      el.onchange = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (a.instructionBlocks[i]) a.instructionBlocks[i].kind = this.value
-        showUnsavedBanner()
-      }
-    })
-    document.querySelectorAll('.ae-ib-content').forEach(el => {
-      const handler = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (a.instructionBlocks[i]) a.instructionBlocks[i].content = this.value
-        showUnsavedBanner()
-      }
-      el.onchange = handler
-      el.oninput = handler
-    })
-    document.querySelectorAll('.ae-ib-enabled').forEach(el => {
-      el.onchange = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (a.instructionBlocks[i]) a.instructionBlocks[i].enabled = this.checked
-        showUnsavedBanner()
-      }
-    })
-    document.querySelectorAll('.ae-ib-remove').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        a.instructionBlocks.splice(i, 1)
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    document.querySelectorAll('.ae-ib-up').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (i <= 0) return
-        const t = a.instructionBlocks[i]
-        a.instructionBlocks[i] = a.instructionBlocks[i - 1]
-        a.instructionBlocks[i - 1] = t
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    document.querySelectorAll('.ae-ib-down').forEach(btn => {
-      btn.onclick = function () {
-        const i = parseInt(this.getAttribute('data-i'), 10)
-        if (i >= a.instructionBlocks.length - 1) return
-        const t = a.instructionBlocks[i]
-        a.instructionBlocks[i] = a.instructionBlocks[i + 1]
-        a.instructionBlocks[i + 1] = t
-        showUnsavedBanner()
-        renderAssistantsTab()
-      }
-    })
-    const ibAdd = document.getElementById('ae-ib-add')
-    if (ibAdd) ibAdd.onclick = function () {
-      a.instructionBlocks = a.instructionBlocks || []
-      a.instructionBlocks.push({ id: 'block-' + Date.now(), kind: 'behavior', content: '', enabled: true })
-      showUnsavedBanner()
-      renderAssistantsTab()
-    }
-    const toneEl = document.getElementById('ae-toneStylePreset')
-    if (toneEl) toneEl.onchange = function () { a.toneStylePreset = this.value || undefined; showUnsavedBanner() }
-    if (toneEl) toneEl.oninput = function () { a.toneStylePreset = this.value || undefined; showUnsavedBanner() }
     const schemaEl = document.getElementById('ae-outputSchemaId')
     if (schemaEl) schemaEl.onchange = function () { a.outputSchemaId = this.value || undefined; showUnsavedBanner() }
     if (schemaEl) schemaEl.oninput = function () { a.outputSchemaId = this.value || undefined; showUnsavedBanner() }
@@ -2799,66 +3268,6 @@
       a.safetyOverrides.allowImages = this.checked || undefined
       showUnsavedBanner()
     }
-
-    const testRunBtn = document.getElementById('ae-test-run-btn')
-    if (testRunBtn) {
-      testRunBtn.onclick = async function () {
-        var msgEl = document.getElementById('ae-test-message')
-        var resultEl = document.getElementById('ae-test-result')
-        var msg = msgEl ? msgEl.value.trim() : ''
-        if (!msg) {
-          if (resultEl) { resultEl.className = 'ace-test-result ace-test-result--error'; resultEl.textContent = 'Enter a test message.' }
-          return
-        }
-        testRunBtn.disabled = true
-        testRunBtn.textContent = 'Running...'
-        if (resultEl) { resultEl.className = ''; resultEl.textContent = '' }
-        try {
-          var llm = (state.editedModel && state.editedModel.config && state.editedModel.config.llm) ? state.editedModel.config.llm : {}
-          var provider = llm.provider === 'proxy' ? 'proxy' : 'internal-api'
-          var assistantDraft = { id: a.id, promptTemplate: a.promptTemplate || '', instructionBlocks: a.instructionBlocks || [] }
-          // Normalize proxy: always include authMode with the same default renderAITab uses (shared_token).
-          // authMode may be absent in model state if the user never touched the select.
-          var rawProxy = llm.proxy || {}
-          var normalizedProxy = {
-            baseUrl: rawProxy.baseUrl || '',
-            defaultModel: rawProxy.defaultModel || '',
-            authMode: rawProxy.authMode === 'session_token' ? 'session_token' : 'shared_token',
-            sharedToken: rawProxy.sharedToken || ''
-          }
-          var body = {
-            provider: provider,
-            endpoint: llm.endpoint || '',
-            proxy: normalizedProxy,
-            assistant: assistantDraft,
-            message: msg,
-            kbName: 'figma'
-          }
-          var res = await _apiFetch(API_BASE + '/api/test/assistant', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          })
-          var data = await res.json()
-          if (resultEl) {
-            resultEl.className = 'ace-test-result ' + (data.success ? 'ace-test-result--success' : 'ace-test-result--error')
-            if (data.success) {
-              resultEl.innerHTML = '<div class="ace-test-response-meta">Assistant: ' + escapeHtml(data.assistantId || '?') + ' | kbName: ' + escapeHtml(data.kbName || 'figma') + '</div><pre class="ace-test-response-text">' + escapeHtml(data.response || '(empty response)') + '</pre>'
-            } else {
-              resultEl.textContent = data.message || 'Test failed.'
-            }
-          }
-        } catch (err) {
-          if (resultEl) {
-            resultEl.className = 'ace-test-result ace-test-result--error'
-            resultEl.textContent = 'Test request failed: ' + ((err && err.message) ? err.message : String(err))
-          }
-        } finally {
-          testRunBtn.disabled = false
-          testRunBtn.textContent = 'Run Test'
-        }
-      }
-    }
     var dkbEl = document.getElementById('ae-defaultKbName')
     if (dkbEl) {
       dkbEl.onchange = function () {
@@ -2867,26 +3276,6 @@
         showUnsavedBanner()
       }
       dkbEl.oninput = dkbEl.onchange
-    }
-    // Assemble & Preview
-    var assembleBtn = document.getElementById('ae-assemble-btn')
-    if (assembleBtn) {
-      assembleBtn.onclick = function () {
-        var previewEl = document.getElementById('ae-assemble-preview')
-        var preEl = document.getElementById('ae-assemble-pre')
-        if (!previewEl || !preEl) return
-        var blocks = a.instructionBlocks || []
-        var enabledBlocks = blocks.filter(function (b) { return b.enabled !== false })
-        if (enabledBlocks.length === 0 && !a.promptTemplate) {
-          preEl.textContent = '(No skill blocks enabled and no prompt template set.)'
-        } else {
-          var segments = []
-          enabledBlocks.forEach(function (b) { segments.push('[' + (b.kind || 'behavior') + ']\n' + (b.content || '')) })
-          if (a.promptTemplate && enabledBlocks.length === 0) segments.push('[prompt template]\n' + a.promptTemplate)
-          preEl.textContent = segments.join('\n\n---\n\n')
-        }
-        previewEl.classList.add('visible')
-      }
     }
     // Instructions tab — execution model + figmaContext (SP3)
     var instrExecEl = document.getElementById('ae-instr-execution')
@@ -2925,151 +3314,139 @@
         showUnsavedBanner()
       }
     }
-    // Universal skills (SP3)
-    function _updateUniversalSkills () {
-      var instr = _getInstr(a.id)
-      if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-      showUnsavedBanner()
-      renderAssistantsTab()
-    }
-    document.querySelectorAll('.ae-univ-skill-remove-required').forEach(function (btn) {
+    // SKILL.md form wizard handlers
+
+    // Form/Raw toggle
+    document.querySelectorAll('.ae-toggle-btn[data-skillmd-mode]').forEach(function (btn) {
       btn.onclick = function () {
-        var id = this.getAttribute('data-id')
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) return
-        instr.universalSkills.required = (instr.universalSkills.required || []).filter(function (x) { return x !== id })
-        _updateUniversalSkills()
-      }
-    })
-    document.querySelectorAll('.ae-univ-skill-remove-optional').forEach(function (btn) {
-      btn.onclick = function () {
-        var id = this.getAttribute('data-id')
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) return
-        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
-        _updateUniversalSkills()
-      }
-    })
-    document.querySelectorAll('.ae-univ-skill-make-required').forEach(function (btn) {
-      btn.onclick = function () {
-        var id = this.getAttribute('data-id')
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-        instr.universalSkills.optional = (instr.universalSkills.optional || []).filter(function (x) { return x !== id })
-        if (!(instr.universalSkills.required || []).includes(id)) {
-          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
-        }
-        _updateUniversalSkills()
-      }
-    })
-    var skillAttachOptBtn = document.getElementById('ae-univ-skill-attach-optional')
-    var skillAttachReqBtn = document.getElementById('ae-univ-skill-attach-required')
-    var skillPicker = document.getElementById('ae-univ-skill-picker')
-    if (skillAttachOptBtn && skillPicker) {
-      skillAttachOptBtn.onclick = function () {
-        var id = skillPicker.value
-        if (!id) return
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-        if (!(instr.universalSkills.optional || []).includes(id)) {
-          instr.universalSkills.optional = (instr.universalSkills.optional || []).concat([id])
-        }
-        _updateUniversalSkills()
-      }
-    }
-    if (skillAttachReqBtn && skillPicker) {
-      skillAttachReqBtn.onclick = function () {
-        var id = skillPicker.value
-        if (!id) return
-        var instr = _getInstr(a.id)
-        if (!instr.universalSkills) instr.universalSkills = { required: [], optional: [] }
-        if (!(instr.universalSkills.required || []).includes(id)) {
-          instr.universalSkills.required = (instr.universalSkills.required || []).concat([id])
-        }
-        _updateUniversalSkills()
-      }
-    }
-    document.querySelectorAll('.ae-qa-test-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        var qaId = this.getAttribute('data-qa-id')
-        var qa = (a.quickActions || []).find(function (q) { return q.id === qaId })
-        state.playgroundActive = true
-        state.playgroundAssistantId = a.id
-        state.playgroundActionId = qaId
-        state.playgroundUserMessage = (qa && qa.templateMessage) || ''
-        state.playgroundKbName = (qa && qa.kbName) || ''
-        state.playgroundResult = null
-        state.playgroundRubric = null
-        state.playgroundGolden = null
-        state.playgroundRubricChecked = {}
-        state.playgroundSkillToggles = {}
-        state.playgroundSessionHistory = []
+        var aid = this.getAttribute('data-aid')
+        var mode = this.getAttribute('data-skillmd-mode')
+        if (!state.skillMdMode) state.skillMdMode = {}
+        state.skillMdMode[aid] = mode
         renderAssistantsTab()
       }
     })
-    // Rubric editor in Quick Actions tab
-    var rubricContainer = document.getElementById('ae-rubric-items')
-    var rubricAddBtn = document.getElementById('ae-rubric-add-item')
-    var rubricSaveBtn = document.getElementById('ae-rubric-save-btn')
-    var rubricStatus = document.getElementById('ae-rubric-status')
-    if (rubricContainer) {
-      window._aeRubricItems = []
-      _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id))
-        .then(function (r) { return r.json() })
-        .then(function (data) {
-          window._aeRubricItems = (data && data.items) ? data.items : []
-          _renderRubricEditor(rubricContainer)
-        })
-        .catch(function () {})
-    }
-    function _renderRubricEditor (container) {
-      if (!container) return
-      var items = window._aeRubricItems || []
-      var html = ''
-      items.forEach(function (item, i) {
-        html += '<div style="display:flex;gap:var(--ace-space-8);margin-bottom:4px;align-items:center">'
-        html += '<input type="text" class="ace-field ae-rubric-item-label" data-i="' + i + '" value="' + escapeHtml(item.label || '') + '" style="flex:1">'
-        html += '<button type="button" class="btn-small ae-rubric-item-remove" data-i="' + i + '">\u2715</button>'
-        html += '</div>'
-      })
-      container.innerHTML = html
-      container.querySelectorAll('.ae-rubric-item-label').forEach(function (el) {
-        el.oninput = function () {
-          var i = parseInt(this.getAttribute('data-i'), 10)
-          if (window._aeRubricItems[i]) window._aeRubricItems[i].label = this.value
+
+    // Raw textarea handler
+    var skillMdEl = document.querySelector('.ace-skillmd-editor')
+    if (skillMdEl) {
+      var skillMdHandler = function () {
+        var aId = this.getAttribute('data-assistant-id')
+        if (aId) {
+          state.skillMdEdits[aId] = this.value
+          if (!state.editedModel.skillMdContent) state.editedModel.skillMdContent = {}
+          state.editedModel.skillMdContent[aId] = this.value
+          showUnsavedBanner()
         }
-      })
-      container.querySelectorAll('.ae-rubric-item-remove').forEach(function (btn) {
-        btn.onclick = function () {
-          var i = parseInt(this.getAttribute('data-i'), 10)
-          window._aeRubricItems.splice(i, 1)
-          _renderRubricEditor(container)
-        }
-      })
-    }
-    if (rubricAddBtn) {
-      rubricAddBtn.onclick = function () {
-        window._aeRubricItems = window._aeRubricItems || []
-        window._aeRubricItems.push({ id: 'r' + Date.now(), label: '', autoCheck: false })
-        _renderRubricEditor(rubricContainer)
       }
+      skillMdEl.onchange = skillMdHandler
+      skillMdEl.oninput = skillMdHandler
     }
-    if (rubricSaveBtn) {
-      rubricSaveBtn.onclick = async function () {
-        var items = window._aeRubricItems || []
-        try {
-          var r = await _apiFetch(API_BASE + '/api/test/rubrics/' + encodeURIComponent(a.id), {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: items })
-          })
-          if (r.ok) {
-            if (rubricStatus) { rubricStatus.textContent = 'Saved.'; setTimeout(function () { rubricStatus.textContent = '' }, 2000) }
-          } else {
-            if (rubricStatus) rubricStatus.textContent = 'Save failed.'
-          }
-        } catch (err) { if (rubricStatus) rubricStatus.textContent = 'Network error.' }
+
+    // Identity/CP field input
+    document.querySelectorAll('.ae-skillmd-field').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var field = this.getAttribute('data-field')
+        if (!aid || !field) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields[field] = this.value.replace(/\*\*/g, '')
+        var newContent = _serializeSkillMd(aid, fields)
+        _commitSkillMd(aid, newContent)
+        _updateSkillMdPreview(aid, fields)
       }
-    }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
+    // Rule input
+    document.querySelectorAll('.ae-sm-rule-input').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var idx = parseInt(this.getAttribute('data-idx'), 10)
+        if (!aid || isNaN(idx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.behaviorRules[idx] = this.value
+        var newContent = _serializeSkillMd(aid, fields)
+        _commitSkillMd(aid, newContent)
+        _updateSkillMdPreview(aid, fields)
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
+    // Rule remove
+    document.querySelectorAll('.ae-sm-rule-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-aid')
+        var idx = parseInt(this.getAttribute('data-idx'), 10)
+        if (!aid || isNaN(idx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.behaviorRules.splice(idx, 1)
+        var newContent = _serializeSkillMd(aid, fields)
+        _commitSkillMd(aid, newContent)
+        renderAssistantsTab()
+      }
+    })
+
+    // Rule add
+    document.querySelectorAll('.ae-sm-rule-add').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-aid')
+        if (!aid) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        fields.behaviorRules.push('')
+        var newContent = _serializeSkillMd(aid, fields)
+        _commitSkillMd(aid, newContent)
+        renderAssistantsTab()
+      }
+    })
+
+    // QA accordion toggle
+    document.querySelectorAll('.ae-qa-toggle').forEach(function (btn) {
+      btn.onclick = function () {
+        var accordion = this.closest('.ae-qa-accordion')
+        if (!accordion) return
+        var body = accordion.querySelector('.ae-qa-body')
+        if (!body) return
+        var isHidden = body.style.display === 'none' || body.style.display === ''
+        body.style.display = isHidden ? 'block' : 'none'
+        this.textContent = isHidden ? 'Collapse ▴' : 'Expand ▾'
+      }
+    })
+
+    // QA template message input
+    document.querySelectorAll('.ae-sm-qa-tmpl').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var qidx = parseInt(this.getAttribute('data-qidx'), 10)
+        if (!aid || isNaN(qidx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        if (!fields.quickActions[qidx]) return
+        fields.quickActions[qidx].templateMessage = this.value
+        var newContent = _serializeSkillMd(aid, fields)
+        _commitSkillMd(aid, newContent)
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
+    // QA guidance input
+    document.querySelectorAll('.ae-sm-qa-guidance').forEach(function (el) {
+      var handler = function () {
+        var aid = this.getAttribute('data-aid')
+        var qidx = parseInt(this.getAttribute('data-qidx'), 10)
+        if (!aid || isNaN(qidx)) return
+        var fields = _parseSkillMd(state.skillMdEdits[aid] || '')
+        if (!fields.quickActions[qidx]) return
+        fields.quickActions[qidx].guidance = this.value
+        var newContent = _serializeSkillMd(aid, fields)
+        _commitSkillMd(aid, newContent)
+      }
+      el.onchange = handler
+      el.oninput = handler
+    })
+
   }
 
   // ——— Knowledge tab ———
@@ -3105,6 +3482,7 @@
     }
     html += '</div></div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     document.getElementById('knowledge-list').addEventListener('click', function (e) {
       const item = e.target.closest('.item[data-id]')
@@ -3142,25 +3520,186 @@
   // ——— Resources tab (PR11b) ———
   async function fetchKbRegistry () {
     const res = await _apiFetch(API_BASE + '/api/kb/registry', {})
-    if (!res.ok) throw new Error(res.status === 403 ? 'Not authorized' : 'Failed to load registry')
+    if (!res.ok) {
+      var msg = res.status === 403 ? 'Not authorized to view Internal KBs' : res.status === 401 ? 'Session expired — please reload' : 'Failed to load Internal KBs (' + res.status + ')'
+      throw new Error(msg)
+    }
     const data = await res.json()
     state.kbRegistry = data.knowledgeBases || []
   }
 
+  async function fetchSkillsRegistry () {
+    const res = await _apiFetch(API_BASE + '/api/skills', {})
+    if (!res.ok) {
+      var msg = res.status === 403 ? 'Not authorized to view Shared Skills' : res.status === 401 ? 'Session expired — please reload' : 'Failed to load Shared Skills (' + res.status + ')'
+      throw new Error(msg)
+    }
+    const data = await res.json()
+    state.skillsRegistry = { skills: Array.isArray(data.skills) ? data.skills : [] }
+  }
+
+  /**
+   * Renders the Resources tab. Shared Skills and Internal KBs are both fetched lazily
+   * on first visit to their respective sub-tab.
+   */
   function renderKnowledgeBasesTab () {
-    const panel = document.getElementById('panel-knowledge-bases')
-    if (!panel) return
-    panel.setAttribute('aria-busy', 'true')
-    panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">Loading…</p>'
-    fetchKbRegistry()
-      .then(function () {
-        state.panelKnowledgeBasesReady = true
-        renderKnowledgeBasesTabContent()
+    state.panelKnowledgeBasesReady = true
+    var subTab = state.selectedResourcesSubTab || 'shared-skills'
+    if (subTab === 'shared-skills' && !state.skillsRegistryFetched) {
+      renderKnowledgeBasesTabContent()
+      fetchSkillsRegistry()
+        .then(function () {
+          state.skillsRegistryFetched = true
+          renderKnowledgeBasesTabContent()
+        })
+        .catch(function (err) {
+          state.skillsRegistryFetched = true
+          state.skillsRegistryError = err.message || 'Failed to load Shared Skills'
+          renderKnowledgeBasesTabContent()
+        })
+    } else {
+      renderKnowledgeBasesTabContent()
+    }
+  }
+
+  function wireResourcesSubTabBtns (panel) {
+    panel.querySelectorAll('.ace-sub-tab-btn[data-resources-subtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        var subTab = this.getAttribute('data-resources-subtab')
+        if (subTab === 'shared-skills') {
+          state.selectedKbId = null
+        } else if (subTab === 'internal-kbs') {
+          state.selectedSkillId = null
+          state.selectedSkillContent = ''
+          state.selectedSkillEditorMode = 'form'
+        }
+        state.selectedResourcesSubTab = subTab
+        if (subTab === 'shared-skills' && !state.skillsRegistryFetched) {
+          renderKnowledgeBasesTabContent()
+          fetchSkillsRegistry()
+            .then(function () {
+              state.skillsRegistryFetched = true
+              renderKnowledgeBasesTabContent()
+            })
+            .catch(function (err) {
+              state.skillsRegistryFetched = true
+              state.skillsRegistryError = err.message || 'Failed to load Shared Skills'
+              renderKnowledgeBasesTabContent()
+            })
+        } else if (subTab === 'internal-kbs' && !state.kbRegistryFetched) {
+          renderKnowledgeBasesTabContent() // show loading state first
+          fetchKbRegistry()
+            .then(function () {
+              state.kbRegistryFetched = true
+              renderKnowledgeBasesTabContent()
+            })
+            .catch(function (err) {
+              state.kbRegistryFetched = true
+              state.kbRegistryError = err.message || 'Failed to load Internal KBs'
+              renderKnowledgeBasesTabContent()
+            })
+        } else {
+          renderKnowledgeBasesTabContent()
+        }
+      }
+    })
+  }
+
+  function _captureSharedSkillFormToState () {
+    var parsed = _parseSharedSkill(state.selectedSkillContent || '')
+    var purposeEl = document.getElementById('ace-skill-purpose')
+    var scopeEl = document.getElementById('ace-skill-scope')
+    if (purposeEl) parsed.purpose = purposeEl.value
+    if (scopeEl) parsed.scope = scopeEl.value
+    parsed.rules = Array.from(document.querySelectorAll('.ae-shared-skill-rule')).map(function (el) { return el.value })
+    parsed.dos   = Array.from(document.querySelectorAll('.ae-shared-skill-do')).map(function (el) { return el.value })
+    parsed.donts = Array.from(document.querySelectorAll('.ae-shared-skill-dont')).map(function (el) { return el.value })
+    state.selectedSkillContent = _serializeSharedSkill(parsed)
+  }
+
+  function _renderSharedSkillEditor (selectedSkill) {
+    var mode = state.selectedSkillEditorMode || 'form'
+    var content = state.selectedSkillContent || ''
+    var html = ''
+
+    html += '<div class="ae-skillmd-header">'
+    html += '<span class="ae-helper" style="flex:1">Shared skill editor. Saved to <code>custom/skills/' + escapeHtml(selectedSkill.id) + '.md</code>.</span>'
+    html += '<div class="ae-toggle-pill">'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-skill-editor-mode="form">Form</button>'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-skill-editor-mode="raw">Raw</button>'
+    html += '</div>'
+    html += '</div>'
+
+    if (mode === 'form') {
+      var fields = _parseSharedSkill(content)
+
+      html += '<h3 class="ae-section-heading" style="margin-top:0">Metadata</h3>'
+      html += '<div class="ae-field-group">'
+      html += '<label for="ace-skill-title">Title</label>'
+      html += '<input type="text" id="ace-skill-title" class="ace-field" value="' + escapeHtml(selectedSkill.title) + '">'
+      html += '</div>'
+      html += '<div class="ae-field-group">'
+      html += '<label for="ace-skill-kind">Kind</label>'
+      html += '<select id="ace-skill-kind">'
+      ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
+        html += '<option value="' + k + '"' + (selectedSkill.kind === k ? ' selected' : '') + '>' + k + '</option>'
       })
-      .catch(function (err) {
-        panel.removeAttribute('aria-busy')
-        panel.innerHTML = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div><p class="fg-secondary">' + escapeHtml(err.message || 'Failed to load') + '</p>'
+      html += '</select>'
+      html += '</div>'
+
+      html += '<h3 class="ae-section-heading">Purpose</h3>'
+      html += '<p class="ae-helper">Describe what knowledge or behavior this skill provides.</p>'
+      html += '<textarea id="ace-skill-purpose" class="ace-field" rows="3">' + escapeHtml(fields.purpose) + '</textarea>'
+
+      html += '<h3 class="ae-section-heading">Scope</h3>'
+      html += '<p class="ae-helper">Where this applies and what it excludes. Optional.</p>'
+      html += '<textarea id="ace-skill-scope" class="ace-field" rows="2">' + escapeHtml(fields.scope) + '</textarea>'
+
+      html += '<h3 class="ae-section-heading">Rules</h3>'
+      html += '<p class="ae-helper">Ordered rules — highest priority first.</p>'
+      html += '<ul class="ae-skillmd-rules-list" id="ae-skill-rules-list">'
+      fields.rules.forEach(function (rule, idx) {
+        html += '<li class="ae-skillmd-rule-row">'
+        html += '<span class="ae-drag-handle" style="opacity:0.4;cursor:default">&#10783;</span>'
+        html += '<input type="text" class="ace-field ae-shared-skill-rule" data-idx="' + idx + '" value="' + escapeHtml(rule) + '">'
+        html += '<button type="button" class="btn-small ae-shared-skill-remove" data-list="rules" data-idx="' + idx + '">\u2715</button>'
+        html += '</li>'
       })
+      html += '</ul>'
+      html += '<button type="button" class="btn-small add-btn ae-shared-skill-add" data-list="rules">+ Add rule</button>'
+
+      html += '<h3 class="ae-section-heading">Do</h3>'
+      html += '<ul class="ae-skillmd-rules-list" id="ae-skill-dos-list">'
+      fields.dos.forEach(function (item, idx) {
+        html += '<li class="ae-skillmd-rule-row">'
+        html += '<input type="text" class="ace-field ae-shared-skill-do" data-idx="' + idx + '" value="' + escapeHtml(item) + '">'
+        html += '<button type="button" class="btn-small ae-shared-skill-remove" data-list="dos" data-idx="' + idx + '">\u2715</button>'
+        html += '</li>'
+      })
+      html += '</ul>'
+      html += '<button type="button" class="btn-small add-btn ae-shared-skill-add" data-list="dos">+ Add do</button>'
+
+      html += '<h3 class="ae-section-heading">Don\'t</h3>'
+      html += '<ul class="ae-skillmd-rules-list" id="ae-skill-donts-list">'
+      fields.donts.forEach(function (item, idx) {
+        html += '<li class="ae-skillmd-rule-row">'
+        html += '<input type="text" class="ace-field ae-shared-skill-dont" data-idx="' + idx + '" value="' + escapeHtml(item) + '">'
+        html += '<button type="button" class="btn-small ae-shared-skill-remove" data-list="donts" data-idx="' + idx + '">\u2715</button>'
+        html += '</li>'
+      })
+      html += '</ul>'
+      html += '<button type="button" class="btn-small add-btn ae-shared-skill-add" data-list="donts">+ Add don\'t</button>'
+    } else {
+      html += '<p class="ae-helper" style="margin-bottom:var(--ace-space-8)"><strong>' + escapeHtml(selectedSkill.title) + '</strong> &middot; <span class="fg-secondary">' + escapeHtml(selectedSkill.kind) + ' &middot; ' + escapeHtml(selectedSkill.id) + '.md</span></p>'
+      html += '<textarea id="ace-skill-content" class="ace-field ace-textarea" rows="20" style="font-family:monospace;font-size:13px;white-space:pre;" data-skill-id="' + escapeHtml(selectedSkill.id) + '">' + escapeHtml(content) + '</textarea>'
+    }
+
+    html += '<div style="display:flex;gap:var(--ace-space-8);margin-top:var(--ace-space-8)">'
+    html += '<button type="button" class="btn-primary" id="ace-skill-save-btn">Save skill</button>'
+    html += '<button type="button" class="btn-secondary" id="ace-skill-delete-btn" style="margin-left:auto">Delete</button>'
+    html += '</div>'
+    html += '<div id="ace-skill-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+    return html
   }
 
   function renderKnowledgeBasesTabContent () {
@@ -3173,16 +3712,28 @@
     const previewDoc = state.kbPreviewDoc
     const editDoc = state.kbEditDoc
 
+    var resSubTab = state.selectedResourcesSubTab || 'shared-skills'
+
+    var subTabHtml = '<div class="ace-sub-tab-row">'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (resSubTab === 'shared-skills' ? ' active' : '') + '" data-resources-subtab="shared-skills">Shared Skills</button>'
+    subTabHtml += '<button type="button" class="ace-sub-tab-btn' + (resSubTab === 'internal-kbs' ? ' active' : '') + '" data-resources-subtab="internal-kbs">Internal KBs</button>'
+    subTabHtml += '</div>'
+
     // Skills panel
     var skillsHtml = ''
     skillsHtml += '<div class="ace-section-header-row">'
-    skillsHtml += '<h2 class="ace-section-title">Universal Skills</h2>'
+    skillsHtml += '<h2 class="ace-section-title">Shared Skills</h2>'
     skillsHtml += '<button type="button" class="ace-section-header-btn" id="ace-skill-new-btn">New skill</button>'
     skillsHtml += '</div>'
-    skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the Assistant Skills tab.</p>'
+    skillsHtml += '<p class="ae-helper" style="margin-bottom:var(--ace-space-16)">Shared prompt segments used across assistants. Attach them per assistant in the SKILL.md Quick Actions package box.</p>'
+    if (!state.skillsRegistryFetched) {
+      skillsHtml += '<p class="fg-secondary">Loading\u2026</p>'
+    } else if (state.skillsRegistryError) {
+      skillsHtml += '<p style="color:var(--error)">' + escapeHtml(state.skillsRegistryError) + '</p>'
+    } else {
     var allSkills = (state.skillsRegistry && state.skillsRegistry.skills) ? state.skillsRegistry.skills : []
     if (allSkills.length === 0) {
-      skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No universal skills yet. Click "New skill" to create the first one.</div>'
+      skillsHtml += '<div class="ae-empty-state" style="margin-bottom:var(--ace-space-24)">No shared skills yet. Click "New skill" to create the first one.</div>'
     } else {
       skillsHtml += '<div class="list-panel" style="margin-bottom:var(--ace-space-24);min-height:auto">'
       skillsHtml += '<div class="list" id="ace-skills-list" style="width:260px">'
@@ -3202,36 +3753,12 @@
         if (!selectedSkill) {
           skillsHtml += '<div class="empty">Not found</div>'
         } else {
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label>ID <span class="fg-secondary">(read-only)</span></label>'
-          skillsHtml += '<input type="text" class="ace-field" value="' + escapeHtml(selectedSkill.id) + '" readonly>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label for="ace-skill-title">Title</label>'
-          skillsHtml += '<input type="text" id="ace-skill-title" class="ace-field" value="' + escapeHtml(selectedSkill.title) + '">'
-          skillsHtml += '</div>'
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label for="ace-skill-kind">Kind</label>'
-          skillsHtml += '<select id="ace-skill-kind">'
-          ;['system', 'behavior', 'rules', 'examples', 'format', 'context'].forEach(function (k) {
-            skillsHtml += '<option value="' + k + '"' + (selectedSkill.kind === k ? ' selected' : '') + '>' + k + '</option>'
-          })
-          skillsHtml += '</select>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div class="ae-field-group">'
-          skillsHtml += '<label for="ace-skill-content">Content</label>'
-          skillsHtml += '<p class="ae-helper">The prompt text that will be included when this skill is active.</p>'
-          skillsHtml += '<textarea id="ace-skill-content" class="ace-field" rows="8" data-skill-id="' + escapeHtml(selectedSkill.id) + '">' + escapeHtml(state.selectedSkillContent || '') + '</textarea>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div style="display:flex;gap:var(--ace-space-8);margin-top:var(--ace-space-8)">'
-          skillsHtml += '<button type="button" class="btn-primary" id="ace-skill-save-btn">Save skill</button>'
-          skillsHtml += '<button type="button" class="btn-secondary" id="ace-skill-delete-btn" style="margin-left:auto">Delete</button>'
-          skillsHtml += '</div>'
-          skillsHtml += '<div id="ace-skill-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
+          skillsHtml += _renderSharedSkillEditor(selectedSkill)
         }
       }
       skillsHtml += '</div></div>'
     }
+    } // end else (skillsRegistryFetched && no error)
     // New skill form (hidden by default)
     skillsHtml += '<div id="ace-skill-new-form" style="display:none;margin-bottom:var(--ace-space-24);padding:var(--ace-space-16);border:1px solid var(--ace-border);border-radius:var(--ace-radius)">'
     skillsHtml += '<h3 style="margin:0 0 var(--ace-space-12) 0;font-size:14px">New skill</h3>'
@@ -3247,53 +3774,72 @@
     skillsHtml += '<div id="ace-skill-new-status" style="margin-top:var(--ace-space-8);font-size:12px"></div>'
     skillsHtml += '</div>'
 
-    let html = '<div class="ace-section-header-row"><h2 class="ace-section-title">Resources</h2></div>'
-    html += '<p class="fg-secondary">Stored in custom/knowledge-bases/&lt;id&gt;.kb.json. Assistants reference resources by id.</p>'
-    html += '<button type="button" class="btn-small add-btn" id="kb-create-btn">Create / Import Resource</button>'
-    html += '<div class="list-panel">'
-    html += '<div class="list" id="kb-list">'
     const assistants = state.editedModel?.assistantsManifest?.assistants || []
     function referencedBy (kbId) {
       return assistants.filter(function (as) { return (as.knowledgeBaseRefs || []).indexOf(kbId) !== -1 })
     }
+    let html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">Internal KBs</h2>'
+    html += '<button type="button" class="ace-section-header-btn" id="kb-create-btn">Import / Create</button>'
+    html += '</div>'
+    html += '<p class="ace-kb-hint fg-secondary">Structured knowledge injected into assistant prompts. Stored in <code>custom/knowledge-bases/&lt;id&gt;.kb.json</code>.</p>'
+    // Loading / error states for lazy-loaded KB registry
+    if (!state.kbRegistryFetched) {
+      html += '<p class="fg-secondary">Loading…</p>'
+      html = '<div>' + html + '</div>'
+    } else if (state.kbRegistryError) {
+      html += '<p class="fg-secondary" style="color:var(--error)">' + escapeHtml(state.kbRegistryError) + '</p>'
+      html = '<div>' + html + '</div>'
+    } else {
+    html += '<div class="list-panel">'
+    html += '<div class="list" id="kb-list">'
     registry.forEach(function (entry) {
-      const cls = entry.id === selectedId && !createMode ? 'item selected' : 'item'
-      const meta = [entry.id]
-      if (entry.tags && entry.tags.length) meta.push(entry.tags.join(', '))
-      if (entry.version) meta.push('v' + entry.version)
-      if (entry.updatedAt) meta.push(entry.updatedAt.slice(0, 10))
+      const cls = (entry.id === selectedId && !createMode) ? 'item kb-item selected' : 'item kb-item'
       const refs = referencedBy(entry.id)
-      const refLabel = refs.length ? refs.map(function (as) { return as.label || as.id }).join(', ') : 'Not referenced'
       html += '<div class="' + cls + '" data-id="' + escapeHtml(entry.id) + '">'
-      html += '<strong>' + escapeHtml(entry.title || entry.id) + '</strong>'
-      html += ' <span class="fg-secondary" style="font-size:0.9em">' + escapeHtml(meta.join(' · ')) + '</span>'
-      html += '<div class="kb-referenced-by fg-secondary" style="font-size:0.85em;margin-top:2px">Referenced by: ' + escapeHtml(refLabel) + '</div>'
-      html += '<div class="kb-row-actions">'
-      html += '<button type="button" class="btn-small kb-view-edit" data-id="' + escapeHtml(entry.id) + '">View/Edit</button>'
-      html += '<button type="button" class="btn-small kb-reimport" data-id="' + escapeHtml(entry.id) + '">Re-import</button>'
-      html += '<button type="button" class="btn-small kb-copy-id" data-id="' + escapeHtml(entry.id) + '">Copy ID</button>'
-      html += '<button type="button" class="btn-small kb-delete" data-id="' + escapeHtml(entry.id) + '">Delete</button>'
-      html += '</div></div>'
+      html += '<div class="kb-item-name">' + escapeHtml(entry.title || entry.id) + '</div>'
+      html += '<div class="kb-item-meta">'
+      if (entry.version) html += '<span class="kb-item-badge">v' + escapeHtml(entry.version) + '</span>'
+      if (entry.updatedAt) html += '<span class="kb-item-date">' + entry.updatedAt.slice(0, 10) + '</span>'
+      html += '</div>'
+      if (refs.length) {
+        html += '<div class="kb-item-refs">Used by: ' + escapeHtml(refs.map(function (a) { return a.label || a.id }).join(', ')) + '</div>'
+      } else {
+        html += '<div class="kb-item-refs kb-item-refs--unused">Not referenced</div>'
+      }
+      html += '</div>'
     })
-    html += '</div><div class="editor" id="kb-editor-panel">'
+    html += '</div>'
+    html += '<div class="editor" id="kb-editor-panel">'
     if (createMode) {
       html += kbImportFormHtml(previewDoc)
     } else if (selectedId && editDoc) {
-      html += kbEditFormHtml(editDoc)
+      html += kbEditFormHtml(editDoc, referencedBy(selectedId))
     } else if (selectedId) {
-      html += '<p class="fg-secondary">Loading…</p>'
+      html += '<p class="fg-secondary" style="padding:var(--ace-space-16)">Loading\u2026</p>'
     } else {
-      html += '<div class="empty">Select a resource or click Create / Import Resource</div>'
+      html += '<div class="empty">Select a knowledge base to view and edit it, or click Import / Create</div>'
     }
     html += '</div></div>'
-    panel.innerHTML = skillsHtml + html
+    } // end else (kbRegistryFetched && no error)
 
-    document.getElementById('kb-create-btn').onclick = function () {
-      state.kbCreateMode = true
-      state.kbPreviewDoc = null
-      state.selectedKbId = null
-      state.kbEditDoc = null
-      renderKnowledgeBasesTabContent()
+    if (resSubTab === 'shared-skills') {
+      panel.innerHTML = subTabHtml + skillsHtml
+    } else {
+      panel.innerHTML = subTabHtml + html
+    }
+    if (window.lucide) lucide.createIcons({ el: panel })
+    wireResourcesSubTabBtns(panel)
+
+    var kbCreateBtn = document.getElementById('kb-create-btn')
+    if (kbCreateBtn) {
+      kbCreateBtn.onclick = function () {
+        state.kbCreateMode = true
+        state.kbPreviewDoc = null
+        state.selectedKbId = null
+        state.kbEditDoc = null
+        renderKnowledgeBasesTabContent()
+      }
     }
     document.querySelectorAll('#kb-list .item[data-id]').forEach(function (el) {
       const id = el.getAttribute('data-id')
@@ -3305,16 +3851,6 @@
         state.kbEditDoc = null
         loadKbDocThenRender(id)
       })
-    })
-    document.querySelectorAll('.kb-view-edit').forEach(function (btn) {
-      btn.onclick = function (e) {
-        e.stopPropagation()
-        const id = this.getAttribute('data-id')
-        state.selectedKbId = id
-        state.kbCreateMode = false
-        state.kbPreviewDoc = null
-        loadKbDocThenRender(id)
-      }
     })
     document.querySelectorAll('.kb-reimport').forEach(function (btn) {
       btn.onclick = function (e) {
@@ -3367,11 +3903,66 @@
       }
     })
 
-    if (createMode) bindKbImportForm()
-    else if (selectedId && editDoc) bindKbEditForm(editDoc)
-    else if (selectedId) loadKbDocThenRender(selectedId)
+    if (resSubTab === 'internal-kbs') {
+      if (createMode) bindKbImportForm()
+      else if (selectedId && editDoc) bindKbEditForm(editDoc)
+      else if (selectedId) loadKbDocThenRender(selectedId)
+    }
 
     // Skills panel event handlers
+
+    // Form/Raw toggle for shared skill editor
+    document.querySelectorAll('.ae-toggle-btn[data-skill-editor-mode]').forEach(function (btn) {
+      btn.onclick = function () {
+        var currentMode = state.selectedSkillEditorMode || 'form'
+        var newMode = this.getAttribute('data-skill-editor-mode')
+        if (currentMode === newMode) return
+        if (currentMode === 'form') {
+          _captureSharedSkillFormToState()
+        } else {
+          var rawEl = document.getElementById('ace-skill-content')
+          if (rawEl) state.selectedSkillContent = rawEl.value
+        }
+        state.selectedSkillEditorMode = newMode
+        renderKnowledgeBasesTabContent()
+      }
+    })
+
+    // Sync content edits back to state so mode-switch doesn't lose work
+    var skillContentEl = document.getElementById('ace-skill-content')
+    if (skillContentEl) {
+      skillContentEl.oninput = function () { state.selectedSkillContent = this.value }
+    }
+
+    // Add item to a skill list
+    document.querySelectorAll('.ae-shared-skill-add').forEach(function (btn) {
+      btn.onclick = function () {
+        if (state.selectedSkillEditorMode === 'form') _captureSharedSkillFormToState()
+        var parsed = _parseSharedSkill(state.selectedSkillContent || '')
+        var list = this.getAttribute('data-list')
+        if (list === 'rules') parsed.rules.push('')
+        else if (list === 'dos') parsed.dos.push('')
+        else if (list === 'donts') parsed.donts.push('')
+        state.selectedSkillContent = _serializeSharedSkill(parsed)
+        renderKnowledgeBasesTabContent()
+      }
+    })
+
+    // Remove item from a skill list
+    document.querySelectorAll('.ae-shared-skill-remove').forEach(function (btn) {
+      btn.onclick = function () {
+        if (state.selectedSkillEditorMode === 'form') _captureSharedSkillFormToState()
+        var parsed = _parseSharedSkill(state.selectedSkillContent || '')
+        var list = this.getAttribute('data-list')
+        var idx = parseInt(this.getAttribute('data-idx'), 10)
+        if (list === 'rules') parsed.rules.splice(idx, 1)
+        else if (list === 'dos') parsed.dos.splice(idx, 1)
+        else if (list === 'donts') parsed.donts.splice(idx, 1)
+        state.selectedSkillContent = _serializeSharedSkill(parsed)
+        renderKnowledgeBasesTabContent()
+      }
+    })
+
     var skillsList = document.getElementById('ace-skills-list')
     if (skillsList) {
       skillsList.addEventListener('click', function (e) {
@@ -3381,14 +3972,19 @@
         if (state.selectedSkillId === skillId) return
         state.selectedSkillId = skillId
         state.selectedSkillContent = ''
-        // Fetch skill content from API
+        // Fetch skill content — capture skillId to discard stale responses if user clicks again
+        var fetchedForId = skillId
         _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(skillId))
           .then(function (r) { return r.json() })
           .then(function (data) {
+            if (state.selectedSkillId !== fetchedForId) return
             state.selectedSkillContent = data.content || ''
             renderKnowledgeBasesTabContent()
           })
-          .catch(function () { renderKnowledgeBasesTabContent() })
+          .catch(function () {
+            if (state.selectedSkillId !== fetchedForId) return
+            renderKnowledgeBasesTabContent()
+          })
         renderKnowledgeBasesTabContent()
       })
     }
@@ -3430,7 +4026,7 @@
           if (existing >= 0) state.skillsRegistry.skills[existing] = data
           else state.skillsRegistry.skills.push(data)
           state.selectedSkillId = data.id
-          state.selectedSkillContent = payload.content
+          state.selectedSkillContent = data.content != null ? data.content : payload.content
           renderKnowledgeBasesTabContent()
         } catch (err) {
           if (statusEl) statusEl.textContent = 'Network error.'
@@ -3442,19 +4038,24 @@
     if (skillSaveBtn) {
       skillSaveBtn.onclick = async function () {
         if (!state.selectedSkillId) return
-        var titleEl = document.getElementById('ace-skill-title')
-        var kindEl = document.getElementById('ace-skill-kind')
-        var contentEl = document.getElementById('ace-skill-content')
         var statusEl = document.getElementById('ace-skill-status')
         var payload = {}
-        if (titleEl) payload.title = titleEl.value
-        if (kindEl) payload.kind = kindEl.value
-        if (contentEl) payload.content = contentEl.value
+        if (state.selectedSkillEditorMode === 'form') {
+          _captureSharedSkillFormToState()
+          var titleEl = document.getElementById('ace-skill-title')
+          var kindEl  = document.getElementById('ace-skill-kind')
+          if (titleEl) payload.title = titleEl.value
+          if (kindEl)  payload.kind  = kindEl.value
+          payload.content = state.selectedSkillContent
+        } else {
+          var rawEl = document.getElementById('ace-skill-content')
+          if (rawEl) state.selectedSkillContent = rawEl.value
+          payload.content = state.selectedSkillContent
+        }
         try {
           var r = await _apiFetch(API_BASE + '/api/skills/' + encodeURIComponent(state.selectedSkillId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
           var data = await r.json()
           if (!r.ok) { if (statusEl) statusEl.textContent = data.error || 'Save error.'; return }
-          // Update local registry entry
           if (state.skillsRegistry) {
             var idx = state.skillsRegistry.skills.findIndex(function (s) { return s.id === data.id })
             if (idx >= 0) state.skillsRegistry.skills[idx] = { id: data.id, title: data.title, kind: data.kind, filePath: data.filePath || data.id + '.md' }
@@ -3462,6 +4063,7 @@
           state.selectedSkillContent = data.content || ''
           if (statusEl) statusEl.textContent = 'Saved.'
           setTimeout(function () { if (statusEl) statusEl.textContent = '' }, 2000)
+          renderKnowledgeBasesTabContent()
         } catch (err) {
           if (statusEl) statusEl.textContent = 'Network error.'
         }
@@ -3525,23 +4127,38 @@
     return html
   }
 
-  function kbEditFormHtml (doc) {
+  function kbEditFormHtml (doc, refs) {
     if (!doc) return ''
-    let html = '<div class="kb-edit-form">'
-    html += '<label>ID (read-only)</label><input type="text" class="ace-field" value="' + escapeHtml(doc.id) + '" readonly>'
+    var refLabel = (refs && refs.length) ? refs.map(function (a) { return a.label || a.id }).join(', ') : null
+    let html = '<div class="kb-panel-header">'
+    html += '<div class="kb-panel-header-info">'
+    html += '<div class="kb-panel-title">' + escapeHtml(doc.title || doc.id) + '</div>'
+    if (refLabel) {
+      html += '<div class="kb-panel-refs">Used by: <strong>' + escapeHtml(refLabel) + '</strong></div>'
+    } else {
+      html += '<div class="kb-panel-refs kb-panel-refs--unused">Not referenced by any assistant</div>'
+    }
+    html += '</div>'
+    html += '<div class="kb-panel-actions">'
+    html += '<button type="button" class="ace-section-header-btn kb-reimport" data-id="' + escapeHtml(doc.id) + '">Re-import</button>'
+    html += '<button type="button" class="ace-section-header-btn kb-copy-id" data-id="' + escapeHtml(doc.id) + '">Copy ID</button>'
+    html += '<button type="button" class="ace-section-header-btn kb-delete" data-id="' + escapeHtml(doc.id) + '" style="color:var(--error,#c00)">Delete</button>'
+    html += '</div></div>'
+    html += '<div class="kb-edit-form">'
+    html += '<label>ID <span class="fg-secondary">(read-only)</span></label><input type="text" class="ace-field" value="' + escapeHtml(doc.id) + '" readonly>'
     html += '<label>Title</label><input type="text" id="kb-edit-title" class="ace-field" value="' + escapeHtml(doc.title || '') + '">'
     html += '<label>Purpose</label><textarea id="kb-edit-purpose" class="ace-field" rows="2">' + escapeHtml(doc.purpose || '') + '</textarea>'
     html += '<label>Scope</label><textarea id="kb-edit-scope" class="ace-field" rows="2">' + escapeHtml(doc.scope || '') + '</textarea>'
-    html += '<label>Definitions (one per line or bullet)</label><textarea id="kb-edit-definitions" class="ace-field" rows="4">' + escapeHtml((doc.definitions || []).join('\n')) + '</textarea>'
+    html += '<label>Definitions <span class="fg-secondary">(one per line)</span></label><textarea id="kb-edit-definitions" class="ace-field" rows="4">' + escapeHtml((doc.definitions || []).join('\n')) + '</textarea>'
     html += '<label>Rules / constraints</label><textarea id="kb-edit-rules" class="ace-field" rows="4">' + escapeHtml((doc.rulesConstraints || []).join('\n')) + '</textarea>'
-    html += '<label>Do (one per line)</label><textarea id="kb-edit-do" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.do ? doc.doDont.do : []).join('\n')) + '</textarea>'
-    html += '<label>Don\'t (one per line)</label><textarea id="kb-edit-dont" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.dont ? doc.doDont.dont : []).join('\n')) + '</textarea>'
+    html += '<label>Do <span class="fg-secondary">(one per line)</span></label><textarea id="kb-edit-do" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.do ? doc.doDont.do : []).join('\n')) + '</textarea>'
+    html += '<label>Don\'t <span class="fg-secondary">(one per line)</span></label><textarea id="kb-edit-dont" class="ace-field" rows="3">' + escapeHtml((doc.doDont && doc.doDont.dont ? doc.doDont.dont : []).join('\n')) + '</textarea>'
     html += '<label>Examples</label><textarea id="kb-edit-examples" class="ace-field" rows="4">' + escapeHtml((doc.examples || []).join('\n')) + '</textarea>'
     html += '<label>Edge cases</label><textarea id="kb-edit-edge" class="ace-field" rows="3">' + escapeHtml((doc.edgeCases || []).join('\n')) + '</textarea>'
     html += '<label>Source</label><input type="text" id="kb-edit-source" class="ace-field" value="' + escapeHtml(doc.source || '') + '">'
     html += '<label>Version</label><input type="text" id="kb-edit-version" class="ace-field" value="' + escapeHtml(doc.version || '') + '">'
-    html += '<label>Tags (comma-separated)</label><input type="text" id="kb-edit-tags" class="ace-field" value="' + escapeHtml((doc.tags || []).join(', ')) + '">'
-    html += '<button type="button" class="btn-small" id="kb-save-edit">Save changes</button>'
+    html += '<label>Tags <span class="fg-secondary">(comma-separated)</span></label><input type="text" id="kb-edit-tags" class="ace-field" value="' + escapeHtml((doc.tags || []).join(', ')) + '">'
+    html += '<button type="button" class="btn-primary btn-small" id="kb-save-edit">Save changes</button>'
     html += '</div>'
     return html
   }
@@ -3690,7 +4307,7 @@
         body: JSON.stringify(payload)
       })
         .then(function (res) {
-          if (!res.ok) return res.json().then(function (body) { throw new Error(body.error || (body.errors || []).join('; ')) })
+          if (!res.ok) return res.json().then(function (body) { throw new Error(body.error || (Array.isArray(body.errors) && body.errors.length ? body.errors.join('; ') : null) || 'Save error.') })
           return res.json()
         })
         .then(function (data) {
@@ -3914,7 +4531,7 @@
     var headers = tpl.headerRows || []
     var cols = Math.max(1, (model.columns || []).length)
     var sampleContainers = [
-      { containerName: 'HeroCard', containerUrl: 'https://www.figma.com/file/demo?node-id=1%3A1', items: [{ content: 'Welcome to Ableza' }, { content: 'Get Started' }] },
+      { containerName: 'HeroCard', containerUrl: 'https://www.figma.com/file/demo?node-id=1%3A1', items: [{ content: 'Welcome to Design AI Toolkit' }, { content: 'Get Started' }] },
       { containerName: 'Checkout', containerUrl: 'https://www.figma.com/file/demo?node-id=2%3A2', items: [{ content: 'Pay now' }, { content: 'Use saved card' }] }
     ]
     var html = '<div style="overflow:auto;border:1px solid #e0e0e0;border-radius:8px;background:#fff"><table style="border-collapse:collapse;min-width:100%"><thead>'
@@ -4102,6 +4719,7 @@
     html += '</details>'
 
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     // Exclusion rules bindings (moved from General to Content Tables)
     var exclEnabledEl = document.getElementById('ct-excl-enabled')
@@ -4358,53 +4976,243 @@
 
   // ——— Registries tab ———
   function renderRegistriesTab () {
-    const panel = document.getElementById('panel-registries')
-    const regs = state.editedModel?.designSystemRegistries || {}
-    const ids = Object.keys(regs)
+    var panel = document.getElementById('panel-registries')
+    if (!panel) return
+    var regs = (state.editedModel && state.editedModel.designSystemRegistries) || {}
+    var dsIds = Object.keys(regs)
+    var selectedDsId = state.selectedDsId   // null = top-level
 
-    let html = '<div class="ace-section-header-row">'
-    html += '<h2 class="ace-section-title">Design System Registries</h2>'
+    // Section header with reset button
+    var html = '<div class="ace-section-header-row">'
+    html += '<h2 class="ace-section-title">Design Systems</h2>'
     html += '<button type="button" class="ace-section-header-btn" id="reset-registries-btn">' + RESET_SECTION_BTN_LABEL + '</button>'
     html += '</div>'
-    html += '<p class="danger-zone-label">Raw registry JSON per design system — invalid JSON will fail validation.</p>'
-    ids.forEach(id => {
-      const val = regs[id]
-      const str = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val)
-      html += '<div class="registry-block danger-zone"><label>' + escapeHtml(id) + ' (registry.json)</label>'
-      html += '<textarea id="registry-' + escapeHtml(id) + '" class="large ace-field--full" rows="10" aria-describedby="registry-error-' + escapeHtml(id) + '">' + escapeHtml(str) + '</textarea>'
-      html += '<span id="registry-error-' + escapeHtml(id) + '" class="inline-error" aria-live="polite"></span></div>'
-    })
-    if (ids.length === 0) html += '<p>No registries present.</p>'
-    panel.innerHTML = html
 
-    ids.forEach(id => {
-      const ta = document.getElementById('registry-' + id)
-      const errEl = document.getElementById('registry-error-' + id)
-      if (ta) ta.onchange = ta.oninput = function () {
-        try {
-          state.editedModel.designSystemRegistries[id] = JSON.parse(this.value)
-          if (!state.registryParseErrors) state.registryParseErrors = {}
-          state.registryParseErrors[id] = false
-          if (errEl) { errEl.textContent = ''; errEl.classList.remove('visible') }
-          showUnsavedBanner()
-        } catch (_) {
-          if (!state.registryParseErrors) state.registryParseErrors = {}
-          state.registryParseErrors[id] = true
-          if (errEl) { errEl.textContent = 'Invalid JSON'; errEl.classList.add('visible') }
-          showUnsavedBanner()
-        }
+    // Two-pane layout
+    html += '<div class="ace-ds-layout">'
+
+    // --- Sidebar ---
+    html += '<div class="ace-ds-sidebar">'
+    html += '<div class="ace-ds-group-label">Global</div>'
+    var topSel = selectedDsId === null
+    html += '<div class="ace-ds-sidebar-item' + (topSel ? ' sel' : '') + '" data-ds-id="__top_level__">Top-level SKILL.md</div>'
+    html += '<div class="ace-ds-group-label" style="margin-top:8px">Design Systems</div>'
+    dsIds.forEach(function (id) {
+      var sel = selectedDsId === id
+      var hasSkillMd = !!(state.dsSkillMdEdits && state.dsSkillMdEdits[id])
+      html += '<div class="ace-ds-sidebar-item' + (sel ? ' sel' : '') + '" data-ds-id="' + escapeHtml(id) + '">'
+      html += escapeHtml(id)
+      if (hasSkillMd) html += ' <span class="ace-badge ace-badge--active">active</span>'
+      html += '</div>'
+    })
+    html += '</div>'
+
+    // --- Editor pane ---
+    html += '<div class="ace-ds-editor">'
+
+    if (topSel) {
+      html += _dsTopLevelSkillMdEditor()
+    } else if (selectedDsId && dsIds.includes(selectedDsId)) {
+      html += _dsPerDsEditor(selectedDsId, regs[selectedDsId])
+    } else {
+      html += '<p class="ae-helper">Select a design system from the sidebar.</p>'
+    }
+
+    html += '</div>'
+    html += '</div>'
+
+    panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
+
+    // Sidebar click
+    panel.querySelectorAll('.ace-ds-sidebar-item[data-ds-id]').forEach(function (item) {
+      item.onclick = function () {
+        var dsId = this.getAttribute('data-ds-id')
+        state.selectedDsId = dsId === '__top_level__' ? null : dsId
+        state.selectedDsSubTab = 'skill-md'
+        renderRegistriesTab()
       }
     })
-    const resetRegBtn = document.getElementById('reset-registries-btn')
-    if (resetRegBtn) {
-      resetRegBtn.onclick = function () {
+
+    // Sub-tab clicks (for per-DS editor)
+    panel.querySelectorAll('.ace-ds-sub-tab[data-ds-subtab]').forEach(function (btn) {
+      btn.onclick = function () {
+        state.selectedDsSubTab = this.getAttribute('data-ds-subtab')
+        renderRegistriesTab()
+      }
+    })
+
+    // Form/Raw toggle clicks (DS SKILL.md)
+    panel.querySelectorAll('[data-ds-skillmd-mode]').forEach(function (btn) {
+      btn.onclick = function () {
+        var dsId = this.getAttribute('data-ds-id')
+        var mode = this.getAttribute('data-ds-skillmd-mode')
+        if (!state.dsSkillMdMode) state.dsSkillMdMode = {}
+        state.dsSkillMdMode[dsId] = mode
+        renderRegistriesTab()
+      }
+    })
+
+    // DS SKILL.md raw textarea input
+    var rawTa = panel.querySelector('.ace-ds-skillmd-raw')
+    if (rawTa) {
+      rawTa.oninput = rawTa.onchange = function () {
+        var dsId = this.getAttribute('data-ds-id')
+        if (!state.dsSkillMdEdits) state.dsSkillMdEdits = {}
+        state.dsSkillMdEdits[dsId] = this.value
+        if (!state.editedModel.dsSkillMdContent) state.editedModel.dsSkillMdContent = {}
+        state.editedModel.dsSkillMdContent[dsId] = this.value
+        showUnsavedBanner()
+        updateFooterButtons()
+      }
+    }
+
+    // Reset button
+    var resetBtn = document.getElementById('reset-registries-btn')
+    if (resetBtn) {
+      resetBtn.onclick = function () {
         if (!state.originalModel) return
-        state.editedModel.designSystemRegistries = state.originalModel.designSystemRegistries ? deepClone(state.originalModel.designSystemRegistries) : undefined
+        state.editedModel.designSystemRegistries = state.originalModel.designSystemRegistries
+          ? deepClone(state.originalModel.designSystemRegistries) : undefined
+        state.dsSkillMdEdits = {}
+        if (state.originalModel.dsSkillMdContent) {
+          for (var id in state.originalModel.dsSkillMdContent) {
+            state.dsSkillMdEdits[id] = state.originalModel.dsSkillMdContent[id] || ''
+          }
+        }
+        state.editedModel.dsSkillMdContent = state.originalModel.dsSkillMdContent
+          ? deepClone(state.originalModel.dsSkillMdContent) : undefined
         state.registryParseErrors = {}
         showUnsavedBanner()
         renderRegistriesTab()
       }
     }
+  }
+
+  function _dsTopLevelSkillMdEditor () {
+    var dsId = '__top_level__'
+    var mode = (state.dsSkillMdMode && state.dsSkillMdMode[dsId]) || 'form'
+    var content = (state.dsSkillMdEdits && state.dsSkillMdEdits[dsId]) || ''
+    var html = ''
+
+    html += '<div class="ae-skillmd-header" style="margin-bottom:12px">'
+    html += '<span class="ae-helper" style="flex:1">Routing &amp; selection logic across all design systems.</span>'
+    html += '<div class="ae-toggle-pill">'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-ds-skillmd-mode="form" data-ds-id="' + dsId + '">Form</button>'
+    html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-ds-skillmd-mode="raw" data-ds-id="' + dsId + '">Raw</button>'
+    html += '</div>'
+    html += '</div>'
+
+    if (!content) {
+      html += '<p class="ae-helper">No top-level SKILL.md found at <code>custom/design-systems/SKILL.md</code>. Create the file to enable routing logic.</p>'
+      return html
+    }
+
+    if (mode === 'raw') {
+      html += '<textarea class="ace-field ace-textarea ace-skillmd-editor ace-ds-skillmd-raw" data-ds-id="' + dsId + '" rows="20" style="font-family:monospace;font-size:13px;white-space:pre;">' + escapeHtml(content) + '</textarea>'
+      return html
+    }
+
+    // Form mode — read-only preview (editing via Raw)
+    var fields = _parseSkillMd(content)
+    html += '<h3 class="ae-section-heading" style="margin-top:0">Identity</h3>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-ds-top-name">Router Name</label>'
+    html += '<input type="text" id="ae-ds-top-name" class="ace-field" value="' + escapeHtml(fields.assistantName) + '" readonly>'
+    html += '</div>'
+    html += '<div class="ae-field-group">'
+    html += '<label for="ae-ds-top-cp">Core Principle</label>'
+    html += '<input type="text" id="ae-ds-top-cp" class="ace-field" value="' + escapeHtml(fields.corePrinciple) + '" readonly>'
+    html += '</div>'
+    html += '<h3 class="ae-section-heading">Behavior Rules</h3>'
+    html += '<p class="ae-helper" style="margin-bottom:8px">Routing rules applied across all design systems.</p>'
+    fields.behaviorRules.forEach(function (rule) {
+      html += '<div style="display:flex;gap:7px;align-items:center;margin-bottom:6px">'
+      html += '<span style="font-size:11px;color:var(--ace-text-muted)">&#8943;</span>'
+      html += '<input type="text" class="ace-field" value="' + escapeHtml(rule) + '" readonly>'
+      html += '</div>'
+    })
+    html += '<p style="font-size:10px;color:var(--ace-text-muted);margin-top:8px">Switch to Raw to edit — top-level DS SKILL.md form editing coming in a follow-on update.</p>'
+    html += '<div style="margin-top:12px;padding:8px 10px;background:var(--ace-card-bg,#f8f8f8);border:1px solid var(--ace-border,#e0e0e0);border-radius:6px;font-size:10px;color:var(--ace-text-muted)">DS SKILL.md files do not have Quick Actions — those live in assistant SKILL.md files.</div>'
+    return html
+  }
+
+  function _dsPerDsEditor (dsId, registryObj) {
+    var subTab = state.selectedDsSubTab || 'skill-md'
+    var html = ''
+
+    // Sub-tabs
+    html += '<div class="ace-ds-sub-tabs">'
+    ;['skill-md', 'registry', 'internal-kb', 'metadata'].forEach(function (t) {
+      var labels = { 'skill-md': 'SKILL.md', 'registry': 'Registry', 'internal-kb': 'Internal KB', 'metadata': 'Metadata' }
+      html += '<button type="button" class="ace-ds-sub-tab' + (subTab === t ? ' active' : '') + '" data-ds-subtab="' + t + '">' + labels[t] + '</button>'
+    })
+    html += '</div>'
+
+    if (subTab === 'skill-md') {
+      var mode = (state.dsSkillMdMode && state.dsSkillMdMode[dsId]) || 'form'
+      var content = (state.dsSkillMdEdits && state.dsSkillMdEdits[dsId]) || ''
+
+      html += '<div class="ae-skillmd-header" style="margin-bottom:12px;margin-top:14px">'
+      html += '<span class="ae-helper" style="flex:1">Per-DS behavior instructions loaded when this system is in scope.</span>'
+      html += '<div class="ae-toggle-pill">'
+      html += '<button type="button" class="ae-toggle-btn' + (mode === 'form' ? ' active' : '') + '" data-ds-skillmd-mode="form" data-ds-id="' + escapeHtml(dsId) + '">Form</button>'
+      html += '<button type="button" class="ae-toggle-btn' + (mode === 'raw' ? ' active' : '') + '" data-ds-skillmd-mode="raw" data-ds-id="' + escapeHtml(dsId) + '">Raw</button>'
+      html += '</div>'
+      html += '</div>'
+
+      if (!content) {
+        html += '<p class="ae-helper">No SKILL.md for this design system. Create <code>custom/design-systems/' + escapeHtml(dsId) + '/SKILL.md</code>.</p>'
+      } else if (mode === 'raw') {
+        html += '<textarea class="ace-field ace-textarea ace-skillmd-editor ace-ds-skillmd-raw" data-ds-id="' + escapeHtml(dsId) + '" rows="18" style="font-family:monospace;font-size:13px;white-space:pre;">' + escapeHtml(content) + '</textarea>'
+      } else {
+        var fields = _parseSkillMd(content)
+        html += '<div class="ae-field-group"><label>DS Name</label><input type="text" class="ace-field" value="' + escapeHtml(dsId) + '" readonly></div>'
+        html += '<div class="ae-field-group"><label>Core Principle</label><input type="text" class="ace-field" value="' + escapeHtml(fields.corePrinciple) + '" readonly></div>'
+        html += '<h3 class="ae-section-heading">Behavior Rules</h3>'
+        fields.behaviorRules.forEach(function (rule) {
+          html += '<div style="display:flex;gap:7px;align-items:center;margin-bottom:6px">'
+          html += '<span style="font-size:11px;color:var(--ace-text-muted)">&#8943;</span>'
+          html += '<input type="text" class="ace-field" value="' + escapeHtml(rule) + '" readonly>'
+          html += '</div>'
+        })
+        html += '<p style="font-size:10px;color:var(--ace-text-muted);margin-top:8px">Switch to Raw to edit DS behavior rules.</p>'
+        html += '<div style="margin-top:12px;padding:8px 10px;background:var(--ace-card-bg,#f8f8f8);border:1px solid var(--ace-border,#e0e0e0);border-radius:6px;font-size:10px;color:var(--ace-text-muted)">DS SKILL.md does not have Quick Actions — those live in assistant SKILL.md files.</div>'
+      }
+    } else if (subTab === 'registry') {
+      var components = (registryObj && Array.isArray(registryObj.components)) ? registryObj.components : []
+      html += '<div style="margin:14px 0 10px">'
+      html += '<div style="font-size:11px;color:var(--ace-text-secondary,#666);margin-bottom:8px">' + components.length + ' components registered</div>'
+      if (components.length === 0) {
+        html += '<p class="ae-helper">No components in registry.</p>'
+      } else {
+        components.slice(0, 20).forEach(function (c) {
+          var variants = Array.isArray(c.variants) ? c.variants.length : 0
+          html += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--ace-border,#e0e0e0);border-radius:6px;margin-bottom:5px;font-size:11px">'
+          html += '<span style="font-weight:600;flex:1">' + escapeHtml(c.id || c.name || '?') + '</span>'
+          if (variants > 0) html += '<span style="font-size:10px;color:var(--ace-text-muted,#999)">' + variants + ' variants</span>'
+          html += '</div>'
+        })
+        if (components.length > 20) html += '<p style="font-size:11px;color:var(--ace-text-muted,#999)">+ ' + (components.length - 20) + ' more</p>'
+      }
+      html += '<p style="font-size:10px;color:var(--ace-text-muted,#999);margin-top:10px;padding-top:8px;border-top:1px solid var(--ace-border,#e0e0e0)">Registry is read-only in ACE. Edit the catalog JSON file directly.</p>'
+      html += '</div>'
+    } else if (subTab === 'internal-kb') {
+      html += '<p class="ae-helper" style="margin-top:14px">Internal KB for this design system — large reference docs for LLM Helpers or hosted retrieval.</p>'
+      html += '<p class="ae-helper">File: <code>custom/design-systems/' + escapeHtml(dsId) + '/kb.md</code> (KB editor not yet wired to ACE). Coming in a follow-on update.</p>'
+    } else if (subTab === 'metadata') {
+      html += '<div style="margin-top:14px">'
+      html += '<div class="ae-field-group"><label>DS ID</label><input type="text" class="ace-field" value="' + escapeHtml(dsId) + '" readonly></div>'
+      var regName = (registryObj && registryObj.name) ? registryObj.name : ''
+      var regVersion = (registryObj && registryObj.version) ? registryObj.version : ''
+      var regDesc = (registryObj && registryObj.description) ? registryObj.description : ''
+      html += '<div class="ae-field-group"><label>Name</label><input type="text" class="ace-field" value="' + escapeHtml(regName) + '" readonly></div>'
+      html += '<div class="ae-field-group"><label>Version</label><input type="text" class="ace-field" value="' + escapeHtml(regVersion) + '" readonly></div>'
+      html += '<div class="ae-field-group"><label>Description</label><input type="text" class="ace-field" value="' + escapeHtml(regDesc) + '" readonly></div>'
+      html += '</div>'
+    }
+
+    return html
   }
 
   function doLogout () {
@@ -4464,6 +5272,7 @@
         html += '<div class="ace-users-list" id="ace-users-list"></div></div>'
         html += '</div>'
         panel.innerHTML = html
+        if (window.lucide) lucide.createIcons({ el: panel })
         const resetUsersBtn = document.getElementById('reset-users-btn')
         if (resetUsersBtn) resetUsersBtn.onclick = function () { renderUsersTab() }
         const listEl = document.getElementById('ace-users-list')
@@ -4488,7 +5297,7 @@
             rowHtml += '<select class="ace-users-role-select" data-id="' + escapeHtml(u.id) + '"><option value="reviewer"' + (u.role === 'reviewer' ? ' selected' : '') + '>Reviewer</option><option value="editor"' + (u.role === 'editor' ? ' selected' : '') + '>Editor</option><option value="manager"' + (u.role === 'manager' ? ' selected' : '') + '>Manager</option><option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Admin</option></select>'
             rowHtml += '<button type="button" class="btn btn-small btn-secondary ace-users-btn-reset-pw" data-id="' + escapeHtml(u.id) + '"><span class="ace-users-btn-label">Reset password</span></button>'
             rowHtml += '<button type="button" class="ace-users-chevron-btn ace-users-chevron-down" data-id="' + escapeHtml(u.id) + '" aria-label="Set access">'
-            rowHtml += '<img src="/assets/icons/ChevronDownIcon.svg" alt="" width="20" height="20" aria-hidden="true" />'
+            rowHtml += '<i data-lucide="chevron-down" class="ace-users-chevron-icon" aria-hidden="true"></i>'
             rowHtml += '</button>'
           }
           rowHtml += '</div>'
@@ -4517,6 +5326,7 @@
           }
           listEl.appendChild(wrapper)
         })
+        if (window.lucide) lucide.createIcons({ el: listEl })
         const createForm = document.getElementById('users-create-form')
         if (createForm) {
           createForm.onsubmit = async function (e) {
@@ -4580,8 +5390,7 @@
             if (!expanded) return
             const isOpen = expanded.style.display !== 'none'
             expanded.style.display = isOpen ? 'none' : 'block'
-            const img = this.querySelector('img')
-            if (img) img.src = isOpen ? '/assets/icons/ChevronDownIcon.svg' : '/assets/icons/ChevronUpIcon.svg'
+            // chevron rotation handled by CSS (.ace-users-chevron-up .ace-users-chevron-icon)
             this.classList.toggle('ace-users-chevron-down', isOpen)
             this.classList.toggle('ace-users-chevron-up', !isOpen)
           }
@@ -4809,8 +5618,11 @@
       btn.classList.toggle('active', sel)
     })
     var PAGE_TITLES = { config: 'General', ai: 'AI', assistants: 'Assistants', 'knowledge-bases': 'Resources', 'content-models': 'Evergreens', registries: 'Design Systems', analytics: 'Usage Report', users: 'Users', knowledge: 'Knowledge' }
+    var PAGE_EYEBROWS = { config: 'Plugin Settings', ai: 'LLM Configuration', assistants: 'Assistant Library', 'knowledge-bases': 'Knowledge & Skills', 'content-models': 'Content Models', registries: 'Design Systems', analytics: 'Usage Data', users: 'User Management', knowledge: 'Knowledge' }
     var pageTitleEl = document.getElementById('ace-page-title-text')
     if (pageTitleEl) pageTitleEl.textContent = PAGE_TITLES[tabId] || tabId
+    var pageEyebrowEl = document.getElementById('ace-page-eyebrow')
+    if (pageEyebrowEl) pageEyebrowEl.textContent = PAGE_EYEBROWS[tabId] || ''
     const subheaderEl = document.getElementById('tab-subheader')
     if (subheaderEl) {
       if (HIDE_TAB_SUBHEADER_TABS.has(tabId)) {
@@ -5038,6 +5850,7 @@
 
     html += '</div>'
     panel.innerHTML = html
+    if (window.lucide) lucide.createIcons({ el: panel })
 
     var selectEl = document.getElementById('analytics-sample-select')
     var preEl = document.getElementById('analytics-sample-pre')
@@ -5095,6 +5908,18 @@
       if (summary.success) {
         state.originalModel = getEditedModel()
         state.editedModel = deepClone(state.originalModel)
+        state.skillMdEdits = {}
+        if (state.originalModel.skillMdContent) {
+          for (var _smId2 in state.originalModel.skillMdContent) {
+            state.skillMdEdits[_smId2] = state.originalModel.skillMdContent[_smId2] || ''
+          }
+        }
+        state.dsSkillMdEdits = {}
+        if (state.originalModel.dsSkillMdContent) {
+          for (var _dsId2 in state.originalModel.dsSkillMdContent) {
+            state.dsSkillMdEdits[_dsId2] = state.originalModel.dsSkillMdContent[_dsId2] || ''
+          }
+        }
         if (summary.meta) state.meta = summary.meta
         if (ACE_DEBUG) {
           var postRev = (summary.meta && summary.meta.revision) ? summary.meta.revision : ''
@@ -5242,6 +6067,14 @@
     if (validateBtnEl) validateBtnEl.onclick = function () { runValidate() }
     const saveBtnEl = document.getElementById('save-btn')
     if (saveBtnEl) saveBtnEl.onclick = function () { runSave() }
+    const themeBtnEl = document.getElementById('ace-theme-btn')
+    if (themeBtnEl) {
+      themeBtnEl.onclick = function () {
+        var current = _getStoredTheme()
+        var next = ACE_THEMES[(ACE_THEMES.indexOf(current) + 1) % ACE_THEMES.length]
+        applyTheme(next)
+      }
+    }
     const previewBtnEl = document.getElementById('preview-btn')
     if (previewBtnEl) previewBtnEl.onclick = function () { runPreview() }
     const discardBtn = document.getElementById('discard-all-btn')
@@ -5249,6 +6082,18 @@
       discardBtn.onclick = function () {
         if (!state.originalModel) return
         state.editedModel = deepClone(state.originalModel)
+        state.skillMdEdits = {}
+        if (state.originalModel.skillMdContent) {
+          for (var _smId in state.originalModel.skillMdContent) {
+            state.skillMdEdits[_smId] = state.originalModel.skillMdContent[_smId] || ''
+          }
+        }
+        state.dsSkillMdEdits = {}
+        if (state.originalModel.dsSkillMdContent) {
+          for (var _dsId3 in state.originalModel.dsSkillMdContent) {
+            state.dsSkillMdEdits[_dsId3] = state.originalModel.dsSkillMdContent[_dsId3] || ''
+          }
+        }
         showUnsavedBanner()
         renderAllPanels()
       }

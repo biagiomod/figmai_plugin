@@ -233,7 +233,7 @@ const assistantEntrySchema = z.object({
   iconId: z.string(),
   kind: z.enum(['ai', 'tool', 'hybrid']),
   quickActions: z.array(quickActionSchema),
-  promptTemplate: z.string(),
+  promptTemplate: z.string().optional(),
   instructionBlocks: z.array(instructionBlockSchema).optional(),
   toneStylePreset: z.string().optional(),
   outputSchemaId: z.string().optional(),
@@ -256,7 +256,9 @@ export const adminEditableModelSchema = z
     assistantsManifest: assistantsManifestSchema,
     customKnowledge: z.record(z.string()),
     contentModelsRaw: z.string().optional(),
-    designSystemRegistries: z.record(z.unknown()).optional()
+    designSystemRegistries: z.record(z.unknown()).optional(),
+    skillMdContent: z.record(z.string()).optional(),
+    dsSkillMdContent: z.record(z.string()).optional()
   })
   .strict()
 

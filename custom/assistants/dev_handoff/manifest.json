@@ -1,44 +1,39 @@
 {
-  "assistants": [
+  "hoverSummary": "Generate developer specifications",
+  "iconId": "CodeIcon",
+  "id": "dev_handoff",
+  "intro": "I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.",
+  "kind": "ai",
+  "label": "Dev Handoff",
+  "quickActions": [
     {
-      "hoverSummary": "Generate developer specifications",
-      "iconId": "CodeIcon",
-      "id": "dev_handoff",
-      "intro": "I generate developer-friendly specifications and documentation from your designs. Select frames or components to get started.",
-      "kind": "ai",
-      "label": "Dev Handoff",
-      "promptTemplate": "# Dev Handoff Assistant\n\nYou are **Ableza's Dev Handoff Assistant**, a technical documentation specialist embedded inside a Figma plugin.\nYou generate developer-friendly specifications, measurements, and implementation guidance from Figma designs.\n\n[Full knowledge base available in: src/assistants/devHandoff.md]",
-      "quickActions": [
-        {
-          "executionType": "llm",
-          "id": "generate-specs",
-          "imageScale": 2,
-          "label": "Generate specs",
-          "maxImages": 1,
-          "requiresSelection": true,
-          "requiresVision": true,
-          "templateMessage": "Generate comprehensive developer specifications including layout, typography, colors, components, interactions, and accessibility requirements."
-        },
-        {
-          "executionType": "llm",
-          "id": "export-measurements",
-          "label": "Export measurements",
-          "requiresSelection": true,
-          "templateMessage": "Export all measurements, spacing, and sizing information for the selected elements."
-        },
-        {
-          "executionType": "llm",
-          "id": "component-details",
-          "label": "Component details",
-          "requiresSelection": true,
-          "templateMessage": "Provide detailed component specifications including variants, states, and implementation notes."
-        }
-      ],
-      "tag": {
-        "isVisible": true,
-        "label": "Alpha",
-        "variant": "alpha"
-      }
+      "executionType": "llm",
+      "id": "generate-specs",
+      "imageScale": 2,
+      "label": "Generate specs",
+      "maxImages": 1,
+      "requiresSelection": true,
+      "requiresVision": true,
+      "templateMessage": "Generate comprehensive developer specifications including layout, typography, colors, components, interactions, and accessibility requirements."
+    },
+    {
+      "executionType": "llm",
+      "id": "export-measurements",
+      "label": "Export measurements",
+      "requiresSelection": true,
+      "templateMessage": "Export all measurements, spacing, and sizing information for the selected elements."
+    },
+    {
+      "executionType": "llm",
+      "id": "component-details",
+      "label": "Component details",
+      "requiresSelection": true,
+      "templateMessage": "Provide detailed component specifications including variants, states, and implementation notes."
     }
-  ]
+  ],
+  "tag": {
+    "isVisible": true,
+    "label": "Alpha",
+    "variant": "alpha"
+  }
 }

@@ -51,10 +51,25 @@
   <!-- App shell (shown when authenticated) -->
   <div id="app-shell" style="display: none;">
   <header class="ace-topbar" role="banner">
-    <div class="ace-topbar-inner ace-container">
+    <div class="ace-topbar-inner">
       <div class="ace-topbar-brand">
-        <img src="/assets/logo-figmai.svg" alt="" class="ace-logo" width="117" height="36" />
-        <span class="ace-topbar-label" id="ace-label">ACE (Admin Config Editor)</span>
+        <img src="/assets/logo-DAT_darkmode.svg" alt="FigmAI Design Toolkit" class="ace-logo" height="16" width="127" />
+        <span class="ace-topbar-sep" aria-hidden="true"></span>
+        <span class="ace-topbar-label" id="ace-label">Admin Config Editor</span>
+      </div>
+      <div class="ace-topbar-actions" id="ace-topbar-actions">
+        <button type="button" id="reload-btn" class="ace-topbar-btn ace-topbar-btn--ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span class="ace-topbar-btn-label">Reset</span>
+        </button>
+        <button type="button" id="validate-btn" class="ace-topbar-btn ace-topbar-btn--outline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="ace-topbar-btn-label">Validate</span>
+        </button>
+        <button type="button" id="save-btn" class="ace-topbar-btn ace-topbar-btn--primary" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="ace-topbar-btn-label">Save</span>
+        </button>
+        <button type="button" id="ace-theme-btn" class="ace-topbar-btn ace-topbar-btn--ghost" aria-label="Theme: Mix">
+          <span class="ace-theme-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg></span><span class="ace-topbar-btn-label">Mix</span>
+        </button>
       </div>
     </div>
   </header>
@@ -65,37 +80,37 @@
         <nav id="ace-nav" class="tabs ace-leftnav" role="tablist" aria-label="Editor sections">
           <div class="ace-nav-group ace-nav-group-primary">
             <button type="button" role="tab" class="ace-nav-item" data-tab="config" aria-selected="true" aria-controls="panel-config" tabindex="0">
-              <img src="/assets/icons/ACEGeneralIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
               <span class="ace-nav-label">General</span>
             </button>
             <button type="button" role="tab" class="ace-nav-item" data-tab="ai" aria-selected="false" aria-controls="panel-ai" tabindex="0">
-              <img src="/assets/icons/ACEAIIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
               <span class="ace-nav-label">AI</span>
             </button>
             <button type="button" role="tab" class="ace-nav-item" data-tab="assistants" aria-selected="false" aria-controls="panel-assistants" tabindex="0">
-              <img src="/assets/icons/ACEAssistantsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               <span class="ace-nav-label">Assistants</span>
             </button>
             <button type="button" role="tab" class="ace-nav-item" id="tab-knowledge-bases" data-tab="knowledge-bases" aria-selected="false" aria-controls="panel-knowledge-bases" tabindex="0">
-              <img src="/assets/icons/ACEKnowledgeBaseIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
               <span class="ace-nav-label">Resources</span>
             </button>
             <button type="button" role="tab" class="ace-nav-item" id="tab-registries" data-tab="registries" aria-selected="false" aria-controls="panel-registries" tabindex="-1" style="display: none;">
-              <img src="/assets/icons/ACEDesignSystemsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
               <span class="ace-nav-label">Design Systems</span>
             </button>
             <button type="button" role="tab" class="ace-nav-item" id="tab-analytics" data-tab="analytics" aria-selected="false" aria-controls="panel-analytics" tabindex="-1" style="display: none;">
-              <img src="/assets/icons/ACEAnalyticsIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
               <span class="ace-nav-label">Usage Report</span>
             </button>
           </div>
           <div class="ace-nav-group ace-nav-group-secondary">
             <button type="button" class="ace-nav-item" data-action="coming-soon" aria-label="Help – coming soon">
-              <img src="/assets/icons/ACEHelpIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
               <span class="ace-nav-label">Help</span>
             </button>
             <button type="button" class="ace-nav-item ace-nav-server is-disconnected" id="server-status-nav-btn" data-action="server-status" aria-label="Server status">
-              <img src="/assets/icons/ACEServerIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
               <span class="ace-nav-label">Server: <span id="nav-status-label">—</span></span>
             </button>
             <div id="status" class="visually-hidden" aria-hidden="true">
@@ -104,7 +119,7 @@
               <span id="status-repo">—</span>
             </div>
             <button type="button" role="tab" class="ace-nav-item" id="tab-users" data-tab="users" aria-selected="false" aria-controls="panel-users" tabindex="-1" style="display: none;">
-              <img src="/assets/icons/ACEUsersIcon.svg" alt="" class="ace-nav-icon" width="24" height="24" aria-hidden="true" />
+              <svg class="ace-nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               <span class="ace-nav-label">Users</span>
             </button>
             <div id="ace-nav-profile-widget" class="ace-nav-profile-widget" aria-live="polite"></div>
@@ -118,12 +133,8 @@
       <div class="ace-main">
       <div id="ace-page-header-bar" class="ace-page-header-bar">
         <div class="ace-page-header-left">
+          <p class="ace-page-header-eyebrow" id="ace-page-eyebrow">Plugin Settings</p>
           <h1 id="ace-page-title-text" class="ace-page-header-title">General</h1>
-        </div>
-        <div class="ace-page-header-actions">
-          <button type="button" id="reload-btn" class="ace-page-action-btn">Reset</button>
-          <button type="button" id="validate-btn" class="ace-page-action-btn">Validate</button>
-          <button type="button" id="save-btn" class="ace-page-action-btn ace-page-action-btn--primary" disabled>Save</button>
         </div>
       </div>
       <div id="unsaved-banner" class="unsaved-banner" style="display: none;">
@@ -185,5 +196,9 @@
 
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="https://unpkg.com/lucide@0.441.0/dist/umd/lucide.min.js"></script>
+  <script>
+    if (window.lucide) lucide.createIcons();
+  </script>
 </body>
 </html>

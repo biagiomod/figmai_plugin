@@ -6,11 +6,13 @@ This guide covers everything you need to build and maintain an assistant in Figm
 
 ## Quick Start
 
-Copy the `analytics/` template directory (when it exists) and rename it to your assistant name. If you need custom logic (like Evergreens), copy `evergreens/` instead.
+For assistants with custom handler logic, copy `evergreens/` as your starting template:
 
 ```bash
-cp -r src/assistants/analytics/ src/assistants/your-assistant-name/
+cp -r src/assistants/evergreens/ src/assistants/your-assistant-name/
 ```
+
+For AI-only assistants (no custom logic), just create `src/assistants/your-assistant-name/index.ts` directly.
 
 Update the `assistantId` in `index.ts` to match your assistant's ID in the manifest.
 
@@ -23,9 +25,18 @@ You own exactly two directories:
 | Directory | Purpose |
 |-----------|---------|
 | `src/assistants/{name}/` | Handler code — TypeScript, built and validated |
-| `custom/assistants/{name}/` | Config — manifest JSON, knowledge files, KB files (ACE-editable) |
+| `custom/assistants/{name}/` | Config — `manifest.json` (structure and quick actions), `SKILL.md` (prompt authoring), knowledge files (ACE-editable) |
 
 Never modify files outside these two directories without a Core Code Team review.
+
+## Context Authoring Guidance
+
+For guidance on what should live in assistant-local `SKILL.md` files versus retrieval-backed reference content, see [`llm-context-authoring.md`](llm-context-authoring.md).
+
+Short version:
+- put durable behavior, role, and output rules in `SKILL.md`
+- put large or fast-changing reference material in `internalKBs`
+- do not solve context problems by stuffing long documents into the prompt
 
 ---
 
@@ -114,7 +125,7 @@ If you need a new type exported from the SDK, open a PR to `src/sdk/index.ts` an
 
 1. Core Team admin creates an ACE user with `role: "editor"` and `assistantScope: ["your_assistant_id"]`
 2. Create `src/assistants/{name}/` with `index.ts` (and `handler.ts` if needed)
-3. Add an entry to `custom/assistants.manifest.json` for your assistant
+3. Add an entry to `custom/assistants.manifest.json` for your assistant. For per-directory assistants (with `manifest.json` + `SKILL.md` in `custom/assistants/{name}/`), you do not need to include `promptTemplate` in the flat manifest — the build system derives it from your `SKILL.md` automatically.
 4. Add CODEOWNERS entries for your directories
 5. Run `npm run build` — if it passes, your assistant is live
 

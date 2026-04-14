@@ -5,10 +5,15 @@
  */
 
 import type { AssistantHandler, HandlerContext, HandlerResult } from './base'
-import { scanSelectionSmart } from '../../detection/smartDetector'
+import { SDToolkitSmartDetectionEngine } from '../../detection/smartDetector/SDToolkitSmartDetectionEngine'
+import type { SmartDetectionPort, SmartDetectionResult } from '../../sdk/ports/SmartDetectionPort'
 import { debug } from '../../debug/logger'
 import { formatSmartDetectorReport, renderForChat } from '../../richText/reportFormat'
 import { resolveSelection } from '../../figma/selectionResolver'
+
+// SD-T v0.1.0-alpha.0 (Phase 0): candidateEntry is null for most nodes until Phase 1 taxonomy is wired.
+// formatSummary handles null candidateType gracefully (maps to 'unknown' kind bucket).
+const sdPort: SmartDetectionPort = new SDToolkitSmartDetectionEngine()
 
 let handlerTraceCounter = 0
 function qaTraceHandler(marker: string, data: Record<string, unknown>) {
@@ -17,8 +22,48 @@ function qaTraceHandler(marker: string, data: Record<string, unknown>) {
   debug.scope('trace:chat').log(`QA_TRACE ${marker}`, { n: handlerTraceCounter, ...data })
 }
 
-function formatSummary(result: Awaited<ReturnType<typeof scanSelectionSmart>>): string {
-  const md = formatSmartDetectorReport(result)
+/** Map port certainty back to the confidence string expected by formatSmartDetectorReport. */
+function certaintyToConfidence(certainty: string): string {
+  switch (certainty) {
+    case 'exact': return 'high'
+    case 'inferred': return 'med'
+    case 'weak': return 'low'
+    default: return 'low'
+  }
+}
+
+function formatSummary(sdResults: SmartDetectionResult[]): string {
+  // Merge results across all roots into a single report input
+  const allElements: Array<{ kind: string; confidence: string; reasons: string[]; labelGuess?: string }> = []
+  const elementsByKind: Record<string, number> = {}
+  let totalNodes = 0
+
+  for (const res of sdResults) {
+    // root.children holds the detected elements mapped from the internal scanner
+    for (const el of res.root.children) {
+      const kind = el.candidateType ?? 'unknown'
+      const confidence = certaintyToConfidence(el.certainty)
+      const reasons = el.matchedSignals
+      allElements.push({ kind, confidence, reasons })
+      elementsByKind[kind] = (elementsByKind[kind] ?? 0) + 1
+    }
+    // summary.total represents element count; use as proxy for nodes scanned
+    totalNodes += res.summary.total
+  }
+
+  const reportInput = {
+    stats: {
+      nodesScanned: totalNodes,
+      capped: false,
+      elementsByKind,
+      contentByKind: {},
+      patternCount: 0,
+    },
+    elements: allElements,
+    content: [],
+  }
+
+  const md = formatSmartDetectorReport(reportInput)
   return renderForChat(md)
 }
 
@@ -49,8 +94,8 @@ export class SmartDetectorHandler implements AssistantHandler {
       qaTraceHandler('HANDLER_DONE', { requestId, messageHash: msg.slice(0, 40) + '_' + msg.length })
       return { handled: true, message: msg }
     }
-    const result = await scanSelectionSmart(roots, {})
-    const message = formatSummary(result)
+    const sdResults = await sdPort.detect(roots)
+    const message = formatSummary(sdResults)
     if (debug.isEnabled('trace:chat')) {
       const lineCount = message.split('\n').length
       const previewTop = message.slice(0, 200)

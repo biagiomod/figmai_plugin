@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import fs from 'fs'
 import { isTlsError } from './src/tls-errors'
 import cookieParser from 'cookie-parser'
-import { loadModel } from './src/model'
+import { loadModel, loadSkillsRegistry } from './src/model'
 import { validateModel, adminEditableModelSchema, saveRequestBodySchema } from './src/schema'
 import { saveModel, saveModelDryRun } from './src/save'
 import { requireAuth, requireAdmin, requireRoleValidateSave, validateWrapperConfig } from './src/auth-middleware'
@@ -28,6 +28,8 @@ import {
   handleUpdateUser
 } from './src/users-routes'
 import { createKbRouter } from './src/kb-routes'
+import { createSkillsRouter } from './src/skills-routes'
+import { loadFixtureCatalog, loadFixtureImages, type FixtureMeta } from './src/fixtures'
 import { appendAuditLine } from './src/audit'
 import type { AuthLocals } from './src/auth-middleware'
 
@@ -37,6 +39,7 @@ const adminEditorDir = __dirname
 const repoRoot = path.resolve(adminEditorDir, '..')
 const backupRootDir = path.join(adminEditorDir, '.backups')
 const dataDir = path.join(adminEditorDir, 'data')
+const fixturesDir = path.join(__dirname, 'fixtures')
 
 const ACE_DEBUG = process.env.ACE_DEBUG === '1' || process.env.ACE_DEBUG === 'true'
 const ACE_AUTH_MODE = process.env.ACE_AUTH_MODE || 'local'
@@ -47,6 +50,37 @@ validateWrapperConfig()
 const app = express()
 app.use(express.json({ limit: '10mb' }))
 app.use(cookieParser())
+
+// CSRF protection for local auth mode: reject mutating API requests that originate
+// from a different site. Skipped in wrapper mode (Spring proxy sets its own origin).
+if (ACE_AUTH_MODE !== 'wrapper') {
+  const isLocalOrigin = (h: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(h.trim())
+  app.use('/api', (req, res, next) => {
+    if (req.method === 'GET' || req.method === 'OPTIONS' || req.method === 'HEAD') {
+      return next()
+    }
+    const origin = req.headers['origin'] || ''
+    const referer = req.headers['referer'] || ''
+    // If both absent, it's a same-origin request (browser omits Origin for same-origin fetches in some cases).
+    if (!origin && !referer) return next()
+    // If Origin is present, it must be localhost.
+    if (origin && !isLocalOrigin(origin)) {
+      return res.status(403).json({ error: 'Forbidden: cross-site request rejected' })
+    }
+    // If Origin absent but Referer present, Referer must be localhost.
+    if (!origin && referer) {
+      try {
+        if (!isLocalOrigin(new URL(referer).origin)) {
+          return res.status(403).json({ error: 'Forbidden: cross-site request rejected' })
+        }
+      } catch {
+        // Malformed Referer treated as cross-site
+        return res.status(403).json({ error: 'Forbidden: cross-site request rejected' })
+      }
+    }
+    next()
+  })
+}
 
 // In dev, prevent caching of main static assets so refresh always serves current files (avoids stale UI/blank page).
 const NO_CACHE_PATHS = new Set([
@@ -279,7 +313,7 @@ app.get(['/home', '/home/'], (_req, res) => {
   <section class="ace-home-hero ace-container">
     <div class="ace-card ace-home-hero-card">
       <h1 class="ace-section-title">AI assistance for design teams that need consistency, not chaos.</h1>
-      <p class="ace-home-lead">Ableza brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
+      <p class="ace-home-lead">Design AI Toolkit brings specialized assistants into your design process: critique, accessibility checks, discovery support, content workflows, and structured outputs, grounded in your standards and knowledge bases.</p>
       <div class="ace-home-cta-row">
         <a class="btn-primary" href="/home/admin">Install the Plugin</a>
         <a class="btn-secondary" href="/demo">Watch 2-min Demo</a>
@@ -305,9 +339,9 @@ app.get(['/home', '/home/'], (_req, res) => {
   </section>
 
   <section class="ace-container ace-home-section">
-    <div class="ace-section-header-row"><h2 class="ace-section-title">What Ableza is</h2></div>
+    <div class="ace-section-header-row"><h2 class="ace-section-title">What Design AI Toolkit is</h2></div>
     <div class="ace-card">
-      <p class="ace-home-lead ace-home-lead-small">Ableza is an AI layer inside the design workflow that helps teams move from questions to usable outputs with more consistency.</p>
+      <p class="ace-home-lead ace-home-lead-small">Design AI Toolkit is an AI layer inside the design workflow that helps teams move from questions to usable outputs with more consistency.</p>
       <ul class="ace-home-bullet-list">
         <li>Chat and quick actions inside the workflow</li>
         <li>Specialized assistants by job to be done</li>
@@ -372,7 +406,7 @@ app.get(['/home', '/home/'], (_req, res) => {
   `
 
   sendMarketingPage(res, '/home', {
-    title: 'Ableza Home',
+    title: 'Design AI Toolkit Home',
     activePath: '/home',
     body
   })
@@ -383,7 +417,7 @@ app.get('/how-it-works', (_req, res) => {
     <div class="ace-section-header-row"><h1 class="ace-section-title">How It Works</h1></div>
     <div class="ace-card">
       <ol class="ace-home-number-list">
-        <li>Install the plugin and open Ableza in Figma.</li>
+        <li>Install the plugin and open Design AI Toolkit in Figma.</li>
         <li>Pick an assistant aligned to your current task.</li>
         <li>Select relevant frames, then run a quick action or ask a focused prompt.</li>
         <li>Review the output, apply changes, and capture decisions for handoff.</li>
@@ -641,6 +675,7 @@ app.patch('/api/users/:id', requireAuth(dataDir), requireAdmin, (req, res, next)
 
 // ——— KB: registry + CRUD (admin/manager/editor) ———
 app.use('/api/kb', requireAuth(dataDir), requireRoleValidateSave, createKbRouter(repoRoot))
+app.use('/api/skills', requireAuth(dataDir), requireRoleValidateSave, createSkillsRouter(repoRoot))
 
 // ——— Model: GET requires auth ———
 app.get('/api/model', requireAuth(dataDir), (_req, res) => {
@@ -648,6 +683,7 @@ app.get('/api/model', requireAuth(dataDir), (_req, res) => {
   try {
     const { model, meta } = loadModel(repoRoot)
     const validation = validateModel(model)
+    const skillsRegistry = loadSkillsRegistry(repoRoot)
     res.json({
       model,
       meta: {
@@ -660,7 +696,8 @@ app.get('/api/model', requireAuth(dataDir), (_req, res) => {
       validation: {
         errors: validation.errors,
         warnings: validation.warnings
-      }
+      },
+      skillsRegistry
     })
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? String(err) })
@@ -790,6 +827,32 @@ app.post('/api/save', requireAuth(dataDir), requireRoleValidateSave, (req, res) 
   }
 })
 
+// Fixture catalog — metadata only, no image data
+app.get('/api/fixtures', requireAuth(dataDir), requireRoleValidateSave, (req, res) => {
+  try {
+    const catalog = loadFixtureCatalog(fixturesDir)
+    res.json({ fixtures: catalog })
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to load fixtures: ' + (err?.message ?? String(err)) })
+  }
+})
+
+// Fixture images — base64 data URLs for a specific fixture
+app.get('/api/fixtures/:id/images', requireAuth(dataDir), requireRoleValidateSave, (req, res) => {
+  const id = req.params.id
+  const catalog = loadFixtureCatalog(fixturesDir)
+  const fixture = catalog.find((f: FixtureMeta) => f.id === id)
+  if (!fixture) {
+    return res.status(404).json({ error: 'Fixture not found: ' + id })
+  }
+  try {
+    const images = loadFixtureImages(fixturesDir, fixture)
+    res.json({ images })
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to load fixture images: ' + (err?.message ?? String(err)) })
+  }
+})
+
 // ——— Test: connection (draft-aware, no save required) ———
 // Accepts draft LLM settings and makes a real test call to verify connectivity.
 app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, async (req, res) => {
@@ -880,29 +943,53 @@ app.post('/api/test/connection', requireAuth(dataDir), requireRoleValidateSave, 
 // ——— Test: assistant (draft-aware, no save required) ———
 // Accepts draft assistant + LLM settings and runs a real test request.
 app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, async (req, res) => {
-  const { provider, endpoint, proxy, assistant, message, kbName } = req.body || {}
+  const {
+    provider, endpoint, proxy, assistant, message, kbName,
+    testMode, selectionSummary, images, skillSegments
+  } = req.body || {}
+
+  const resolvedTestMode: string = (typeof testMode === 'string' && ['no-selection','selection','vision'].includes(testMode))
+    ? testMode : 'no-selection'
+
+  // Validate images when provided
+  if (resolvedTestMode === 'vision' && images !== undefined) {
+    if (!Array.isArray(images) || images.some((img: unknown) => typeof img !== 'string')) {
+      return res.status(400).json({ success: false, message: 'images must be an array of strings when testMode is vision.' })
+    }
+  }
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ success: false, message: 'No test message provided.' })
   }
-  if (!assistant || typeof assistant !== 'object') {
-    return res.status(400).json({ success: false, message: 'No assistant data provided.' })
-  }
-
   const providerType = provider === 'proxy' ? 'proxy' : 'internal-api'
   const resolvedKbName: string = (typeof kbName === 'string' && kbName) ? kbName : 'figma'
 
-  // Build system prompt from draft assistant (promptTemplate + enabled instructionBlocks)
+  // Build system prompt from draft assistant OR pre-assembled skillSegments.
+  // Two supported client formats:
+  //   1. Full assistant object (assistant.promptTemplate + assistant.instructionBlocks)
+  //   2. Pre-assembled array: skillSegments[].{ label, content } — used by the Playground client
   const systemParts: string[] = []
-  if (typeof assistant.promptTemplate === 'string' && assistant.promptTemplate.trim()) {
-    systemParts.push(assistant.promptTemplate.trim())
-  }
-  if (Array.isArray(assistant.instructionBlocks)) {
-    for (const block of assistant.instructionBlocks) {
-      if (block.enabled !== false && typeof block.content === 'string' && block.content.trim()) {
-        systemParts.push(block.content.trim())
+  if (assistant && typeof assistant === 'object') {
+    // Format 1: draft assistant object
+    if (typeof assistant.promptTemplate === 'string' && assistant.promptTemplate.trim()) {
+      systemParts.push(assistant.promptTemplate.trim())
+    }
+    if (Array.isArray(assistant.instructionBlocks)) {
+      for (const block of assistant.instructionBlocks) {
+        if (block.enabled !== false && typeof block.content === 'string' && block.content.trim()) {
+          systemParts.push(block.content.trim())
+        }
       }
     }
+  } else if (Array.isArray(skillSegments)) {
+    // Format 2: pre-assembled segments from Playground
+    for (const seg of skillSegments) {
+      if (seg && typeof seg.content === 'string' && seg.content.trim()) {
+        systemParts.push(seg.content.trim())
+      }
+    }
+  } else {
+    return res.status(400).json({ success: false, message: 'No assistant data provided.' })
   }
   const systemPrompt = systemParts.join('\n\n')
 
@@ -939,6 +1026,14 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
     try {
       const fullMessage = systemPrompt ? `${systemPrompt}\n\n${message.trim()}` : message.trim()
       const payload: Record<string, unknown> = { type: 'generalChat', message: fullMessage, kbName: resolvedKbName }
+      if (resolvedTestMode === 'selection' || resolvedTestMode === 'vision') {
+        if (typeof selectionSummary === 'string' && selectionSummary.trim()) {
+          payload.selectionSummary = selectionSummary.trim()
+        }
+      }
+      if (resolvedTestMode === 'vision' && Array.isArray(images)) {
+        payload.images = images
+      }
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -993,6 +1088,14 @@ app.post('/api/test/assistant', requireAuth(dataDir), requireRoleValidateSave, a
       messages.push({ role: 'user', content: message.trim() })
       const payload: Record<string, unknown> = { messages }
       if (typeof proxy?.defaultModel === 'string' && proxy.defaultModel) payload.model = proxy.defaultModel
+      if (resolvedTestMode === 'selection' || resolvedTestMode === 'vision') {
+        if (typeof selectionSummary === 'string' && selectionSummary.trim()) {
+          payload.selectionSummary = selectionSummary.trim()
+        }
+      }
+      if (resolvedTestMode === 'vision' && Array.isArray(images)) {
+        payload.images = images
+      }
       // figmai-proxy chat endpoint: /v1/chat (not /chat/completions)
       const testUrl = baseUrl + '/v1/chat'
       const response = await fetch(testUrl, {

@@ -59,6 +59,9 @@ Bucket: private, versioning enabled. All keys under a configurable prefix (defau
     knowledge-bases/
       registry.json
       <kbId>.kb.json
+    skills/
+      registry.json
+      <skillId>.md
   snapshots/
     <snapshotId>/                      # e.g. "20260121T143000Z_a1b2"
       _manifest.json                   # written last = commit marker
@@ -68,6 +71,7 @@ Bucket: private, versioning enabled. All keys under a configurable prefix (defau
       content-models.md
       design-systems/...
       knowledge-bases/...
+      skills/...
   published.json                       # snapshot pointer + publish metadata
 ```
 
@@ -151,6 +155,18 @@ The current MVP does not expose snapshot listing or rollback endpoints yet.
 | DELETE | `/api/kb/:id` | Delete KB document |
 | POST | `/api/kb/normalize` | Normalize KB content (stateless) |
 
+### Shared Skills CRUD
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/skills` | List all skills (registry) |
+| GET | `/api/skills/:id` | Get skill content |
+| POST | `/api/skills` | Create skill |
+| PATCH | `/api/skills/:id` | Update skill title, kind, or content |
+| DELETE | `/api/skills/:id` | Delete skill |
+
+Skills CRUD is independent of the model version guard (same as KB CRUD). Implemented in `infra/config-api/src/routes/skills.ts`.
+
 ### Health and auth support routes
 
 | Method | Path | Purpose |
@@ -172,6 +188,8 @@ The current MVP does not expose snapshot listing or rollback endpoints yet.
     customKnowledge: Record<string, string>
     contentModelsRaw?: string
     designSystemRegistries?: Record<string, unknown>
+    skillMdContent?: Record<string, string>      // assistantId -> SKILL.md content
+    dsSkillMdContent?: Record<string, string>    // dsId -> SKILL.md content ('__top_level__' for top-level)
   }
   meta: { revision: string, capabilities?: { hasUnpublished: boolean, canPublish: boolean } }
   validation: { errors: string[], warnings: string[] }
@@ -196,13 +214,23 @@ The current MVP does not expose snapshot listing or rollback endpoints yet.
 { snapshotId: string, createdAt: string, publishedRevision: string }
 ```
 
+### Security Constraints
+
+| Constraint | Where | Detail |
+|-----------|-------|--------|
+| Request body limit | `handler.ts` | 1 MB max. Requests exceeding this return 413 before auth check. |
+| Skill filePath validation | `routes/skills.ts` | Registry `filePath` must match `^[a-z0-9]+(?:-[a-z0-9]+)*\.md$`. Entries failing this are rejected at read time. |
+| ID format | All routes | IDs validated as kebab-case (`KB_ID_REGEX`) before any S3 key construction. |
+| Auth exemptions | `handler.ts` | Only `/api/health` (GET) and `OPTIONS` bypass bearer-token check. All other routes require a valid `CONFIG_API_TOKEN`. |
+| CORS | `cors.ts` | Origin allowlist via `CORS_ALLOW_ORIGINS` env var (comma-separated). No wildcard. Unrecognized origins receive no `Access-Control-Allow-Origin` header. |
+
 ### Concurrency
 
 - `draft/_meta.json.version` is the single stored concurrency token.
 - The current API exposes that token to the frontend as `meta.revision` (string).
 - Client receives `meta.revision` from GET, sends `meta.revision` with save.
 - Server compares before writing. Mismatch -> 409. Match -> writes files, bumps version, writes `_meta.json` last.
-- KB CRUD is independent of the version guard (same as today: KB files are not in the model revision).
+- KB and Skills CRUD are independent of the version guard (KB and skill files are not in the model revision).
 
 ---
 

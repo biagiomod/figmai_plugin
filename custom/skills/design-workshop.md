@@ -1,0 +1,52 @@
+---
+version: "1.0"
+tags: ["screens", "layout", "wireframe", "fidelity", "ui-blocks"]
+updatedAt: "2026-01-21"
+---
+
+## Purpose
+Reference knowledge for generating screen layouts and UI blocks (headings, buttons, inputs, cards, etc.) from user descriptions. Supports consistent fidelity, block semantics, and layout guidance.
+
+## Scope
+Applies to screen layout design, block types, fidelity levels, and styling guidance. Excludes output format enforcement, schema syntax, and runtime execution rules.
+
+## Definitions
+- ### Wireframe fidelity: Grayscale, simple placeholders, minimal typography, no shadows or rounded corners. Best for structure and flow.
+- ### Medium fidelity: Basic colors, clear hierarchy, subtle borders, light shadows, basic rounded corners. Good default for most screens.
+- ### Hi fidelity: Full colors, rich typography, refined borders, layered shadows, generous rounded corners. For polished, production-like screens.
+- ### Creative fidelity: Bold colors, experimental typography, large rounded corners, dramatic shadows. For playful or marketing-style screens.
+- ### Block (screen block): A single UI element in a screen layout: heading, bodyText, button, input, card, spacer, or image placeholder.
+- ### Layout: Screen structure (direction vertical/horizontal, padding, gap). Use vertical for most mobile screens; horizontal for toolbars or rows.
+
+## Rules
+- Generate 1-5 screens per request. If the user asks for more, generate up to 5 and note truncation.
+- Map the user's app type and tone to screen names and content (e.g. fitness app → fitness-related screens).
+- Use fidelity to drive visual style: wireframe = grayscale; medium = basic color; hi = refined; creative = bold.
+- Use layout direction and spacing to reflect density (compact vs spacious) when the user requests it.
+- Preserve clear visual hierarchy: headings before body text; primary actions before secondary.
+- Match user tone: playful/serious/calm should influence colors, corners, and density.
+
+## Do
+- Use clear hierarchy and consistent spacing within and between screens.
+- Match fidelity to the user's request (wireframe, medium, hi, creative).
+- Use semantic block types: heading for titles, bodyText for paragraphs, button for actions.
+- Apply user-mentioned colors as primary or accent where appropriate.
+- Name screens meaningfully (e.g. Home, Onboarding, Settings).
+
+## Don't
+- Exceed 5 screens in a single response; truncate and note if the user asked for more.
+- Ignore user tone or color hints when generating screens.
+- Mix fidelities within one screen set; keep fidelity consistent per request.
+- Use bodyText for headings or buttons; use the correct block type.
+- Omit layout (direction, padding, gap) for screens; use sensible defaults if not specified.
+
+## Examples
+- ### Wireframe: Use grayscale fills, simple rectangles for images, minimal text styling.
+- ### Medium fidelity: Use a restrained palette, 8-12px rounded corners, light drop shadows on cards and buttons.
+- ### Good screen set: 2-3 screens with clear names (e.g. Login, Home) and blocks that match the requested app type.
+
+## Edge Cases
+- When the user asks for many screens, generate up to 5 and include a truncation notice.
+- When the user does not specify fidelity, default to medium.
+- When the user mentions colors but not placement, use the first as primary and optional second as accent.
+- When the user asks for both mobile and desktop, prefer one device per run or clarify in meta.

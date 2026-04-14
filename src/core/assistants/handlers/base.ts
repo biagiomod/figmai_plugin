@@ -5,6 +5,7 @@
 
 import type { SelectionState } from '../../types'
 import type { Provider, NormalizedMessage, ChatRequest } from '../../provider/provider'
+import type { OutcomeRecord } from '../../sdk/types'
 
 /**
  * Context passed to handler for processing responses
@@ -31,6 +32,8 @@ export interface HandlerContext {
 export interface HandlerResult {
   handled: boolean
   message?: string
+  /** Reserved for north star review loop — unused today, populated by future handlers. */
+  outcome?: OutcomeRecord
 }
 
 /**

@@ -53,6 +53,8 @@ The editor reads and writes **only** these sources of truth:
 - **custom/knowledge/*.md** – Custom knowledge overlay per assistant (one `.md` per assistant id)
 - **docs/content-models.md** – Content Table presets (raw markdown)
 - **custom/design-systems/&lt;id&gt;/registry.json** – Design system registry JSON per id
+- **custom/skills/*.md** + **custom/skills/registry.json** – Shared Skills (Resources → Shared Skills tab)
+- **custom/knowledge-bases/*.kb.json** + **custom/knowledge-bases/registry.json** – Internal KBs (Resources → Internal KBs tab)
 
 The editor **never** edits TypeScript (`.ts`/`.tsx`) or runs the plugin build or publish.
 
@@ -77,6 +79,21 @@ You must run **`npm run build`** (and publish) yourself. The save response inclu
 - **GET /api/model** – Load current model from repo files. Returns `{ model, meta, validation }`.
 - **POST /api/validate** – Validate a payload (same shape as `model`). Returns `{ errors, warnings }`. Does not write.
 - **POST /api/save** – Validate, backup files, write, run generators. Returns a save summary and next steps.
+
+**Skills CRUD** (`custom/skills/`):
+- **GET /api/skills** – List all skills from registry.
+- **GET /api/skills/:id** – Get skill content.
+- **POST /api/skills** – Create skill. Body: `{ id, title, kind, content }`.
+- **PATCH /api/skills/:id** – Update title, kind, and/or content.
+- **DELETE /api/skills/:id** – Delete skill and remove from registry.
+
+**Internal KB CRUD** (`custom/knowledge-bases/`):
+- **GET /api/kb/registry** – Get KB registry.
+- **GET /api/kb/:id** – Get KB document.
+- **POST /api/kb** – Create KB document. Body: `{ doc: KnowledgeBaseDocument, forceOverwrite? }`.
+- **PATCH /api/kb/:id** – Update KB document.
+- **DELETE /api/kb/:id** – Delete KB document.
+- **POST /api/kb/normalize** – Normalize KB content (stateless, does not write).
 
 ## Backups
 

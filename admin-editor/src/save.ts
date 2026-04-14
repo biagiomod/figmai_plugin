@@ -129,6 +129,32 @@ function computeFilesWouldWrite(
     }
   }
 
+  if (model.skillMdContent) {
+    for (const [assistantId, content] of Object.entries(model.skillMdContent)) {
+      if (!content) continue // skip if content was cleared; SKILL.md deletion is not supported
+      const filePath =
+        meta.filePaths.skillMd[assistantId] ??
+        path.join(repoRoot, 'custom', 'assistants', assistantId, 'SKILL.md')
+      const normalized = normalizeSkillMd(content)
+      if (getExistingContent(filePath) !== normalized) wouldWrite.push(filePath)
+    }
+  }
+
+  if (model.dsSkillMdContent && meta.filePaths.dsSkillMd) {
+    for (const [id, content] of Object.entries(model.dsSkillMdContent)) {
+      if (!content) continue
+      const filePath = meta.filePaths.dsSkillMd[id] ?? (
+        id === '__top_level__'
+          ? path.join(repoRoot, 'custom', 'design-systems', 'SKILL.md')
+          : path.join(repoRoot, 'custom', 'design-systems', id, 'SKILL.md')
+      )
+      if (typeof content === 'string') {
+        const normalized = normalizeSkillMd(content)
+        if (getExistingContent(filePath) !== normalized) wouldWrite.push(filePath)
+      }
+    }
+  }
+
   return wouldWrite
 }
 
@@ -140,7 +166,40 @@ function getExistingContent(filePath: string): string {
   }
 }
 
-const GENERATOR_SCRIPTS = ['generate-assistants', 'generate-custom-overlay', 'generate-presets']
+/**
+ * Normalize SKILL.md content:
+ * - Normalize ## heading casing to canonical names
+ * - Strip trailing whitespace from each line
+ * - Collapse 3+ consecutive blank lines to 2
+ * - Ensure trailing newline
+ */
+function normalizeSkillMd(content: string): string {
+  const headingMap: Record<string, string> = {
+    identity: 'Identity',
+    behavior: 'Behavior',
+    'instruction blocks': 'Instruction Blocks',
+    'output guidance': 'Output Guidance',
+    'quick actions': 'Quick Actions'
+  }
+
+  let result = content.replace(/\r\n/g, '\n')
+
+  // Normalize ## heading casing
+  result = result.replace(/^(## )(.+)$/gm, (_, prefix, heading) => {
+    const lower = heading.trim().toLowerCase()
+    return prefix + (headingMap[lower] ?? heading)
+  })
+
+  // Strip trailing whitespace from each line
+  result = result.replace(/[ \t]+$/gm, '')
+
+  // Collapse 3+ consecutive blank lines to 2
+  result = result.replace(/\n{3,}/g, '\n\n')
+
+  return ensureTrailingNewline(result)
+}
+
+const GENERATOR_SCRIPTS = ['compile-skills', 'generate-custom-overlay', 'generate-presets']
 
 /**
  * Dry-run: validate, compute filesWouldWrite and backupsWouldCreateAt; do not write or run generators.
@@ -188,7 +247,9 @@ export function saveModelDryRun(
 /**
  * Save model to disk: validate, backup, write, run generators.
  * Writes only: custom/config.json, custom/assistants.manifest.json,
- * custom/knowledge/<id>.md, docs/content-models.md, custom/design-systems/<id>/registry.json.
+ * custom/knowledge/<id>.md, docs/content-models.md, custom/design-systems/<id>/registry.json,
+ * custom/assistants/<id>/SKILL.md (migrated assistants only).
+ * - custom/design-systems/SKILL.md and custom/design-systems/<id>/SKILL.md (DS SKILL.md, if they exist or have path fallbacks)
  */
 export function saveModel(
   model: AdminEditableModel,
@@ -292,7 +353,46 @@ export function saveModel(
     }
   }
 
-  // 6) Run generators (NOT build/publish)
+  // 6) Backup and write custom/assistants/<id>/SKILL.md (migrated assistants only)
+  if (model.skillMdContent) {
+    for (const [assistantId, content] of Object.entries(model.skillMdContent)) {
+      if (!content) continue // skip if content was cleared; SKILL.md deletion is not supported
+      const filePath =
+        meta.filePaths.skillMd[assistantId] ??
+        path.join(repoRoot, 'custom', 'assistants', assistantId, 'SKILL.md')
+      if (fs.existsSync(filePath)) {
+        backupFile(filePath, backupRoot, repoRoot)
+      }
+      const normalized = normalizeSkillMd(content)
+      if (writeFileIfChanged(filePath, normalized)) {
+        filesWritten.push(filePath)
+      }
+    }
+  }
+
+  // 7) Backup and write custom/design-systems/SKILL.md and custom/design-systems/<id>/SKILL.md
+  // Note: '__top_level__' is a reserved key for custom/design-systems/SKILL.md
+  if (model.dsSkillMdContent && meta.filePaths.dsSkillMd) {
+    for (const [id, content] of Object.entries(model.dsSkillMdContent)) {
+      if (!content) continue
+      const filePath = meta.filePaths.dsSkillMd[id] ?? (
+        id === '__top_level__'
+          ? path.join(repoRoot, 'custom', 'design-systems', 'SKILL.md')
+          : path.join(repoRoot, 'custom', 'design-systems', id, 'SKILL.md')
+      )
+      if (typeof content === 'string') {
+        if (fs.existsSync(filePath)) {
+          backupFile(filePath, backupRoot, repoRoot)
+        }
+        const normalized = normalizeSkillMd(content)
+        if (writeFileIfChanged(filePath, normalized)) {
+          filesWritten.push(filePath)
+        }
+      }
+    }
+  }
+
+  // 8) Run generators (NOT build/publish)
   const generatorsRun: GeneratorRunResult[] = []
   for (const name of GENERATOR_SCRIPTS) {
     const result = runGenerator(repoRoot, name)

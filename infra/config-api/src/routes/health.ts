@@ -25,9 +25,6 @@ export async function healthResponse() {
   const publishedRaw = await getObjectText('published.json')
   const published = parsePublished(publishedRaw)
   const readiness = await checkS3Readiness()
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d95772ae-a4b7-4c54-acb0-657380f24cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'34860e'},body:JSON.stringify({sessionId:'34860e',runId:'pre-fix',hypothesisId:'H4',location:'infra/config-api/src/routes/health.ts:29',message:'health readiness computed',data:{canReadS3:readiness.canReadS3,canWriteS3:readiness.canWriteS3,checkCount:readiness.details.length},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   return {
     service: {

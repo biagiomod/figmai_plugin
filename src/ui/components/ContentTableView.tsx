@@ -35,6 +35,7 @@ interface ContentTableViewProps {
   onViewOnStage?: (visibleItems: ContentItemV1[]) => void
   onCopyToClipboard: (visibleItems: ContentItemV1[]) => void
   onCopyRowsToClipboard: (visibleItems: ContentItemV1[]) => void
+  onCopyContentColumnToClipboard: (visibleItems: ContentItemV1[]) => void
   onRestart: () => void
   onExportRowRefImage: (nodeId: string) => void
   isCopying: boolean
@@ -124,6 +125,7 @@ export function ContentTableView({
   onViewOnStage,
   onCopyToClipboard,
   onCopyRowsToClipboard,
+  onCopyContentColumnToClipboard,
   onRestart,
   onExportRowRefImage,
   isCopying,
@@ -535,11 +537,6 @@ export function ContentTableView({
         >
           {CTA_ACTION_LABELS.appendSelection}
         </button>
-        {onViewOnStage && (
-          <button onClick={() => onViewOnStage(items)} style={actionBtnStyle(false)}>
-            {CTA_ACTION_LABELS.viewOnStage}
-          </button>
-        )}
         <button
           onClick={() => onCopyToClipboard(items)}
           disabled={isCopying}
@@ -556,6 +553,15 @@ export function ContentTableView({
         >
           <CopyIcon width={12} height={12} />
           {isCopying ? 'Copying...' : 'Rows'}
+        </button>
+        <button
+          onClick={() => onCopyContentColumnToClipboard(items)}
+          disabled={isCopying}
+          title="Copy Content column values only"
+          style={{ ...actionBtnStyle(isCopying), display: 'flex', alignItems: 'center', gap: '5px' }}
+        >
+          <CopyIcon width={12} height={12} />
+          {isCopying ? 'Copying...' : 'Content Column Only'}
         </button>
       </div>
     </div>

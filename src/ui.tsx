@@ -88,11 +88,10 @@ import { listAssistants, listAssistantsByMode, getAssistant, getDefaultAssistant
 import type { Assistant as AssistantType, AssistantTag, QuickAction } from './assistants'
 import { SettingsModal } from './ui/components/SettingsModal'
 import { ConfluenceModal } from './ui/components/ConfluenceModal'
-import { AnalyticsTaggingTable } from './ui/components/AnalyticsTaggingTable'
-import { AnalyticsTaggingWelcome } from './ui/components/AnalyticsTaggingWelcome'
-import { AnalyticsTaggingView } from './ui/components/AnalyticsTaggingView'
 import { DesignWorkshopPanel } from './ui/components/DesignWorkshopPanel'
 import { BottomToolbar } from './ui/components/BottomToolbar'
+import { useAnalyticsTaggingController } from './ui/controllers/AnalyticsTaggingController'
+import { useContentTableController } from './ui/controllers/ContentTableController'
 import { RichTextRenderer } from './ui/components/RichTextRenderer'
 import { parseRichText } from './core/richText/parseRichText'
 import { enhanceRichText, estimateEnhancedTextLength } from './core/richText/enhancers'
@@ -105,28 +104,15 @@ import type {
   SetModeHandler,
   RunQuickActionHandler,
   RunToolHandler,
-  ResetDoneHandler,
-  SelectionStateHandler,
-  AssistantMessageHandler,
-  ToolResultHandler,
-  TestResultHandler,
-  ScorecardPlacedHandler,
   ScorecardResult,
   UniversalContentTableV1,
   TableFormatPreset,
   Message,
   SelectionState,
   Mode,
-  Assistant,
-  CopyTableStatusHandler,
   ExportContentTableRefImageHandler,
   ContentTableResetHandler,
   RenderTableOnStageHandler,
-  RequestAnalyticsTaggingSessionHandler,
-  AnalyticsTaggingUpdateRowHandler,
-  AnalyticsTaggingDeleteRowHandler,
-  ExportAnalyticsTaggingScreenshotsHandler,
-  ExportAnalyticsTaggingOneRowHandler,
   SaveSettingsHandler,
   RequestSettingsHandler,
   ResizePluginHandler,
@@ -134,16 +120,11 @@ import type {
   DwClearScanHandler,
   DwSetDesignModeHandler
 } from './core/types'
-import type { AnalyticsTaggingExportCompactRow } from './core/types'
-import type { NearMissInfo } from './core/types'
-import { toHtmlTable, fromHtmlTable } from './core/contentTable/htmlTransform'
-import { universalTableToHtml, universalTableToTsv, universalTableToJson } from './core/contentTable/renderers'
 import { projectContentTable } from './core/contentTable/projection'
 import { PRESET_INFO, PRESET_COLUMNS } from './core/contentTable/presets.generated'
 import { getOrderedCtaPresets } from './core/contentTable/presetOrder'
 import type { ContentTableSession } from './core/contentTable/session'
-import { createSession, getEffectiveItems, applyEdit, deleteItem, appendItems, toggleDuplicateScan } from './core/contentTable/session'
-import { classifyCandidates, filterByDuplicates } from './core/contentTable/duplicates'
+import { getEffectiveItems, applyEdit, deleteItem, toggleDuplicateScan } from './core/contentTable/session'
 import type { ContentItemV1 } from './core/contentTable/types'
 import { ContentTableWelcome } from './ui/components/ContentTableWelcome'
 import { ContentTableView } from './ui/components/ContentTableView'
@@ -155,7 +136,7 @@ import {
   getCtaPresetDisplayOrder
 } from './ui/components/contentTableUiLabels'
 import { sessionToTable } from './core/analyticsTagging/sessionToTable'
-import type { Session, Row } from './core/analyticsTagging/types'
+import type { Session } from './core/analyticsTagging/types'
 import { getInitialMode } from './ui/utils/mode'
 import { getCustomConfig, shouldHideContentMvpMode, getResourcesLinks, getResourcesCredits, isPromptDiagnosticsEnabled } from './custom/config'
 import { BUILD_VERSION, BUILT_AT } from './core/build'
@@ -446,67 +427,27 @@ function Plugin() {
   const [jsonOutput, setJsonOutput] = useState('')
   const [hasShownCode2DesignHelper, setHasShownCode2DesignHelper] = useState(false)
   const [hasAutoOpenedSendJson, setHasAutoOpenedSendJson] = useState(false)
-  const [showCopySuccess, setShowCopySuccess] = useState(false)
   const [showSelectionHint, setShowSelectionHint] = useState(false)
   const [showEmptyInputWarning, setShowEmptyInputWarning] = useState(false)
   const [showCredits, setShowCredits] = useState(true)
   const [creditsAutoCollapseTimer, setCreditsAutoCollapseTimer] = useState<number | null>(null)
-  const [isCopyingTable, setIsCopyingTable] = useState(false)
   const hasAutoCollapsedRef = useRef(false)
   // Scorecard state for Design Critique
   const [scorecard, setScorecard] = useState<ScorecardResult | null>(null)
   const [scorecardError, setScorecardError] = useState<{ error: string; raw?: string } | null>(null)
-  // Content Table state
-  const [contentTable, setContentTable] = useState<UniversalContentTableV1 | null>(null)
-  const [ctSession, setCtSession] = useState<ContentTableSession | null>(null)
-  const [showFormatModal, setShowFormatModal] = useState(false)
-  const [selectedFormat, setSelectedFormat] = useState<TableFormatPreset>('universal')
-  const [showTableView, setShowTableView] = useState(false)
-  const [pendingAction, setPendingAction] = useState<'copy' | 'view' | 'confluence' | null>(null)
-  const [isCopyingRefImage, setIsCopyingRefImage] = useState(false)
-  const [showCopyFormatModal, setShowCopyFormatModal] = useState(false)
-  const scannedContainerIdsRef = useRef<Set<string>>(new Set())
-  const [showRescanConfirm, setShowRescanConfirm] = useState(false)
-  const pendingRescanActionRef = useRef<string | null>(null)
+  // CT-A state is managed by useContentTableController (instantiated below)
   const stageFrameIdRef = useRef<string | null>(null)
-  const [showConfluenceModal, setShowConfluenceModal] = useState(false)
   const [lastPromptDiagnostics, setLastPromptDiagnostics] = useState<{
     compact: string
     details?: Record<string, number | string>
     safety?: { noKbName?: boolean; noCtx?: boolean; noImages?: boolean }
   } | null>(null)
   const [showPromptDiagDetails, setShowPromptDiagDetails] = useState(false)
-  const [confluenceFormat, setConfluenceFormat] = useState<TableFormatPreset>('universal')
   const [pluginSizeMode, setPluginSizeMode] = useState<PluginSizeMode>('portrait')
   // Analytics Tagging state
-  const [isCopyingAnalyticsTable, setIsCopyingAnalyticsTable] = useState(false)
-  const [analyticsTaggingSession, setAnalyticsTaggingSession] = useState<Session | null>(null)
-  const [analyticsTaggingAutosaveStatus, setAnalyticsTaggingAutosaveStatus] = useState<'saved' | 'saving' | 'failed'>('saved')
-  const [analyticsTaggingScreenshotPreviews, setAnalyticsTaggingScreenshotPreviews] = useState<Record<string, string>>({})
-  const [analyticsTaggingScreenshotErrors, setAnalyticsTaggingScreenshotErrors] = useState<Record<string, string>>({})
-  const [analyticsTaggingExportInProgress, setAnalyticsTaggingExportInProgress] = useState(false)
-  const [analyticsTaggingExportProgress, setAnalyticsTaggingExportProgress] = useState<{ done: number; total: number; failed: number } | null>(null)
-  const [analyticsTaggingWarning, setAnalyticsTaggingWarning] = useState<string | null>(null)
-  const [analyticsTaggingExportSession, setAnalyticsTaggingExportSession] = useState<Session | null>(null)
-  const analyticsTaggingSessionRef = useRef<Session | null>(null)
-  const analyticsTaggingExportDirHandleRef = useRef<FileSystemDirectoryHandle | null>(null)
-  const analyticsTaggingExportBaseNamesRef = useRef<Map<string, number>>(new Map())
-  const analyticsTaggingExportItemsRef = useRef<Array<{ rowId: string; screenId: string; actionId: string; base64?: string; error?: string }>>([])
-  const analyticsTaggingExportInProgressRef = useRef(false)
-  const analyticsTaggingExportProgressRef = useRef<{ done: number; total: number; failed: number } | null>(null)
-  const [ataNearMisses, setAtaNearMisses] = useState<NearMissInfo[]>([])
-  const [ataIsFixingNearMisses, setAtaIsFixingNearMisses] = useState(false)
-  const [ataNearMissesDismissed, setAtaNearMissesDismissed] = useState(false)
-  const [ataIsAddingAnnotations, setAtaIsAddingAnnotations] = useState(false)
+  // AT-A state is managed by useAnalyticsTaggingController (instantiated below)
   const [editorType, setEditorType] = useState<'figma' | 'dev'>('figma')
-  useEffect(() => {
-    analyticsTaggingSessionRef.current = analyticsTaggingSession
-  }, [analyticsTaggingSession])
-  // Clipboard debug state
   const [showPasteDebug, setShowPasteDebug] = useState(false)
-  const [debugHtml, setDebugHtml] = useState('')
-  const [debugTsv, setDebugTsv] = useState('')
-  const [copyStatus, setCopyStatus] = useState<{ success: boolean; message: string } | null>(null)
   const [dwExportHtml, setDwExportHtml] = useState<string | null>(null)
   const [dwDesignMode, setDwDesignMode] = useState<'jazz' | 'wireframe'>('jazz')
   const [dwHasScanContext, setDwHasScanContext] = useState(false)
@@ -527,13 +468,6 @@ function Plugin() {
     URL.revokeObjectURL(url)
   }, [dwExportHtml])
 
-  // Debug logging function (gated behind CONFIG.dev.enableClipboardDebugLogging)
-  const uiDebugLog = useCallback((message: string, data?: Record<string, unknown>) => {
-    if (CONFIG.dev.enableClipboardDebugLogging) {
-      console.log(`[Clipboard] ${message}`, data || '')
-    }
-  }, [])
-  
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastAssistantBubbleRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -557,6 +491,46 @@ function Plugin() {
     debug.scope('trace:chat').log(`QA_TRACE ${marker}`, { n: uiTraceCounterRef.current, ...data })
   }, [])
   
+  // --- Controller instances ---
+  // handleQuickAction is defined later; use a ref to break the circular dependency.
+  const handleQuickActionRef = useRef<(actionId: string) => void>(() => {})
+
+  const ctController = useContentTableController({
+    assistantId: assistant.id,
+    selectionState,
+    editorType,
+    stageFrameIdRef,
+    handleQuickAction: (id: string) => handleQuickActionRef.current(id),
+    setMessages,
+  })
+
+  const ataController = useAnalyticsTaggingController({
+    assistantId: assistant.id,
+    selectionState,
+    editorType,
+    stageFrameIdRef,
+    setCopyStatus: ctController.setCopyStatus,
+    setSelectedFormat: ctController.setSelectedFormat,
+    setPendingAction: ctController.setPendingAction,
+    setShowFormatModal: ctController.setShowFormatModal,
+    handleQuickAction: (id: string) => handleQuickActionRef.current(id),
+  })
+
+  // Convenience aliases for CT-A state used throughout the template
+  const { contentTable, setContentTable, ctSession, setCtSession, selectedFormat, setSelectedFormat,
+    showTableView, setShowTableView, showFormatModal, setShowFormatModal,
+    showCopyFormatModal, setShowCopyFormatModal, showConfluenceModal, setShowConfluenceModal,
+    confluenceFormat, setConfluenceFormat, pendingAction, setPendingAction,
+    isCopyingTable, isCopyingRefImage, showRescanConfirm, setShowRescanConfirm,
+    copyStatus, setCopyStatus, showCopySuccess, setShowCopySuccess,
+    debugHtml, debugTsv, scannedContainerIdsRef, pendingRescanActionRef,
+    handleCopyTable, handleCopyContentColumn, handleCopyRefImage, handleCopyTsv, handleDownloadHtml,
+    handleConfluenceSuccess, checkRescanOverlap } = ctController
+
+  // AT-A aliases
+  const analyticsTaggingSession = ataController.session
+  const analyticsTaggingExportSession = ataController.exportSession
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -690,7 +664,7 @@ function Plugin() {
           resetUIState(modeRef.current)
           break
         case 'CONTENT_TABLE_RESET_DONE':
-          resetContentTableState()
+          ctController.handleMessage('CONTENT_TABLE_RESET_DONE', message)
           break
         case 'SELECTION_STATE':
           if (message.state) {
@@ -709,6 +683,30 @@ function Plugin() {
               }
               return prev
             })
+          }
+          break
+        case 'REPLACE_STATUS':
+          // Replace an existing status message in-place by requestId.
+          // Posted by StatusChannel.replaceStatusMessage for direct callers.
+          // The main orchestration path (quickActionExecutor / main.ts) posts ASSISTANT_MESSAGE
+          // with a full Message object instead (via the module-level replaceStatusMessage helpers).
+          if (message.requestId) {
+            setMessages(prev => {
+              const idx = prev.findIndex(
+                m => m.requestId === message.requestId && m.role === 'assistant'
+              )
+              if (idx === -1) return prev
+              const updated: Message = {
+                ...prev[idx],
+                content: typeof message.content === 'string' ? message.content : '',
+                isStatus: false,
+                statusStyle: message.isError ? 'error' : undefined,
+              }
+              const next = [...prev]
+              next[idx] = updated
+              return next
+            })
+            setActiveStatus(prev => (prev?.requestId === message.requestId ? null : prev))
           }
           break
         case 'PROMPT_DIAG':
@@ -882,264 +880,38 @@ function Plugin() {
             })
           }
           break
+        // --- Delegate to CT-A controller ---
         case 'CONTENT_TABLE_GENERATED':
-          // Receive content table from main thread
-          if (message.table) {
-            const rawItems = message.table.items as ContentItemV1[]
-            const dupResults = classifyCandidates(rawItems, [])
-            const { items: filtered, flaggedIds, skippedCount } = filterByDuplicates(dupResults)
-            const dedupedTable = { ...message.table, items: filtered }
-            const ignoreFlagIds = new Set<string>(Array.isArray(message.flaggedIgnoreIds) ? message.flaggedIgnoreIds : [])
-            const ignoreRuleByItemId = (message.ignoreRuleByItemId && typeof message.ignoreRuleByItemId === 'object')
-              ? message.ignoreRuleByItemId as Record<string, string>
-              : {}
-            const tokenizedItemsFromMsg: Record<string, string> =
-              message.tokenizedItems && typeof message.tokenizedItems === 'object'
-                ? message.tokenizedItems as Record<string, string>
-                : {}
-            const tokenizedIdsFromMsg = new Set<string>(
-              Array.isArray(message.tokenizedIds) ? message.tokenizedIds as string[] : []
-            )
-            setContentTable(dedupedTable)
-            setCtSession(createSession(dedupedTable, {
-              flaggedDuplicateIds: flaggedIds,
-              flaggedIgnoreIds: ignoreFlagIds,
-              ignoreRuleByItemId,
-              skippedCount,
-              tokenizedItems: tokenizedItemsFromMsg,
-              tokenizedIds: tokenizedIdsFromMsg
-            }))
-            setSelectedFormat('simple-worksheet')
-            const genContainerIds: string[] = message.scannedContainerNodeIds || []
-            for (const cid of genContainerIds) scannedContainerIdsRef.current.add(cid)
-            if (genContainerIds.length === 0 && message.table.meta?.rootNodeId) {
-              scannedContainerIdsRef.current.add(message.table.meta.rootNodeId)
-            }
-          }
-          break
         case 'CONTENT_TABLE_APPEND':
-          if (message.table) {
-            setCtSession(prev => {
-              const appendIgnoreFlags = new Set<string>(Array.isArray(message.flaggedIgnoreIds) ? message.flaggedIgnoreIds : [])
-              const appendIgnoreRules = (message.ignoreRuleByItemId && typeof message.ignoreRuleByItemId === 'object')
-                ? message.ignoreRuleByItemId as Record<string, string>
-                : {}
-              const appendTokenizedItems: Record<string, string> =
-                message.tokenizedItems && typeof message.tokenizedItems === 'object'
-                  ? message.tokenizedItems as Record<string, string>
-                  : {}
-              const appendTokenizedIds = new Set<string>(
-                Array.isArray(message.tokenizedIds) ? message.tokenizedIds as string[] : []
-              )
-              if (!prev) return createSession(message.table, {
-                flaggedIgnoreIds: appendIgnoreFlags,
-                ignoreRuleByItemId: appendIgnoreRules,
-                tokenizedItems: appendTokenizedItems,
-                tokenizedIds: appendTokenizedIds
-              })
-              const existing = getEffectiveItems(prev)
-              if (prev.scanEnabled) {
-                const dupResults = classifyCandidates(message.table.items, existing)
-                const { items: filtered, flaggedIds, skippedCount } = filterByDuplicates(dupResults)
-                return appendItems(prev, filtered, {
-                  flaggedDuplicateIds: flaggedIds,
-                  flaggedIgnoreIds: appendIgnoreFlags,
-                  ignoreRuleByItemId: appendIgnoreRules,
-                  skippedCount,
-                  tokenizedItems: appendTokenizedItems,
-                  tokenizedIds: appendTokenizedIds
-                })
-              }
-              return appendItems(prev, message.table.items, {
-                flaggedIgnoreIds: appendIgnoreFlags,
-                ignoreRuleByItemId: appendIgnoreRules,
-                tokenizedItems: appendTokenizedItems,
-                tokenizedIds: appendTokenizedIds
-              })
-            })
-            setContentTable(prev => {
-              if (!prev) return message.table
-              return { ...prev, items: [...prev.items, ...message.table.items] }
-            })
-            const appContainerIds: string[] = message.scannedContainerNodeIds || []
-            for (const cid of appContainerIds) scannedContainerIdsRef.current.add(cid)
-            if (appContainerIds.length === 0 && message.table.meta?.rootNodeId) {
-              scannedContainerIdsRef.current.add(message.table.meta.rootNodeId)
-            }
-          }
-          break
         case 'CONTENT_TABLE_ERROR':
-          // Receive content table error from main thread
-          console.error('[UI] Received CONTENT_TABLE_ERROR:', message.error)
-          console.log('[UI] setThinking false - CONTENT_TABLE_ERROR')
-          setContentTable(null)
-          setCtSession(null)
-          break
         case 'CONTENT_TABLE_REF_IMAGE_READY':
-          console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_READY, dataUrl length:', message.dataUrl?.length || 0)
-          // Don't reset state here - handleCopyRefImageToClipboard will handle it
-          handleCopyRefImageToClipboard(message.dataUrl)
-          break
         case 'CONTENT_TABLE_REF_IMAGE_ERROR':
-          console.log('[UI] Received CONTENT_TABLE_REF_IMAGE_ERROR:', message.message)
-          setIsCopyingRefImage(false)
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', message.message || 'Could not copy reference image.')
-          break
         case 'RENDER_TABLE_ON_STAGE_DONE':
-          if (message.frameId) stageFrameIdRef.current = message.frameId
+        case 'CONTENT_TABLE_RESET_DONE':
+          if (ctController.handleMessage(message.type, message)) break
           break
         case 'PLACEHOLDER_SCORECARD_PLACED':
           console.log('[UI] Received PLACEHOLDER_SCORECARD_PLACED')
           break
         case 'PLACEHOLDER_SCORECARD_ERROR':
           console.error('[UI] Received PLACEHOLDER_SCORECARD_ERROR:', message.message)
-          // Show error toast (figma.notify is handled in main thread)
           break
+        // --- Delegate to AT-A controller ---
         case 'ANALYTICS_TAGGING_SESSION_UPDATED':
-          if (message.session) {
-            setAnalyticsTaggingSession(message.session as Session)
-            setAnalyticsTaggingAutosaveStatus('saved')
-            if (message.warning) setAnalyticsTaggingWarning(message.warning as string)
-            else setAnalyticsTaggingWarning(null)
-          }
+        case 'ANALYTICS_TAGGING_NEAR_MISSES':
+        case 'ANALYTICS_TAGGING_ADD_ANNOTATIONS_DONE':
+        case 'ANALYTICS_TAGGING_OPEN_EXPORT':
+        case 'ANALYTICS_TAGGING_SCREENSHOT_READY':
+        case 'ANALYTICS_TAGGING_SCREENSHOT_ERROR':
+        case 'ANALYTICS_TAGGING_EXPORT_ITEM':
+        case 'ANALYTICS_TAGGING_EXPORT_DONE':
+        case 'ANALYTICS_TAGGING_REQUEST_COPY_TABLE':
+          ataController.handleMessage(message.type, message)
           break
-        case 'ANALYTICS_TAGGING_NEAR_MISSES': {
-          const incoming = (message.nearMisses ?? []) as NearMissInfo[]
-          setAtaNearMisses(incoming)
-          setAtaNearMissesDismissed(false)
-          setAtaIsFixingNearMisses(false)
-          break
-        }
-        case 'ANALYTICS_TAGGING_ADD_ANNOTATIONS_DONE': {
-          setAtaIsAddingAnnotations(false)
-          break
-        }
         case 'EDITOR_TYPE': {
           setEditorType(message.editorType as 'figma' | 'dev')
           break
         }
-        case 'ANALYTICS_TAGGING_OPEN_EXPORT':
-          if (message.session) {
-            setAnalyticsTaggingExportSession(message.session as Session)
-            setSelectedFormat('analytics-tagging')
-            setPendingAction('confluence')
-            setShowFormatModal(true)
-          }
-          break
-        case 'ANALYTICS_TAGGING_SCREENSHOT_READY':
-          if (message.refId && message.dataUrl) {
-            setAnalyticsTaggingScreenshotPreviews(prev => ({ ...prev, [message.refId as string]: message.dataUrl as string }))
-            setAnalyticsTaggingScreenshotErrors(prev => {
-              const next = { ...prev }
-              delete next[message.refId as string]
-              return next
-            })
-          }
-          break
-        case 'ANALYTICS_TAGGING_SCREENSHOT_ERROR':
-          if (message.refId) {
-            setAnalyticsTaggingScreenshotErrors(prev => ({ ...prev, [message.refId as string]: (message.message as string) || 'Failed' }))
-          }
-          break
-        case 'ANALYTICS_TAGGING_EXPORT_ITEM': {
-          const rowId = message.rowId as string
-          const screenId = message.screenId as string
-          const actionId = message.actionId as string
-          const base64 = message.base64 as string | undefined
-          const error = message.error as string | undefined
-          const item = { rowId, screenId, actionId, base64, error }
-          const isBulk = analyticsTaggingExportInProgressRef.current
-          if (isBulk) {
-            const prev = analyticsTaggingExportProgressRef.current
-            if (prev) {
-              const next = { ...prev, done: prev.done + 1, failed: prev.failed + (error ? 1 : 0) }
-              analyticsTaggingExportProgressRef.current = next
-              setAnalyticsTaggingExportProgress(next)
-            }
-            if (base64 && analyticsTaggingExportItemsRef.current.length < 500) {
-              analyticsTaggingExportItemsRef.current.push(item)
-            }
-          }
-          if (!isBulk && base64) {
-            const sanitize = (s: string) => String(s).replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 80) || 'row'
-            const name = `${sanitize(screenId)}_${sanitize(actionId)}.png`
-            const a = document.createElement('a')
-            a.href = `data:image/png;base64,${base64}`
-            a.download = name
-            a.click()
-          }
-          break
-        }
-        case 'ANALYTICS_TAGGING_EXPORT_DONE': {
-          const total = (message.total as number) ?? 0
-          analyticsTaggingExportInProgressRef.current = false
-          setAnalyticsTaggingExportInProgress(false)
-          const items = analyticsTaggingExportItemsRef.current.slice()
-          analyticsTaggingExportItemsRef.current = []
-          setAnalyticsTaggingExportProgress(null)
-          const dirHandle = analyticsTaggingExportDirHandleRef.current
-          const failedCount = (analyticsTaggingExportProgressRef.current?.failed ?? 0)
-          analyticsTaggingExportProgressRef.current = null
-          ;(async () => {
-            const sanitize = (s: string) => String(s).replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 80) || 'row'
-            const baseNames = new Map<string, number>()
-            const getUniqueFilename = (screenId: string, actionId: string) => {
-              const base = `${sanitize(screenId)}__${sanitize(actionId)}`
-              const count = (baseNames.get(base) ?? 0) + 1
-              baseNames.set(base, count)
-              return count === 1 ? `${base}.png` : `${base}_${count}.png`
-            }
-            if (CONFIG.dev?.debug?.enabled && (CONFIG.dev.debug.scopes as Record<string, boolean>)?.['subsystem:analytics_tagging']) {
-              console.log('[ATA-export] path:', dirHandle ? 'dir-export' : 'download-fallback', { total, itemsWithBase64: items.filter(i => i.base64).length })
-            }
-            let writtenCount = 0
-            if (dirHandle) {
-              for (const item of items) {
-                if (!item.base64) continue
-                const name = getUniqueFilename(item.screenId, item.actionId)
-                try {
-                  const fileHandle = await dirHandle.getFileHandle(name, { create: true })
-                  const writable = await fileHandle.createWritable()
-                  const blob = await fetch(`data:image/png;base64,${item.base64}`).then(r => r.blob())
-                  await writable.write(blob)
-                  await writable.close()
-                  writtenCount++
-                } catch (e) {
-                  console.warn('[ATA-export] write to dir failed', name, e)
-                }
-              }
-              const msg = `Exported ${writtenCount} of ${total} to folder.${failedCount > 0 ? ` ${failedCount} failed.` : ''}`
-              setCopyStatus({ success: failedCount === 0, message: msg })
-            } else {
-              const delayMs = 250
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i]
-                if (!item.base64) continue
-                try {
-                  const name = getUniqueFilename(item.screenId, item.actionId)
-                  const bin = Uint8Array.from(atob(item.base64), c => c.charCodeAt(0))
-                  const blob = new Blob([bin], { type: 'image/png' })
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = name
-                  a.click()
-                  URL.revokeObjectURL(url)
-                  writtenCount++
-                } catch (_) {}
-                if (i < items.length - 1) await new Promise(r => setTimeout(r, delayMs))
-              }
-              let msg = `Exported ${writtenCount} of ${total} (downloads).`
-              if (failedCount > 0) msg += ` ${failedCount} failed.`
-              setCopyStatus({ success: failedCount === 0, message: msg })
-            }
-            setTimeout(() => setCopyStatus(null), 4000)
-          })()
-          break
-        }
-        case 'ANALYTICS_TAGGING_REQUEST_COPY_TABLE':
-          copyAnalyticsTableToClipboardRef.current?.()
-          break
         case 'SCORECARD_PLACED':
           // Legacy handler - status messages are now managed in main thread via replaceStatusMessage
           // This case can be removed in future cleanup, but keeping for backward compatibility
@@ -1244,12 +1016,7 @@ function Plugin() {
     }
   }, []) // Only run on mount
 
-  // Request Analytics Tagging session when assistant is analytics_tagging
-  useEffect(() => {
-    if (assistant.id === 'analytics_tagging') {
-      emit<RequestAnalyticsTaggingSessionHandler>('REQUEST_ANALYTICS_TAGGING_SESSION')
-    }
-  }, [assistant.id])
+  // AT-A session request is handled by ataController
 
   // Update assistant when mode changes
   useEffect(() => {
@@ -1290,46 +1057,37 @@ function Plugin() {
     // Clear all error/success banners
     setScorecardError(null)
     setScorecard(null)
-    setContentTable(null)
     setCopyStatus(null)
-    
+
     // Clear input and draft text
     setInput('')
     setJsonInput('')
     setJsonOutput('')
-    
+
     // Reset assistant to default for current mode
     setAssistant(getDefaultAssistant(currentMode))
-    
+
     // Close all modals
     setShowAssistantModal(false)
     setShowSettingsModal(false)
     setShowClearChatModal(false)
     setShowSendJsonModal(false)
     setShowGetJsonModal(false)
-    setShowFormatModal(false)
-    setShowTableView(false)
-    setShowCopyFormatModal(false)
-    setShowConfluenceModal(false)
     setLastPromptDiagnostics(null)
     setShowPromptDiagDetails(false)
-    
+
     // Reset selection-related state
     setSelectionRequired(false)
     setIncludeSelection(false)
     setShowSelectionHint(false)
     setShowEmptyInputWarning(false)
-    
-    // Reset Content Table state
-    setSelectedFormat('universal')
-    setPendingAction(null)
-    setIsCopyingTable(false)
-    setIsCopyingRefImage(false)
-    
+
+    // Reset Content Table controller state
+    ctController.resetState()
+
     // Reset helper flags
     setHasShownCode2DesignHelper(false)
     setHasAutoOpenedSendJson(false)
-    setShowCopySuccess(false)
     
     // Reset status message refs
     
@@ -1344,25 +1102,8 @@ function Plugin() {
     console.log('[UI] UI state reset complete, resetToken incremented')
   }, [])
 
-  const resetContentTableState = useCallback(() => {
-    setContentTable(null)
-    setCtSession(null)
-    setShowTableView(false)
-    setShowFormatModal(false)
-    setShowCopyFormatModal(false)
-    setShowConfluenceModal(false)
-    setSelectionRequired(false)
-    setPendingAction(null)
-    setSelectedFormat('simple-worksheet')
-    setIsCopyingTable(false)
-    setIsCopyingRefImage(false)
-    setShowRescanConfirm(false)
-    scannedContainerIdsRef.current.clear()
-    pendingRescanActionRef.current = null
-    stageFrameIdRef.current = null
-    setResetToken(prev => prev + 1)
-  }, [])
-  
+  // resetContentTableState is now ctController.resetState
+
   const resetPluginSize = useCallback(() => {
     emit<ResizePluginHandler>('RESIZE_PLUGIN', 400, 600)
     setPluginSizeMode('portrait')
@@ -1628,39 +1369,7 @@ function Plugin() {
         }
       }
       if (assistant.id === 'analytics_tagging' && actionId === 'export-screenshots') {
-        const session = analyticsTaggingSessionRef.current
-        if (!session || session.rows.length === 0) return
-        const total = session.rows.length
-        const doExport = async () => {
-          analyticsTaggingExportDirHandleRef.current = null
-          const hasDirPicker = typeof (window as unknown as { showDirectoryPicker?: (opts?: { mode?: string }) => Promise<unknown> }).showDirectoryPicker === 'function'
-          if (CONFIG.dev?.debug?.enabled && (CONFIG.dev.debug.scopes as Record<string, boolean>)?.['subsystem:analytics_tagging']) {
-            console.log('[ATA-export] showDirectoryPicker exists:', hasDirPicker)
-          }
-          if (hasDirPicker) {
-            try {
-              const dir = await (window as unknown as { showDirectoryPicker: (opts: { mode: string }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'readwrite' })
-              analyticsTaggingExportDirHandleRef.current = dir
-            } catch (_) {
-              analyticsTaggingExportDirHandleRef.current = null
-            }
-          }
-          analyticsTaggingExportBaseNamesRef.current = new Map()
-          analyticsTaggingExportItemsRef.current = []
-          analyticsTaggingExportProgressRef.current = { done: 0, total, failed: 0 }
-          setAnalyticsTaggingExportProgress({ done: 0, total, failed: 0 })
-          analyticsTaggingExportInProgressRef.current = true
-          setAnalyticsTaggingExportInProgress(true)
-          const rows: AnalyticsTaggingExportCompactRow[] = session.rows.map(row => ({
-            rowId: row.id,
-            screenId: row.screenId,
-            actionId: row.actionId,
-            meta: row.meta ? { containerNodeId: row.meta.containerNodeId, targetNodeId: row.meta.targetNodeId, rootScreenNodeId: row.meta.rootScreenNodeId } : undefined,
-            screenshotRef: row.screenshotRef ? { containerNodeId: row.screenshotRef.containerNodeId, targetNodeId: row.screenshotRef.targetNodeId, rootNodeId: row.screenshotRef.rootNodeId } : undefined
-          }))
-          emit<ExportAnalyticsTaggingScreenshotsHandler>('EXPORT_ANALYTICS_TAGGING_SCREENSHOTS', { rows })
-        }
-        doExport()
+        ataController.handleExportScreenshots()
         setSelectionRequired(false)
         return
       }
@@ -1731,6 +1440,8 @@ function Plugin() {
     emit<RunQuickActionHandler>('RUN_QUICK_ACTION', actionId, assistant.id)
     setSelectionRequired(false)
   }, [assistant, selectionState, contentTable, qaTraceUI])
+  // Update ref so controllers can call handleQuickAction
+  handleQuickActionRef.current = handleQuickAction
   
   const handleSendJson = useCallback(() => {
     if (!jsonInput.trim()) return
@@ -1794,728 +1505,12 @@ function Plugin() {
     }
   }, [jsonOutput])
   
-  // Handle Copy Ref Image
-  const handleAnalyticsTaggingUpdateRow = useCallback((rowId: string, updates: Record<string, unknown>) => {
-    setAnalyticsTaggingAutosaveStatus('saving')
-    emit<AnalyticsTaggingUpdateRowHandler>('ANALYTICS_TAGGING_UPDATE_ROW', rowId, updates)
-  }, [])
+  // AT-A row handlers, near-miss handlers, and export are in ataController
 
-  const handleAnalyticsTaggingDeleteRow = useCallback((rowId: string) => {
-    emit<AnalyticsTaggingDeleteRowHandler>('ANALYTICS_TAGGING_DELETE_ROW', rowId)
-  }, [])
+  // handleCopyRefImage, handleCopyTable, handleCopyTsv, handleDownloadHtml,
+  // handleConfluenceSuccess, and copyAnalyticsTableToClipboard are now in
+  // ctController / ataController (see useContentTableController, useAnalyticsTaggingController)
 
-  const handleFixNearMisses = useCallback(() => {
-    setAtaIsFixingNearMisses(true)
-    emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'fix-annotation-near-misses', 'analytics_tagging')
-  }, [])
-
-  const handleDismissNearMisses = useCallback(() => {
-    setAtaNearMissesDismissed(true)
-  }, [])
-
-  const handleAddAnnotations = useCallback(() => {
-    if (ataIsAddingAnnotations) return
-    if (!selectionState.hasSelection) return
-    setAtaIsAddingAnnotations(true)
-    emit<RunQuickActionHandler>('RUN_QUICK_ACTION', 'add-annotations', 'analytics_tagging')
-  }, [ataIsAddingAnnotations, selectionState.hasSelection])
-
-  const displayedNearMisses = ataNearMissesDismissed ? [] : ataNearMisses
-
-  const downloadPngDataUrl = useCallback((filename: string, dataUrl: string) => {
-    const a = document.createElement('a')
-    a.href = dataUrl
-    a.download = filename.endsWith('.png') ? filename : filename + '.png'
-    a.click()
-  }, [])
-
-  const handleExportRowThumbnail = useCallback((row: Row, dataUrl: string) => {
-    const sanitize = (s: string) => String(s).replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 80) || 'row'
-    const screenId = (row.screenId || '').trim()
-    const actionId = (row.actionId || '').trim()
-    const filename = screenId && actionId
-      ? `${sanitize(screenId)}__${sanitize(actionId)}.png`
-      : `row_${row.id}.png`
-    downloadPngDataUrl(filename, dataUrl)
-  }, [downloadPngDataUrl])
-
-  const handleCopyRefImage = useCallback(() => {
-    if (!contentTable || !contentTable.meta?.rootNodeId) {
-      console.error('[UI] Copy Ref Image: No table or rootNodeId missing', { 
-        hasTable: !!contentTable, 
-        rootNodeId: contentTable?.meta?.rootNodeId 
-      })
-      setIsCopyingRefImage(false)
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'No table available or root node not found.')
-      return
-    }
-    
-    console.log('[UI] Copy Ref Image: Request sent with rootNodeId:', contentTable.meta.rootNodeId)
-    setIsCopyingRefImage(true)
-    emit<ExportContentTableRefImageHandler>('EXPORT_CONTENT_TABLE_REF_IMAGE', contentTable.meta.rootNodeId)
-  }, [contentTable])
-
-  // Copy ref image to clipboard from base64 data URL
-  const handleCopyRefImageToClipboard = useCallback(async (dataUrl: string) => {
-    console.log('[UI] Copy Ref Image: Received READY, dataUrl length:', dataUrl.length)
-    
-    try {
-      // Convert base64 data URL to Blob
-      // Extract base64 string from data URL
-      const base64Match = dataUrl.match(/^data:image\/png;base64,(.+)$/)
-      if (!base64Match) {
-        throw new Error('Invalid data URL format')
-      }
-      
-      const base64String = base64Match[1]
-      const binaryString = atob(base64String)
-      const bytes = new Uint8Array(binaryString.length)
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i)
-      }
-      const blob = new Blob([bytes], { type: 'image/png' })
-      
-      console.log('[UI] Copy Ref Image: Blob created, size:', blob.size, 'bytes')
-      
-      // Primary attempt: ClipboardItem API
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({
-              'image/png': blob
-            })
-          ])
-          console.log('[UI] Copy Ref Image: Clipboard write succeeded')
-          setIsCopyingRefImage(false)
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Reference image copied to clipboard')
-          return
-        } catch (clipboardError) {
-          console.warn('[UI] Copy Ref Image: Primary clipboard write failed, trying fallback:', clipboardError)
-          // Fall through to fallback
-        }
-      }
-      
-      // Fallback A: Create img element, draw to canvas, then toBlob
-      try {
-        const img = new Image()
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        
-        if (!ctx) {
-          throw new Error('Canvas context not available')
-        }
-        
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => {
-            canvas.width = img.width
-            canvas.height = img.height
-            ctx.drawImage(img, 0, 0)
-            resolve()
-          }
-          img.onerror = () => reject(new Error('Failed to load image'))
-          img.src = dataUrl
-        })
-        
-        const canvasBlob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob((blob) => {
-            if (blob) {
-              resolve(blob)
-            } else {
-              reject(new Error('Canvas toBlob failed'))
-            }
-          }, 'image/png')
-        })
-        
-        if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
-          await navigator.clipboard.write([
-            new ClipboardItem({
-              'image/png': canvasBlob
-            })
-          ])
-          console.log('[UI] Copy Ref Image: Fallback A clipboard write succeeded')
-          setIsCopyingRefImage(false)
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Reference image copied to clipboard')
-          return
-        }
-      } catch (fallbackError) {
-        console.warn('[UI] Copy Ref Image: Fallback A failed:', fallbackError)
-        // Fall through to fallback B
-      }
-      
-      // Fallback B: Trigger download and show error toast
-      const rootNodeId = contentTable?.meta?.rootNodeId
-      const filename = rootNodeId 
-        ? `CT_RefImage_${rootNodeId.replace(/[:]/g, '-')}_600w.png`
-        : 'CT_RefImage_600w.png'
-      const link = document.createElement('a')
-      link.href = dataUrl
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      
-      const errorMsg = 'Clipboard write not permitted. Image downloaded instead.'
-      console.error('[UI] Copy Ref Image: All clipboard attempts failed, triggered download')
-      setIsCopyingRefImage(false)
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', errorMsg)
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      console.error('[UI] Copy Ref Image: Failed to copy ref image to clipboard:', error)
-      setIsCopyingRefImage(false)
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', `Could not copy reference image: ${errorMessage}`)
-    }
-  }, [contentTable])
-  
-  // Copy Content Table to clipboard
-  // copyFormatType: 'html' | 'tsv' | 'json' - determines what format to copy
-  const handleCopyTable = useCallback(async (format: TableFormatPreset, copyFormatType: 'html' | 'tsv' | 'json' = 'html', rowsOnly = false, itemsOverride?: ContentItemV1[]) => {
-    console.log('[CopyTable] click')
-    
-    if (!contentTable) {
-      console.error('[CopyTable] No contentTable available')
-      setCopyStatus({ success: false, message: 'No table available to copy' })
-      console.log('[UI] postMessage COPY_TABLE_STATUS (error - no table)')
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'No table available to copy')
-      return
-    }
-    
-    setIsCopyingTable(true)
-    setCopyStatus(null)
-    
-    console.log('[Clipboard] Copy Table clicked, format:', format, 'copyFormatType:', copyFormatType)
-    console.log('[Clipboard] ClipboardItem available:', typeof ClipboardItem !== 'undefined')
-    console.log('[Clipboard] navigator.clipboard available:', !!navigator.clipboard)
-    console.log('[Clipboard] navigator.clipboard.write available:', !!(navigator.clipboard && navigator.clipboard.write))
-    
-    try {
-      // Use caller-supplied items when available (respects token visibility filter),
-      // otherwise fall back to session-effective items.
-      const effectiveItems = itemsOverride ?? (ctSession ? getEffectiveItems(ctSession) : contentTable.items)
-      const projected = projectContentTable(format, effectiveItems)
-      const { html: htmlTable, plainText } = universalTableToHtml(contentTable, projected, rowsOnly)
-      const tsv = universalTableToTsv(contentTable, projected, rowsOnly)
-      const json = universalTableToJson(contentTable)
-      
-      console.log('[Clipboard] HTML length:', htmlTable.length, 'TSV length:', tsv.length, 'JSON length:', json.length)
-      
-      // Instrumentation: Log lengths
-      uiDebugLog('Copy attempt started', { format, copyFormatType, htmlLength: htmlTable.length, tsvLength: tsv.length, jsonLength: json.length })
-      // Store for debug panel
-      setDebugHtml(htmlTable)
-      setDebugTsv(tsv)
-      
-      // Strategy A: Primary - ClipboardItem API with both HTML and plain text MIME types
-      // This is the preferred method for rich HTML table paste into Word, Notes, Confluence
-      if (copyFormatType === 'html' && typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
-        console.log('[CopyTable] attempting HTML')
-        console.log('[Clipboard] Attempting Strategy A (ClipboardItem with HTML)')
-        try {
-          // Create Blobs with proper MIME types
-          const htmlBlob = new Blob([htmlTable], { type: 'text/html' })
-          const textBlob = new Blob([tsv], { type: 'text/plain' })
-          
-          console.log('[Clipboard] Created blobs - HTML size:', htmlBlob.size, 'Text size:', textBlob.size)
-          
-          // Create ClipboardItem with both MIME types
-          // Note: Some browsers require Blobs to be wrapped in Promises
-          // Note: ClipboardItem constructor may throw if MIME types are invalid
-          const clipboardItem = new ClipboardItem({
-            'text/html': Promise.resolve(htmlBlob),
-            'text/plain': Promise.resolve(textBlob)
-          })
-          
-          console.log('[Clipboard] Created ClipboardItem, writing to clipboard...')
-          
-          // Write to clipboard
-          await navigator.clipboard.write([clipboardItem])
-          
-          console.log('[Clipboard] Strategy A succeeded!')
-          
-          // Success: Show notification
-          uiDebugLog('Strategy A (ClipboardItem) succeeded', { strategy: 'A', format: 'html' })
-          setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: 'Table copied to clipboard (HTML)' })
-          setShowCopySuccess(true)
-          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
-          setTimeout(() => {
-            setShowCopySuccess(false)
-            setCopyStatus(null)
-          }, 3000)
-          return
-        } catch (clipboardError: unknown) {
-          // Log error details but continue to fallback
-          const error = clipboardError as Error
-          console.error('[Clipboard] Strategy A failed:', error.name, error.message)
-          console.error('[Clipboard] Error stack:', error.stack)
-          uiDebugLog('Strategy A failed', {
-            strategy: 'A',
-            format: 'html',
-            errorName: error.name,
-            errorMessage: error.message,
-            errorStack: error.stack
-          })
-          // Don't set error status yet - try fallbacks first
-        }
-      } else if (copyFormatType === 'tsv' && navigator.clipboard && navigator.clipboard.writeText) {
-        // TSV format: Use writeText directly
-        console.log('[Clipboard] Attempting TSV copy (writeText)')
-        try {
-          await navigator.clipboard.writeText(tsv)
-          uiDebugLog('TSV copy succeeded', { format: 'tsv' })
-          setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: 'Table copied to clipboard (TSV)' })
-          setShowCopySuccess(true)
-          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
-          setTimeout(() => {
-            setShowCopySuccess(false)
-            setCopyStatus(null)
-          }, 3000)
-          return
-        } catch (error: unknown) {
-          const err = error as Error
-          console.error('[Clipboard] TSV copy failed:', err.message)
-          uiDebugLog('TSV copy failed', { format: 'tsv', error: err.message })
-        }
-      } else if (copyFormatType === 'json' && navigator.clipboard && navigator.clipboard.writeText) {
-        // JSON format: Use writeText directly
-        console.log('[Clipboard] Attempting JSON copy (writeText)')
-        try {
-          await navigator.clipboard.writeText(json)
-          uiDebugLog('JSON copy succeeded', { format: 'json' })
-          setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: 'Table copied to clipboard (JSON)' })
-          setShowCopySuccess(true)
-          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
-          setTimeout(() => {
-            setShowCopySuccess(false)
-            setCopyStatus(null)
-          }, 3000)
-          return
-        } catch (error: unknown) {
-          const err = error as Error
-          console.error('[Clipboard] JSON copy failed:', err.message)
-          uiDebugLog('JSON copy failed', { format: 'json', error: err.message })
-        }
-      } else {
-        console.log('[Clipboard] Strategy A not available - ClipboardItem:', typeof ClipboardItem, 'clipboard.write:', !!(navigator.clipboard && navigator.clipboard.write), 'copyFormatType:', copyFormatType)
-      }
-      
-      // Strategy B: Fallback - execCommand with contentEditable div for HTML
-      // This preserves HTML table structure when ClipboardItem API is unavailable
-      if (copyFormatType === 'html') {
-        console.log('[CopyTable] attempting HTML fallback')
-        console.log('[Clipboard] Attempting Strategy B (execCommand with contentEditable)')
-        try {
-          // Create hidden contentEditable div (offscreen)
-        const div = document.createElement('div')
-        div.contentEditable = 'true'
-        div.style.position = 'fixed'
-        div.style.left = '-9999px'
-        div.style.top = '0'
-        div.style.width = '1px'
-        div.style.height = '1px'
-        div.style.opacity = '0'
-        div.style.pointerEvents = 'none'
-        div.style.zIndex = '-1'
-        // Set innerHTML to the HTML table
-        div.innerHTML = htmlTable
-        
-        document.body.appendChild(div)
-        console.log('[Clipboard] Created and appended contentEditable div')
-        
-        // Small delay to ensure DOM is ready
-        await new Promise(resolve => setTimeout(resolve, 10))
-        
-        // Select all contents via Range API
-        const range = document.createRange()
-        range.selectNodeContents(div)
-        const selection = window.getSelection()
-        if (selection) {
-          selection.removeAllRanges()
-          selection.addRange(range)
-          console.log('[Clipboard] Selected div contents, range count:', selection.rangeCount)
-        } else {
-          console.warn('[Clipboard] window.getSelection() returned null')
-        }
-        
-        // Focus the div
-        div.focus()
-        console.log('[Clipboard] Focused div, activeElement:', document.activeElement?.tagName)
-        
-        // Small delay before execCommand
-        await new Promise(resolve => setTimeout(resolve, 10))
-        
-        // Execute copy command
-        console.log('[Clipboard] Executing execCommand("copy")...')
-        const successful = document.execCommand('copy')
-        console.log('[Clipboard] execCommand("copy") returned:', successful)
-        
-        // Cleanup
-        if (selection) {
-          selection.removeAllRanges()
-        }
-        document.body.removeChild(div)
-        
-        if (successful) {
-          console.log('[Clipboard] Strategy B succeeded!')
-          uiDebugLog('Strategy B (execCommand with contentEditable) succeeded', { strategy: 'B' })
-          setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: 'Table copied to clipboard' })
-          setShowCopySuccess(true)
-          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
-          setTimeout(() => {
-            setShowCopySuccess(false)
-            setCopyStatus(null)
-          }, 3000)
-          return
-        } else {
-          throw new Error('execCommand copy returned false')
-        }
-      } catch (execError: unknown) {
-        const error = execError as Error
-        console.error('[Clipboard] Strategy B failed:', error.name, error.message)
-        console.error('[Clipboard] Error stack:', error.stack)
-        uiDebugLog('Strategy B failed', {
-          strategy: 'B',
-          errorName: error.name,
-          errorMessage: error.message,
-          errorStack: error.stack
-        })
-        // Continue to next fallback
-        }
-      }
-      
-      // Strategy C: Use writeText with TSV/JSON (fallback - loses table structure but preserves data)
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        const textToCopy = copyFormatType === 'json' ? json : (copyFormatType === 'tsv' ? tsv : htmlTable)
-        const formatLabel = copyFormatType === 'json' ? 'JSON' : (copyFormatType === 'tsv' ? 'TSV' : 'HTML')
-        console.log(`[CopyTable] attempting ${formatLabel} fallback`)
-        try {
-          await navigator.clipboard.writeText(textToCopy)
-          uiDebugLog(`Strategy C (writeText ${formatLabel}) succeeded`, { strategy: 'C', format: copyFormatType })
-          setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: `Table copied (${formatLabel} format)` })
-          setShowCopySuccess(true)
-          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
-          setTimeout(() => {
-            setShowCopySuccess(false)
-            setCopyStatus(null)
-          }, 3000)
-          return
-        } catch (writeTextError: unknown) {
-          const error = writeTextError as Error
-          uiDebugLog('Strategy C failed', {
-            strategy: 'C',
-            format: copyFormatType,
-            errorName: error.name,
-            errorMessage: error.message,
-            errorStack: error.stack
-          })
-          // Continue to next fallback
-        }
-      }
-      
-      // Strategy D: execCommand with textarea (final fallback)
-      const textToCopy = copyFormatType === 'json' ? json : (copyFormatType === 'tsv' ? tsv : htmlTable)
-      const formatLabel = copyFormatType === 'json' ? 'JSON' : (copyFormatType === 'tsv' ? 'TSV' : 'HTML')
-      console.log(`[CopyTable] final fallback (${formatLabel})`)
-      try {
-        const textArea = document.createElement('textarea')
-        textArea.value = textToCopy
-        textArea.style.position = 'fixed'
-        textArea.style.left = '-9999px'
-        textArea.style.top = '0'
-        textArea.style.width = '1px'
-        textArea.style.height = '1px'
-        textArea.style.opacity = '0'
-        textArea.style.pointerEvents = 'none'
-        textArea.style.zIndex = '-1'
-        document.body.appendChild(textArea)
-        
-        // Small delay
-        await new Promise(resolve => setTimeout(resolve, 10))
-        
-        textArea.focus()
-        textArea.select()
-        
-        // Small delay before execCommand
-        await new Promise(resolve => setTimeout(resolve, 10))
-        
-        const successful = document.execCommand('copy')
-        document.body.removeChild(textArea)
-        
-        if (successful) {
-          uiDebugLog(`Strategy D (execCommand textarea ${formatLabel}) succeeded`, { strategy: 'D', format: copyFormatType })
-          setIsCopyingTable(false)
-          setCopyStatus({ success: true, message: `Table copied (${formatLabel} format)` })
-          setShowCopySuccess(true)
-          console.log('[UI] postMessage COPY_TABLE_STATUS (success)')
-          emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', 'Successfully copied table to clipboard')
-          setTimeout(() => {
-            setShowCopySuccess(false)
-            setCopyStatus(null)
-          }, 3000)
-          return
-        } else {
-          throw new Error('execCommand copy returned false')
-        }
-      } catch (execError: unknown) {
-        const error = execError as Error
-        uiDebugLog('Strategy D failed', {
-          strategy: 'D',
-          format: copyFormatType,
-          errorName: error.name,
-          errorMessage: error.message,
-          errorStack: error.stack
-        })
-      }
-      
-      // All strategies failed - show error toast
-      uiDebugLog('All clipboard strategies failed', { allStrategiesFailed: true })
-      setIsCopyingTable(false)
-      const errorMsg = 'Copy failed: All methods failed. Try Download HTML or Copy TSV buttons.'
-      setCopyStatus({ 
-        success: false, 
-        message: errorMsg
-      })
-      console.log('[UI] postMessage COPY_TABLE_STATUS (error)')
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'Failed to copy table. See console for details.')
-    } catch (error: unknown) {
-      const err = error as Error
-      uiDebugLog('Final error catch', {
-        errorName: err.name,
-        errorMessage: err.message,
-        errorStack: err.stack
-      })
-      setIsCopyingTable(false)
-      const errorMsg = `Copy failed: ${err.message || 'Unknown error'}`
-      setCopyStatus({ 
-        success: false, 
-        message: errorMsg
-      })
-      console.log('[UI] postMessage COPY_TABLE_STATUS (error)')
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'Failed to copy table. See console for details.')
-      const errorMessage: Message = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        role: 'assistant',
-        content: `Failed to copy table to clipboard: ${err.message || 'Unknown error'}`,
-        timestamp: Date.now()
-      }
-      setMessages(prev => [...prev, errorMessage])
-    }
-  }, [contentTable, ctSession, debugLog])
-
-  // Copy Analytics Tagging table to clipboard (no modal; fixed format)
-  // Uses same strategy chain as CT-A: ClipboardItem (HTML+plain) → execCommand contentEditable → writeText(TSV) → textarea execCommand
-  const copyAnalyticsTableToClipboard = useCallback(async () => {
-    const session = analyticsTaggingSessionRef.current
-    if (!session || session.rows.length === 0) {
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', 'No table to copy.')
-      return
-    }
-    const table = sessionToTable(session)
-    const atProjected = projectContentTable('analytics-tagging', table.items)
-    const { html: htmlTable } = universalTableToHtml(table, atProjected)
-    const tsv = universalTableToTsv(table, atProjected)
-
-    const onSuccess = (msg?: string) => {
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'success', msg || 'Successfully copied table to clipboard')
-    }
-    const onError = (msg: string) => {
-      emit<CopyTableStatusHandler>('COPY_TABLE_STATUS', 'error', msg)
-    }
-
-    try {
-      // Strategy A: ClipboardItem with HTML + plain (same as CT-A)
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        try {
-          const htmlBlob = new Blob([htmlTable], { type: 'text/html' })
-          const textBlob = new Blob([tsv], { type: 'text/plain' })
-          await navigator.clipboard.write([new ClipboardItem({ 'text/html': Promise.resolve(htmlBlob), 'text/plain': Promise.resolve(textBlob) })])
-          onSuccess()
-          return
-        } catch (_) {
-          // Fall through to B
-        }
-      }
-
-      // Strategy B: execCommand with contentEditable div (same as CT-A)
-      try {
-        const div = document.createElement('div')
-        div.contentEditable = 'true'
-        div.style.position = 'fixed'
-        div.style.left = '-9999px'
-        div.style.top = '0'
-        div.style.width = '1px'
-        div.style.height = '1px'
-        div.style.opacity = '0'
-        div.style.pointerEvents = 'none'
-        div.style.zIndex = '-1'
-        div.innerHTML = htmlTable
-        document.body.appendChild(div)
-        await new Promise(resolve => setTimeout(resolve, 10))
-        const range = document.createRange()
-        range.selectNodeContents(div)
-        const selection = window.getSelection()
-        if (selection) {
-          selection.removeAllRanges()
-          selection.addRange(range)
-        }
-        div.focus()
-        await new Promise(resolve => setTimeout(resolve, 10))
-        const successful = document.execCommand('copy')
-        if (selection) selection.removeAllRanges()
-        document.body.removeChild(div)
-        if (successful) {
-          onSuccess()
-          return
-        }
-      } catch (_) {
-        // Fall through to C
-      }
-
-      // Strategy C: writeText(TSV)
-      if (navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(tsv)
-          onSuccess()
-          return
-        } catch (_) {
-          // Fall through to D
-        }
-      }
-
-      // Strategy D: textarea + execCommand (same as CT-A fallback)
-      try {
-        const textArea = document.createElement('textarea')
-        textArea.value = tsv
-        textArea.style.position = 'fixed'
-        textArea.style.left = '-9999px'
-        textArea.style.top = '0'
-        textArea.style.width = '1px'
-        textArea.style.height = '1px'
-        textArea.style.opacity = '0'
-        textArea.style.pointerEvents = 'none'
-        textArea.style.zIndex = '-1'
-        document.body.appendChild(textArea)
-        await new Promise(resolve => setTimeout(resolve, 10))
-        textArea.focus()
-        textArea.select()
-        await new Promise(resolve => setTimeout(resolve, 10))
-        const successful = document.execCommand('copy')
-        document.body.removeChild(textArea)
-        if (successful) {
-          onSuccess()
-          return
-        }
-      } catch (_) {
-        // Fall through to final error
-      }
-
-      onError('Failed to copy table. See console for details.')
-    } catch (e) {
-      const err = e as Error
-      onError(err.message || 'Copy failed.')
-    }
-  }, [])
-  const copyAnalyticsTableToClipboardRef = useRef(copyAnalyticsTableToClipboard)
-  copyAnalyticsTableToClipboardRef.current = copyAnalyticsTableToClipboard
-  
-  // Handle Confluence modal success (add chat bubble)
-  const handleConfluenceSuccess = useCallback(() => {
-    const message: Message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      role: 'assistant',
-      content: 'Table sent to Confluence',
-      timestamp: Date.now()
-    }
-    setMessages(prev => [...prev, message])
-  }, [])
-  
-  // Download HTML file
-  const handleDownloadHtml = useCallback((format: TableFormatPreset) => {
-    if (!contentTable) return
-    
-    const dlProjected = projectContentTable(format, contentTable.items)
-    const { html: htmlTable } = universalTableToHtml(contentTable, dlProjected)
-    const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>{CTA_DISPLAY_NAME}</title>
-</head>
-<body>
-${htmlTable}
-</body>
-</html>`
-    
-    const blob = new Blob([fullHtml], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `content-table-${format}-${Date.now()}.html`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }, [contentTable])
-  
-  // Copy TSV only
-  const handleCopyTsv = useCallback(async (format: TableFormatPreset) => {
-    if (!contentTable) return
-    
-    if (window.focus) {
-      window.focus()
-    }
-    
-    try {
-      const tsvProjected = projectContentTable(format, contentTable.items)
-      const tsv = universalTableToTsv(contentTable, tsvProjected)
-      
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(tsv)
-        setCopyStatus({ success: true, message: 'TSV copied to clipboard' })
-        setShowCopySuccess(true)
-        setTimeout(() => {
-          setShowCopySuccess(false)
-          setCopyStatus(null)
-        }, 2000)
-      } else {
-        // Fallback to execCommand
-        const textArea = document.createElement('textarea')
-        textArea.value = tsv
-        textArea.style.position = 'fixed'
-        textArea.style.left = '-999999px'
-        textArea.style.top = '-999999px'
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        
-        const successful = document.execCommand('copy')
-        document.body.removeChild(textArea)
-        
-        if (successful) {
-          setCopyStatus({ success: true, message: 'TSV copied to clipboard' })
-          setShowCopySuccess(true)
-          setTimeout(() => {
-            setShowCopySuccess(false)
-            setCopyStatus(null)
-          }, 2000)
-        } else {
-          throw new Error('execCommand copy failed')
-        }
-      }
-    } catch (error: unknown) {
-      const err = error as Error
-      setCopyStatus({ success: false, message: `TSV copy failed: ${err.message}` })
-    }
-  }, [contentTable])
-  
   const handleCreditsToggle = useCallback(() => {
     setShowCredits(prev => !prev)
     if (creditsAutoCollapseTimer) {
@@ -2890,73 +1885,7 @@ ${htmlTable}
           minHeight: 0
         }}>
         {assistant.id === 'analytics_tagging' ? (
-          (analyticsTaggingSession && analyticsTaggingSession.rows.length > 0) ? (
-            <AnalyticsTaggingView
-              session={analyticsTaggingSession}
-              hasSelection={selectionState.hasSelection}
-              onUpdateRow={handleAnalyticsTaggingUpdateRow}
-              onDeleteRow={handleAnalyticsTaggingDeleteRow}
-              onAppend={() => handleQuickAction('append-analytics-tags')}
-              onViewOnStage={editorType !== 'dev' ? () => {
-                if (!analyticsTaggingSession) return
-                const table = sessionToTable(analyticsTaggingSession)
-                const atStageProjected = projectContentTable('analytics-tagging', table.items)
-                emit<RenderTableOnStageHandler>('RENDER_TABLE_ON_STAGE', {
-                  headers: atStageProjected.headers,
-                  headerRows: atStageProjected.headerRows,
-                  rows: atStageProjected.rows,
-                  title: analyticsTaggingSession.source?.pageName || 'AT-A Table Preview',
-                  existingFrameId: stageFrameIdRef.current,
-                  columnKeys: atStageProjected.columnKeys
-                })
-              } : undefined}
-              onCopyToClipboard={async () => {
-                setIsCopyingAnalyticsTable(true)
-                try {
-                  await copyAnalyticsTableToClipboard()
-                } finally {
-                  setIsCopyingAnalyticsTable(false)
-                }
-              }}
-              onRestart={() => {
-                handleQuickAction('new-session')
-                setAnalyticsTaggingSession(null)
-                setAtaNearMisses([])
-                setAtaNearMissesDismissed(false)
-                setAtaIsFixingNearMisses(false)
-              }}
-              onExportRowRefImage={(row) => {
-                const compact: AnalyticsTaggingExportCompactRow = {
-                  rowId: row.id,
-                  screenId: row.screenId,
-                  actionId: row.actionId,
-                  meta: row.meta ? { containerNodeId: row.meta.containerNodeId, targetNodeId: row.meta.targetNodeId, rootScreenNodeId: row.meta.rootScreenNodeId } : undefined,
-                  screenshotRef: row.screenshotRef ? { containerNodeId: row.screenshotRef.containerNodeId, targetNodeId: row.screenshotRef.targetNodeId, rootNodeId: row.screenshotRef.rootNodeId } : undefined
-                }
-                emit<ExportAnalyticsTaggingOneRowHandler>('EXPORT_ANALYTICS_TAGGING_ONE_ROW', { row: compact })
-              }}
-              isCopying={isCopyingAnalyticsTable}
-              screenshotPreviews={analyticsTaggingScreenshotPreviews}
-              screenshotErrors={analyticsTaggingScreenshotErrors}
-              nearMisses={displayedNearMisses}
-              onFixNearMisses={handleFixNearMisses}
-              onDismissNearMisses={handleDismissNearMisses}
-              isFixingNearMisses={ataIsFixingNearMisses}
-              onAddAnnotations={handleAddAnnotations}
-              isAddingAnnotations={ataIsAddingAnnotations}
-            />
-          ) : (
-            <AnalyticsTaggingWelcome
-              hasSelection={selectionState.hasSelection}
-              onGetTags={() => handleQuickAction('get-analytics-tags')}
-              nearMisses={displayedNearMisses}
-              onFixNearMisses={handleFixNearMisses}
-              onDismissNearMisses={handleDismissNearMisses}
-              isFixingNearMisses={ataIsFixingNearMisses}
-              onAddAnnotations={handleAddAnnotations}
-              isAddingAnnotations={ataIsAddingAnnotations}
-            />
-          )
+          ataController.renderView()
         ) : assistant.id === 'content_table' ? (
           ctSession ? (
             <ContentTableView
@@ -2979,6 +1908,7 @@ ${htmlTable}
               } : undefined}
               onCopyToClipboard={(visibleItems) => handleCopyTable(selectedFormat, 'html', false, visibleItems)}
               onCopyRowsToClipboard={(visibleItems) => handleCopyTable(selectedFormat, 'html', true, visibleItems)}
+              onCopyContentColumnToClipboard={(visibleItems) => handleCopyContentColumn(visibleItems)}
               onRestart={() => {
                 emit<ContentTableResetHandler>('CONTENT_TABLE_RESET')
               }}
@@ -3026,7 +1956,7 @@ ${htmlTable}
             color: 'var(--fg-secondary)',
             border: '1px solid var(--border)'
           }}>
-            Paste an Ableza Template JSON to generate Figma elements, or select frames and click GET JSON.
+            Paste a Design AI Toolkit Template JSON to generate Figma elements, or select frames and click GET JSON.
           </div>
         )}
         {debug.isEnabled('trace:chat') && (() => {
@@ -4025,7 +2955,7 @@ ${htmlTable}
           format={confluenceFormat}
           onClose={() => {
             setShowConfluenceModal(false)
-            if (analyticsTaggingExportSession) setAnalyticsTaggingExportSession(null)
+            if (analyticsTaggingExportSession) ataController.setExportSession(null)
           }}
           onSuccess={handleConfluenceSuccess}
         />
@@ -4882,7 +3812,7 @@ ${htmlTable}
                 <TextboxMultiline
                   value={jsonInput}
                   onValueInput={setJsonInput}
-                  placeholder="Paste your Ableza Template JSON here..."
+                  placeholder="Paste your Design AI Toolkit Template JSON here..."
                   style={{
                     height: '200px',
                     maxHeight: '200px',

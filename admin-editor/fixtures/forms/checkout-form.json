@@ -1,0 +1,12 @@
+{
+  "id": "checkout-form",
+  "name": "Checkout Form — error states",
+  "category": "forms",
+  "tags": ["form", "checkout", "validation", "errors"],
+  "selectionSummary": "Frame: Checkout Screen (1440×900)\n\nLayers:\n- Heading: 'Complete your purchase'\n- Input: Email (filled, valid)\n- Input: Card Number (filled, invalid — red border)\n- Input: CVV (empty)\n- Button: 'Pay Now' (primary, disabled)\n- Text: 'Card number is invalid' (error, visible)\n\nInteraction state: form submission attempted, validation errors shown.",
+  "images": ["checkout-form-1.png"],
+  "supportsVision": true,
+  "requiresSelection": true,
+  "useCases": ["review-copy", "check-errors", "accessibility-review"],
+  "notes": "Good fixture for testing error copy and form validation feedback."
+}

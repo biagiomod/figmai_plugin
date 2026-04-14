@@ -1,0 +1,12 @@
+{
+  "id": "pricing-card",
+  "name": "Pricing Card — Pro tier",
+  "category": "cards",
+  "tags": ["card", "pricing", "subscription", "CTA"],
+  "selectionSummary": "Component: Pricing Card / Pro (320×480)\n\nLayers:\n- Badge: 'Most Popular' (accent pill, top-right)\n- Heading: 'Pro'\n- Price: '$49/mo' (large, bold)\n- Subtext: 'billed annually'\n- Feature list: 5 items with checkmark icons\n- Button: 'Get started' (primary, full-width)\n- Link: 'See all features →'\n\nVariant: highlighted (accent border, elevated shadow).",
+  "images": ["pricing-card-1.png"],
+  "supportsVision": true,
+  "requiresSelection": true,
+  "useCases": ["review-copy", "component-review"],
+  "notes": "Good for copy review and CTA wording feedback."
+}

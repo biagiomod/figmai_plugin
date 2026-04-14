@@ -2,7 +2,7 @@
 
 **Authority:** This is the canonical reference for all live assistants in FigmAI.
 
-**Source of truth for manifest data:** `custom/assistants.manifest.json` → compiled into `assistants.generated.ts` via `npm run generate-assistants`.
+**Source of truth for manifest data:** `custom/assistants/<id>/manifest.json` + `custom/assistants/<id>/SKILL.md` → compiled into `assistants.generated.ts` via `npm run build`.
 
 **Building or maintaining an assistant?** Start with **[`docs/assistant-sdk.md`](../../docs/assistant-sdk.md)** — the strike-team guide covering ownership model, file layout, and testing.
 
@@ -10,7 +10,7 @@
 
 ## Live Assistants
 
-All assistants below are registered in `custom/assistants.manifest.json` and active in production.
+All assistants below have per-directory files in `custom/assistants/<id>/` and are active in production.
 
 | ID | Label | Kind | Handler | Base KB | Custom KB overlay |
 |----|-------|------|---------|---------|-------------------|
@@ -45,25 +45,14 @@ These are capabilities that cut across multiple assistants rather than belonging
 
 ---
 
-## Assistants in assistant-design.md but not in the manifest
-
-These appear in the design specification (`assistant-design.md`) but are **not currently live**:
-
-- **Spell Check** — specified, not implemented
-- **Code2Design** has a manifest entry but its quick actions operate in tool/hybrid mode without a dedicated post-LLM handler
-
-If you are implementing one of these, add it to `custom/assistants.manifest.json` and run `npm run generate-assistants`.
-
----
-
 ## How the Knowledge Pipeline Works
 
 For an assistant with ID `my_assistant`, the prompt is assembled at build time as:
 
-1. **Base prompt template** — `promptTemplate` field in `custom/assistants.manifest.json`
+1. **SKILL.md Identity + Behavior** — `custom/assistants/my_assistant/SKILL.md` compiled into `promptTemplate` by `scripts/compile-skills.ts`
 2. **Merged with custom KB overlay** — `custom/knowledge/my_assistant.md` (policy: append or override, configured in `custom/config.json`)
 3. **Appended with design system knowledge** — injected by `appendDesignSystemKnowledge()` in `src/assistants/index.ts`
-4. **Structured KBs** (`custom/knowledge-bases/*.kb.json`) — referenced via `knowledgeBaseRefs` in the manifest; not yet injected at runtime (PR11a foundation laid, wiring pending)
+4. **Structured KBs** (`custom/knowledge-bases/*.kb.json`) — referenced via `knowledgeBaseRefs` in `custom/assistants/my_assistant/manifest.json`; injected at runtime via KB resolution
 
 For the `content_table` assistant specifically, the Evergreens module overrides the handler entirely — see `src/assistants/evergreens/`.
 
@@ -72,24 +61,26 @@ For the `content_table` assistant specifically, the Evergreens module overrides 
 ## Key Files
 
 ```
-custom/assistants.manifest.json      ← edit this to change assistants (source of truth)
-src/assistants/assistants.generated.ts   ← DO NOT EDIT (generated from manifest)
+custom/assistants/<id>/manifest.json  ← structural fields: label, icon, quickActions, instructionBlocks, knowledgeBaseRefs
+custom/assistants/<id>/SKILL.md       ← authored behavior: Identity, Behavior, Quick Action overlays
+custom/assistants.manifest.json       ← retired (empty); kept for compiler compatibility
+src/assistants/assistants.generated.ts   ← DO NOT EDIT (compiled from custom/assistants/<id>/)
 src/assistants/index.ts              ← wires prompt assembly and exports ASSISTANTS
 src/core/assistants/handlers/       ← all handler implementations
 src/assistants/evergreens/          ← content_table custom module (Evergreens team)
 src/assistants/dca/                 ← demo assets used by deceptive-review
 custom/knowledge/                   ← per-assistant markdown overlays
-custom/knowledge-bases/             ← structured JSON KBs (PR11a)
+custom/knowledge-bases/             ← structured JSON KBs
 ```
 
 ---
 
 ## Adding a New Assistant
 
-1. Add an entry to `custom/assistants.manifest.json`
-2. Run `npm run generate-assistants` to rebuild `assistants.generated.ts`
-3. Add a base KB markdown file in `src/assistants/{id}.md` (or use `promptTemplate` directly in the manifest)
+1. Create `custom/assistants/<id>/manifest.json` with structural fields (label, icon, kind, quickActions)
+2. Create `custom/assistants/<id>/SKILL.md` with `## Identity` (required) and optional `## Behavior` + `## Quick Actions` overlays
+3. Run `npm run build` to compile and rebuild `assistants.generated.ts`
 4. If the assistant needs post-LLM or pre-LLM logic: create a handler in `src/core/assistants/handlers/` and register it in `handlers/index.ts`
-5. Optionally add a custom KB overlay in `custom/knowledge/{id}.md` and configure merge policy in `custom/config.json`
+5. Optionally add a custom KB overlay in `custom/knowledge/<id>.md` and configure merge policy in `custom/config.json`
 
-See `docs/01-getting-started.md` for the full adding-an-assistant walkthrough.
+See `docs/assistant-sdk.md` for the full adding-an-assistant walkthrough.

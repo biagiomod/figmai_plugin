@@ -1,0 +1,55 @@
+---
+version: "1.0"
+tags: ["ux", "errors", "error-messages", "validation", "usability"]
+updatedAt: "2026-02-07"
+---
+
+## Purpose
+Provide authoritative reference knowledge for designing, evaluating, and validating UX error handling, including error messages, validation feedback, recovery guidance, and failure states.
+
+## Scope
+Applies to user-facing error handling in interfaces, including form validation, system failures, permission errors, and invalid states.   Excludes assistant behavior, tone control, output formatting, and runtime execution rules.
+
+## Definitions
+- ### Validation Error: An error caused by invalid, missing, or improperly formatted user input, such as incorrect email formats or required fields left empty.
+- ### System Error: An error caused by system-level failures such as network issues, server errors, timeouts, or unexpected crashes.
+- ### Permission Error: An error caused by insufficient authorization or access rights, including expired sessions or restricted actions.
+- ### State Error: An error caused by an invalid or unexpected application state, such as performing actions out of sequence or with incomplete data.
+
+## Rules
+- Error messages must clearly explain what went wrong.
+- Error messages must provide guidance on how the user can recover or resolve the issue.
+- Error messages must not blame, shame, or judge the user.
+- Errors should be specific and reference the exact field, action, or condition involved whenever possible.
+- Errors must remain visible until the issue is resolved.
+- User input must be preserved after an error occurs.
+- Errors must be accessible and perceivable by assistive technologies.
+- Color must not be the sole indicator of an error state.
+- System errors must avoid exposing internal technical details unless useful to the user.
+
+## Do
+- Explain the problem clearly and concisely.
+- Show errors near the relevant UI element or field.
+- Provide actionable recovery steps.
+- Preserve user input after errors.
+- Indicate whether retrying an action is possible.
+- Ensure error messages are accessible and readable.
+
+## Don't
+- Use vague or generic error messages.
+- Blame or shame the user.
+- Expose stack traces or internal error codes unnecessarily.
+- Clear user input after an error.
+- Rely on color alone to indicate errors.
+- Use global error messages when a local one is possible.
+
+## Examples
+- ### Good Validation Error: "Email address is invalid. Enter a valid email address (e.g., name@example.com)."
+- ### Poor Validation Error: "Something went wrong."
+- ### Good System Error: "We couldn't save your changes due to a network issue. Please try again."
+
+## Edge Cases
+- Partial success states where some user actions complete successfully while others fail.
+- Offline or degraded network conditions that prevent immediate error recovery.
+- Retry exhaustion scenarios where repeated attempts continue to fail.
+- Irrecoverable system failures that require escalation to support or alternative workflows.

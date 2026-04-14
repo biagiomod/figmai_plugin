@@ -52,9 +52,13 @@ export function createKbRouter(repoRoot: string): Router {
       const raw = fs.readFileSync(registryPath, 'utf-8')
       const data = JSON.parse(raw) as unknown
       const parsed = registrySchema.safeParse(data)
-      if (parsed.success) return parsed.data
-      return { knowledgeBases: [] }
-    } catch {
+      if (!parsed.success) {
+        console.error('[kb] Registry validation failed:', parsed.error.errors)
+        return { knowledgeBases: [] }
+      }
+      return parsed.data
+    } catch (err) {
+      console.error('[kb] Registry parse error:', err)
       return { knowledgeBases: [] }
     }
   }

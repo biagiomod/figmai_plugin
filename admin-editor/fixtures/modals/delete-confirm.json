@@ -1,0 +1,12 @@
+{
+  "id": "delete-confirm",
+  "name": "Delete Confirmation Modal",
+  "category": "modals",
+  "tags": ["modal", "destructive", "confirmation", "dialog"],
+  "selectionSummary": "Component: Modal / Confirm Delete (480×240)\n\nLayers:\n- Icon: Warning triangle (red, 32×32)\n- Heading: 'Delete this item?'\n- Body: 'This action cannot be undone. The item and all its data will be permanently removed.'\n- Button: 'Cancel' (ghost, left)\n- Button: 'Delete' (destructive red, right)\n\nState: modal open, no input focused.",
+  "images": [],
+  "supportsVision": false,
+  "requiresSelection": true,
+  "useCases": ["review-copy", "accessibility-review"],
+  "notes": "Selection-only (no vision). Tests destructive action copy and button labelling."
+}

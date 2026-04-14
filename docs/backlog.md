@@ -73,6 +73,7 @@ Quick links to backlog items, grouped by theme. **Plugin** = FigmAI plugin (Figm
 | | R2 | Multi-model routing strategy | [BL-071](#bl-071) |
 | | R3 | Claude 4.6 structured outputs for JSON flows | [BL-072](#bl-072) |
 | | R4 | Figma Dev Mode focusedNode | [BL-073](#bl-073) |
+| **S — Assistant content seeds** | S1 | Content Review Assistant starter seed capture | [BL-074](#bl-074) |
 
 **Strategy initiatives (2026)** — Seven prioritized initiatives aligned to backlog:
 
@@ -315,6 +316,7 @@ Validated items that are not yet prioritized. May be promoted to "Next" when cap
 | BL-063 | Resolve disabled content model placeholders | P3 | Backlog | Unassigned | Content models 2–5 either implemented or removed; no placeholder entries cause confusion | Source: audit M4. See [details](#bl-063). |
 | BL-064 | Document build pipeline ordering and watch-mode gaps | P2 | Backlog | Unassigned | Generator ordering documented in `docs/build-pipeline.md` or `package.json`; watch-mode skip list documented | Source: Q3 / audit M5+M6. See [details](#bl-064). |
 | BL-065 | Archive deprecated Spring wrapper | P2 | Backlog | Unassigned | `enterprise/ace-spring-wrapper/` moved to `_deprecated/` or separate archive repo; deprecation banners already in place | Source: P4 / audit M7. See [details](#bl-065). |
+| BL-074 | Capture Content Review Assistant starter seed | P2 | Proposed | Unassigned | Repo-stored starter plan captures future seed content for Content Review Assistant (`ux_copy_review`): identity, context, core principle, behavior rules, and quick-action starters, clearly marked as a later replacement/improvement path for the current FPO content. | Source: CR-A planning. Future repo plan should live under `docs/superpowers/plans/`. See [details](#bl-074). |
 
 #### Merged & new item details
 
@@ -682,6 +684,13 @@ Standard fields for merged and newly added items: **Problem/Goal**, **Scope**, *
 - **Scope:** Exploration / PoC.
 - **Deliverables:** PoC demonstrating contextual assistant action triggered by Dev Mode focused node (e.g., show component specs, DS compliance, or content extraction for focused element).
 - **Dependencies:** BL-060 (typings upgrade). **Owner:** Unassigned. **Status:** Proposed.
+
+##### BL-074 {#bl-074}
+
+- **Problem / Goal:** Capture a strong future starter for the Content Review Assistant so the current FPO content can later be replaced or improved without re-discovering the assistant's role, principles, and quick-action scaffolding.
+- **Scope:** Repo documentation / assistant content seed. Focused on the live assistant id `ux_copy_review` and its current `SKILL.md` + `manifest.json` model.
+- **Deliverables:** A repo-stored markdown plan under `docs/superpowers/plans/` that captures: canonical mapping from CR-A to `ux_copy_review`; starter identity (name, context/role description, core principle); starter behavior rules; starter quick-action seeds for `review-copy`, `tone-check`, `content-suggestions`, and `add-hat`; notes on what stays in `manifest.json` vs `SKILL.md`.
+- **Dependencies:** Current assistant sources in `custom/assistants/ux_copy_review/`; future content pass may use Skill Writer guidance. **Owner:** Unassigned. **Status:** Proposed.
 
 ---
 
