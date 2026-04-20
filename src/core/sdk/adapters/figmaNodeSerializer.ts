@@ -38,6 +38,11 @@ export interface FigmaNodeJSON {
   paddingTop?: number
   paddingBottom?: number
   itemSpacing?: number
+  // Variable metadata — consumed by token-audit. Opaque pass-through.
+  boundVariables?: Record<string, unknown>
+  resolvedVariableModes?: Record<string, string>
+  explicitVariableModes?: Record<string, string>
+  inferredVariables?: Record<string, unknown>
   children?: FigmaNodeJSON[]
 }
 
@@ -89,6 +94,23 @@ export function serializeFigmaNode(node: SceneNode): FigmaNodeJSON {
     base.paddingTop = f.paddingTop
     base.paddingBottom = f.paddingBottom
     base.itemSpacing = f.itemSpacing
+  }
+  // ── Variable metadata (additive) ────────────────────────────────────────
+  if ('boundVariables' in node) {
+    const bv = (node as { boundVariables?: Record<string, unknown> }).boundVariables
+    if (bv && typeof bv === 'object') base.boundVariables = bv as Record<string, unknown>
+  }
+  if ('resolvedVariableModes' in node) {
+    const rm = (node as { resolvedVariableModes?: Record<string, string> }).resolvedVariableModes
+    if (rm && typeof rm === 'object') base.resolvedVariableModes = rm as Record<string, string>
+  }
+  if ('explicitVariableModes' in node) {
+    const em = (node as { explicitVariableModes?: Record<string, string> }).explicitVariableModes
+    if (em && typeof em === 'object') base.explicitVariableModes = em as Record<string, string>
+  }
+  if ('inferredVariables' in node) {
+    const iv = (node as { inferredVariables?: Record<string, unknown> }).inferredVariables
+    if (iv && typeof iv === 'object') base.inferredVariables = iv as Record<string, unknown>
   }
   if ('children' in node) {
     base.children = (node as ChildrenMixin).children
