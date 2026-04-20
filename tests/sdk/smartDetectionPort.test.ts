@@ -2,7 +2,11 @@
 // Note: SceneNode is a Figma API type — we use a minimal mock
 import { DefaultSmartDetectionEngine } from '../../src/core/detection/smartDetector/DefaultSmartDetectionEngine'
 import { SDToolkitSmartDetectionEngine } from '../../src/core/detection/smartDetector/SDToolkitSmartDetectionEngine'
-import type { SmartDetectionPort } from '../../src/core/sdk/ports/SmartDetectionPort'
+import { formatAuditBlock } from '../../src/core/assistants/handlers/smartDetector'
+import type {
+  SmartDetectionPort,
+  TokenAuditResult,
+} from '../../src/core/sdk/ports/SmartDetectionPort'
 import type { VariableCatalogSnapshot } from '../../src/core/sdk/adapters/figmaVariableCatalogAdapter'
 
 function assert(condition: boolean, msg: string): void {
@@ -158,6 +162,62 @@ async function run() {
   await test('auditTokens with empty roots returns empty array', async () => {
     const results = await toolkitEngine.auditTokens([])
     assert(Array.isArray(results) && results.length === 0, 'empty array')
+  })
+
+  // ── formatAuditBlock (handler-local Markdown formatter) ──────────────
+
+  await test('formatAuditBlock renders section header, summary, by-kind, top-3', async () => {
+    const results = await toolkitEngine.auditTokens([rootNode as unknown as SceneNode])
+    const md = formatAuditBlock(results)
+    assert(md.includes('### Token Audit'), 'section header present')
+    assert(md.includes('**Findings:** 3 total'), 'total count')
+    assert(md.includes('error=1'), 'error count')
+    assert(md.includes('warn=2'), 'warn count')
+    assert(md.includes('unbound-color=2'), 'by-kind unbound-color')
+    assert(md.includes('orphaned-binding=1'), 'by-kind orphaned-binding')
+    assert(md.includes('**Top 3:**'), 'top-3 header')
+    assert(md.includes('[error] orphaned-binding'), 'orphaned finding listed')
+    assert(md.includes('Top suggestion: color/brand/primary'), 'top suggestion rendered')
+    assert(md.includes('Autofix: bind-paint-variable (safe, requires confirmation)'), 'autofix rendered')
+  })
+
+  await test('formatAuditBlock sorts error before warn before info (severity first)', async () => {
+    const results = await toolkitEngine.auditTokens([rootNode as unknown as SceneNode])
+    const md = formatAuditBlock(results)
+    const errIdx = md.indexOf('[error]')
+    const warnIdx = md.indexOf('[warn]')
+    assert(errIdx !== -1 && warnIdx !== -1, 'both severities present')
+    assert(errIdx < warnIdx, 'error appears before warn in rendered output')
+  })
+
+  await test('formatAuditBlock returns empty string for zero findings', async () => {
+    const emptyResult: TokenAuditResult = {
+      sourceRef: 'root',
+      findings: [],
+      summary: {
+        total: 0,
+        byKind: {
+          'unbound-color': 0,
+          'orphaned-binding': 0,
+          'mode-incomplete': 0,
+          'unbound-typography': 0,
+          'mode-mismatch': 0,
+        },
+        bySeverity: { info: 0, warn: 0, error: 0 },
+      },
+    }
+    assert(formatAuditBlock([emptyResult]) === '', 'empty findings → empty block')
+  })
+
+  await test('formatAuditBlock returns empty string for empty result array', async () => {
+    assert(formatAuditBlock([]) === '', 'no results → empty block')
+  })
+
+  await test('formatAuditBlock tolerates malformed entries without throwing', async () => {
+    // Emulates the "audit returned malformed data" guardrail path: a result
+    // object missing a findings array should be skipped, not crash the block.
+    const malformed = [{ sourceRef: 'x' } as unknown as TokenAuditResult]
+    assert(formatAuditBlock(malformed) === '', 'malformed result → empty block')
   })
 
   console.log('SmartDetectionPort tests passed')
